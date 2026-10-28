@@ -164,9 +164,11 @@ export async function register18(env) {
 				return { kids, left: pal.scrollLeft, ox: getComputedStyle(pal).overflowX };
 			});
 			// ②因子周回 段2（2026-10-28）: ◎の候補があるときは「削除」のすぐ右に◎のボタン（factor-circle-mode）が入る。それを除いた並びを見る
+			// ②因子周回 段3（2026-10-28）: その右（◎が無いときは「削除」の右）に、カード一覧と星取表の切り替え（factor-view）が常に入る。それも除いて見る
 			const ck = r.kids.indexOf('factor-circle-mode');
-			const kids = r.kids.filter((k) => k !== 'factor-circle-mode');
-			assert((ck === -1 || ck === 1) && kids[0] === 'palette-delete' && kids.slice(1).every((k) => /^palette-[a-f]$/.test(k)) && kids.length === 7, 'C132A5 並びは 削除・（◎の候補があるときだけ◎のボタン）・アイコン6つ（脚質のボタン・サポカ外は無い）', r.kids);
+			const vk = r.kids.indexOf('factor-view');
+			const kids = r.kids.filter((k) => k !== 'factor-circle-mode' && k !== 'factor-view');
+			assert((ck === -1 || ck === 1) && vk === (ck === -1 ? 1 : 2) && kids[0] === 'palette-delete' && kids.slice(1).every((k) => /^palette-[a-f]$/.test(k)) && kids.length === 7, 'C132A5 並びは 削除・（◎の候補があるときだけ◎のボタン）・星取表の切り替え・アイコン6つ（脚質のボタン・サポカ外は無い）', r.kids);
 			assert(r.left === 0 && r.ox === 'auto', 'C132A5 始まりは左端で、横に送れる', r);
 			await sp.ctx.close();
 		}

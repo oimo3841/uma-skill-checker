@@ -148,6 +148,8 @@ export async function register43(env) {
 			return { els: Array.from(row.querySelectorAll('button')).map((b) => b.getAttribute('data-usd-el')), recBtn: !!document.querySelector('[data-usd-el="recommend-btn"]'), outBtn: !!document.querySelector('[data-usd-el="outside-skill-btn"]'),
 				word: /逃げオススメ|先差追オススメ/.test(document.querySelector('#deck-template-panel').textContent) };
 		});
+		// ②因子周回 段3（2026-10-28）: 「削除」の右に星取表の切り替え（factor-view）が入る。それを除いて見る（◎のボタンは②が空なので出ない）
+		p.els = p.els.filter((e) => e !== 'factor-view');
 		assert(p.els.length === 7 && p.els[0] === 'palette-delete' && !p.recBtn && !p.outBtn && !p.word, 'C-184 パレットの行は「削除」とアイコン6つだけ', p);
 		assert(sp.reqs.length === 0, 'C-184 ②のタブを開いている間（脚質あり）はデータを取りに行かない', sp.reqs);
 		await sp.ctx.close();

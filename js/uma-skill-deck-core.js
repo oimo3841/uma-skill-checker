@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28e';
 
 	/* ============================================================
 	 * 定数
@@ -6720,6 +6720,21 @@
 		'.usd-factor-circlebtn[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
 		'.usd-factor-circlebtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
 		'.usd-factor-circlebtn .usd-roster-toneicon--circle { color: inherit; }',
+		// ②因子周回 段3: カード一覧と星取表の切り替え（◎のボタンと同じ 28px の押せる範囲・同じ選択の枠）と、星取表。
+		// 表は①の表の部品（.usd-roster-grid 系）。名前セルの中身はカード一覧と同じパネルの部品で、タイルの枠・地・影だけ外す。
+		// 列は6つ（①のサポカ）なので、狭い幅では名前の列を①（1/3）より広い 42% にする（各列は約 36px〔375px〕・約 30px〔320px〕で、24px のアイコンと漏斗が入る）
+		'.usd-factor-viewsvg { display: block; width: 18px; height: 18px; }',
+		'.usd-skillgroup .usd-panels.usd-panels--table { display: block; }',
+		'.usd-fstar .usd-roster-grid { grid-template-columns: 42% repeat(var(--usd-roster-cols, 6), minmax(0, 1fr)); }',
+		'@media (min-width: 768px) { .usd-fstar .usd-roster-grid { grid-template-columns: minmax(180px, 320px) repeat(var(--usd-roster-cols, 6), minmax(56px, 1fr)); } }',
+		'.usd-fstar .usd-roster-gc--name { padding-block: 0; padding-left: var(--uma-sp-1); font-weight: 400; }',
+		'.usd-fstar .usd-roster-gh.usd-roster-gc--name { padding-left: var(--uma-sp-2); font-weight: 700; }',
+		'.usd-fstar-gh:not(.usd-roster-gc--name) { flex-direction: column; gap: 2px; }',
+		'.usd-fstar-ghicon { display: inline-flex; }',
+		'.usd-fstar .usd-panel { flex: 1 1 auto; min-height: 36px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }',
+		'.usd-fstar .usd-panel-xbtn { margin: -4px 0; }',
+		'.usd-fstar-goldname { min-height: 36px; padding-left: 26px; }',
+		'.usd-fstar-goldname .usd-panel-namebtn { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; white-space: nowrap; }',
 		// ◎を○に変えるモード: すべての行の Pt を隠す（切り替えは◎の候補の行だけ、Pt の位置に出る）
 		'.usd-skillgroup--circle .usd-panel-pt { display: none; }',
 		// C-132: 「逃げオススメ」「先差追オススメ」の確認の小窓（追加するスキルの名前と Pt・追加しないものの内訳・ボタン2つ）
@@ -12365,6 +12380,10 @@
 		let paletteSel = SKILL_ICON_DEFAULT;
 		// ②因子周回 段2: 「◎を○に変えるモード」（入口の◎のボタン）。画面の中だけの状態で保存しない（①の並べ替えと同じ）
 		let factorCircleMode = false;
+		// ②因子周回 段3: ②の表示（'cards'＝カード一覧／'table'＝星取表）と、星取表の列の漏斗（①の列のキー。null＝並べ替えなし）。
+		// 画面の中だけの状態で保存しない（リロードでカード一覧に戻る）
+		let factorView = 'cards';
+		let factorTableSort = null;
 		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
 		const tabNoun = opts.tabNoun || setLabel;
 		let nameEdit = null;       // 選んでいるタブの名前を編集中なら { value }（確定するまで保存しない）
@@ -12617,6 +12636,19 @@
 				factorCircleMode = !factorCircleMode;
 				render();
 				focusNoScroll(container.querySelector('button[data-usd-act="factor-circle-mode"]'));
+			}
+			else if (act === 'factor-view') {
+				// ②因子周回 段3: カード一覧と星取表の切り替え（保存しない）。押したボタンにフォーカスを戻す
+				factorView = factorView === 'table' ? 'cards' : 'table';
+				render();
+				focusNoScroll(container.querySelector('button[data-usd-act="factor-view"]'));
+			}
+			else if (act === 'factor-table-sort') {
+				// 星取表の列の漏斗（もう一度押すと元の並び）
+				const key = Number(btn.getAttribute('data-member-key'));
+				factorTableSort = factorTableSort === key ? null : key;
+				renderSelectedList();
+				focusNoScroll(container.querySelector('button[data-usd-act="factor-table-sort"][data-member-key="' + key + '"]'));
 			}
 			else if (act === 'factor-circle-toggle') {
 				// ②の◎／○の切り替え（②因子周回 段2）。押したボタンにフォーカスを戻す（位置は上の captureAnchor で保つ）
@@ -13742,6 +13774,129 @@
 			return '<button type="button" class="usd-circle-btn usd-panel-circle" data-usd-act="factor-circle-toggle" data-usd-el="factor-circle-toggle" data-skill-id="' + esc(id) + '"'
 				+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"><span class="usd-circle-mark" aria-hidden="true">' + (on ? '◎' : '○') + '</span></button>';
 		}
+		/**
+		 * ②の1行（setBased）。カード一覧のタイルと、星取表の行の名前セル（②因子周回 段3）が同じものを使う（名前・Pt・◎／○・①と重なりの印・アイコン・削除が同じ決まりになる）。
+		 * ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にする。◎／○の切り替えは「◎を○に変えるモード」のときだけ Pt の位置に出す。
+		 * 行の識別（data-skill-id）・アイコン・並び・削除は○の id のまま。Pt と「①と重なり」は renderPanelPts が入れる
+		 */
+		function factorPanelHtml(id, icons, cands, circ) {
+			const name = getSkillName(id);
+			const up = cands.get(id) || null, on = circ.has(id);
+			const shownId = on ? up : id, shownName = on ? getSkillName(up) : name;
+			return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + '>'
+				+ iconButtonHtml(id, name, icons[id])
+				+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
+				+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
+				+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
+				// ◎を○に変えるモードのときだけ、Pt の位置（Pt は CSS で隠す）に◎／○の切り替え（◎の候補の行だけ）
+				+ (up && factorCircleMode ? factorCircleToggleHtml(id, up, on) : '')
+				// 段G(4): 削除の状態のときだけ見える×（押せる範囲 44px）。押すとそのスキルを②から外す（パネルを押したときと同じ処理）
+				+ '<button type="button" class="usd-panel-xbtn" data-usd-act="template-skill-remove" data-usd-el="panel-x" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を削除') + '"><i data-lucide="x" aria-hidden="true"></i></button>'
+				+ '</div>';
+		}
+		/**
+		 * 星取表の材料（②因子周回 段3）。同じセットの①（linkedRosterOf）を①の表と同じ関数（rosterSkillResultOf → visiblePartOf）で数え、
+		 * 列＝①の6枚のサポカ（育成ウマ娘とシナリオは除く）、印＝①の表に出る行（visibleItems＝①で絞った結果）の sureMembers（●）／members（○）。
+		 * ①が「なし」のセットは、空の6枠（印は無い）
+		 */
+		function factorTableSourceOf(target) {
+			const lr = linkedRosterOf(target);
+			const copy = snapshot(lr || emptyRoster());
+			copy.cardIds = (copy.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
+			while (copy.cardIds.length < ROSTER_CARD_SLOTS) copy.cardIds.push(null);
+			const res = rosterSkillResultOf(copy);
+			const vp = visiblePartOf(copy, res);
+			const cards = res.members.filter(m => m.kind === 'card');
+			const marks = new Map();
+			vp.visibleItems.forEach(it => marks.set(it.skillId, { sure: it.sureMembers || [], maybe: it.members || [] }));
+			return { cards: cards, marks: marks };
+		}
+		/**
+		 * 星取表の行の並び（②因子周回 段3）。②のスキル（因子画面の順）と、表示専用の金の行。
+		 * 金の行: ②の白の上の金（前段データの nextOf を金までたどる）で、②に無く、①の6枚のどれかが持つ（●か○）もの。②の白の最初の位置の前に置く。
+		 * Pt を出さず、取得の集合・合計・種数・②には関わらない（因子化率のための表示）。
+		 * 並びは①の表と同じ arrangeStepUnits（金の直下に前段の白）。返り値は単位の配列（[先頭, ...直下の白]）。各行は { skillId, goldRef }
+		 */
+		function factorTableUnitsOf(sortedIds, src) {
+			const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+			const inSet = new Set(sortedIds);
+			const cardKeys = new Set(src.cards.map(m => m.key));
+			const isGold = (id) => { const row = pt instanceof Map ? pt.get(id) : null; return !!row && row.rarity === 'gold'; };
+			const cardHas = (id) => { const m = src.marks.get(id); return !!m && (m.sure.some(k => cardKeys.has(k)) || m.maybe.some(k => cardKeys.has(k))); };
+			const goldsAbove = (id) => {
+				const out = [];
+				if (!su || typeof su.nextOf !== 'function' || isGold(id)) return out;
+				const seen = new Set([id]);
+				const walk = (x) => su.nextOf(x).forEach(n => { if (seen.has(n)) return; seen.add(n); if (isGold(n)) out.push(n); else walk(n); });
+				walk(id);
+				return out;
+			};
+			const list = [], placed = new Set();
+			sortedIds.forEach(id => {
+				goldsAbove(id).forEach(g => {
+					if (inSet.has(g) || placed.has(g) || !cardHas(g)) return;
+					placed.add(g);
+					list.push({ skillId: g, goldRef: true });
+				});
+				list.push({ skillId: id, goldRef: false });
+			});
+			return arrangeStepUnits(list);
+		}
+		/** 星取表（②因子周回 段3）。①の表の部品（.usd-roster-grid 系・●／○の印）を使う。①の描画関数は使わない（①は変えない） */
+		function factorTableHtml(target, sortedIds, panelOf) {
+			const src = factorTableSourceOf(target);
+			const cards = src.cards;
+			let units = factorTableUnitsOf(sortedIds, src);
+			// 列の漏斗: その列が持つ（●か○）スキルのまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）。もう一度押すと元の並び
+			if (factorTableSort !== null && !cards.some(m => m.key === factorTableSort && m.label)) factorTableSort = null;
+			if (factorTableSort !== null) {
+				const has = (it) => { const m = src.marks.get(it.skillId); return !!m && (m.sure.indexOf(factorTableSort) !== -1 || m.maybe.indexOf(factorTableSort) !== -1); };
+				const hit = (u) => u.some(has);
+				units = units.filter(hit).concat(units.filter(u => !hit(u)));
+			}
+			const pt = skillPtData.skillPt;
+			const rarityOf = (id) => { const row = pt instanceof Map ? pt.get(id) : null; return row ? row.rarity : null; };
+			const colClass = (m) => m.no % 2 === 0 ? ' usd-roster-gc--alt' : '';
+			const funnelSvg = '<svg class="usd-roster-funnel" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 2.5h12L9.8 8v4.7L6.2 14.5V8z"/></svg>';
+			// 列見出し: カードのアイコンだけ（イベントを選ぶメニューは無い）と、その下に漏斗。空きの枠は破線の枠だけ（漏斗なし）
+			const colHead = (m) => {
+				if (!m.label) return '<span class="usd-gh-empty" data-usd-el="gh-empty" aria-hidden="true"></span>';
+				const n = m.typeOrder;
+				const typed = cardTypeKnown(n);
+				const name = m.no + '枚目：' + (m.shortLabel || m.label);
+				const icon = typed ? cardIconBoxHtml(n, 'head')
+					: '<span class="usd-gh-fallback" data-usd-el="gh-fallback" aria-hidden="true">' + esc(Array.from(String(m.shortLabel || m.label).replace(/^[（(\[［「]+/, ''))[0] || '') + '</span>';
+				const on = factorTableSort === m.key;
+				return '<span class="usd-fstar-ghicon" role="img" aria-label="' + esc(name + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）') + '" title="' + esc(name) + '">' + icon + '</span>'
+					+ '<button type="button" class="usd-roster-ghbtn" data-usd-act="factor-table-sort" data-usd-el="factor-table-sort" data-member-key="' + m.key + '" data-no="' + m.no + '"'
+					+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(name + 'が持つスキルを上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button>';
+			};
+			let h = '<div class="usd-roster-grid-wrap usd-fstar" data-usd-el="factor-table"><div class="usd-roster-grid" role="table" aria-label="②のスキルと①のサポートカード" style="--usd-roster-cols:' + cards.length + '">';
+			h += '<div class="usd-roster-grow" role="row">'
+				+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-fstar-gh" role="columnheader">スキル名</div>'
+				+ cards.map(m => '<div class="usd-roster-gc usd-roster-gh usd-fstar-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '" role="columnheader"'
+					+ ' aria-label="' + esc(m.no + (m.label ? '：' + m.label : '（空き）')) + '"' + (m.typeOrder !== null && m.typeOrder !== undefined ? ' data-type-order="' + m.typeOrder + '"' : '') + '>' + colHead(m) + '</div>').join('')
+				+ '</div>';
+			units.forEach(u => u.forEach((it, i) => {
+				const id = it.skillId, prev = i > 0;
+				const m = src.marks.get(id);
+				const gold = rarityOf(id) === 'gold';
+				const nameCell = it.goldRef
+					// 表示専用の金の行: 名前（説明の小窓）だけ。Pt・アイコン・削除は無い
+					? '<span class="usd-panel-namescroll usd-hscroll usd-fstar-goldname" data-usd-no-trim="1"><button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '"'
+						+ ' title="' + esc(getSkillName(id) + '（①のサポートカードが持つ金スキル。②の Pt と種数には数えません）') + '">' + esc(getSkillName(id)) + '</button></span>'
+					: panelOf(id);
+				h += '<div class="usd-roster-grow' + (gold ? ' usd-roster-grow--gold' : '') + (prev ? ' usd-roster-grow--prev' : '') + '" role="row" data-usd-el="factor-table-row" data-fstar-id="' + esc(id) + '"' + (it.goldRef ? ' data-usd-goldref="1"' : '') + '>'
+					+ '<div class="usd-roster-gc usd-roster-gc--name usd-fstar-namecell" role="rowheader">'
+					+ (prev ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '') + nameCell + '</div>'
+					+ cards.map(c => '<div class="usd-roster-gc' + colClass(c) + '" role="cell">'
+						+ (m && m.sure.indexOf(c.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
+							: m && m.maybe.indexOf(c.key) !== -1 ? '<span class="usd-roster-maybe" role="img" aria-label="選択肢しだいで得られる"></span>' : '')
+						+ '</div>').join('')
+					+ '</div>';
+			}));
+			return h + '</div></div>';
+		}
 		function renderSelectedList() {
 			const ids = editingSkillIds();
 			const target = currentTarget();
@@ -13754,6 +13909,7 @@
 			renderTierRow();
 			renderModes(ids.length);
 			if (ids.length === 0) {
+				el.classList.remove('usd-panels--table');
 				el.innerHTML = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">まだスキルが選択されていません。</p>';
 				return;
 			}
@@ -13768,21 +13924,11 @@
 				const cst = factorPtState(target);
 				const cands = cst && cst.circleCandidates ? cst.circleCandidates : new Map();
 				const circ = cst && cst.circleOf ? cst.circleOf : new Map();
-				el.innerHTML = ids.slice().sort(compareGameOrder).map(id => {
-					const name = getSkillName(id);
-					const up = cands.get(id) || null, on = circ.has(id);
-					const shownId = on ? up : id, shownName = on ? getSkillName(up) : name;
-					return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + '>'
-						+ iconButtonHtml(id, name, icons[id])
-						+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
-						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
-						+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
-						// ◎を○に変えるモードのときだけ、Pt の位置（Pt は CSS で隠す）に◎／○の切り替え（◎の候補の行だけ）
-						+ (up && factorCircleMode ? factorCircleToggleHtml(id, up, on) : '')
-						// 段G(4): 削除の状態のときだけ見える×（押せる範囲 44px）。押すとそのスキルを②から外す（パネルを押したときと同じ処理）
-						+ '<button type="button" class="usd-panel-xbtn" data-usd-act="template-skill-remove" data-usd-el="panel-x" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を削除') + '"><i data-lucide="x" aria-hidden="true"></i></button>'
-						+ '</div>';
-				}).join('');
+				const sorted = ids.slice().sort(compareGameOrder);
+				const panelOf = (id) => factorPanelHtml(id, icons, cands, circ);
+				// ②因子周回 段3: 星取表の表示（factorView。保存しない）。行の名前セルはカード一覧と同じパネルの部品（名前・Pt・◎／○・アイコン・削除）
+				el.classList.toggle('usd-panels--table', factorView === 'table');
+				el.innerHTML = factorView === 'table' ? factorTableHtml(target, sorted, panelOf) : sorted.map(panelOf).join('');
 				attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
 				renderPanelPts();
 				refreshIcons();
@@ -14525,6 +14671,10 @@
 				+ (hasCircle ? '<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
 					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
 					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
+				// ②因子周回 段3: ◎のボタンの右（◎が無いときは「削除」の右）に、カード一覧と星取表の切り替え。押している＝星取表（◎のボタンと同じ選択の枠）
+				+ '<button type="button" class="usd-factor-circlebtn usd-factor-viewbtn" data-usd-act="factor-view" data-usd-el="factor-view" aria-pressed="' + (factorView === 'table' ? 'true' : 'false') + '"'
+					+ ' aria-label="星取表で見る" title="' + (factorView === 'table' ? 'カード一覧に戻す' : '星取表で見る') + '">'
+					+ '<svg class="usd-factor-viewsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 4v16"/></svg></button>'
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
 				+ SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
 				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('');
