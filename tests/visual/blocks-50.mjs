@@ -271,14 +271,15 @@ export async function register50(env) {
 		}
 	});
 
-	await block('段G(6) ②の画面: パレットの選択中は 2px・「削除」も同じ。オススメサポ／脚質オススメの小窓: 排他は 2px・設定済みは地色つき・主な操作（塗り）は「追加」だけ', async () => {
+	await block('段G(6) ②の画面: 「削除」の選択中は 2px（C-226 でパレットのアイコンは無くした）。オススメサポ／脚質オススメの小窓: 排他は 2px・設定済みは地色つき・主な操作（塗り）は「追加」だけ', async () => {
 		for (const [w, h, theme] of CONDS) {
 			const tag = '段G(6) ②' + w + 'px・' + theme + ': ';
 			const sp = await openSp({ w, h, tab: 1, theme, roster: FULL, draft: { skillIds: SK, name: '', updatedAt: '2026-10-22T00:00:00.000Z', skillIcons: { [SK[0]]: 'a' } } });
 			const p = sp.page;
 			const tk = await tokens(p);
-			const iconSel = await p.evaluate(() => { const b = document.querySelector('#deck-template-panel .usd-palette-btn[aria-pressed="true"]'); return b ? getComputedStyle(b).boxShadow : null; });
-			assert(!!iconSel && iconSel.indexOf(tk.sel.replace(/ /g, ' ')) !== -1, tag + 'パレットで選んでいるアイコンの輪は、選択中の枠の色（' + tk.sel + '）', iconSel);
+			// C-226: パレットのアイコンは無くした（選択中の輪を見る対象が無い）。選べるのは「削除」だけ
+			const iconSel = await p.evaluate(() => document.querySelectorAll('#deck-template-panel .usd-palette-btn').length);
+			assert(iconSel === 0, tag + 'パレットのアイコンは無い（C-226）', iconSel);
 			const del0 = await look(p, T + '[data-usd-el="palette-delete"]');
 			assert(stageOf(del0, tk) === 'normal', tag + '削除（選んでいない）は通常（1px）', del0);
 			await p.click(T + '[data-usd-el="palette-delete"]'); await sleep(p, 250);

@@ -560,10 +560,10 @@ export async function register11(env) {
 			'オススメサポ(F) チェックされた3種だけが②に（既存のスキルのあとへ）入り、小窓が閉じる', { skillIds: sc.skillIds, want, pre });
 		const ntc = await noticeOf(sp.page);
 		assert(!!ntc && ntc.visible && ntc.text === 'オススメサポ 3種を追加しました' && ntc.role === 'status', 'オススメサポ(F) 3種の追加は「オススメサポ 3種を追加しました」の知らせ（段F1。消えない・×つき。「元に戻す」は今までどおり積まれる）', ntc);
-		// アイコン: 既存のアイコンは保つ。足したものには付けない（既存の「テキストで検索」の追加と同じ）
-		const icons = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((p) => [p.getAttribute('data-skill-id'), ((p.querySelector('[data-usd-act="skill-icon"]') || {}).dataset || {}).icon || '']));
-		assert(sc.skillIcons[existing[0]] === 'a' && want.every((id) => !(id in (sc.skillIcons || {}))) && icons.length === 4 && icons[0][1] === 'a' && icons.slice(1).every((x) => x[1] === ''),
-			'オススメサポ(F) 足した3種にアイコンは付かず（破線の丸）、既存のスキルのアイコンはそのまま', { saved: sc.skillIcons, icons });
+		// アイコン: 保存の値は保つ。足したものには付けない（既存の「テキストで検索」の追加と同じ）。C-226: 画面にアイコンは出さず、行の先頭は自動のマーカー
+		const icons = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((p) => [p.getAttribute('data-skill-id'), !!p.querySelector('[data-usd-act="skill-icon"]'), !!p.querySelector('[data-usd-el="factor-marker"]')]));
+		assert(sc.skillIcons[existing[0]] === 'a' && want.every((id) => !(id in (sc.skillIcons || {}))) && icons.length === 4 && icons.every((x) => !x[1] && x[2]),
+			'オススメサポ(F) 足した3種にアイコンは付かず、既存のスキルの保存のアイコンはそのまま（画面はどの行も自動のマーカー＝C-226）', { saved: sc.skillIcons, icons });
 		// 既存の追加（テキストで検索）と比べる: 別のスキルを足したときも、アイコンの扱いは同じ
 		const other = whites.find((id) => sc.skillIds.indexOf(id) === -1 && masterWhite.indexOf(id) !== -1);
 		const otherName = await sp.page.evaluate((id) => UmaSkillDeckCore.getSkillName(id), other);

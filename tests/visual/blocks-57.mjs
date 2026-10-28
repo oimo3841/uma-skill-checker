@@ -345,7 +345,7 @@ export async function register57(env) {
 		await sp.ctx.close();
 	});
 
-	await block('②◎(7) 見た目: 通常は行に切り替えなし・Pt あり／「削除」の右の◎のボタンでモードに入ると、すべての行の Pt を隠し、候補の行だけ Pt の位置に◎／○（押せる範囲 44px・行の高さ 36px）／もう一度押すと戻る／モードは保存しない／候補0ではボタンなし', async () => {
+	await block('②◎(7) 見た目: 通常は行に切り替えなし・Pt あり／入口の行の右端の塊の◎のボタン（C-226 で「◎・表の切り替え・削除」の並びに）でモードに入ると、すべての行の Pt を隠し、候補の行だけ Pt の位置に◎／○（押せる範囲 44px・行の高さ 36px）／もう一度押すと戻る／モードは保存しない／候補0ではボタンなし', async () => {
 		for (const w of [390, 1280]) {
 			const tag = '②◎(7) ' + w + 'px: ';
 			const sp = await openSp({ w, roster: R2, ids: ONE12, keep: ['6'] });
@@ -354,9 +354,10 @@ export async function register57(env) {
 				const del = document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]'), b = document.querySelector('#deck-template-panel [data-usd-el="factor-circle-mode"]');
 				if (!del || !b) return null;
 				const d = del.getBoundingClientRect(), r = b.getBoundingClientRect();
-				return { next: del.nextElementSibling === b, right: r.left >= d.right, sameRow: Math.abs((r.top + r.bottom) / 2 - (d.top + d.bottom) / 2) < 4, w: Math.round(r.width), h: Math.round(r.height) };
+				// C-226: 塊の並びは「◎・表の切り替え・削除」（削除が一番右）。◎は塊の先頭
+				return { first: b.parentElement.firstElementChild === b && b.parentElement === del.parentElement, left: r.right <= d.left, sameRow: Math.abs((r.top + r.bottom) / 2 - (d.top + d.bottom) / 2) < 4, w: Math.round(r.width), h: Math.round(r.height) };
 			});
-			assert(n0.modeBtn === 'false' && !!pos && pos.next && pos.right && pos.sameRow && pos.w >= 24 && pos.h >= 24, tag + '◎のボタンは「削除」のすぐ右・同じ行（押せる範囲 24px 以上）・入っていない', pos);
+			assert(n0.modeBtn === 'false' && !!pos && pos.first && pos.left && pos.sameRow && pos.w >= 24 && pos.h >= 24, tag + '◎のボタンは右端の塊の先頭（「削除」より左）・同じ行（押せる範囲 24px 以上）・入っていない', pos);
 			assert(n0.rows.every((r) => r.toggle === null) && n0.rows.filter((r) => r.pt !== '').every((r) => r.ptShown), tag + '通常の表示: 行に切り替えは無く、Pt が見える', n0.rows.slice(0, 3));
 			await setMode(sp.page, true);
 			const m = await read(sp.page);

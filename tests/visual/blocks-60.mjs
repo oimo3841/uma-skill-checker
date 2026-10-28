@@ -140,15 +140,16 @@ export async function register60(env) {
 	const stripNums = (x) => JSON.stringify({ sum: x.sum, bandPt: x.bandPt, bandKinds: x.bandKinds, headTotal: x.headTotal, headText: x.headText, sel: x.sel });
 	const byId = (panels) => new Map(panels.map((p) => [p.id, { name: p.name, info: p.info, pt: p.pt, circle: p.circle, overlap: p.overlap, taken: p.taken }]));
 
-	await block('②星取表(1) 切り替え: ボタンは「削除」・◎のボタンと同じ行の◎の右（◎が無いときは「削除」の右）／既定はカード一覧／切り替えても②の帯・見出しの合計・種数・保存データ・②の id は変わらない／保存しない（リロードでカード一覧）', async () => {
+	await block('②星取表(1) 切り替え: ボタンは入口の行の右端の塊の◎の右・「削除」の左（C-226。◎が無いときは塊の先頭）／既定はカード一覧／切り替えても②の帯・見出しの合計・種数・保存データ・②の id は変わらない／保存しない（リロードでカード一覧）', async () => {
 		for (const c of [{ k: 'R1S', roster: R1S, ids: GIDS }, { k: 'R1（保存なし）', roster: R1, ids: ['230', '200041'] }]) {
 			const sp = await openSp({ w: 1280, roster: c.roster, ids: c.ids });
 			const errors = [];
 			sp.page.on('pageerror', (e) => errors.push(String(e)));
 			const order = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="tier-row"] > *')).map((e) => e.getAttribute('data-usd-el') || e.className));
-			const iDel = order.indexOf('palette-delete'), iCircle = order.indexOf('factor-circle-mode'), iView = order.indexOf('factor-view');
-			const want = iCircle === -1 ? iDel + 1 : iCircle + 1;
-			assert(iView !== -1 && iView === want && (iCircle === -1 || iCircle === iDel + 1), '②星取表(1) ' + c.k + ' 切り替えのボタンは' + (iCircle === -1 ? '「削除」' : '◎のボタン') + 'のすぐ右', order.slice(0, 4));
+			// C-226（②因子周回 段4）: 入口の行の右端の塊は「◎（候補があるときだけ）・表の切り替え・削除」（削除が一番右）
+			const iCircle = order.indexOf('factor-circle-mode');
+			const want = (iCircle === -1 ? [] : ['factor-circle-mode']).concat(['factor-view', 'palette-delete']);
+			assert(JSON.stringify(order) === JSON.stringify(want), '②星取表(1) ' + c.k + ' 切り替えのボタンは' + (iCircle === -1 ? '塊の先頭' : '◎のボタンのすぐ右') + '・「削除」の左', order);
 			const a = await read(sp.page);
 			assert((await viewBtn(sp.page)) === 'false' && !a.table, '②星取表(1) ' + c.k + ' 既定はカード一覧（ボタンは押していない状態）', null);
 			await setView(sp.page, true);

@@ -53,26 +53,23 @@ export async function register18(env) {
 	/* ====================================================================
 	 * A: パレットの行
 	 * ==================================================================== */
-	await block('C132A1 選択中のアイコンをもう一度押すと選択が外れる（何も選んでいない状態）。そのときタイルのアイコンを押しても何も付かない／「解除」のボタンは無い', async () => {
+	await block('C132A1 C-226: パレットのアイコンは無い（「解除」も無い）／最初は何も選ばれていない（削除も）／タイルの先頭のマーカーを押しても何も付かず、外れもしない', async () => {
 		const ids = LONG.slice(0, 4);
 		const sp = await openSp({ ids });
 		const p = sp.page;
-		const first = await p.evaluate(() => document.querySelector('#deck-template-panel [data-usd-act="palette-pick"][aria-pressed="true"]').getAttribute('data-icon'));
-		assert(!!first && !(await p.$(T + '[data-usd-el="palette-clear"]')), 'C132A1 最初は1つのアイコンが選ばれていて、「解除」のボタンは無い', { first });
-		await p.click(T + '[data-usd-el="palette-' + first + '"]');
-		assert((await pressed(p)).length === 0, 'C132A1 選択中のアイコンをもう一度押すと、どれも選ばれていない', await pressed(p));
-		await p.click(tile(ids[0]) + ' [data-usd-act="skill-icon"]');
-		assert(!(ids[0] in (await draftIcons(p))) && (await draftIds(p)).includes(ids[0]), 'C132A1 何も選んでいないときにタイルのアイコンを押しても、アイコンは付かない（スキルも消えない）', await draftIcons(p));
-		await p.click(T + '[data-usd-el="palette-' + first + '"]');
-		await p.click(tile(ids[0]) + ' [data-usd-act="skill-icon"]');
-		assert((await draftIcons(p))[ids[0]] === first, 'C132A1 選び直すと、タイルのアイコンを押して付けられる', await draftIcons(p));
-		await p.click(tile(ids[0]) + ' [data-usd-act="skill-icon"]');
-		assert(!(ids[0] in (await draftIcons(p))), 'C132A1 同じアイコンが付いたタイルをもう一度押すと外れる（外す手段は今までどおり）', await draftIcons(p));
+		const ui = await p.evaluate(() => ({ icons: document.querySelectorAll('#deck-template-panel .usd-palette-btn, #deck-template-panel [data-usd-act="skill-icon"]').length,
+			clear: !!document.querySelector('#deck-template-panel [data-usd-el="palette-clear"]') }));
+		assert(ui.icons === 0 && !ui.clear && (await pressed(p)).length === 0, 'C132A1 パレットのアイコン・行の先頭のアイコンのボタン・「解除」は無く、最初は何も選ばれていない', { ui, pressed: await pressed(p) });
+		const before = await p.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special'));
+		await p.click(tile(ids[0]) + ' .usd-panel-marker');
+		await p.waitForTimeout(150);
+		const after = await p.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special'));
+		assert(after === before && (await draftIds(p)).includes(ids[0]), 'C132A1 タイルの先頭のマーカーを押しても何も変わらない（アイコンは付かず、スキルも外れない）', { before, after });
 		assert(jsErrors(sp.errors).length === 0, 'C132A1 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 
-	await block('C132A2 削除を選んでいないときは ✕ は見えない／「削除」を押すと削除の状態（ボタンは選択中・タイルの右に×。段G(4)で点線の枠と取り消しの線をやめた）で、タイルを押すと②から外れ「元に戻す」で戻る／もう一度押すかアイコンを選ぶと終わる', async () => {
+	await block('C132A2 削除を選んでいないときは ✕ は見えない／「削除」を押すと削除の状態（ボタンは選択中・タイルの右に×。段G(4)で点線の枠と取り消しの線をやめた）で、タイルを押すと②から外れ「元に戻す」で戻る／もう一度押すと終わる', async () => {
 		const ids = LONG.slice(0, 6);
 		const sp = await openSp({ ids });
 		const p = sp.page;
@@ -87,15 +84,15 @@ export async function register18(env) {
 			const n = t.querySelector('.usd-panel-namebtn');
 			return { pressed: b.getAttribute('aria-pressed'), ring: getComputedStyle(b).boxShadow, border: getComputedStyle(t).borderTopStyle, line: getComputedStyle(n).textDecorationLine };
 		}, tile(ids[0]));
-		assert(st.pressed === 'true' && st.ring !== 'none' && (await pressed(p)).join() === 'delete', 'C132A2 「削除」は選択中の見た目（輪）になり、アイコンの選択は外れる', { st, pressed: await pressed(p) });
+		assert(st.pressed === 'true' && st.ring !== 'none' && (await pressed(p)).join() === 'delete', 'C132A2 「削除」は選択中の見た目（輪）になる', { st, pressed: await pressed(p) });
 		assert(look0 !== 'dashed' && st.border !== 'dashed' && !/line-through/.test(st.line), 'C132A2 削除の状態でも、タイルの見た目は変えない（段G(4): 点線の枠・赤い取り消し線はやめた。代わりに右に×。詳しくは段G の検査）', { look0, st });
 		const undo0 = await p.evaluate(() => UmaSkillDeckCore.undoCount ? UmaSkillDeckCore.undoCount() : null);
 		await p.click(tile(ids[1]) + ' .usd-panel-namebtn');
 		await p.waitForTimeout(150);
 		const infoOpen = await p.evaluate(() => { const pop = document.querySelector('.usd-info-pop'); return !!pop && !pop.hidden; });
 		assert(!(await draftIds(p)).includes(ids[1]) && !infoOpen, 'C132A2 削除の状態で名前を押すと、そのスキルが②から外れる（説明の小窓は開かない）', { ids: await draftIds(p), infoOpen });
-		await p.click(tile(ids[2]) + ' [data-usd-act="skill-icon"]');
-		assert(!(await draftIds(p)).includes(ids[2]), 'C132A2 アイコンの部分を押しても外れる', await draftIds(p));
+		await p.click(tile(ids[2]) + ' .usd-panel-marker');
+		assert(!(await draftIds(p)).includes(ids[2]), 'C132A2 マーカーの部分を押しても外れる（C-226 でアイコンからマーカーに）', await draftIds(p));
 		const undo1 = await p.evaluate(() => UmaSkillDeckCore.undoCount ? UmaSkillDeckCore.undoCount() : null);
 		assert(undo0 === null || undo1 === undo0 + 2, 'C132A2 外すたびに「元に戻す」に積む', { undo0, undo1 });
 		await p.click('#deck-undo-btn');
@@ -108,18 +105,12 @@ export async function register18(env) {
 		await p.click(tile(ids[0]) + ' .usd-panel-namebtn');
 		assert((await draftIds(p)).includes(ids[0]), 'C132A2 終わったあとに名前を押しても外れない', await draftIds(p));
 		await p.keyboard.press('Escape');
-		// アイコンを選ぶと削除の状態が終わる
-		await p.click(T + '[data-usd-el="palette-delete"]');
-		const icon = await p.evaluate(() => document.querySelector('#deck-template-panel .usd-palette-btn').getAttribute('data-icon'));
-		await p.click(T + '[data-usd-el="palette-' + icon + '"]');
-		assert((await pressed(p)).join() === icon, 'C132A2 削除の状態でアイコンを選ぶと、削除の状態が終わってそのアイコンが選ばれる', await pressed(p));
-		await p.click(tile(ids[0]) + ' [data-usd-act="skill-icon"]');
-		assert((await draftIds(p)).includes(ids[0]) && (await draftIcons(p))[ids[0]] === icon, 'C132A2 そのあとタイルを押すとアイコンが付く（外れない）', { icons: await draftIcons(p) });
+		// C-226: アイコンを選ぶ手段は無くした（削除の状態を終えるのは「削除」をもう一度押すだけ）
 		assert(jsErrors(sp.errors).length === 0, 'C132A2 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 
-	await block('C132A3 スキル名は「…」で切らず名前の部分だけ横に送れる（末尾の1文字で区別する名前も見分けられる）／アイコンは小さく、375px で2列のまま', async () => {
+	await block('C132A3 スキル名は「…」で切らず名前の部分だけ横に送れる（末尾の1文字で区別する名前も見分けられる）／先頭のマーカーは 20px、375px で2列のまま', async () => {
 		assert(!!PAIR, 'C132A3 材料: 末尾の1文字だけが違う名前の組がマスターにある', PAIR);
 		for (const w of [375, 320]) {
 			const sp = await openSp({ w, ids: PAIR.concat(LONG.slice(0, 4)) });
@@ -131,14 +122,14 @@ export async function register18(env) {
 				const before = { sw: sc.scrollWidth, cw: sc.clientWidth };
 				sc.scrollLeft = sc.scrollWidth;
 				const nr = n.getBoundingClientRect(), sr = sc.getBoundingClientRect();
-				const icon = t.querySelector('.usd-icon').getBoundingClientRect();
+				const icon = t.querySelector('[data-usd-el="factor-marker"]').getBoundingClientRect();
 				return { id, before, ox: getComputedStyle(sc).overflowX, ellipsis: getComputedStyle(n).textOverflow, endShown: nr.right <= sr.right + 1, text: n.textContent, icon: Math.round(icon.width),
 					cols: getComputedStyle(t.parentElement).gridTemplateColumns.split(' ').length };
 			}), PAIR);
 			const tag = 'C132A3 ' + w + 'px: ';
 			assert(r.every((x) => x.ox === 'auto' && x.ellipsis !== 'ellipsis' && x.endShown), tag + '名前は「…」で切らず、名前の部分だけ横に送って末尾まで見られる', r);
 			assert(r[0].text !== r[1].text && r[0].text.slice(0, -1) === r[1].text.slice(0, -1), tag + '末尾の1文字だけが違う2つの名前が、そのまま出ている', r.map((x) => x.text));
-			assert(r.every((x) => x.icon <= 15), tag + 'タイルのアイコンは 15px 以下（小さくした）', r.map((x) => x.icon));
+			assert(r.every((x) => x.icon === 20), tag + 'タイルの先頭は 20px の自動のマーカー（C-226 でアイコンから置き換え）', r.map((x) => x.icon));
 			if (w === 375) assert(r.every((x) => x.cols === 2), tag + '2列のまま', r.map((x) => x.cols));
 			// 名前の上で横に動かしても、タップの動き（説明の表示）は今までどおり
 			await p.evaluate((id) => { const sc = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"] [data-usd-el="panel-namescroll"]'); sc.scrollLeft = 0; }, PAIR[0]);
@@ -154,22 +145,18 @@ export async function register18(env) {
 	});
 
 	// C132A4（「逃げオススメ」「先差追オススメ」の確認の小窓）は、2026-10-21 にパレットのボタンごと廃止した（入口の「脚質オススメ」の小窓。検査は blocks-43.mjs の C-184）。
-	await block('C132A5 パレットの行の並びは「削除」→ アイコン（◎○△◇★✕）の7つ（2026-10-21 に「サポカ外」と脚質のボタンを外した）。始まりは左端で、横に送れる／脚質が指定でも変わらない', async () => {
+	await block('C132A5 C-226: パレットの行は無い。入口の行の右端の固定の塊は「（◎の候補があるときだけ◎）・表の切り替え・削除」（削除が一番右）／脚質が指定でも変わらない', async () => {
 		for (const roster of [FULL, Object.assign({}, FULL, { skillFilter: { distance: 'medium', surface: 'turf' } })]) {
 			const sp = await openSp({ ids: LONG.slice(0, 2), roster: roster });
 			const p = sp.page;
 			const r = await p.evaluate(() => {
-				const pal = document.querySelector('#deck-template-panel .usd-palette');
-				const kids = Array.from(pal.children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el'));
-				return { kids, left: pal.scrollLeft, ox: getComputedStyle(pal).overflowX };
+				const tools = document.querySelector('#deck-template-panel [data-usd-el="tier-row"]');
+				return { kids: Array.from(tools.children).map((c) => c.getAttribute('data-usd-el')), pal: document.querySelectorAll('#deck-template-panel .usd-palette, #deck-template-panel .usd-palette-btn').length,
+					sameRow: tools.parentElement.contains(document.querySelector('#deck-template-panel .usd-entry-row')), ox: getComputedStyle(tools).overflowX };
 			});
-			// ②因子周回 段2（2026-10-28）: ◎の候補があるときは「削除」のすぐ右に◎のボタン（factor-circle-mode）が入る。それを除いた並びを見る
-			// ②因子周回 段3（2026-10-28）: その右（◎が無いときは「削除」の右）に、カード一覧と星取表の切り替え（factor-view）が常に入る。それも除いて見る
 			const ck = r.kids.indexOf('factor-circle-mode');
-			const vk = r.kids.indexOf('factor-view');
-			const kids = r.kids.filter((k) => k !== 'factor-circle-mode' && k !== 'factor-view');
-			assert((ck === -1 || ck === 1) && vk === (ck === -1 ? 1 : 2) && kids[0] === 'palette-delete' && kids.slice(1).every((k) => /^palette-[a-f]$/.test(k)) && kids.length === 7, 'C132A5 並びは 削除・（◎の候補があるときだけ◎のボタン）・星取表の切り替え・アイコン6つ（脚質のボタン・サポカ外は無い）', r.kids);
-			assert(r.left === 0 && r.ox === 'auto', 'C132A5 始まりは左端で、横に送れる', r);
+			const want = (ck === -1 ? [] : ['factor-circle-mode']).concat(['factor-view', 'palette-delete']);
+			assert(JSON.stringify(r.kids) === JSON.stringify(want) && r.pal === 0 && r.sameRow && r.ox === 'visible', 'C132A5 塊の並びは（◎）・表の切り替え・削除。パレット（アイコン）は無い。入口のボタンと同じ行・塊は横に送らない', r);
 			await sp.ctx.close();
 		}
 	});
@@ -217,15 +204,15 @@ export async function register18(env) {
 		await pc.ctx.close();
 	});
 
-	await block('C132C ②のスマホは帯とパレットの行だけが残る（入口のボタンの列・合計は隠れる）／最後のタイルは「＋」の直上で止まる／③も最下端の余白を詰める', async () => {
+	await block('C132C ②のスマホは帯と入口の行（入口のボタン｜右端の◎・表・削除。C-226 でパレットの行から替えた）だけが残る（合計は隠れる）／最後のタイルは「＋」の直上で止まる／③も最下端の余白を詰める', async () => {
 		for (const size of [{ w: 375, h: 812 }, { w: 320, h: 568 }]) {
 			const sp = await openSp({ w: size.w, h: size.h, tab: 1, ids: LONG });
 			const p = sp.page;
-			const m = await measureBottom(p, T + '.usd-skillgroup .usd-panel', T + '.usd-palette');
+			const m = await measureBottom(p, T + '.usd-skillgroup .usd-panel', T + '.usd-skillgroup-head');
 			const tag = 'C132C ' + size.w + 'px: ';
-			assert(Math.abs(m.stickT - m.barB) <= 1, tag + '下までスクロールしても、パレットの行は帯の直下に残る（帯の下端 ' + m.barB + '・パレットの上端 ' + m.stickT + '）', m);
-			const entry = await p.evaluate(() => Math.round(document.querySelector('#deck-template-panel .usd-entry-row').getBoundingClientRect().bottom));
-			assert(entry <= m.barB && m.tabsB <= m.barB, tag + '入口のボタンの列とタブはスクロールで隠れる', { entry, m });
+			assert(Math.abs(m.stickT - m.barB) <= 1, tag + '下までスクロールしても、入口の行は帯の直下に残る（帯の下端 ' + m.barB + '・入口の行の上端 ' + m.stickT + '）', m);
+			const head = await p.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { del: Math.round(r('#deck-template-panel [data-usd-el="palette-delete"]').top), sum: Math.round(r('#deck-template-panel [data-usd-el="set-head"]').bottom) }; });
+			assert(head.del >= m.barB && m.tabsB <= m.barB && head.sum <= m.barB, tag + '右端の「削除」は見えたまま・タブと②の合計はスクロールで隠れる', { head, m });
 			assert(m.lastB <= m.fabT && m.fabT - m.lastB <= 24, tag + '最後のタイルは「＋」の直上で止まる（差 ' + (m.fabT - m.lastB) + 'px）', m);
 			assert(m.sw <= m.iw, tag + '横にはみ出さない', m);
 			// ③
@@ -241,8 +228,8 @@ export async function register18(env) {
 			await sp.ctx.close();
 		}
 		const pc = await openSp({ w: 1280, h: 900, tab: 1, ids: LONG });
-		const r = await pc.page.evaluate(() => ({ pos: getComputedStyle(document.querySelector('#deck-template-panel .usd-palette')).position, pad: getComputedStyle(document.querySelector('.page-wrap')).paddingBottom }));
-		assert(r.pos === 'static' && parseFloat(r.pad) >= 300, 'C132C 1280px: PC は今までどおり（パレットは固定しない・本文の下の余白は「＋」の展開のぶん）', r);
+		const r = await pc.page.evaluate(() => ({ pos: getComputedStyle(document.querySelector('#deck-template-panel .usd-skillgroup-head')).position, pad: getComputedStyle(document.querySelector('.page-wrap')).paddingBottom }));
+		assert(r.pos === 'static' && parseFloat(r.pad) >= 300, 'C132C 1280px: PC は今までどおり（入口の行は固定しない・本文の下の余白は「＋」の展開のぶん）', r);
 		await pc.ctx.close();
 	});
 
@@ -264,7 +251,7 @@ export async function register18(env) {
 		return document.querySelector('.step-tab[aria-selected="true"]').id;
 	}, { sel, dx, dy });
 
-	await block('C132D 表の外で左右に払うと①②③が切り替わる（左＝次・右＝前・端では変わらない）／①の表・②のパレットの行・スキル名・入力欄・小窓から始まった動きや、縦に大きい動きでは変わらない', async () => {
+	await block('C132D 表の外で左右に払うと①②③が切り替わる（左＝次・右＝前・端では変わらない）／①の表・②の入口のボタン・スキル名・入力欄・小窓から始まった動きや、縦に大きい動きでは変わらない', async () => {
 		const sp = await openSp({ tab: 0, ids: LONG });
 		const p = sp.page;
 		const OUT = '.site-header h1';
@@ -275,7 +262,6 @@ export async function register18(env) {
 		assert(await swipe(p, OUT, 40, 0) === 'step-tab-1', 'C132D 横の動きが小さい（40px）と変わらない', await activeTab(p));
 		assert(await swipe(p, OUT, 120, 90) === 'step-tab-1', 'C132D 縦の動きが大きい（横の半分以上）と変わらない', await activeTab(p));
 		// ②の中の横に送れる場所
-		assert(await swipe(p, T + '.usd-palette', -120, 0) === 'step-tab-1', 'C132D ②のパレットの行から始まった動きでは変わらない', await activeTab(p));
 		assert(await swipe(p, T + '[data-usd-el="panel-namescroll"]', -120, 0) === 'step-tab-1', 'C132D ②のスキル名から始まった動きでは変わらない', await activeTab(p));
 		assert(await swipe(p, T + '.usd-entry-row', -120, 0) === 'step-tab-1', 'C132D ②の入口のボタンの列から始まった動きでは変わらない', await activeTab(p));
 		// ①の表

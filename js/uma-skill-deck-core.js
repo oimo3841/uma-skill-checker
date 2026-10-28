@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28g';
 
 	/* ============================================================
 	 * 定数
@@ -256,6 +256,58 @@
 		const ic = SKILL_ICONS.find(i => i.id === iconId);
 		const cls = 'usd-icon' + (ic ? '' : ' usd-icon--none') + (extraClass ? ' ' + extraClass : '');
 		return '<span class="' + cls + '"' + (ic ? ' data-icon="' + ic.id + '"' : '') + ' aria-hidden="true">' + (ic ? esc(ic.mark) : '') + '</span>';
+	}
+	/**
+	 * ②のスキルの自動のマーカー（②因子周回 段4・C-226）。②のスキルすべてに1つ、「周回サポカ → サポカ外 → その他」の順に1つだけ決まる（判定は factorMarkerKindsOf）。
+	 * 形はゲーム内のアイコンに合わせる: 細い濃い四角の外枠（edge）・外枠より薄い内側（fill）・白抜きの記号（symbol）。
+	 * **形（SVG のパス）はここ1か所。** 画面の SVG（factorMarkerHtml）と、結合画像の凡例（段5。Canvas の Path2D）が同じパスを使う。座標は 20×20 の箱。
+	 * 記号は mode が 'fill'（塗る）か 'stroke'（線。width は線の太さ）。色はトークン（--usd-mk-<id>-edge／-fill。ライト・ダーク。記号は --usd-mk-symbol）。
+	 * 「その他（親から継承）」の記号の絵は遺伝子（二重らせん）のままだが、呼び名・凡例・読み上げに「遺伝子」の語は使わない（②の「遺伝子」のチェックと紛れるため）。
+	 */
+	const FACTOR_MARKER_FRAME = {
+		edge: 'M3 0.5h14a2.5 2.5 0 0 1 2.5 2.5v14a2.5 2.5 0 0 1-2.5 2.5H3A2.5 2.5 0 0 1 0.5 17V3A2.5 2.5 0 0 1 3 0.5Z',
+		fill: 'M3.4 1.9h13.2a1.5 1.5 0 0 1 1.5 1.5v13.2a1.5 1.5 0 0 1-1.5 1.5H3.4a1.5 1.5 0 0 1-1.5-1.5V3.4a1.5 1.5 0 0 1 1.5-1.5Z'
+	};
+	const FACTOR_MARKERS = [
+		{ id: 'card', label: '周回サポカスキル',
+			light: { edge: '#00473E', fill: '#008070' }, dark: { edge: '#00352E', fill: '#16A08D' },
+			// サポートカード（後ろのカードの縁と、前のカード）
+			symbol: { mode: 'fill', d: 'M5.2 13.6V5a1.1 1.1 0 0 1 1.1-1.1h6.3v1.4H6.6v8.3ZM8.6 6.5h5.3a1.1 1.1 0 0 1 1.1 1.1v7.4a1.1 1.1 0 0 1-1.1 1.1H8.6a1.1 1.1 0 0 1-1.1-1.1V7.6a1.1 1.1 0 0 1 1.1-1.1Z' } },
+		{ id: 'star', label: 'サポカ外スキル',
+			light: { edge: '#5E4000', fill: '#9C6A00' }, dark: { edge: '#4A3200', fill: '#B88412' },
+			// ★（五芒星）
+			symbol: { mode: 'fill', d: 'M10 4.2L11.53 8.5L16.09 8.62L12.47 11.4L13.76 15.78L10 13.2L6.24 15.78L7.53 11.4L3.91 8.62L8.47 8.5Z' } },
+		{ id: 'other', label: 'その他（親から継承）',
+			light: { edge: '#4A2370', fill: '#7A3FB0' }, dark: { edge: '#3A1B58', fill: '#9C6AD2' },
+			// 二重らせん（2本の線と横の段）
+			symbol: { mode: 'stroke', width: 1.6, d: 'M6.6 3.6C6.6 7.2 13.4 6.6 13.4 10S6.6 12.8 6.6 16.4M13.4 3.6C13.4 7.2 6.6 6.6 6.6 10S13.4 12.8 13.4 16.4M7.9 5.7h4.2M7.9 14.3h4.2' } }
+	];
+	const FACTOR_MARKER_SYMBOL = { light: '#ffffff', dark: '#ffffff' };
+	function factorMarkerOf(kind) { return FACTOR_MARKERS.find(m => m.id === kind) || null; }
+	/**
+	 * マーカーの画像（ボタンではない。role="img"・読み上げは種類の名前）。size は px（画面のパネルは 20、③の結果の表は 16）。知らない種類は空
+	 */
+	function factorMarkerHtml(kind, size) {
+		const m = factorMarkerOf(kind);
+		if (!m) return '';
+		const px = typeof size === 'number' && size > 0 ? size : 20;
+		const sym = m.symbol.mode === 'stroke'
+			? '<path class="usd-mk-symbol" d="' + m.symbol.d + '" fill="none" stroke-width="' + m.symbol.width + '" stroke-linecap="round" stroke-linejoin="round"/>'
+			: '<path class="usd-mk-symbol" d="' + m.symbol.d + '"/>';
+		return '<span class="usd-mk" data-usd-el="factor-marker" data-marker="' + m.id + '" role="img" aria-label="' + esc(m.label) + '" title="' + esc(m.label) + '" style="width:' + px + 'px;height:' + px + 'px">'
+			+ '<svg viewBox="0 0 20 20" width="' + px + '" height="' + px + '" aria-hidden="true" focusable="false">'
+			+ '<path class="usd-mk-edge" d="' + FACTOR_MARKER_FRAME.edge + '"/><path class="usd-mk-fill" d="' + FACTOR_MARKER_FRAME.fill + '"/>' + sym + '</svg></span>';
+	}
+	function factorMarkerStyleLines() {
+		const vars = (k) => FACTOR_MARKERS.map(m => '--usd-mk-' + m.id + '-edge: ' + m[k].edge + '; --usd-mk-' + m.id + '-fill: ' + m[k].fill + ';').join(' ') + ' --usd-mk-symbol: ' + FACTOR_MARKER_SYMBOL[k] + ';';
+		return [
+			':root { ' + vars('light') + ' }',
+			':root[data-theme="dark"] { ' + vars('dark') + ' }',
+			'.usd-mk { flex: none; display: inline-flex; vertical-align: middle; line-height: 0; }',
+			'.usd-mk svg { display: block; }',
+			'.usd-mk .usd-mk-symbol { fill: var(--usd-mk-symbol); }',
+			'.usd-mk .usd-mk-symbol[fill="none"] { fill: none; stroke: var(--usd-mk-symbol); }'
+		].concat(FACTOR_MARKERS.map(m => '.usd-mk[data-marker="' + m.id + '"] .usd-mk-edge { fill: var(--usd-mk-' + m.id + '-edge); } .usd-mk[data-marker="' + m.id + '"] .usd-mk-fill { fill: var(--usd-mk-' + m.id + '-fill); }'));
 	}
 	function iconStyleLines() {
 		const light = SKILL_ICONS.map(i => '--usd-icon-' + i.id + ': ' + i.light + ';').join(' ');
@@ -5340,7 +5392,7 @@
 	// このモジュールが生成するマークアップ専用のクラス。既存ページのクラス名
 	// （.list-card / .chip 等）と衝突させないため usd- を接頭辞にする。
 	// 見た目は uma-skill-deck.html の既存デザインと同一。
-	const CORE_STYLES = [].concat(iconStyleLines(), [
+	const CORE_STYLES = [].concat(iconStyleLines(), factorMarkerStyleLines(), [
 		// 見た目の値は css/common.css のトークンから取る。ここに色や寸法を直書きすると、
 		// Tailwind v4 のパレット（oklch）と微妙にズレた色が並ぶことになる。
 		// ボタン・入力欄そのものの形は共通部品（.uma-btn / .uma-icon-btn / .uma-input）に
@@ -6659,17 +6711,11 @@
 		// スキルのまとまり（白い枠・線あり・角丸10px・横8px）: 入口 → パレット → 一覧
 		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--uma-group-line); border-radius: 10px;',
 		'  background: var(--uma-group-bg); min-width: 0; }',
-		'.usd-skillgroup-head { display: flex; flex-direction: column; gap: 6px; min-width: 0; }',
-		'.usd-skillgroup-head .usd-entry-row { margin-bottom: 0; }',
-		'@media (min-width: 641px) {',
-		'  .usd-skillgroup-head { flex-direction: row; align-items: center; gap: 12px; }',
-		// C-129: 入口の列は縮めず（中身の幅のまま）、パレットの最小幅（96px）と間（12px）を残した幅を上限にする（あふれたら入口の列の側で横に送る）
-		// （縮まない箱では右の余白〔--usd-entry-trim〕で幅が減らないので、覗かせの切り詰めは上限の側に入れる）
-		'  .usd-skillgroup-head .usd-entry-row { flex: 0 0 auto; min-width: 0; max-width: calc(100% - 108px - var(--usd-entry-trim, 0px)); }',
-		// C-129: パレットに「低効果を除外」を足して幅が増えたので、足りないときはパレットの側を先に縮める（横に送る・フェード付き）。入口の列を優先する
-		// （C-130 で、そのボタンは①の脚質に応じた「逃げオススメ」「先差追オススメ」に置き換えた。幅の決まりはそのまま）
-		'  .usd-skillgroup-head .usd-palette { margin-left: auto; flex: 0 100 auto; min-width: 96px; }',
-		'}',
+		// ②因子周回 段4（C-226）: 入口の行は、どの幅でも1行「横に送る入口のボタン｜右端の固定の塊（◎・表の切り替え・削除）」（パレットの行は無くした）。
+		// 入口のボタンの側だけが縮んで横に送られ（覗かせの切り詰め --usd-entry-trim は右の余白で効く）、塊は縮まず右端に寄る（削除が一番右・◎が消えても削除は動かない）
+		'.usd-skillgroup-head { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; }',
+		'.usd-skillgroup-head .usd-entry-row { margin-bottom: 0; flex: 0 1 auto; min-width: 0; }',
+		'.usd-factor-tools { flex: none; margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px 0; }',
 		// パレット「◎ ○ △ ◇ ★ ✕ │ 解除」: 24px の丸を1行（足りなければ横スクロール）。選択中は外側に 2px の輪
 		'.usd-palette { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
 		'.usd-palette::-webkit-scrollbar { display: none; }',
@@ -6697,10 +6743,8 @@
 		'@media (max-width: 359px) { .usd-skillgroup .usd-panels { grid-template-columns: minmax(0, 1fr); } }',
 		'@media (min-width: 521px) and (max-width: 900px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
 		'.usd-skillgroup .usd-panel { gap: 3px; padding: 0 6px 0 0; min-height: 36px; }',
-		// C-132: アイコンを少し小さく（丸 15px・押す範囲は幅 26px×高さ 32px）。✕ を無くしたぶんと合わせて、名前の幅を広げる
-		'.usd-panel-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; padding: 0 0 0 2px; border: 0; background: transparent; cursor: pointer; border-radius: var(--uma-r-sm); }',
-		'.usd-panel-iconbtn .usd-icon { width: 15px; height: 15px; font-size: 9px; }',
-		'.usd-panel-iconbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
+		// ②因子周回 段4（C-226）: 行の左端の自動のマーカー（20px の画像。押せない）。段9 のアイコンのボタン（幅 26px）と同じ幅の箱に入れて、名前の位置を変えない
+		'.usd-panel-marker { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; padding-left: 2px; }',
 		// C-132: 名前は「…」で切らず、名前の部分だけ横に送る（続きがある側に薄いフェード＝.usd-hscroll）。縦の高さはタイルのまま
 		'.usd-panel-namescroll { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; overflow-x: auto; overflow-y: hidden;',
 		'  scrollbar-width: none; overscroll-behavior-x: contain; white-space: nowrap; }',
@@ -12396,9 +12440,10 @@
 		let mode = null;
 		// 「理論値」の「?」の説明を開いているか（段5。保存しない）
 		let ptNeedHelpOpen = false;
-		// アイコンのパレットの選択（段9。'a'〜'f'／PALETTE_DELETE＝削除〔C-132〕／null＝何も選んでいない）。初期は ◎。ほかのボタンを押すまで保つ（続けて付けられる）。保存しない
+		// 「削除」のブラシの選択（段9 のパレットの名残。PALETTE_DELETE＝削除〔C-132〕／null＝何も選んでいない）。保存しない。
+		// ②因子周回 段4（C-226）: アイコンのパレットは無くしたので、初期は何も選んでいない
 		const PALETTE_DELETE = 'delete';
-		let paletteSel = SKILL_ICON_DEFAULT;
+		let paletteSel = null;
 		// ②因子周回 段2: 「◎を○に変えるモード」（入口の◎のボタン）。画面の中だけの状態で保存しない（①の並べ替えと同じ）
 		let factorCircleMode = false;
 		// ②因子周回 段3: ②の表示（'cards'＝カード一覧／'table'＝星取表）と、星取表の列の漏斗（①の列のキー。null＝並べ替えなし）。
@@ -12567,17 +12612,17 @@
 			const modeRow = body.querySelector('.usd-mode-row');
 			if (modeRow) modeRow.parentNode.removeChild(modeRow);
 			['pt-need', 'roster-link'].forEach(k => { const el = q(container, k); body.insertBefore(el, body.firstChild ? body.querySelector('.usd-entry-row') : null); });
-			// 段9・D: スキルのまとまり（白い枠）＝ 入口のボタン → アイコンのパレット → 選んだスキルの一覧。広い幅では入口とパレットを同じ行に（右寄せ）
+			// 段9・D: スキルのまとまり（白い枠）＝ 入口の行 → 選んだスキルの一覧。
+			// ②因子周回 段4（C-226）: 入口の行は「横に送る入口のボタン｜右端の固定の塊（◎・表の切り替え・削除）」。どの幅でも1行（パレットの行は無くした）
 			const group = global.document.createElement('div');
 			group.className = 'usd-skillgroup';
 			group.setAttribute('data-usd-el', 'skill-group');
 			const head = global.document.createElement('div');
 			head.className = 'usd-skillgroup-head';
 			const palEl = q(container, 'tier-row');
-			palEl.className = 'usd-palette usd-hscroll';
-			palEl.setAttribute('data-usd-no-trim', '1');
+			palEl.className = 'usd-factor-tools';
 			palEl.setAttribute('role', 'group');
-			palEl.setAttribute('aria-label', 'アイコン');
+			palEl.setAttribute('aria-label', '②の操作');
 			head.appendChild(body.querySelector('.usd-entry-row'));
 			head.appendChild(palEl);
 			group.appendChild(head);
@@ -12648,9 +12693,8 @@
 			else if (act === 'pt-need-help' && setBased) openPopover({ key: 'factor-help:' + draftScopeKey, title: '②の Pt', build: fillFactorHelp, btn: btn, opener: btn, refocus: '[data-usd-act="pt-need-help"]' });
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
-			// 段9: アイコンのパレットと、行の先頭のアイコン
+			// 入口の行の右端の「削除」（段9 のパレットの名残。C-226 でアイコンは無くした）
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
-			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'factor-circle-mode') {
 				// ②因子周回 段2: 「◎を○に変えるモード」の入り・切り（保存しない）
@@ -13694,9 +13738,9 @@
 			renderPanelPts();
 			scanEntryRows();
 		}
-		/** ②に消すものがあるか（スキルが1つでも・アイコンが1つでも）。↺ を押せるかの判定 */
+		/** ②に消すものがあるか（スキルが1つでも）。↺ を押せるかの判定。C-226: アイコン（skillIcons）は②では読まないので数えない */
 		function canResetFactor(target) {
-			return (skillIdsOf(target) || []).length > 0 || Object.keys(iconsOf(target)).length > 0;
+			return (skillIdsOf(target) || []).length > 0;
 		}
 		/** ②の「?」の小窓（段9）。理論値の説明・式・数えていないもの */
 		function fillFactorHelp(body) {
@@ -13707,7 +13751,6 @@
 			const r = sum.st.r, fmt = formatPtNumber;
 			line('理論値です。親から得るスキルは、共通スキルのヒントLv（いま ' + sum.st.F + '）で得たものとして計算しています。', 'factor-help-theory');
 			line('② ＝ 継承固有 ' + fmt(sum.uniqPt) + ' ＋ 共通スキル ' + fmt(sum.commonPt), 'factor-help-formula');
-			line('アイコンは数え方に関係しません（メモ用です）。', 'factor-help-icons');
 			if (r.unpricedCount > 0) line('Pt 未収録のスキル ' + r.unpricedCount + '種は数えていません', 'factor-help-unpriced');
 			if (sum.takenIds.length > 0) line('①で取得するスキル ' + sum.takenIds.length + '種は数えていません', 'factor-help-taken');
 			if (skillPtData.meta.stepUp === 'failed') line('前段のデータを読み込めませんでした', 'factor-help-prev-error');
@@ -13799,16 +13842,17 @@
 				+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"><span class="usd-circle-mark" aria-hidden="true">' + (on ? '◎' : '○') + '</span></button>';
 		}
 		/**
-		 * ②の1行（setBased）。カード一覧のタイルと、星取表の行の名前セル（②因子周回 段3）が同じものを使う（名前・Pt・◎／○・①と重なりの印・アイコン・削除が同じ決まりになる）。
+		 * ②の1行（setBased）。カード一覧のタイルと、星取表の行の名前セル（②因子周回 段3）が同じものを使う（名前・Pt・◎／○・①と重なりの印・マーカー・削除が同じ決まりになる）。
 		 * ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にする。◎／○の切り替えは「◎を○に変えるモード」のときだけ Pt の位置に出す。
-		 * 行の識別（data-skill-id）・アイコン・並び・削除は○の id のまま。Pt と「①と重なり」は renderPanelPts が入れる
+		 * 行の識別（data-skill-id）・マーカー・並び・削除は○の id のまま。Pt と「①と重なり」は renderPanelPts が入れる。
+		 * ②因子周回 段4（C-226）: 左端はパレットのアイコンのボタンに代えて、自動のマーカー（kinds＝factorMarkerKindsOf。ボタンではなく画像）
 		 */
-		function factorPanelHtml(id, icons, cands, circ) {
+		function factorPanelHtml(id, kinds, cands, circ) {
 			const name = getSkillName(id);
 			const up = cands.get(id) || null, on = circ.has(id);
 			const shownId = on ? up : id, shownName = on ? getSkillName(up) : name;
-			return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + '>'
-				+ iconButtonHtml(id, name, icons[id])
+			return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + ' data-marker="' + esc(kinds.get(id) || 'other') + '">'
+				+ '<span class="usd-panel-marker">' + factorMarkerHtml(kinds.get(id) || 'other', 20) + '</span>'
 				+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
 				+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
 				+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
@@ -13838,6 +13882,49 @@
 			const marks = new Map();
 			vp.visibleItems.forEach(it => marks.set(it.skillId, { sure: it.sureMembers || [], maybe: it.members || [] }));
 			return { cards: cards, marks: marks, res: res, roster: copy, saved: saved };
+		}
+		/**
+		 * 列のカード（オススメサポの提案のカード）が持つ（●か○）スキルの id（②因子周回 段4・C-226）。**星取表の列の●／○と、マーカーの「周回サポカ」が
+		 * 同じここを通る**（イベントの選択肢の扱いを1か所で決める＝D3）。印は src.marks（①の表と同じ visibleItems の sureMembers／members）
+		 */
+		function factorCardSkillIdsOf(src) {
+			const keys = new Set(src.cards.map(m => m.key));
+			const out = new Set();
+			src.marks.forEach((m, id) => { if (m.sure.some(k => keys.has(k)) || m.maybe.some(k => keys.has(k))) out.add(id); });
+			return out;
+		}
+		/**
+		 * ②のスキルの自動のマーカーの種類（②因子周回 段4・C-226）。返り値は Map（②の id → 'card'｜'star'｜'other'）。②のスキルすべてに1つ。
+		 * 判定は「周回サポカ → サポカ外 → その他」の順に1つだけ:
+		 *   card ＝ 列のカードが持つ（factorCardSkillIdsOf）。カードが金を持つなら、その金の前段の白（outsideAncestorsFn）もカード（D2。白しか持たないとき②の金はカードにしない）。
+		 *          保存のカードが無いセットは0（D1）。
+		 *   star ＝ data/non-support-skills.json（脚質オススメの見出し「サポカ外」と同じ一覧）にある。読めていないときは無い扱い（読み終えたら描き直す）。
+		 *   other ＝ それ以外（親から継承）。
+		 * 「①と重なり」の行も同じ規則（②のスキルなので）。無効の段・星取表の表示だけの金の行は②のスキルではないので、ここに入らない（D11）。
+		 * 計算・保存には関わらない（表示だけ）
+		 */
+		function factorMarkerKindsOf(target, src) {
+			const out = new Map();
+			const ids = skillIdsOf(target) || [];
+			if (ids.length === 0) return out;
+			const s = src || factorTableSourceOf(target);
+			const card = factorCardSkillIdsOf(s);
+			const pt = skillPtData.skillPt;
+			const isGold = (id) => { const row = pt instanceof Map ? pt.get(id) : null; return !!row && row.rarity === 'gold'; };
+			const ancestors = outsideAncestorsFn();
+			Array.from(card).forEach(id => { if (isGold(id)) ancestors(id).forEach(p => card.add(p)); });
+			const star = new Set(nonSupportState.status === 'ok' && nonSupportState.ids ? nonSupportState.ids : []);
+			ids.forEach(id => out.set(id, card.has(id) ? 'card' : star.has(id) ? 'star' : 'other'));
+			return out;
+		}
+		// ★の一覧（サポカ外）は②を描くときに読む（小さいファイル。いままでは小窓を開いたときだけ読んでいた）。この画面からは1回だけ頼み、読み終えたら②を描き直す。
+		// 読めなかったときは★の印が付かない（その他になる）だけで、自動ではもう一度取りに行かない（小窓を開くと読み直す）
+		let factorStarRequested = false;
+		function ensureFactorStarLoaded() {
+			if (factorStarRequested || nonSupportState.status === 'ok') return;
+			factorStarRequested = true;
+			const p = loadNonSupportSkills();
+			if (p) p.then(st => { if (st === 'ok' && container.isConnected) renderSelectedList(); });
 		}
 		/**
 		 * 無効のスキル（C-225）: オススメサポのカード（列）で得られるのに、②に入っていないスキル。保存せず、その都度割り出す。
@@ -13903,9 +13990,9 @@
 		function factorTableUnitsOf(sortedIds, src) {
 			const su = skillPtData.stepUp, pt = skillPtData.skillPt;
 			const inSet = new Set(sortedIds);
-			const cardKeys = new Set(src.cards.map(m => m.key));
+			const cardIds = factorCardSkillIdsOf(src);
 			const isGold = (id) => { const row = pt instanceof Map ? pt.get(id) : null; return !!row && row.rarity === 'gold'; };
-			const cardHas = (id) => { const m = src.marks.get(id); return !!m && (m.sure.some(k => cardKeys.has(k)) || m.maybe.some(k => cardKeys.has(k))); };
+			const cardHas = (id) => cardIds.has(id);
 			const goldsAbove = (id) => {
 				const out = [];
 				if (!su || typeof su.nextOf !== 'function' || isGold(id)) return out;
@@ -14077,15 +14164,17 @@
 			// ②因子周回 段1（2026-10-27）: パネルの並びは因子画面の順（compareGameOrder。一覧に無いものは末尾に ID の順）。
 			// 並べ替えるのは表示だけで、保存の順（足した順）は変えない（③の表・コピー・Deck の記録・結合画像はその順のまま）
 			if (setBased) {
-				const icons = iconsOf(target);
+				// ②因子周回 段4（C-226）: 行の左端の自動のマーカー（周回サポカ／サポカ外／その他）。★の一覧（サポカ外）は読み終えたら描き直す
+				const kinds = factorMarkerKindsOf(target, fsrc);
+				ensureFactorStarLoaded();
 				// ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にする。◎／○の切り替えは「◎を○に変えるモード」のときだけ Pt の位置に出す。
-				// 行の識別（data-skill-id）・アイコン・並び・削除は○の id のまま
+				// 行の識別（data-skill-id）・マーカー・並び・削除は○の id のまま
 				const cst = factorPtState(target);
 				const cands = cst && cst.circleCandidates ? cst.circleCandidates : new Map();
 				const circ = cst && cst.circleOf ? cst.circleOf : new Map();
 				const sorted = ids.slice().sort(compareGameOrder);
-				const panelOf = (id) => factorPanelHtml(id, icons, cands, circ);
-				// ②因子周回 段3: 星取表の表示（factorView。保存しない）。行の名前セルはカード一覧と同じパネルの部品（名前・Pt・◎／○・アイコン・削除）
+				const panelOf = (id) => factorPanelHtml(id, kinds, cands, circ);
+				// ②因子周回 段3: 星取表の表示（factorView。保存しない）。行の名前セルはカード一覧と同じパネルの部品（名前・Pt・◎／○・マーカー・削除）
 				el.classList.toggle('usd-panels--table', factorView === 'table');
 				// C-225: 有効（②のスキル）の下に無効の段（見出しと件数・無効の行）。カード一覧と星取表の両方
 				const offHtml = offIds.length > 0
@@ -14129,9 +14218,10 @@
 		}
 
 		/**
-		 * ②のリセット（段9・C-121）。帯の右端の「↺」で小窓を開き、縦3つのボタン「スキル○種をすべて消す」（赤）／「アイコンだけすべて外す」／「やめる」。
-		 * **消すのは②のスキルの一覧とアイコンだけ**（継承固有の設定・共通スキルのヒントLv・シナリオ因子／遺伝子のチェック・セット名・①は触らない）。
+		 * ②のリセット（段9・C-121）。帯の右端の「↺」で小窓を開き、縦2つのボタン「スキル○種をすべて消す」（赤）／「やめる」。
+		 * **消すのは②のスキルの一覧だけ**（継承固有の設定・共通スキルのヒントLv・シナリオ因子／遺伝子のチェック・セット名・①は触らない）。
 		 * ○は消える共通スキルの種（継承固有は含めない）。実行したら右下の「元に戻す」で戻せる。
+		 * ②因子周回 段4（C-226）: 「アイコンだけすべて外す」は無くした（パレットのアイコンを無くしたため。保存してあるアイコン skillIcons は読まず・書かず・消さない）
 		 */
 		function openFactorResetPopover(btn) {
 			if (btn && btn.disabled) return;
@@ -14140,7 +14230,6 @@
 		function fillFactorReset(body) {
 			const target = currentTarget();
 			const ids = skillIdsOf(target) || [];
-			const iconCount = Object.keys(iconsOf(target)).length;
 			const col = infoEl('div', 'usd-reset-ops');
 			col.setAttribute('data-usd-el', 'factor-reset-ops');
 			const add = (cls, el, text, disabled, fn) => {
@@ -14151,40 +14240,34 @@
 				b.addEventListener('click', () => { closeSkillInfo(); fn(); });
 				col.appendChild(b);
 			};
-			add('uma-btn--danger', 'factor-reset-all', 'スキル' + countSkillKinds(ids) + '種をすべて消す', ids.length === 0, () => resetFactor('all'));
-			add('uma-btn--secondary', 'factor-reset-icons', 'アイコンだけすべて外す', iconCount === 0, () => resetFactor('icons'));
+			add('uma-btn--danger', 'factor-reset-all', 'スキル' + countSkillKinds(ids) + '種をすべて消す', ids.length === 0, () => resetFactor());
 			add('uma-btn--ghost', 'factor-reset-cancel', 'やめる', false, () => {});
 			body.appendChild(col);
 		}
-		/** kind: 'all'＝スキルとアイコンを消す／'icons'＝アイコンだけ外す（スキルは残す）。「元に戻す」に積む */
-		function resetFactor(kind) {
+		/** ②のスキルをすべて消す。「元に戻す」に積む */
+		function resetFactor() {
 			const target = currentTarget();
 			const prevIds = snapshot(skillIdsOf(target) || []);
-			const prevIcons = snapshot(iconsOf(target));
-			const isAll = kind === 'all';
-			if (isAll ? prevIds.length === 0 : Object.keys(prevIcons).length === 0) return;
+			if (prevIds.length === 0) return;
 			const n = countSkillKinds(prevIds);
-			// ②因子周回 段2: 「すべて消す」は②の「○のまま数える」（keepCircleIds）も消す。「アイコンだけ外す」は触らない
-			const prevKeep = isAll ? snapshot(factorKeepProbeOf(target)) : undefined;
+			// ②因子周回 段2: 「すべて消す」は②の「○のまま数える」（keepCircleIds）も消す
+			const prevKeep = snapshot(factorKeepProbeOf(target));
 			pushUndo({
 				scope: 'list',
-				doneLabel: isAll ? 'スキル' + n + '種を消しました' : 'アイコンをすべて外しました',
-				undoneLabel: isAll ? '消した' + n + '種を戻しました' : '外したアイコンを戻しました',
-				probe: () => probeOf(isAll ? { ids: skillIdsOf(target) || [], icons: iconsOf(target), keep: factorKeepProbeOf(target) }
-					: { ids: skillIdsOf(target) || [], icons: iconsOf(target) }),
+				doneLabel: 'スキル' + n + '種を消しました',
+				undoneLabel: '消した' + n + '種を戻しました',
+				probe: () => probeOf({ ids: skillIdsOf(target) || [], keep: factorKeepProbeOf(target) }),
 				apply: () => {
-					if (!writeSkillState(target, snapshot(prevIds), snapshot(prevIcons))) return false;
-					if (isAll && prevKeep !== null && !writeFactorKeepCircleIds(target, snapshot(prevKeep))) return false;
-					if (isAll) picker.excludeIds = picker.excludeIds.concat(prevIds.filter(id => picker.excludeIds.indexOf(id) === -1));
+					if (!writeSkillState(target, snapshot(prevIds))) return false;
+					if (prevKeep !== null && !writeFactorKeepCircleIds(target, snapshot(prevKeep))) return false;
+					picker.excludeIds = picker.excludeIds.concat(prevIds.filter(id => picker.excludeIds.indexOf(id) === -1));
 					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
-			if (isAll) {
-				if (!writeSkillState(target, [], {})) return;
-				if (prevKeep !== null && !writeFactorKeepCircleIds(target, null)) return;
-				picker.excludeIds = picker.excludeIds.filter(id => prevIds.indexOf(id) === -1);
-			} else if (!writeSkillState(target, prevIds, {})) return;
+			if (!writeSkillState(target, [])) return;
+			if (prevKeep !== null && !writeFactorKeepCircleIds(target, null)) return;
+			picker.excludeIds = picker.excludeIds.filter(id => prevIds.indexOf(id) === -1);
 			afterEditingSkillsChanged(target);
 		}
 
@@ -14816,39 +14899,30 @@
 			}
 		}
 
-		/** 行の先頭のアイコンのボタン（押す範囲は 32px 以上）。アイコンの無いスキルは破線の丸（中は空） */
-		function iconButtonHtml(skillId, name, iconId) {
-			const ic = SKILL_ICONS.find(i => i.id === iconId);
-			return '<button type="button" class="usd-panel-iconbtn" data-usd-act="skill-icon" data-usd-el="skill-icon" data-skill-id="' + esc(skillId) + '"' + (ic ? ' data-icon="' + ic.id + '"' : '')
-				+ ' aria-label="' + esc(name + 'のアイコン：' + (ic ? ic.mark : 'なし')) + '" title="アイコンを付ける・外す">' + skillIconHtml(iconId) + '</button>';
-		}
 		/**
-		 * パレット「削除 │ ◎ ○ △ ◇ ★ ✕」（段9。C-132 で並びを変え、「解除」を「削除」に置き換えた。C-163 の「サポカ外」、C-130 の「逃げオススメ／先差追オススメ」は、
-		 * 2026-10-21 に入口の「脚質オススメ」の小窓へ移した）。
-		 * 選んでいるものは外側に 2px の輪（aria-pressed）。選んでいるアイコンをもう一度押すと選択が外れる（何も付けない状態）。
-		 * 「削除」はアイコンと同じブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）。収まらないぶんは横に送る（始まりは左端）
+		 * 入口の行の右端の固定の塊（②因子周回 段4・C-226。段9 のパレット「削除 │ ◎ ○ △ ◇ ★ ✕」の行を無くした＝D5）。
+		 * 並びは「◎（◎を○に変えるモード。候補が無いときは出さない）・表の切り替え（カード一覧／星取表）・削除」で、**削除が一番右**。
+		 * 塊は横に送らない（入口のボタンだけが横に送られる）ので、狭い幅でも常に見える。◎が消えても削除の位置は動かない（右詰め）。
+		 * 「削除」はブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）のまま。選んでいるときは 2px の枠（aria-pressed）
 		 */
 		function renderPalette() {
 			const el = q(container, 'tier-row');
 			if (!el) return;
 			const del = paletteSel === PALETTE_DELETE;
-			// ②因子周回 段2: 「削除」の右に◎のボタン（①の◎の漏斗のボタンから漏斗を無くし、◎そのものを押せるようにした形）。◎の候補が無いときは出さず、モードも切る
+			// ②因子周回 段2: ◎のボタン（①の◎の漏斗のボタンから漏斗を無くし、◎そのものを押せるようにした形）。◎の候補が無いときは出さず、モードも切る
 			const cst = factorPtState(currentTarget());
 			const hasCircle = !!(cst && cst.circleCandidates && cst.circleCandidates.size > 0);
 			if (!hasCircle) factorCircleMode = false;
 			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
-			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
-				+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>'
-				+ (hasCircle ? '<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
+			el.innerHTML = (hasCircle ? '<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
 					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
 					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
-				// ②因子周回 段3: ◎のボタンの右（◎が無いときは「削除」の右）に、カード一覧と星取表の切り替え。押している＝星取表（◎のボタンと同じ選択の枠）
+				// ②因子周回 段3: カード一覧と星取表の切り替え。押している＝星取表（◎のボタンと同じ選択の枠）
 				+ '<button type="button" class="usd-factor-circlebtn usd-factor-viewbtn" data-usd-act="factor-view" data-usd-el="factor-view" aria-pressed="' + (factorView === 'table' ? 'true' : 'false') + '"'
 					+ ' aria-label="星取表で見る" title="' + (factorView === 'table' ? 'カード一覧に戻す' : '星取表で見る') + '">'
 					+ '<svg class="usd-factor-viewsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 4v16"/></svg></button>'
-				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
-				+ SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
-				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('');
+				+ '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
+					+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>';
 			// 削除の状態は、スキルのまとまりの印でタイルの見た目にも出す（控えめな破線の枠と、名前の取り消しの線）
 			const group = q(container, 'skill-group');
 			if (group) group.classList.toggle('usd-skillgroup--delete', del);
@@ -14873,7 +14947,6 @@
 			const why = recommendSkipReasons(plan);
 			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
 			const prev = snapshot(ids);
-			const prevIcons = snapshot(iconsOf(target));
 			const add = plan.add.slice();
 			pushUndo({
 				scope: 'list',
@@ -14882,7 +14955,7 @@
 				undoneLabel: label + 'で追加した' + add.length + '種を取り消しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev), undefined, snapshot(prevIcons))) return false;
+					if (!writeSkillIds(target, snapshot(prev))) return false;
 					picker.excludeIds = picker.excludeIds.filter(id => add.indexOf(id) === -1);
 					afterEditingSkillsChanged(target);
 					return true;
@@ -15238,42 +15311,11 @@
 			closeStyleAdvisor();
 			commitAddPlan('脚質オススメ', plan);
 		}
-		/** C-132: 同じものをもう一度押すと選択が外れる（アイコン・削除とも）。アイコンを選ぶと削除の状態は終わる */
+		/** C-132: 同じものをもう一度押すと選択が外れる。②因子周回 段4（C-226）: パレットのアイコンは無くしたので、選べるのは「削除」だけ */
 		function pickPalette(iconId) {
-			if (iconId !== PALETTE_DELETE && !isSkillIconId(iconId)) return;
+			if (iconId !== PALETTE_DELETE) return;
 			paletteSel = paletteSel === iconId ? null : iconId;
 			renderPalette();
-		}
-		/**
-		 * 行の先頭のアイコンを押したとき（段9）。アイコンを選んでいれば、そのアイコンを付ける／同じものが付いていれば外す／別のものなら付け替える。
-		 * 何も選んでいないときは何もしない（C-132 で「解除」は無くした。外すのは、同じアイコンを選んで押す）。**Pt・種・合計には影響しない（メモ用）。** 選択は保つので続けて押せる。
-		 * 描き直すのはその行のアイコンだけ（押したボタンを作り直さない＝フォーカスとスクロールの位置を保つ）。
-		 * tiers はアイコンから導いて書き直す（◎→超優先・○→優先・それ以外と無印→通常）。結合画像の印のために、変更を呼び出し元へ知らせる
-		 */
-		function toggleSkillIcon(skillId) {
-			const target = currentTarget();
-			const ids = skillIdsOf(target) || [];
-			if (ids.indexOf(skillId) === -1) return;
-			if (!isSkillIconId(paletteSel)) return;
-			const icons = iconsOf(target);
-			const cur = icons[skillId];
-			if (cur === paletteSel) delete icons[skillId];
-			else icons[skillId] = paletteSel;
-			if (!writeSkillState(target, ids, icons)) return;
-			const list = q(container, 'selected-list');
-			const b = list ? list.querySelector('[data-usd-act="skill-icon"][data-skill-id="' + (global.CSS && global.CSS.escape ? global.CSS.escape(skillId) : skillId) + '"]') : null;
-			if (b) {
-				const next = icons[skillId];
-				const html = iconButtonHtml(skillId, getSkillName(skillId), next);
-				const tmp = global.document.createElement('div');
-				tmp.innerHTML = html;
-				const nb = tmp.firstChild;
-				if (next) b.setAttribute('data-icon', next); else b.removeAttribute('data-icon');
-				b.setAttribute('aria-label', nb.getAttribute('aria-label'));
-				b.innerHTML = nb.innerHTML;
-			}
-			renderPtNeed();   // 帯の「↺」（消すものがあるか）を描き直す
-			fireChange();
 		}
 
 		function selectTier(tier) {
@@ -15475,8 +15517,8 @@
 			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
 			if (draftScope.inheritedUnique && typeof draftScope.inheritedUnique === 'object') t.inheritedUnique = Object.assign({}, draftScope.inheritedUnique);   // 継承固有（段7d の ⑪）
 			if (Array.isArray(draftScope.keepCircleIds) && draftScope.keepCircleIds.length > 0) t.keepCircleIds = draftScope.keepCircleIds.slice();   // ②の「○のまま数える」（段2）
-			// アイコン（段9）。下書きが持たない（まだ触っていない）ときは tiers から導いた姿を写す
-			if (setBased) { t.skillIcons = cleanSkillIcons(iconsOf({ kind: 'draft' }), t.skillIds); if (!(data.schemaVersion >= 7)) data.schemaVersion = 7; }
+			// アイコン（段9）。②因子周回 段4（C-226）から②では読まず・書かないが、下書きに保存してある値は消さずにそのまま運ぶ（持たないときは何も書かない）
+			if (setBased) { if (draftScope.skillIcons && typeof draftScope.skillIcons === 'object') t.skillIcons = Object.assign({}, draftScope.skillIcons); if (!(data.schemaVersion >= 7)) data.schemaVersion = 7; }
 			if (setBased) {
 				// 段8: 下書きの①（編成）に中身があれば、写し（新しい rosterId・名前はセット名）を作ってこのセットに付ける。下書きの①はそのまま残す
 				const dr = draftScopeKey ? loadDraftRoster(draftScopeKey) : null;
@@ -15655,7 +15697,6 @@
 			if (idx === -1) return;
 			const name = getSkillName(skillId);
 			const prevTier = tierOf(tiersOf(target), skillId);   // 分類（C-57）も一緒に戻す
-			const prevIcon = setBased ? iconsOf(target)[skillId] : undefined;   // アイコン（段9）も一緒に戻す
 			pushUndo({
 				scope: 'list',
 				doneLabel: 'スキル「' + name + '」を外しました',
@@ -15671,8 +15712,7 @@
 					next.splice(Math.min(idx, next.length), 0, skillId);
 					const nextTiers = tiersWithout(tiersOf(target), [skillId]);
 					if (prevTier !== TIER_DEFAULT) nextTiers[skillId] = prevTier;
-					const nextIcons = setBased ? Object.assign(iconsOf(target), prevIcon ? { [skillId]: prevIcon } : {}) : undefined;
-					if (!writeSkillIds(target, next, nextTiers, nextIcons)) return false;
+					if (!writeSkillIds(target, next, nextTiers)) return false;
 					if (picker.excludeIds.indexOf(skillId) === -1) picker.excludeIds.push(skillId);
 					afterEditingSkillsChanged(target);
 					return true;
@@ -15844,11 +15884,10 @@
 		// 対象のスキルID一覧を、保存先まで書き換える。**テンプレートは触った時点で保存**（C-53。元に戻せる）。
 		// tiers（分類）を渡したときはそれも書く。**渡さなければ tiers には触らない**（tiers を持たないデータに
 		// 空の tiers を書き足さない＝開いて触っただけでは保存データの姿が変わらない。C-51 の知見）。
-		// 段9（setBased）: スキルの並びが変わるときは、アイコン（skillIcons）も一緒に書き、tiers はアイコンから導いて書き直す
-		// （◎→超優先・○→優先・それ以外と無印→通常。Deck・結合画像の印との互換）。icons を渡さなければ、いまのアイコンを引き継ぐ
-		// （消えたスキルのアイコンは落とす。足したスキルにはアイコンを付けない）。tiers の引数は読まない。
-		function writeSkillIds(target, ids, tiers, icons) {
-			if (setBased) return writeSkillState(target, ids, cleanSkillIcons(icons !== undefined ? icons : iconsOf(target), ids));
+		// setBased（special の②）: ②因子周回 段4（C-226）から、スキルの並びだけを書く。アイコン（skillIcons）は読まず・書かず（保存してある値は消さない）、
+		// tiers にも触らない（Deck 単体ページの分類のタブが使う。段9 の「アイコンから導いて書き直す」はやめた）。tiers の引数は読まない。
+		function writeSkillIds(target, ids, tiers) {
+			if (setBased) return writeSkillState(target, ids);
 			if (target.kind === 'draft') {
 				draftScope = persistDraft(ids, draftScope.name, tiers !== undefined ? tiers : draftScope.tiers);
 				return true;
@@ -15861,34 +15900,19 @@
 			saveUserData();
 			return true;
 		}
-		/** setBased: スキルの並びとアイコンを書き、tiers をアイコンから導いて書く（下書きは下書きへ、テンプレートは保存まで） */
-		function writeSkillState(target, ids, icons) {
-			const derived = tiersFromIcons(ids, icons);
+		/** setBased: スキルの並びだけを書く（下書きは下書きへ、テンプレートは保存まで）。アイコン（skillIcons）・tiers は保存してある値のまま（C-226） */
+		function writeSkillState(target, ids) {
 			if (target.kind === 'draft') {
-				draftScope = persistDraft(ids, draftScope.name, derived, undefined, undefined, undefined, undefined, icons);
+				draftScope = persistDraft(ids, draftScope.name, draftScope.tiers);
 				return true;
 			}
 			const data = ensureUserData();
 			const t = data.templates.find(x => x.templateId === target.obj.templateId);
 			if (!t) return false;
 			t.skillIds = ids.slice();
-			t.skillIcons = Object.assign({}, icons);
-			setTemplateTiers(t, derived);
-			if (!(data.schemaVersion >= 7)) data.schemaVersion = 7;
 			t.updatedAt = nowIso();
 			saveUserData();
 			return true;
-		}
-		/**
-		 * 対象の「今の」アイコン { スキルID: アイコンID }（段9。special の②だけ）。写しを返す。skillIcons を持たない対象
-		 * （まだ触っていない・Deck で作った）は、tiers から導く（超優先→◎・優先〔無い id も〕→○・通常→△）。
-		 */
-		function iconsOf(target) {
-			if (!target) return {};
-			const ids = skillIdsOf(target) || [];
-			const raw = target.kind === 'draft' ? draftScope.skillIcons : (ensureUserData().templates.find(x => x.templateId === target.obj.templateId) || {}).skillIcons;
-			if (raw && typeof raw === 'object') return cleanSkillIcons(raw, ids);
-			return iconsFromTiers(ids, tiersOf(target));
 		}
 		// テンプレートの tiers を書く。中身が空なら項目ごと消す（「優先」だけのセットは tiers を持たない＝旧データと同じ姿）。
 		// 初めて tiers を書くとき、保存データの schemaVersion を 4 に上げる（形が増えたことの記録。C-57）
@@ -16069,14 +16093,13 @@
 			// （確認ダイアログは挟まない。C-51 の修正4）。状態を変える前に積む。
 			const prev = snapshot(before);
 			const prevTiers = snapshot(tiersOf(target));   // 分類（C-57）も一緒に戻す
-			const prevIcons = setBased ? snapshot(iconsOf(target)) : undefined;   // アイコン（段9）も一緒に戻す
 			pushUndo({
 				scope: 'list',
 				doneLabel: '本育成スキル' + n + '種をスキルセットから外しました',
 				undoneLabel: '外した' + n + '種をスキルセットに戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers), prevIcons ? snapshot(prevIcons) : undefined)) return false;
+					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
 					afterEditingSkillsChanged(target);
 					return true;
 				}
@@ -16099,6 +16122,8 @@
 			getSelection: getSelection,
 			// 段8: 選んでいるセットの数字（①・②・合計・②の N）。出せないときは null
 			getSetSummary: function () { return setBased ? setSummaryOf(currentTarget()) : null; },
+			// ②因子周回 段4（C-226）: いまのセットの②のスキルの自動のマーカーの種類 { スキルID: 'card'｜'star'｜'other' }（special の③の結果の表・結合画像が使う）。setBased でないときは空
+			getMarkerKinds: function () { const out = {}; if (setBased) factorMarkerKindsOf(currentTarget()).forEach((k, id) => { out[id] = k; }); return out; },
 			// ②因子周回 段2: ②の◎の候補（○ → ◎）・◎として数えるもの・行の Pt・保存の keepCircleIds（検査のため。保存値は書き換えない）
 			getFactorCircles: function () {
 				const st = setBased ? factorPtState(currentTarget()) : null;
@@ -16582,6 +16607,9 @@
 		tabStrip: { html: tabStripHtml, reveal: revealSelectedTab, keydown: tabStripKeydown },
 		// スキルセットの分類（C-57）。呼び出し元（special の照合結果の表）が印を出すために使う
 		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel, markHtml: tierMarkHtml },
+		// ②のスキルの自動のマーカー（②因子周回 段4・C-226）。形（20×20 の SVG のパス）と色はここ1か所（FACTOR_MARKERS）。画面の印（html）と、結合画像の凡例（段5。Canvas の Path2D）が同じパスを使う。
+		// 種類の判定は、セットの画面（createTemplateManager の getMarkerKinds）が持つ（①の保存のカード・★の一覧を読むため）
+		markers: { list: FACTOR_MARKERS.map(m => ({ id: m.id, label: m.label, light: Object.assign({}, m.light), dark: Object.assign({}, m.dark), symbol: Object.assign({}, m.symbol) })), frame: Object.assign({}, FACTOR_MARKER_FRAME), symbolColor: Object.assign({}, FACTOR_MARKER_SYMBOL), html: factorMarkerHtml },
 		// スキルのアイコン（段9・C-121）。表は SKILL_ICONS 1か所。tierOf は従来の分類への互換（◎＝1・○＝2・それ以外と無印＝3）
 		icons: { list: SKILL_ICONS.map(i => ({ id: i.id, mark: i.mark, light: i.light, dark: i.dark })), defaultIcon: SKILL_ICON_DEFAULT, tierOf: iconTier, html: skillIconHtml, fromTiers: iconsFromTiers, toTiers: tiersFromIcons },
 		listRosters: listRosters,

@@ -84,6 +84,7 @@ import { register57 } from './blocks-57.mjs';
 import { register58 } from './blocks-58.mjs';
 import { register59 } from './blocks-59.mjs';
 import { register60 } from './blocks-60.mjs';
+import { register61 } from './blocks-61.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -7662,6 +7663,7 @@ await block('スキルセットの分類（超優先／優先／通常。C-57）
 		return {
 			panels: document.querySelectorAll(r + ' .usd-panel').length,
 			icons: Array.from(document.querySelectorAll(r + ' .usd-panel [data-usd-act="skill-icon"]')).map(b => b.dataset.icon || '').join(''),
+			markers: document.querySelectorAll(r + ' .usd-panel [data-usd-el="factor-marker"]').length,
 			tabs: document.querySelectorAll(r + ' .usd-tier-tab').length,
 			modes: !!q('[data-usd-el="mode-reclass"]') || !!q('[data-usd-el="mode-delete"]'),
 			dels: document.querySelectorAll(r + ' .usd-panel-del').length,
@@ -7669,8 +7671,9 @@ await block('スキルセットの分類（超優先／優先／通常。C-57）
 		};
 	});
 	const t0 = await ui();
-	assert(t0.panels === PICK.length && t0.icons === 'b'.repeat(PICK.length),
-		'tiers→段9: tiers を持たないデータのスキルは全部「優先」＝○のアイコンで出る', t0);
+	// C-226（②因子周回 段4）: special の②はアイコンを出さず、行の先頭は自動のマーカー（tiers・skillIcons に依らない）
+	assert(t0.panels === PICK.length && t0.icons === '' && t0.markers === PICK.length,
+		'tiers→C-226: tiers を持たないデータでも、行の先頭はアイコンではなく自動のマーカー（全行に1つ）', t0);
 	// C-132: 各行の × は無くした（外すのはパレットの「削除」）
 	assert(t0.tabs === 0 && !t0.modes && t0.dels === 0, '段9: 分類のタブと再分類・削除のモードは無い。C-132: 各行に × は無い', t0);
 	// 印は競馬の印（◎○▲）を**線で**描いた SVG（C-58 の作業B）。塗りつぶさないので fill は none
@@ -8147,7 +8150,7 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 				.map(r => { const el = r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\] svg path');
 					return el ? el.getAttribute('d') : '(svg なし)'; }),
 			wantHeartD: STITCH_DIAMOND_PATH_D_24,
-			tierMarked: rows.filter(r => r.querySelector('td .uma-tier-mark')).length,
+			tierMarked: rows.filter(r => r.querySelector('td [data-usd-el="factor-marker"]') && !r.querySelector('td .uma-tier-mark')).length,   // C-226: ◎○▲ に代えて自動のマーカー
 			copyLines: document.getElementById('copy-data').value.split('\n').length,
 			kept: [names[0], names[1]].filter(n => factorSet.has(n)),
 			detected: Array.from(personResults[0].detectedSkills).filter(n => factorSet.has(n)).sort(),
@@ -8170,7 +8173,7 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 	// **この検査で見ているのはシナリオ因子だけを ON にした状態**（上の scopes の作り方による）。
 	// 合計が因子の数と合い、遺伝子の◇は1つも出ていないこと。
 	assert(res.diamond.length + res.heart.length === nFactor && res.tierMarked > 0,
-		'C-2b: 因子の行には印、スキルの行には◎○▲（左の同じ欄）',
+		'C-2b: 因子の行には印、スキルの行には自動のマーカー（左の同じ欄。C-226 で◎○▲から置き換え）',
 		{ diamond: res.diamond.length, heart: res.heart.length, tier: res.tierMarked });
 	assert(res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.every(g => g === res.wantHeartD),
 		'段I-5(special): シナリオ因子は◆の文字・遺伝子は白抜きの菱形の SVG（塗り方で分かれている）',
@@ -10138,11 +10141,13 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 		const sp = await page.evaluate(([a, b]) => ({
 			dict: skillList.filter((n) => n === a.name || n === b.name),
 			total: skillList.length,
-			tier1: ((document.querySelector('#deck-template-panel [data-usd-act="skill-icon"][data-skill-id="custom_c100a"]') || {}).dataset || {}).icon || null,
+			// C-226: special の②はアイコンを出さない（行の先頭は自動のマーカー）。分け方（tiers）は保存の値のまま読める
+			tier1: (deckTemplateManager.getSelection() || {}).tiers ? UmaSkillDeckCore.tiers.of(deckTemplateManager.getSelection().tiers, 'custom_c100a') : null,
+			marker: ((document.querySelector('#deck-template-panel .usd-panel[data-skill-id="custom_c100a"] [data-usd-el="factor-marker"]') || {}).dataset || {}).marker || null,
 		}), [C1, C2]);
 		assert(eq(sp.dict.slice().sort(), [C1.name, C2.name].sort()) && sp.total === 4,
 			'C-100 special: 自作スキル入りのセットを選ぶと、照合の辞書に自作スキルが同じ名前で入る', sp);
-		assert(sp.tier1 === 'a', 'C-100 special: 周回因子セットでも分け方が変わらない（超優先 → ◎のアイコン）', sp.tier1);
+		assert(sp.tier1 === 1 && sp.marker === 'other', 'C-100 special: 周回因子セットでも分け方（tiers の超優先）は変わらない。行の先頭は自動のマーカー（自作スキルは「その他」）', sp);
 		const panel = await page.evaluate((id) => {
 			const p = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"]');
 			return p ? p.querySelector('.usd-panel-namebtn').textContent : null;   // 段7d の ⑬：名前は button（Pt を添えた span の中）
@@ -13572,15 +13577,12 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		'段5(6): Pt が未収録のスキル（Y4）は合計に入れず、「?」の小窓に「Pt 未収録のスキル 1種は数えていません」が出る（pt:0 の Y5 は未収録に数えない）', { unpriced: help.unpriced });
 	assert(v.roster === null && e.roster > 0, '段5(1)→段7c(O): 「（うち本育成 X）」の行は削除した（表示だけ。X の計算は変えていない）', { got: v.roster, want: e.roster });
 	// 分類を変える（優先の Y1 を超優先へ）→ 超優先だけ・優先までが増え、通常までは変わらない
-	// 段9: 再分類のモードは無い。パレットで ◎ を選び、その行のアイコンを押すと超優先（tiers が 1）になる
-	// C-132: 選択中のアイコンをもう一度押すと選択が外れるので、◎ が選ばれていないときだけ押す（初期は ◎）
-	await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="palette-a"]'); if (b.getAttribute('aria-pressed') !== 'true') b.click(); });
-	await sp.page.click('#deck-template-panel .usd-panel[data-skill-id="' + y(1) + '"] [data-usd-act="skill-icon"]');
-	v = await readNeed(sp.page);
-	const tiers2 = Object.assign({}, SCOPE_TIERS, { [y(1)]: 1 });
+	// 段9: 再分類のモードは無い。C-226（②因子周回 段4）: パレットのアイコンも無くしたので、special の②に分類（tiers）を変える手段は無い（tiers は保存の値のまま）
+	const tiers2 = Object.assign({}, SCOPE_TIERS);
 	e = expectedNeed(Object.assign({}, base0, { tiers: tiers2 }));
-	assert(sameNeed(v, e) && e.A > expectedNeed(base0).A && e.C === expectedNeed(base0).C && (await readScope(sp.page)).tiers[y(1)] === 1,
-		'段5(1): 分類を変える（Y1 を超優先へ）と、超優先だけが増え、通常までは変わらない', { got: v.chips.map((c) => c.n), want: [e.A, e.B, e.C] });
+	const noPal = await sp.page.evaluate(() => document.querySelectorAll('#deck-template-panel [data-usd-el="palette-a"], #deck-template-panel [data-usd-act="skill-icon"]').length);
+	assert(noPal === 0 && sameNeed(v, e) && JSON.stringify((await readScope(sp.page)).tiers || {}) === JSON.stringify(SCOPE_TIERS),
+		'段5(1)→C-226: ②に分類を変えるボタン（パレット・行のアイコン）は無く、tiers は保存のまま（数は分類どおり）', { noPal, got: v.chips.map((c) => c.n), want: [e.A, e.B, e.C] });
 
 	/* ② F ・保存 ／ ④ 状態 */
 	assert(v.F === 5 && v.options.join() === '5,4,3,2,1', '段5(2): 親由来のレベルは 5・4・3・2・1 から選べ、既定は 5（0 は無い）', { F: v.F, options: v.options });
@@ -15228,9 +15230,9 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		await sp.page.evaluate(() => selectStepTab(1));
 		await sp.page.waitForTimeout(300);
 		const T = '#deck-template-panel ';
-		// 段9（C-121）: ②の再分類のモードは無くなった。代わりにアイコンのパレット（選択を替えるだけで、ページは動かない）
-		await run('②パレット（○）', T + '[data-usd-el="palette-b"]', click(T + '[data-usd-el="palette-b"]'));
-		await run('②パレット（◎）', T + '[data-usd-el="palette-a"]', click(T + '[data-usd-el="palette-a"]'));
+		// 段9（C-121）: ②の再分類のモードは無くなった。C-226: アイコンのパレットも無くし、入口の行の右端の「削除」（ブラシの選択を替えるだけで、ページは動かない）
+		await run('②削除（選ぶ）', T + '[data-usd-el="palette-delete"]', click(T + '[data-usd-el="palette-delete"]'));
+		await run('②削除（外す）', T + '[data-usd-el="palette-delete"]', click(T + '[data-usd-el="palette-delete"]'));
 		const table = rows.map((r) => r.label + ': Δスクロール ' + r.dy + 'px・Δボタン位置 ' + r.dtop + 'px' + (r.ok ? '' : '  ← NG')).join('\n');
 		console.log('段7b(⑥) 操作前後の差（375px）:\n' + table);
 		assert(rows.length >= 15 && rows.every((r) => r.ok), '段7b(⑥): 375px で表を画面の途中に置いて各ボタンを押しても、ページの位置（window.scrollY）と押したボタンの画面上の位置の差が 2px 以内（小窓の中の位置も変わらない）。' + rows.length + '件', rows.filter((r) => !r.ok));
@@ -15353,6 +15355,7 @@ await register57({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register58({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register59({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register60({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register61({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

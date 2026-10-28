@@ -140,7 +140,7 @@ export async function register43(env) {
 		}
 	});
 
-	await block('C-184 パレットの行は「削除｜◎○△◇★✕」だけ（「サポカ外」「逃げオススメ／先差追オススメ」は無い）／ページの読み込み・②のタブを見ても recommended-skills.json・non-support-skills.json は取りに行かない', async () => {
+	await block('C-184 入口の行の右端の塊は「表の切り替え・削除」だけ（C-226 でパレットのアイコンは無くした。「サポカ外」「逃げオススメ／先差追オススメ」も無い）／ページの読み込み・②のタブ（②が空）を見ても recommended-skills.json・non-support-skills.json は取りに行かない（C-226: ②にスキルがあるときは★の印のために non-support-skills.json を読む＝blocks-61）', async () => {
 		const sp = await openSp({ roster: Object.assign({}, ROSTER_A, { skillFilter: { surface: 'turf', style: 'nige' } }) });
 		await sleep(sp.page, 600);
 		const p = await sp.page.evaluate(() => {
@@ -148,9 +148,8 @@ export async function register43(env) {
 			return { els: Array.from(row.querySelectorAll('button')).map((b) => b.getAttribute('data-usd-el')), recBtn: !!document.querySelector('[data-usd-el="recommend-btn"]'), outBtn: !!document.querySelector('[data-usd-el="outside-skill-btn"]'),
 				word: /逃げオススメ|先差追オススメ/.test(document.querySelector('#deck-template-panel').textContent) };
 		});
-		// ②因子周回 段3（2026-10-28）: 「削除」の右に星取表の切り替え（factor-view）が入る。それを除いて見る（◎のボタンは②が空なので出ない）
-		p.els = p.els.filter((e) => e !== 'factor-view');
-		assert(p.els.length === 7 && p.els[0] === 'palette-delete' && !p.recBtn && !p.outBtn && !p.word, 'C-184 パレットの行は「削除」とアイコン6つだけ', p);
+		// ②因子周回 段4（C-226）: パレットの行を無くし、入口の行の右端の固定の塊に「（◎）・表の切り替え・削除」。◎のボタンは②が空なので出ない
+		assert(p.els.join() === 'factor-view,palette-delete' && !p.recBtn && !p.outBtn && !p.word, 'C-184 右端の塊は「表の切り替え・削除」だけ（脚質のボタン・サポカ外は無い）', p);
 		assert(sp.reqs.length === 0, 'C-184 ②のタブを開いている間（脚質あり）はデータを取りに行かない', sp.reqs);
 		await sp.ctx.close();
 	});

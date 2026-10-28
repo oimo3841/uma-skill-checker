@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-28f"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-28g"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -114,11 +114,13 @@
 			   （展開した項目は本文の上に重なる。左下の「元に戻す」と知らせは「＋」より低いので、これで足りる） */
 			.page-wrap, body[data-step-tab="0"] .page-wrap { padding: 0 0 max(0px, calc(var(--usd-fab-dock) - var(--uma-sp-1-5))); }
 			.main-card, body[data-step-tab="0"] .main-card { margin-bottom: 0; }
-			/* スクロールしても残すのは、帯（.deck-set-bar・sticky）と、その直下の ①の表の列見出し／②のパレットの行だけ。
-			   帯の高さは JS が --usd-sticky-top に入れる（core の ①の列見出しも同じ値を読む） */
-			#deck-template-panel .usd-skillgroup-head { display: contents; }
-			#deck-template-panel .usd-skillgroup .usd-palette { position: sticky; top: var(--usd-sticky-top, 0px); z-index: 30;
-				margin: 0 -8px; padding: 6px 14px; background: var(--uma-group-bg); border-bottom: 1px solid var(--uma-group-line); }
+			/* スクロールしても残すのは、帯（.deck-set-bar・sticky）と、その直下の ①の表の列見出し／②の入口の行だけ。
+			   帯の高さは JS が --usd-sticky-top に入れる（core の ①の列見出しも同じ値を読む）。
+			   ②因子周回 段4（C-226）: パレットの行を無くし、◎・表の切り替え・削除を入口の行の右端に移したので、残すのは入口の行（入口のボタン｜右端の固定の塊）ごと */
+			#deck-template-panel .usd-skillgroup .usd-skillgroup-head { position: sticky; top: var(--usd-sticky-top, 0px); z-index: 30;
+				margin: 0 -8px; padding: 0 8px 6px; background: var(--uma-group-bg); border-bottom: 1px solid var(--uma-group-line); }
+			/* 入口のボタンの位置と周りの地は、パレットの行があったときと同じ（塊は入口のボタンより低くして、行の高さを入口のボタンで決める。下の線はボタンの下 6px より外） */
+			#deck-template-panel .usd-skillgroup .usd-factor-tools { padding: 0; }
 			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と画面の色の切り替えだけ。上下の余白は最小（44px のボタンが入って帯が 47px のままになる値） */
 			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1-5) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、文字を一段大きくした（20→22px。exam.html のタイトルと同じ大きさ）。
@@ -1616,7 +1618,7 @@
 		}
 
 		/* ---------- C-132: スマホでスクロールしても残す帯の高さ ----------
-		   帯（#deck-set-bar・sticky）の高さを --usd-sticky-top に入れる。①の表の列見出しと②のパレットの行（どちらもスマホだけ sticky）は、
+		   帯（#deck-set-bar・sticky）の高さを --usd-sticky-top に入れる。①の表の列見出しと②の入口の行（どちらもスマホだけ sticky）は、
 		   この値を top にして帯の直下に残る。帯が隠れている（旧UI）ときは 0 */
 		function syncStickyTop() {
 			const bar = document.getElementById('deck-set-bar');
@@ -1633,11 +1635,11 @@
 
 		/* ---------- C-132: ①②③の左右スワイプ（タッチ操作のときだけ） ----------
 		   横の動きが SWIPE_MIN_PX 以上で、縦の動きの SWIPE_RATIO 倍より大きいときだけ、隣のタブへ切り替える（左へ払うと次、右へ払うと前。端では何もしない）。
-		   次の場所から始まった動きは切り替えにしない：横にスクロールできる場所（①の表・②のパレットの行・スキル名など）・小窓・ポップオーバー・入力欄・選択欄。
+		   次の場所から始まった動きは切り替えにしない：横にスクロールできる場所（①の表・②の入口の行・スキル名など）・小窓・ポップオーバー・入力欄・選択欄。
 		   切り替えたあとのスクロール位置は、タブを押したときと同じ（動かさない） */
 		// 判定（SWIPE_MIN_PX・SWIPE_RATIO と向き）は core の swipeDirectionOf が持つ（イベントの小窓の「イベント」「スキル」のタブと共有）
 		// 横にスクロールする作りの部品（中身が収まっていて、いまは送れないときも含めて外す）
-		const SWIPE_BLOCK_SELECTOR = '.usd-roster-grid-wrap, .usd-hscroll, .usd-palette, .usd-entry-row, .usd-panel-namescroll, .uma-subtabs, '
+		const SWIPE_BLOCK_SELECTOR = '.usd-roster-grid-wrap, .usd-hscroll, .usd-entry-row,.usd-panel-namescroll, .uma-subtabs, '
 			+ 'input, textarea, select, [contenteditable], [role="dialog"], .uma-overlay, .uma-overlay-backdrop, .usd-modal, .uma-drawer, .uma-fab-nav, .uma-undo-fab';
 		function swipeBlockedAt(el) {
 			for (let n = el; n && n !== document.body && n.nodeType === 1; n = n.parentElement) {
@@ -2123,6 +2125,7 @@
 			const meta = buildColumnMeta(used);
 			const showTotal = shouldShowTotalColumn(used);
 			let tableHtml = '';
+			const markerKindByName = deckMarkerKindByName();
 
 			skillList.forEach(skill => {
 				const vals = used.map(p => starsFor(p, skill));
@@ -2145,16 +2148,17 @@
 					totalCell = `<td class="text-center font-bold text-slate-700 person-total">${total}</td>`;
 				}
 
-				// 分類の印（競馬の◎○▲。C-58）は名前の左。★の数（橙）は右の列なので、位置と形で役割が分かれる。
-				// 形は core の tiers.markHtml() が返す SVG（結合画像の Canvas と同じ形になるよう1か所で決めている）
-				// 因子には分類が付かない（deckTierByName に載らない）ので、同じ左の欄に◆を置く（C-2b）。
+				// ②のスキルの印は名前の左。★の数（橙）は右の列なので、位置と形で役割が分かれる。
+				// ②因子周回 段4（C-226）: 分類の◎○▲（C-58）に代えて、②の自動のマーカー（周回サポカ／サポカ外／その他。②のパネルと同じ形の小さい 16px）。
+				// 形と判定は core（markers.html・getMarkerKinds）。表を描くときに引く（①の保存のカード・★の一覧の読み込みに追随する）
+				// 因子にはマーカーが付かない（②のスキルではない）ので、同じ左の欄に◆を置く（C-2b）。
 				// ◆＝スキルではないもの、という基準は段A-2 で決めたもの。exam・Deck と同じ印・同じ色。
-				const tier = deckTierByName[skill];
+				const markerKind = markerKindByName[skill];
 				// 因子は節ごとに印が違う（段G）。◆＝シナリオ因子／♡＝遺伝子
 				const factorMark = factorMarkByNorm.get(normalizeText(skill));
 				const tierMark = factorMark
 					? CATALOG_MARK_HTML[factorMark] + ' '
-					: (tier ? UmaSkillDeckCore.tiers.markHtml(tier) + ' ' : '');
+					: (markerKind ? UmaSkillDeckCore.markers.html(markerKind, 16) + ' ' : '');
 				tableHtml += `<tr class="transition-colors">
 					<td class="font-medium text-slate-800">${tierMark}${escapeHtml(skill)}</td>
 					${cells}
@@ -3047,6 +3051,15 @@
 		// 照合対象のスキル名 → 分類（1＝超優先／2＝優先／3＝通常。C-57 の (10)）。照合結果の表で名前の前に競馬の印を出すために持つ。
 		// Deck連携モードで対象スキルセットを選んだときだけ埋まる（旧UIの手貼りのリストでは空＝印は出ない）
 		let deckTierByName = {};
+		// 照合対象のスキル名 → ②の自動のマーカーの種類（'card'｜'star'｜'other'。②因子周回 段4・C-226）。③の結果の表の名前の左の印に使う。
+		// 判定は core（getMarkerKinds）。表を描くたびに引く（①の保存のカード・★の一覧の読み込みに追随する）。Deck連携モードでセットを選んでいるときだけ
+		function deckMarkerKindByName() {
+			const out = {};
+			if (!deckMode || !deckScope || !deckTemplateManager || typeof deckTemplateManager.getMarkerKinds !== 'function') return out;
+			const kinds = deckTemplateManager.getMarkerKinds();
+			UmaSkillDeckCore.getSkillEntries(deckScope.skillIds).forEach(e => { if (kinds[e.id]) out[e.name] = kinds[e.id]; });
+			return out;
+		}
 		let deckMasterLoaded = false;
 		// 「ドラフト」（保存しない一時的な対象スキルセット）の保存先。userData とは別の名前空間。
 		const DECK_DRAFT_SCOPE_KEY = 'special';

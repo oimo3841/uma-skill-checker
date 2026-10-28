@@ -52,6 +52,9 @@ export async function register9(env) {
 		.filter((r) => r.querySelector('.usd-roster-got') && !r.classList.contains('usd-roster-grow--off')).map((r) => r.getAttribute('data-skill-id')));
 	const rowIcons = (page) => page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]'))
 		.map((p) => [p.getAttribute('data-skill-id'), (p.querySelector('[data-usd-act="skill-icon"]') || {}).dataset ? (p.querySelector('[data-usd-act="skill-icon"]').dataset.icon || '') : null])));
+	// C-226: 行の先頭の自動のマーカーの種類（'card'｜'star'｜'other'）
+	const rowMarkers = (page) => page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]'))
+		.map((p) => [p.getAttribute('data-skill-id'), (p.querySelector('[data-usd-el="factor-marker"]') || { dataset: {} }).dataset.marker || null])));
 	/** ②の数字（帯）。factor-pt / factor-count とタグ2つ、見出しの合計、①の数字 */
 	const nums = (page) => page.evaluate(() => {
 		const q = (s) => document.querySelector(s);
@@ -93,15 +96,17 @@ export async function register9(env) {
 		assert(JSON.stringify(t1.skillIcons) === JSON.stringify({ '1': 'a', '2': 'b', '3': 'c', '4': 'b' }), '段9(A) 5→7: tiers（超優先→◎・優先〔無い id も〕→○・通常→△）が skillIcons に写る', t1.skillIcons);
 		assert(!('ptRanks' in t1) && JSON.stringify(t1.tiers) === JSON.stringify({ '1': 1, '3': 3 }), '段9(A) 5→7: ptRanks は捨てる。tiers は残る（Deck・結合画像の印のため）', t1);
 		assert(!('skillIcons' in t2), '段9(A) 読み込み: tiers も ptRanks も持たないセットは触らない（開いただけで姿を変えない）', t2);
-		// skillIcons を持たないセットは tiers から導いて読む（持たない＝全部 ○）。持つセットはその値を読む
+		// C-226（②因子周回 段4）: special の②はアイコン（skillIcons）を読まない。行の先頭は自動のマーカー（保存のアイコン・tiers に依らない）
 		await sp.page.evaluate(() => deckTemplateManager.setSelectedId('t1'));
 		await sp.page.waitForTimeout(200);
 		let ic = await rowIcons(sp.page);
-		assert(JSON.stringify(ic) === JSON.stringify({ '1': 'a', '2': 'b', '3': 'c', '4': 'b' }), '段9(A) 画面: 保存したアイコンが行の先頭に出る（◎○△○）', ic);
+		let mk = await rowMarkers(sp.page);
+		assert(JSON.stringify(ic) === JSON.stringify({ '1': null, '2': null, '3': null, '4': null }) && Object.keys(mk).length === 4 && Object.values(mk).every((k) => k === 'card' || k === 'star' || k === 'other'),
+			'段9(A) 画面（C-226）: 保存したアイコンは出さず、行の先頭は自動のマーカー', { ic, mk });
 		await sp.page.evaluate(() => deckTemplateManager.setSelectedId('t2'));
 		await sp.page.waitForTimeout(200);
 		ic = await rowIcons(sp.page);
-		assert(JSON.stringify(ic) === JSON.stringify({ '5': 'b' }), '段9(A) 画面: skillIcons を持たないセットは tiers（無い＝優先）から導いて ○ と読む', ic);
+		assert(JSON.stringify(ic) === JSON.stringify({ '5': null }), '段9(A) 画面（C-226）: skillIcons を持たないセットもアイコンは出ない', ic);
 		assert(jsErrors(sp.errors).length === 0, '段9(A) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 
@@ -132,114 +137,49 @@ export async function register9(env) {
 		assert(imp6.schemaVersion === 7 && !('ptRanks' in imp6.templates[0]) && !('skillIcons' in imp6.templates[0]), '段9(A) 取り込み（6）: ptRanks を捨てて 7（tiers が無ければアイコンは補わない）', imp6.templates[0]);
 		await sp.ctx.close();
 
-		// 下書きは skillIcons を持たないとき、tiers から導いて読む。触ると skillIcons と tiers が一緒に書かれる
+		// 下書き（C-226）: skillIcons を持たなくてもアイコンは出さない。②を触っても（外す）skillIcons は書かず、tiers は保存のまま（外したスキルの分も消さない）
 		const dscope = { skillIds: free.slice(0, 3), name: '', updatedAt: '', tiers: { [free[0]]: 1, [free[2]]: 3 } };
 		sp = await openSet({ tab: 1, scope: dscope });
 		ic = await rowIcons(sp.page);
-		assert(ic[free[0]] === 'a' && ic[free[1]] === 'b' && ic[free[2]] === 'c', '段9(A) 下書き: skillIcons を持たなければ tiers から導く（◎○△）', ic);
-		await sp.page.click(T + '[data-usd-act="palette-pick"][data-icon="d"]');
-		await sp.page.click(T + '.usd-panel[data-skill-id="' + free[1] + '"] [data-usd-act="skill-icon"]');
+		assert(ic[free[0]] === null && ic[free[1]] === null && ic[free[2]] === null, '段9(A) 下書き（C-226）: アイコンは出さない', ic);
+		await sp.page.click(T + '[data-usd-el="palette-delete"]');
+		await sp.page.click(T + '.usd-panel[data-skill-id="' + free[1] + '"]');
 		await sp.page.waitForTimeout(150);
 		const dd = await draft(sp.page);
-		assert(JSON.stringify(dd.skillIcons) === JSON.stringify({ [free[0]]: 'a', [free[1]]: 'd', [free[2]]: 'c' }) && !('ptRanks' in dd),
-			'段9(A) 下書き: 触ると、いまの姿（導いた分も）を skillIcons に書く', dd);
-		assert(dd.tiers[free[0]] === 1 && dd.tiers[free[1]] === 3 && dd.tiers[free[2]] === 3, '段9(A) 下書き: tiers はアイコンから導いて書き直す（◎→1・◇→3・△→3）', dd.tiers);
+		assert(!('skillIcons' in dd) && !('ptRanks' in dd) && JSON.stringify(dd.skillIds) === JSON.stringify([free[0], free[2]]),
+			'段9(A) 下書き（C-226）: 触っても skillIcons は書かない', dd);
+		assert(JSON.stringify(dd.tiers) === JSON.stringify({ [free[0]]: 1, [free[2]]: 3 }), '段9(A) 下書き（C-226）: tiers は保存のまま（アイコンから導いて書き直さない）', dd.tiers);
 		await sp.ctx.close();
 	});
 
 	/* ====================================================================
 	 * (B) アイコンの付け方
 	 * ==================================================================== */
-	await block('段9(B) アイコンの付け方（付ける・外す・付け替え・解除・選択が続く）と、数字に影響しないこと', async () => {
-		const sp = await openSet({ tab: 1, scope: SCOPE });
+	await block('段9(B) アイコンの付け方は無くした（C-226）: パレットのアイコンも行の先頭のアイコンのボタンも無い／保存のアイコンの有無で数字は変わらない／触っても skillIcons・tiers を書かない', async () => {
 		const ids = SCOPE.skillIds;
-		const btn = (id) => T + '.usd-panel[data-skill-id="' + id + '"] [data-usd-act="skill-icon"]';
-		const pal = (k) => T + '[data-usd-el="palette-' + k + '"]';
-		const pressed = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-palette [aria-pressed="true"]')).map((b) => b.dataset.icon));
-		const stored = async () => (await draft(sp.page));
+		const icons = { [ids[0]]: 'a', [ids[2]]: 'c', [ids[3]]: 'e' };
+		const sp = await openSet({ tab: 1, scope: SCOPE });
 		const before = await nums(sp.page);
-		// パレット: 6つの丸。初期は ◎。C-132 で「解除」を無くし、先頭に「削除」を置いた
-		const palInfo = await sp.page.evaluate(() => ({ marks: Array.from(document.querySelectorAll('#deck-template-panel .usd-palette-btn')).map((b) => b.textContent.trim()),
-			clear: !!document.querySelector('#deck-template-panel [data-usd-el="palette-clear"]'), del: (document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]') || {}).textContent,
-			size: (() => { const r = document.querySelector('#deck-template-panel .usd-palette-btn .usd-icon').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })() }));
-		assert(palInfo.marks.join('') === '◎○△◇★✕' && !palInfo.clear && palInfo.del === '削除' && palInfo.size.join() === '24,24', '段9(B) パレットは「削除 │ ◎ ○ △ ◇ ★ ✕」（C-132 で「解除」は無い）。丸は 24px', palInfo);
-		assert((await pressed()).join() === 'a', '段9(B) 初期の選択は ◎', await pressed());
-		// 付ける
-		await sp.page.click(btn(ids[2]));
-		await sp.page.waitForTimeout(100);
-		let ic = await rowIcons(sp.page);
-		let s = await stored();
-		assert(ic[ids[2]] === 'a' && s.skillIcons[ids[2]] === 'a', '段9(B) 選択中のアイコンを付ける（◎）。下書きに skillIcons が保存される', { ic: ic[ids[2]], s: s.skillIcons });
-		assert(s.tiers[ids[2]] === 1, '段9(B) tiers はアイコンから導く（◎→超優先）', s.tiers);
-		// 同じものをもう一度押すと外れる
-		await sp.page.click(btn(ids[2]));
-		await sp.page.waitForTimeout(100);
-		ic = await rowIcons(sp.page);
-		s = await stored();
-		assert(ic[ids[2]] === '' && !(ids[2] in s.skillIcons), '段9(B) すでに同じアイコンなら外す', { ic: ic[ids[2]], s: s.skillIcons });
-		// 付け替え
-		await sp.page.click(btn(ids[3]));
-		await sp.page.click(pal('c'));
-		await sp.page.click(btn(ids[3]));
-		await sp.page.waitForTimeout(100);
-		ic = await rowIcons(sp.page);
-		assert(ic[ids[3]] === 'c' && (await pressed()).join() === 'c', '段9(B) 別のアイコンが付いていれば付け替える（◎→△）。選択は △ のまま', { ic: ic[ids[3]], pressed: await pressed() });
-		// 選択が続く: 続けて別の行にも同じアイコンを付けられる
-		await sp.page.click(btn(ids[4]));
-		await sp.page.click(btn(ids[5]));
-		await sp.page.waitForTimeout(100);
-		ic = await rowIcons(sp.page);
-		assert(ic[ids[4]] === 'c' && ic[ids[5]] === 'c' && (await pressed()).join() === 'c', '段9(B) 選択は保たれ、続けて付けられる', ic);
-		// ○ にして付け替え、★ にして付ける
-		await sp.page.click(pal('b'));
-		await sp.page.click(btn(ids[4]));
-		await sp.page.click(pal('e'));
-		await sp.page.click(btn(ids[6]));
-		await sp.page.waitForTimeout(100);
-		ic = await rowIcons(sp.page);
-		s = await stored();
-		assert(ic[ids[4]] === 'b' && ic[ids[6]] === 'e', '段9(B) ○ への付け替え・★ を付ける', ic);
-		// C-132: 「解除」は無くした。外すのは、同じアイコンを選んでその行を押す。選択中のアイコンをもう一度押すと選択が外れ、行を押しても何も起きない
-		await sp.page.click(pal('b'));
-		await sp.page.click(btn(ids[4]));
-		await sp.page.click(pal('c'));
-		await sp.page.click(btn(ids[5]));
-		await sp.page.click(pal('e'));
-		await sp.page.click(btn(ids[6]));
-		await sp.page.click(pal('e'));   // 選択中のアイコンをもう一度押す＝選択が外れる
-		await sp.page.click(btn(ids[7]));   // 何も選んでいないので、何も起きない
-		await sp.page.waitForTimeout(100);
-		ic = await rowIcons(sp.page);
-		s = await stored();
-		assert(ic[ids[4]] === '' && ic[ids[5]] === '' && ic[ids[6]] === '' && ic[ids[7]] === '' && (await pressed()).length === 0, '段9(B) 同じアイコンを選んで押すと外れる。選択中のアイコンをもう一度押すと何も選ばれていない状態になり、行を押しても何も付かない', { ic, pressed: await pressed() });
-		assert(JSON.stringify(s.skillIcons) === JSON.stringify({ [ids[3]]: 'c' }), '段9(B) 保存されるのは、いま付いているアイコンだけ', s.skillIcons);
-		// アイコンは Pt・種・合計に影響しない
-		const after = await nums(sp.page);
-		assert(JSON.stringify(after) === JSON.stringify(before), '段9(B) アイコンを付けても外しても、②・①・見出しの Pt と種は1つも変わらない', { before, after });
-		// tiers の導出（Deck・結合画像の印との互換）: ◎→1・○→2・それ以外と無印→3
-		await sp.page.click(pal('a'));
-		await sp.page.click(btn(ids[0]));
-		await sp.page.click(pal('b'));
-		await sp.page.click(btn(ids[1]));
-		await sp.page.click(pal('d'));
-		await sp.page.click(btn(ids[2]));
-		await sp.page.waitForTimeout(100);
-		const tiers = await sp.page.evaluate((i) => { const sel = deckTemplateManager.getSelection(); return i.map((id) => UmaSkillDeckCore.tiers.of(sel.tiers, id)); }, ids.slice(0, 5));
-		assert(tiers.join() === '1,2,3,3,3', '段9(B) 互換: 選択の tiers は ◎→超優先(1)・○→優先(2)・◇と無印→通常(3)', tiers);
-		assert(jsErrors(sp.errors).length === 0, '段9(B) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		const ui = await sp.page.evaluate(() => ({ pal: document.querySelectorAll('#deck-template-panel .usd-palette-btn, #deck-template-panel [data-usd-el^="palette-"]:not([data-usd-el="palette-delete"])').length,
+			btns: document.querySelectorAll('#deck-template-panel [data-usd-act="skill-icon"]').length, del: (document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]') || {}).textContent }));
+		assert(ui.pal === 0 && ui.btns === 0 && ui.del === '削除', '段9(B) C-226: パレットのアイコン・行の先頭のアイコンのボタンは無い（「削除」は残る）', ui);
 		await sp.ctx.close();
-
-		// 保存済みのセットでは template.skillIcons と tiers に書き、schemaVersion は 7
-		const sets = { schemaVersion: 6, records: [], customSkills: [], templates: [{ templateId: 't1', name: 'S', skillIds: ids.slice(0, 3), createdAt: 'x', updatedAt: 'x' }] };
+		const sp1 = await openSet({ tab: 1, scope: Object.assign({}, SCOPE, { skillIcons: icons }) });
+		const withIcons = await nums(sp1.page);
+		assert(JSON.stringify(withIcons) === JSON.stringify(before), '段9(B) 保存のアイコンがあってもなくても、②・①・見出しの Pt と種は1つも変わらない', { before, withIcons });
+		assert(jsErrors(sp1.errors).length === 0, '段9(B) コンソールのエラー0', jsErrors(sp1.errors).slice(0, 3));
+		await sp1.ctx.close();
+		// 保存済みのセット: 触っても（外す）skillIcons と tiers は書かない（保存の値のまま）
+		const sets = { schemaVersion: 7, records: [], customSkills: [], templates: [{ templateId: 't1', name: 'S', skillIds: ids.slice(0, 3), skillIcons: { [ids[0]]: 'b' }, tiers: { [ids[1]]: 3 }, createdAt: 'x', updatedAt: 'x' }] };
 		const sp2 = await openSet({ userData: sets, tab: 1, roster: null });
 		await sp2.page.evaluate(() => deckTemplateManager.setSelectedId('t1'));
 		await sp2.page.waitForTimeout(200);
-		await sp2.page.click(T + '[data-usd-act="palette-pick"][data-icon="f"]');
-		await sp2.page.click(T + '.usd-panel[data-skill-id="' + ids[1] + '"] [data-usd-act="skill-icon"]');
+		await sp2.page.click(T + '[data-usd-el="palette-delete"]');
+		await sp2.page.click(T + '.usd-panel[data-skill-id="' + ids[1] + '"]');
 		await sp2.page.waitForTimeout(150);
 		const d2 = await ud(sp2.page);
-		assert(d2.schemaVersion === 7 && d2.templates[0].skillIcons[ids[1]] === 'f' && d2.templates[0].skillIcons[ids[0]] === 'b' && d2.templates[0].tiers[ids[1]] === 3 && !(ids[0] in (d2.templates[0].tiers || {})),
-			'段9(B) 保存済みのセット: 触ったときに skillIcons（導いた姿＋付けた分）と tiers を書き、schemaVersion は 7', d2.templates[0]);
+		assert(JSON.stringify(d2.templates[0].skillIds) === JSON.stringify([ids[0], ids[2]]) && JSON.stringify(d2.templates[0].skillIcons) === JSON.stringify({ [ids[0]]: 'b' }) && JSON.stringify(d2.templates[0].tiers) === JSON.stringify({ [ids[1]]: 3 }),
+			'段9(B) 保存済みのセット: 外しても skillIcons と tiers は保存の値のまま（書かない・消さない）', d2.templates[0]);
 		await sp2.ctx.close();
 	});
 
@@ -360,8 +300,8 @@ export async function register9(env) {
 				const cs = (s, p) => { const e = q(s); return e ? getComputedStyle(e)[p] : null; };
 				const rows = Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]'));
 				const first = rows[0], firstFree = rows.find((x) => !x.classList.contains('usd-panel--taken'));
-				const ib = firstFree.querySelector('[data-usd-act="skill-icon"]').getBoundingClientRect();
-				const noneIcon = rows.find((x) => !x.querySelector('[data-icon]') && !x.classList.contains('usd-panel--taken')).querySelector('.usd-icon');
+				// C-226: 行の先頭はアイコンのボタンに代えて自動のマーカー（20px の画像。箱は幅 26px）
+				const ib = firstFree.querySelector('.usd-panel-marker').getBoundingClientRect();
 				const nameBtn = firstFree.querySelector('.usd-panel-namebtn');
 				const cols = new Set(rows.map((x) => Math.round(x.getBoundingClientRect().left))).size;
 				return {
@@ -370,7 +310,7 @@ export async function register9(env) {
 					grp: { style: cs('[data-usd-el="skill-group"]', 'borderTopStyle'), width: cs('[data-usd-el="skill-group"]', 'borderTopWidth'), radius: cs('[data-usd-el="skill-group"]', 'borderTopLeftRadius'), bg: cs('[data-usd-el="skill-group"]', 'backgroundColor'), padL: cs('[data-usd-el="skill-group"]', 'paddingLeft') },
 					order: [r('[data-usd-el="set-head"]'), r('[data-usd-el="roster-link"]'), r('[data-usd-el="skill-group"]')].map((x) => x && x.top),
 					inGroup: ['.usd-entry-row', '[data-usd-el="tier-row"]', '[data-usd-el="selected-list"]'].map((s) => !!q('[data-usd-el="skill-group"] ' + s)),
-					tops: { entry: r('.usd-entry-row'), pal: r('.usd-palette'), list: r('[data-usd-el="selected-list"]') },
+					tops: { entry: r('.usd-entry-row'), pal: r('[data-usd-el="tier-row"]'), list: r('[data-usd-el="selected-list"]') },
 					tagBand: { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), tags: r('[data-usd-el="pt-chips"]'), tag: r('[data-usd-el="pt-need-uniq"]'), tag2: r('[data-usd-el="pt-need-common"]'), reset: r('[data-usd-el="factor-reset"]'),
 						tagFs: [cs('[data-usd-el="pt-need-uniq"]', 'fontSize'), cs('[data-usd-el="pt-chips"]', 'lineHeight')], tagBg: cs('[data-usd-el="pt-need-uniq"]', 'backgroundColor'), tagBorder: cs('[data-usd-el="pt-need-uniq"]', 'borderTopWidth') },
 					tagTexts: ['pt-need-uniq', 'pt-need-common'].map((k) => (q('[data-usd-el="' + k + '"]') || {}).textContent.replace(/\s+/g, ' ').trim()),
@@ -382,11 +322,11 @@ export async function register9(env) {
 					gone: ['tier-total', 'mode-reclass', 'mode-delete', 'selected-count', 'clear-skills'].filter((k) => q('[data-usd-el="' + k + '"]')).concat(q('.usd-tier-tab') ? ['tier-tab'] : [], q('[data-usd-act="tier-move"]') ? ['tier-move'] : [], q('.usd-ptneed-chip--rank') ? ['rank-chip'] : []),
 					rowN: rows.length, cols,
 					iconBtn: [Math.round(ib.width), Math.round(ib.height)],
-					icon: (() => { const b = firstFree.querySelector('.usd-icon').getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; })(),
-					noneIcon: noneIcon ? { bs: getComputedStyle(noneIcon).borderTopStyle, text: noneIcon.textContent } : null,
+					icon: (() => { const b = firstFree.querySelector('[data-usd-el="factor-marker"]').getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; })(),
+					markerRole: (firstFree.querySelector('[data-usd-el="factor-marker"]') || { getAttribute: () => null }).getAttribute('role'),
 					firstPartsOrder: Array.from(firstFree.children).map((c) => c.getAttribute('data-usd-act') || c.className.split(' ')[0] + '|' + (c.getAttribute('data-usd-el') || '')),
 					nameEll: { to: getComputedStyle(nameBtn).textOverflow, ws: getComputedStyle(nameBtn).whiteSpace, ov: getComputedStyle(nameBtn).overflowX },
-					taken: rows.filter((x) => x.classList.contains('usd-panel--taken')).map((x) => ({ pt: x.querySelector('[data-usd-el="panel-pt"]').textContent, iconOp: getComputedStyle(x.querySelector('.usd-icon')).opacity })),
+					taken: rows.filter((x) => x.classList.contains('usd-panel--taken')).map((x) => ({ pt: x.querySelector('[data-usd-el="panel-pt"]').textContent, marker: !!x.querySelector('[data-usd-el="factor-marker"]') })),
 					x: rows.every((x) => !!x.querySelector('[data-usd-act="template-skill-remove"]')),
 					xVisible: rows.some((x) => { const b = x.querySelector('.usd-panel-xbtn'); const r = b ? b.getBoundingClientRect() : null; return !!r && r.width > 0 && r.height > 0; }),
 					firstId: first.getAttribute('data-skill-id')
@@ -407,16 +347,15 @@ export async function register9(env) {
 			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '設定の枠は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
 			assert(o.entries.map((x) => x.replace(/\d+$/, '')).join() === '脚質オススメ,条件で検索,緑スキル,テキストで検索,スクショで追加' && o.entryRowOverflow === 'auto', tag + '入口のボタン4つ（横スクロール）', o.entries);
 			assert(o.gone.length === 0, tag + '超優先／優先／通常・再分類・削除（ランク）・ランク別の見出し・ランクのチップは無い', o.gone);
-			// C-132: アイコンを少し小さく（18px → 15px）。押す範囲は幅 26px・高さ 32px（24px 以上を保つ）
-			assert(o.iconBtn[0] >= 24 && o.iconBtn[1] >= 32 && o.icon.join() === '15,15', tag + 'アイコンは 15px。押す範囲は 24×32px 以上（' + o.iconBtn.join('×') + '）', o);
-			assert(o.noneIcon && o.noneIcon.bs === 'dashed' && o.noneIcon.text === '', tag + 'アイコンの無いスキルは破線の丸（中は空）', o.noneIcon);
+			// C-226: 行の先頭は自動のマーカー（20px の画像）。箱は段9 のアイコンのボタンと同じ幅 26px・高さ 32px（名前の位置を変えない）
+			assert(o.iconBtn.join() === '26,32' && o.icon.join() === '20,20' && o.markerRole === 'img', tag + '行の先頭は自動のマーカー（20px・画像）。箱は 26×32px（' + o.iconBtn.join('×') + '）', o);
 			// C-132: 名前は「…」で切らず、名前の部分（panel-namescroll）だけ横に送る。段G(4)（2026-10-22）: 行の末尾に×を作ってある（「削除」を選んでいる間だけ見える。段G の検査）
-			assert(o.firstPartsOrder.length === 4 && o.firstPartsOrder[0] === 'skill-icon' && o.firstPartsOrder[1] === 'usd-panel-namescroll|panel-namescroll' && o.firstPartsOrder[2].startsWith('usd-panel-pt') && o.firstPartsOrder[3] === 'template-skill-remove', tag + '行は「アイコン／名前／Pt／×（削除の状態のときだけ見える）」の順', o.firstPartsOrder);
+			assert(o.firstPartsOrder.length === 4 && o.firstPartsOrder[0] === 'usd-panel-marker|' && o.firstPartsOrder[1] === 'usd-panel-namescroll|panel-namescroll' && o.firstPartsOrder[2].startsWith('usd-panel-pt') && o.firstPartsOrder[3] === 'template-skill-remove', tag + '行は「マーカー／名前／Pt／×（削除の状態のときだけ見える）」の順', o.firstPartsOrder);
 			assert(o.nameEll.to !== 'ellipsis' && o.nameEll.ws === 'nowrap' && o.x && !o.xVisible, tag + '名前は「…」で切らない（横に送る）。×は作ってあるが、削除の状態でなければ見えない', o);
-			assert(o.taken.length === 2 && o.taken.every((x) => x.pt === '①で取得' && Number(x.iconOp) < 1), tag + '①で取得するものは丸を薄くして「①で取得」と出す', o.taken);
-			if (w === 1280) {
-				assert(o.tops.entry.top < o.tops.pal.bottom && o.tops.pal.top < o.tops.entry.bottom && o.tops.pal.right >= o.tops.entry.right && o.tops.list.top >= o.tops.entry.bottom && o.cols === 4, tag + '1280px: 入口のボタンとパレットは同じ行（パレットは右寄せ）、一覧は4列（' + o.cols + '列）', o);
-			} else assert(o.tops.pal.top >= o.tops.entry.bottom - 1 && o.tops.list.top >= o.tops.pal.bottom - 1, tag + '375px: 入口 → パレット → 一覧の順に縦に並ぶ', o.tops);
+			assert(o.taken.length === 2 && o.taken.every((x) => x.pt === '①で取得' && x.marker), tag + '①で取得するものは「①で取得」と出す（マーカーは同じ規則で付く）', o.taken);
+			// C-226: パレットの行を無くし、どの幅でも「入口のボタン｜右端の固定の塊（◎・表・削除）」の1行
+			assert(o.tops.entry.top < o.tops.pal.bottom && o.tops.pal.top < o.tops.entry.bottom && o.tops.pal.right >= o.tops.entry.right && o.tops.list.top >= o.tops.entry.bottom && (w !== 1280 || o.cols === 4),
+				tag + '入口のボタンと右端の塊は同じ行（塊は右寄せ）・一覧はその下' + (w === 1280 ? '・4列（' + o.cols + '列）' : ''), o.tops);
 			assert(jsErrors(sp.errors).length === 0, tag + '②: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
@@ -434,49 +373,39 @@ export async function register9(env) {
 		const nBefore = await nums(sp.page);
 		await sp.page.click(T + '[data-usd-el="factor-reset"]');
 		const ops = await sp.page.evaluate(() => ({ title: (document.querySelector('[data-usd-el="info-pop"] [data-usd-el="info-title"]') || document.querySelector('[data-usd-el="info-pop"]') || { textContent: '' }).textContent,
-			btns: ['factor-reset-all', 'factor-reset-icons', 'factor-reset-cancel'].map((k) => { const b = document.querySelector('[data-usd-el="' + k + '"]'); return b ? { text: b.textContent, red: /danger/.test(b.className), dis: b.disabled, top: Math.round(b.getBoundingClientRect().top) } : null; }) }));
-		assert(/② 因子周回をリセット/.test(ops.title) && ops.btns.every(Boolean) && ops.btns[0].text === 'スキル' + (free.length + pick.length) + '種をすべて消す' && ops.btns[0].red && ops.btns[1].text === 'アイコンだけすべて外す' && ops.btns[2].text === 'やめる'
-			&& ops.btns[0].top < ops.btns[1].top && ops.btns[1].top < ops.btns[2].top, '段9(E) ②の小窓: 縦3つ「スキル○種をすべて消す」（赤）／「アイコンだけすべて外す」／「やめる」（○は消える共通スキルの種。継承固有は含めない）', ops);
+			btns: ['factor-reset-all', 'factor-reset-cancel'].map((k) => { const b = document.querySelector('[data-usd-el="' + k + '"]'); return b ? { text: b.textContent, red: /danger/.test(b.className), dis: b.disabled, top: Math.round(b.getBoundingClientRect().top) } : null; }),
+			icons: !!document.querySelector('[data-usd-el="factor-reset-icons"]'), n: document.querySelectorAll('[data-usd-el="factor-reset-ops"] button').length }));
+		assert(/② 因子周回をリセット/.test(ops.title) && ops.btns.every(Boolean) && ops.btns[0].text === 'スキル' + (free.length + pick.length) + '種をすべて消す' && ops.btns[0].red && ops.btns[1].text === 'やめる' && !ops.icons && ops.n === 2
+			&& ops.btns[0].top < ops.btns[1].top, '段9(E) ②の小窓: 縦2つ「スキル○種をすべて消す」（赤）／「やめる」（C-226 で「アイコンだけすべて外す」は無くした。○は消える共通スキルの種。継承固有は含めない）', ops);
 		// やめる → 何も変わらない
 		await sp.page.click('[data-usd-el="factor-reset-cancel"]');
 		await sp.page.waitForTimeout(150);
 		assert(JSON.stringify(await draft(sp.page)) === JSON.stringify(Object.assign({}, scope, { updatedAt: (await draft(sp.page)).updatedAt }, { tiers: (await draft(sp.page)).tiers })) || (await draft(sp.page)).skillIds.length === SCOPE.skillIds.length, '段9(E) 「やめる」では何も変わらない', await draft(sp.page));
-		// アイコンだけ外す: スキルは残り、アイコンだけが消える
-		await sp.page.click(T + '[data-usd-el="factor-reset"]');
-		await sp.page.click('[data-usd-el="factor-reset-icons"]');
-		await sp.page.waitForTimeout(200);
-		let dd = await draft(sp.page);
-		let ic = await rowIcons(sp.page);
-		assert(dd.skillIds.length === SCOPE.skillIds.length && JSON.stringify(dd.skillIcons) === '{}' && Object.values(ic).every((v) => v === ''), '段9(E) 「アイコンだけすべて外す」: スキルは残り、アイコンはすべて消える（空の skillIcons を持つ）', { n: dd.skillIds.length, icons: dd.skillIcons });
-		assert(JSON.stringify(await nums(sp.page)) === JSON.stringify(nBefore), '段9(E) アイコンだけ外しても Pt と種は変わらない', await nums(sp.page));
-		await sp.page.click('#deck-undo-btn');
-		await sp.page.waitForTimeout(200);
-		dd = await draft(sp.page);
-		assert(JSON.stringify(dd.skillIcons) === JSON.stringify({ [free[0]]: 'a', [free[1]]: 'c' }), '段9(E) 「元に戻す」で外したアイコンが戻る', dd.skillIcons);
-		// 全部消す: ②のスキルの一覧とアイコンだけ。継承固有・共通スキルのヒントLv・チェック・①は触らない
+		let dd;
+		// 全部消す: ②のスキルの一覧だけ（C-226: 保存のアイコン skillIcons は消さない）。継承固有・共通スキルのヒントLv・チェック・①は触らない
 		await sp.page.click(T + '[data-usd-el="factor-reset"]');
 		await sp.page.click('[data-usd-el="factor-reset-all"]');
 		await sp.page.waitForTimeout(200);
 		dd = await draft(sp.page);
 		const rAfter = await draftRoster(sp.page);
 		const afterNums = await nums(sp.page);
-		assert(dd.skillIds.length === 0 && Object.keys(dd.skillIcons || {}).length === 0, '段9(E) 「スキル○種をすべて消す」: スキルの一覧とアイコンが空になる', dd);
+		assert(dd.skillIds.length === 0 && JSON.stringify(dd.skillIcons) === JSON.stringify({ [free[0]]: 'a', [free[1]]: 'c' }), '段9(E) 「スキル○種をすべて消す」: スキルの一覧が空になる（保存のアイコンは消さない＝C-226）', dd);
 		assert(JSON.stringify(dd.inheritedUnique) === JSON.stringify({ count: 4 }) && dd.parentHintLevel === 3 && JSON.stringify(dd.scopes) === JSON.stringify({ genes: true }), '段9(E) 継承固有の設定・共通スキルのヒントLv・シナリオ因子／遺伝子のチェックは触らない', dd);
 		assert(JSON.stringify(rAfter) === JSON.stringify(rBefore) && afterNums.rPt === nBefore.rPt && afterNums.rKinds === nBefore.rKinds, '段9(E) ①（本育成編成）は触らない', { r: rAfter, afterNums });
 		assert(afterNums.uniq.kinds === 4 && afterNums.common.kinds === 0 && afterNums.common.pt === 0, '段9(E) 消したあとの②は、継承固有（4種）だけが残る', afterNums);
 		const dis = await sp.page.evaluate(() => document.querySelector('#deck-template-panel [data-usd-el="factor-reset"]').disabled);
-		assert(dis === true, '段9(E) 消したあと（スキル0種・アイコン0。継承固有の設定は残る）は、②の「↺」が薄く、押せない', dis);
+		assert(dis === true, '段9(E) 消したあと（スキル0種。保存のアイコン・継承固有の設定は残る）は、②の「↺」が薄く、押せない', dis);
 		await sp.page.click('#deck-undo-btn');
 		await sp.page.waitForTimeout(250);
 		dd = await draft(sp.page);
-		assert(dd.skillIds.length === SCOPE.skillIds.length && JSON.stringify(dd.skillIcons) === JSON.stringify({ [free[0]]: 'a', [free[1]]: 'c' }), '段9(E) 「元に戻す」でスキルもアイコンも戻る', dd);
+		assert(dd.skillIds.length === SCOPE.skillIds.length && JSON.stringify(dd.skillIcons) === JSON.stringify({ [free[0]]: 'a', [free[1]]: 'c' }), '段9(E) 「元に戻す」でスキルが戻る（保存のアイコンはそのまま）', dd);
 		assert(jsErrors(sp.errors).length === 0, '段9(E) ②: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 
-		// 消すものが無い（スキル0種・アイコン0）ときは薄くして押せない
+		// 消すものが無い（スキル0種）ときは薄くして押せない
 		sp = await openSet({ tab: 1, scope: null });
 		const empty = await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-reset"]'); return b ? { dis: b.disabled, color: getComputedStyle(b).color, ok: getComputedStyle(document.querySelector('#deck-roster-panel [data-usd-el="roster-reset"]')).color } : null; });
-		assert(empty && empty.dis === true, '段9(E) スキル0種・アイコン0のときは、②の「↺」は薄く、押せない', empty);
+		assert(empty && empty.dis === true, '段9(E) スキル0種のときは、②の「↺」は薄く、押せない', empty);
 		await sp.ctx.close();
 
 		// ---- ① ----
@@ -533,7 +462,9 @@ export async function register9(env) {
 	await block('段9(F) 帯・設定の枠・スキルのまとまりの見分け（ライト・ダーク。濃淡と線の種類・コントラスト比 4.5 以上）', async () => {
 		for (const theme of ['light', 'dark']) {
 			const tag = '段9(F) ' + theme + ': ';
-			const sp = await openSet({ w: 375, tab: 1, scope: Object.assign({}, SCOPE, { skillIcons: { [free[0]]: 'a' } }) });
+			// C-226: 3種のマーカーが出るように、サポカ外の一覧のスキルを2つ足す（①の6枚＝REAL がカードを持たないので、カードの印は出ない＝2種を見る）
+			const starIds = readJson('data/non-support-skills.json').entries.map((e) => e.skillId).filter((id) => SCOPE.skillIds.indexOf(id) === -1).slice(0, 2);
+			const sp = await openSet({ w: 375, tab: 1, scope: Object.assign({}, SCOPE, { skillIds: SCOPE.skillIds.concat(starIds) }) });
 			if (theme === 'dark') { await sp.page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await sp.page.waitForTimeout(200); }
 			const v = await sp.page.evaluate(() => {
 				const c = (s, p, root) => { const e = (root || document).querySelector(s); return e ? getComputedStyle(e)[p] : null; };
@@ -550,10 +481,11 @@ export async function register9(env) {
 						['2行の Pt／種', c(T + '.usd-band-stat', 'color'), c(T + '[data-usd-el="set-head"]', 'backgroundColor')],
 						['設定の枠の文字', c(T + '.usd-uniq-label', 'color'), c(T + '[data-usd-el="roster-link"]', 'backgroundColor')],
 						['入口のボタン', c(T + '.usd-entry-row .uma-btn--secondary', 'color'), c(T + '.usd-entry-row .uma-btn--secondary', 'backgroundColor')],
-						['削除のボタン', c(T + '[data-usd-el="palette-delete"]', 'color'), c(T + '[data-usd-el="palette-delete"]', 'backgroundColor')],   // C-132: 「解除」→「削除」
-						['アイコンの記号', c(T + '.usd-icon[data-icon="a"]', 'color'), c(T + '.usd-icon[data-icon="a"]', 'backgroundColor')]
+						['削除のボタン', c(T + '[data-usd-el="palette-delete"]', 'color'), c(T + '[data-usd-el="palette-delete"]', 'backgroundColor')]   // C-132: 「解除」→「削除」
 					],
-					iconColors: ['a', 'b', 'c', 'd', 'e', 'f'].map((i) => c(T + '.usd-palette-btn[data-icon="' + i + '"] .usd-icon', 'backgroundColor'))
+					// C-226: パレットのアイコンは無くした。行の先頭の自動のマーカー（3種）の内側の色と、記号（白）
+					iconColors: ['card', 'star', 'other'].map((k) => c(T + '[data-usd-el="factor-marker"][data-marker="' + k + '"] .usd-mk-fill', 'fill')),
+					markerSym: ['card', 'star', 'other'].map((k) => [c(T + '[data-usd-el="factor-marker"][data-marker="' + k + '"] .usd-mk-symbol', k === 'other' ? 'stroke' : 'fill'), c(T + '[data-usd-el="factor-marker"][data-marker="' + k + '"] .usd-mk-fill', 'fill')])
 				};
 			});
 			const rgbs = { band: parseRgb(v.bg.band), cfg: parseRgb(v.bg.cfg), grp: parseRgb(v.bg.grp) };
@@ -565,8 +497,11 @@ export async function register9(env) {
 			// C-144: UmaStar のダークはほぼモノトーン（帯＝合計パネル #3a3834）。帯は青みではなく、まとまりより明るい
 			if (theme === 'dark') assert(rgbs.grp[0] < 70 && rgbs.band[0] > rgbs.grp[0], tag + 'ダークの面は暗い（まとまり ' + rgbs.grp.join() + '・帯はまとまりより明るい ' + rgbs.band.join() + '）', rgbs);
 			const low = v.text.map(([name, fg, bg]) => ({ name, ratio: contrastRatio(parseRgb(fg), parseRgb(bg)) })).filter((x) => x.ratio < 4.5);
-			assert(low.length === 0, tag + '文字のコントラスト比はすべて 4.5 以上（帯・タグ・設定の枠・入口・解除・アイコンの記号）', low.map((x) => x.name + ' ' + x.ratio.toFixed(2)));
-			assert(new Set(v.iconColors).size === 6, tag + 'アイコン6つの色はすべて違う', v.iconColors);
+			assert(low.length === 0, tag + '文字のコントラスト比はすべて 4.5 以上（帯・タグ・設定の枠・入口・削除）', low.map((x) => x.name + ' ' + x.ratio.toFixed(2)));
+			const shown = v.iconColors.filter(Boolean);
+			assert(shown.length >= 2 && new Set(shown).size === shown.length, tag + 'マーカーの内側の色は種類ごとに違う（出ている ' + shown.length + '種）', v.iconColors);
+			const symLow = v.markerSym.filter(([fg, bg]) => fg && bg && contrastRatio(parseRgb(fg), parseRgb(bg)) < 3);
+			assert(symLow.length === 0, tag + 'マーカーの記号（白）と内側の色のコントラスト比は 3 以上（図形の目安）', v.markerSym);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
