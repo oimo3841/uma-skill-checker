@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28f';
 
 	/* ============================================================
 	 * 定数
@@ -2783,7 +2783,16 @@
 		// 段13・C2: 「除外」（exclude）。保存値が無いセットは初期値（C-185 から 低効果・デバフ・視野・持久力回復の4つ）で読む。保存値が {} なら「何も除外しない」。4つ以外の保存値は読まない（消さない）。
 		// 段12 の「絞り込み」（filter）は push 前に置き換えたので読まない（消しもしない。ルール28）
 		const exclude = outsideExcludeOf(o.exclude && typeof o.exclude === 'object' && !Array.isArray(o.exclude) ? o.exclude : OUTSIDE_EXCLUDE_DEFAULT);
-		return { count: count, typeMin: typeMin, exclude: exclude, pinned: outsidePinnedOf(o.pinned, count) };
+		return { count: count, typeMin: typeMin, exclude: exclude, pinned: outsidePinnedOf(o.pinned, count), cards: outsideSavedCardsOf(o.cards) };
+	}
+	/**
+	 * オススメサポで「追加」を押したときの提案のカード（②因子周回 段3 の作り直し・C-225。roster.outsideOptions.cards）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
+	 * 収録データで引けるもの・重複なし・最大6枚。並びは保存の順（小窓のカードの並び＝増分の順、そのあとに残りの枠の指定）。無ければ空（②の星取表の列と無効の段は空）
+	 */
+	function outsideSavedCardsOf(stored) {
+		const out = [];
+		(Array.isArray(stored) ? stored : []).forEach(id => { if (typeof id === 'string' && id && findCard(id) && out.indexOf(id) === -1) out.push(id); });
+		return out.slice(0, ROSTER_CARD_SLOTS);
 	}
 	/**
 	 * 「除外」の初期値（段13・C2。2026-10-21・C-185 に、緑スキルを外して低効果・デバフ・視野・持久力回復の4つにした）。保存値が無いセットはこの値で読む（保存は触ったときだけ）。
@@ -6749,6 +6758,13 @@
 		'.usd-panel--taken .usd-panel-namebtn, .usd-panel--taken .usd-panel-pt { color: var(--uma-text-faint); }',
 		'.usd-panel--taken { background: var(--uma-surface-sunken); }',
 		'.usd-panel--taken .usd-icon { opacity: .4; }',
+		// C-225: 無効の段（オススメサポのカードで得られるのに②に無いスキル）。見出しは一覧の幅いっぱい。行は①の表の「取得しない」の行と同じ見た目（薄い地・薄い文字・取り消しの線）で、押すと②に足す
+		'.usd-factor-offhead { grid-column: 1 / -1; margin: var(--uma-sp-2) 0 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-muted); }',
+		'.usd-panel--off { background: var(--uma-surface-sunken); cursor: pointer; }',
+		'.usd-panel-offlead { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; padding-left: 2px; color: var(--uma-text-faint); }',
+		'.usd-panel-offlead svg { width: 14px; height: 14px; }',
+		'.usd-panel-namebtn--off { color: var(--uma-text-faint); text-decoration: line-through; text-decoration-color: var(--uma-text-faint); }',
+		'.usd-fstar-offhead { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2); font-weight: 700; color: var(--uma-text-muted); background: var(--uma-surface-muted); }',
 		'.usd-link-opt--off { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); }',
 		'.usd-link-opt--off .usd-link-name { color: var(--uma-text-faint); }',
 		'.usd-setlist-ops { display: flex; justify-content: flex-end; margin-top: var(--uma-sp-3); }',
@@ -12229,6 +12245,11 @@
 				(Array.isArray(patch.pinned) ? patch.pinned : []).forEach(id => { if (typeof id === 'string' && id && findCard(id) && p.indexOf(id) === -1) p.push(id); });
 				if (p.length === 0) delete next.pinned; else next.pinned = p;
 			}
+			// C-225: オススメサポで「追加」を押したときの提案のカード（並びのまま。引けないID・重複は入れない）。空なら項目を消す。書くのは outsideAdd だけ
+			if ('cards' in patch) {
+				const c = outsideSavedCardsOf(patch.cards);
+				if (c.length === 0) delete next.cards; else next.cards = c;
+			}
 			const before = roster.outsideOptions === undefined ? undefined : JSON.stringify(roster.outsideOptions);
 			const empty = Object.keys(next).length === 0;
 			if (empty ? before === undefined : before === JSON.stringify(next)) return true;
@@ -12643,12 +12664,15 @@
 				render();
 				focusNoScroll(container.querySelector('button[data-usd-act="factor-view"]'));
 			}
-			else if (act === 'factor-table-sort') {
-				// 星取表の列の漏斗（もう一度押すと元の並び）
+			else if (act === 'factor-col-menu') {
+				// 星取表の列見出し（C-225。①と同じメニュー）。開いているときにもう一度押すと閉じる
 				const key = Number(btn.getAttribute('data-member-key'));
-				factorTableSort = factorTableSort === key ? null : key;
-				renderSelectedList();
-				focusNoScroll(container.querySelector('button[data-usd-act="factor-table-sort"][data-member-key="' + key + '"]'));
+				if (skillInfoCur && skillInfoCur.key === 'factor-col-menu:' + draftScopeKey + ':' + key) { closeSkillInfo(); return; }
+				openFactorColMenu(btn, key);
+			}
+			else if (act === 'factor-enable') {
+				// 無効の行（C-225）: 押すと②に足して有効にする（行の中の名前のボタンと、行そのものの両方が同じ動き）
+				enableFactorOffSkill(btn.getAttribute('data-off-skill-id'));
 			}
 			else if (act === 'factor-circle-toggle') {
 				// ②の◎／○の切り替え（②因子周回 段2）。押したボタンにフォーカスを戻す（位置は上の captureAnchor で保つ）
@@ -13795,25 +13819,84 @@
 				+ '</div>';
 		}
 		/**
-		 * 星取表の材料（②因子周回 段3）。同じセットの①（linkedRosterOf）を①の表と同じ関数（rosterSkillResultOf → visiblePartOf）で数え、
-		 * 列＝①の6枚のサポカ（育成ウマ娘とシナリオは除く）、印＝①の表に出る行（visibleItems＝①で絞った結果）の sureMembers（●）／members（○）。
-		 * ①が「なし」のセットは、空の6枠（印は無い）
+		 * 星取表の材料（②因子周回 段3。C-225 で列をオススメサポのカードに作り直した）。
+		 * 列＝同じセットの①に保存してあるオススメサポの提案のカード（roster.outsideOptions.cards。「追加」を押したときのもの・保存のとおりの枚数）。
+		 * 印は①の表と同じ関数（rosterSkillResultOf → visiblePartOf）で、①の編成のカードをそのカードに置き換えて数える（visibleItems＝①の絞り込みに合う行の sureMembers〔●〕／members〔○〕）。
+		 * 保存が無い（まだ「追加」を押していない・①が「なし」）ときは、空きの6枠（印は無い。今までの「①なし」と同じ）。
+		 * 返り値の res・roster は、列見出しのメニュー（イベントの小窓）と無効の段（factorOffIdsOf）が使う
 		 */
 		function factorTableSourceOf(target) {
 			const lr = linkedRosterOf(target);
+			const saved = outsideOptionsOf(lr || {}).cards;
 			const copy = snapshot(lr || emptyRoster());
-			copy.cardIds = (copy.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
+			copy.cardIds = saved.slice(0, ROSTER_CARD_SLOTS);
 			while (copy.cardIds.length < ROSTER_CARD_SLOTS) copy.cardIds.push(null);
 			const res = rosterSkillResultOf(copy);
 			const vp = visiblePartOf(copy, res);
-			const cards = res.members.filter(m => m.kind === 'card');
+			const all = res.members.filter(m => m.kind === 'card');
+			const cards = saved.length > 0 ? all.filter(m => m.label) : all;
 			const marks = new Map();
 			vp.visibleItems.forEach(it => marks.set(it.skillId, { sure: it.sureMembers || [], maybe: it.members || [] }));
-			return { cards: cards, marks: marks };
+			return { cards: cards, marks: marks, res: res, roster: copy, saved: saved };
+		}
+		/**
+		 * 無効のスキル（C-225）: オススメサポのカード（列）で得られるのに、②に入っていないスキル。保存せず、その都度割り出す。
+		 * 出さないもの: ①の絞り込み（距離・脚質・バ場。①の述語 filterPredicateOf）に合わないもの／②でもともと選べないもの
+		 * （②の追加の一覧と同じ判定: 検索の母集団 taggedSkillPool に無い〔金・固有・◎など〕・①で取得する〔isPickerExcluded。C-223 の決まりのまま〕・レース条件に合わない）。
+		 * Pt・種数・合計・画像結合・C-178 の重なり・◎の候補には使わない（②の id に入らない）。並びは因子画面の順
+		 */
+		function factorOffIdsOf(ids, src) {
+			if (!setBased || src.saved.length === 0) return [];
+			const keys = new Set(src.cards.map(m => m.key));
+			const inSet = new Set(ids);
+			const wanted = filterPredicateOf(src.roster);
+			const pool = new Set(taggedSkillPool().map(s => s.id));
+			const out = [];
+			src.res.items.forEach(it => {
+				const id = it.skillId;
+				if (inSet.has(id) || out.indexOf(id) !== -1) return;
+				if (!(it.members || []).concat(it.sureMembers || []).some(k => keys.has(k))) return;
+				if (!pool.has(id) || (wanted && !wanted(id)) || isPickerExcluded(id) || isPickerRaceBlocked(id)) return;
+				out.push(id);
+			});
+			return out.sort(compareGameOrder);
+		}
+		/** 無効の段の見出し（C-225）。カード一覧と星取表で同じ文言 */
+		function factorOffHeadText(n) { return '無効（オススメサポのカードで得られるスキル） ' + n + '件'; }
+		/**
+		 * 無効の行（C-225）。押すと②に足して有効にする（factor-enable）。見た目は①の表で「取得しない」にした行と同じ（薄い地・薄い文字・取り消しの線）。
+		 * 行の識別は data-off-skill-id（②の行の data-skill-id は持たない＝削除・アイコン・Pt の対象にならない）。名前は横に送る（②の行と同じ）
+		 */
+		function factorOffTileHtml(id) {
+			const name = getSkillName(id);
+			const label = name + '（無効）。押すと②に足して有効にする';
+			return '<div class="usd-panel usd-panel--off" data-usd-el="factor-off-row" data-usd-act="factor-enable" data-off-skill-id="' + esc(id) + '">'
+				+ '<span class="usd-panel-offlead" aria-hidden="true"><i data-lucide="plus"></i></span>'
+				+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-no-trim="1">'
+				+ '<button type="button" class="usd-panel-namebtn usd-panel-namebtn--off" data-usd-act="factor-enable" data-usd-el="factor-enable" data-off-skill-id="' + esc(id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + esc(name) + '</button></span>'
+				+ '</div>';
+		}
+		/** 無効の行を押したとき（C-225）: そのスキルを②に足す（追加の一覧で1つ足すのと同じ受け皿）。「元に戻す」に積む */
+		function enableFactorOffSkill(id) {
+			const target = currentTarget();
+			if (!id || !findSkill(id)) return;
+			const sink = pickerSinkFor(target, 'list');
+			const baseline = sink.probe();
+			const added = sink.add([id]) || [];
+			if (added.length === 0) return;
+			const name = getSkillName(id);
+			pushUndo({
+				scope: sink.scope,
+				baseline: baseline,
+				doneLabel: 'スキル「' + name + '」を有効にしました',
+				undoneLabel: '有効にしたスキル「' + name + '」を戻しました',
+				probe: () => sink.probe(),
+				apply: () => sink.remove(added.slice())
+			});
 		}
 		/**
 		 * 星取表の行の並び（②因子周回 段3）。②のスキル（因子画面の順）と、表示専用の金の行。
-		 * 金の行: ②の白の上の金（前段データの nextOf を金までたどる）で、②に無く、①の6枚のどれかが持つ（●か○）もの。②の白の最初の位置の前に置く。
+		 * 金の行: ②の白の上の金（前段データの nextOf を金までたどる）で、②に無く、列のカード（C-225 からオススメサポのカード）のどれかが持つ（●か○）もの。②の白の最初の位置の前に置く。
 		 * Pt を出さず、取得の集合・合計・種数・②には関わらない（因子化率のための表示）。
 		 * 並びは①の表と同じ arrangeStepUnits（金の直下に前段の白）。返り値は単位の配列（[先頭, ...直下の白]）。各行は { skillId, goldRef }
 		 */
@@ -13842,36 +13925,49 @@
 			});
 			return arrangeStepUnits(list);
 		}
-		/** 星取表（②因子周回 段3）。①の表の部品（.usd-roster-grid 系・●／○の印）を使う。①の描画関数は使わない（①は変えない） */
-		function factorTableHtml(target, sortedIds, panelOf) {
-			const src = factorTableSourceOf(target);
+		/**
+		 * 星取表（②因子周回 段3。C-225 で作り直した）。①の表の部品（.usd-roster-grid 系・●／○の印・列見出しのメニューのボタン .usd-gh-menu）を使う。①の描画関数は使わない（①は変えない）。
+		 * 列見出しは①と同じ（カードの種別アイコン・768px 以上は短い名前・押すとメニュー「イベント/スキル」「ソート」）。イベントの小窓は見せるだけ。
+		 * 行は②のスキル（有効）と表示専用の金の行、その下に無効の段（見出しと件数・無効の行）
+		 */
+		function factorTableHtml(sortedIds, panelOf, src, offIds) {
 			const cards = src.cards;
 			let units = factorTableUnitsOf(sortedIds, src);
-			// 列の漏斗: その列が持つ（●か○）スキルのまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）。もう一度押すと元の並び
+			let offRows = offIds.slice();
+			// ソート（列見出しのメニュー）: その列が持つ（●か○）スキルのまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）。もう一度で元の並び。無効の段の中も同じ決まりで並べる
 			if (factorTableSort !== null && !cards.some(m => m.key === factorTableSort && m.label)) factorTableSort = null;
 			if (factorTableSort !== null) {
-				const has = (it) => { const m = src.marks.get(it.skillId); return !!m && (m.sure.indexOf(factorTableSort) !== -1 || m.maybe.indexOf(factorTableSort) !== -1); };
-				const hit = (u) => u.some(has);
+				const hasId = (id) => { const m = src.marks.get(id); return !!m && (m.sure.indexOf(factorTableSort) !== -1 || m.maybe.indexOf(factorTableSort) !== -1); };
+				const hit = (u) => u.some(it => hasId(it.skillId));
 				units = units.filter(hit).concat(units.filter(u => !hit(u)));
+				offRows = offRows.filter(hasId).concat(offRows.filter(id => !hasId(id)));
 			}
 			const pt = skillPtData.skillPt;
 			const rarityOf = (id) => { const row = pt instanceof Map ? pt.get(id) : null; return row ? row.rarity : null; };
 			const colClass = (m) => m.no % 2 === 0 ? ' usd-roster-gc--alt' : '';
-			const funnelSvg = '<svg class="usd-roster-funnel" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 2.5h12L9.8 8v4.7L6.2 14.5V8z"/></svg>';
-			// 列見出し: カードのアイコンだけ（イベントを選ぶメニューは無い）と、その下に漏斗。空きの枠は破線の枠だけ（漏斗なし）
+			// 列見出し（①の表と同じ。C-187・C-205）: 印のアイコン（24px）だけのボタン。押すとメニュー。空きの枠は押せない（破線の枠だけ）。種別が決まらないカードは名前の先頭1文字。
+			// ②では選択肢を選べないので、未選択の「!」と切り替え中の点は出さない
 			const colHead = (m) => {
-				if (!m.label) return '<span class="usd-gh-empty" data-usd-el="gh-empty" aria-hidden="true"></span>';
+				const cap = m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '';
+				if (!m.label) return '<span class="usd-gh-empty" data-usd-el="gh-empty" aria-hidden="true"></span>' + cap;
 				const n = m.typeOrder;
 				const typed = cardTypeKnown(n);
-				const name = m.no + '枚目：' + (m.shortLabel || m.label);
+				const sorted = factorTableSort === m.key;
+				const label = m.no + '枚目：' + (m.shortLabel || m.label) + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）のメニュー' + (sorted ? '（並べ替え中）' : '');
 				const icon = typed ? cardIconBoxHtml(n, 'head')
 					: '<span class="usd-gh-fallback" data-usd-el="gh-fallback" aria-hidden="true">' + esc(Array.from(String(m.shortLabel || m.label).replace(/^[（(\[［「]+/, ''))[0] || '') + '</span>';
-				const on = factorTableSort === m.key;
-				return '<span class="usd-fstar-ghicon" role="img" aria-label="' + esc(name + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）') + '" title="' + esc(name) + '">' + icon + '</span>'
-					+ '<button type="button" class="usd-roster-ghbtn" data-usd-act="factor-table-sort" data-usd-el="factor-table-sort" data-member-key="' + m.key + '" data-no="' + m.no + '"'
-					+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(name + 'が持つスキルを上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button>';
+				return '<button type="button" class="usd-gh-menu" data-usd-act="factor-col-menu" data-usd-el="factor-col-menu" data-member-key="' + m.key + '" data-no="' + m.no + '"'
+					+ (typed ? ' data-type-order="' + n + '"' : '') + (sorted ? ' data-sorted="1"' : '')
+					+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + icon + '</button>' + cap;
 			};
-			let h = '<div class="usd-roster-grid-wrap usd-fstar" data-usd-el="factor-table"><div class="usd-roster-grid" role="table" aria-label="②のスキルと①のサポートカード" style="--usd-roster-cols:' + cards.length + '">';
+			const markCells = (id) => {
+				const m = src.marks.get(id);
+				return cards.map(c => '<div class="usd-roster-gc' + colClass(c) + '" role="cell">'
+					+ (m && m.sure.indexOf(c.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
+						: m && m.maybe.indexOf(c.key) !== -1 ? '<span class="usd-roster-maybe" role="img" aria-label="選択肢しだいで得られる"></span>' : '')
+					+ '</div>').join('');
+			};
+			let h = '<div class="usd-roster-grid-wrap usd-fstar" data-usd-el="factor-table"><div class="usd-roster-grid" role="table" aria-label="②のスキルとオススメサポのサポートカード" style="--usd-roster-cols:' + cards.length + '">';
 			h += '<div class="usd-roster-grow" role="row">'
 				+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-fstar-gh" role="columnheader">スキル名</div>'
 				+ cards.map(m => '<div class="usd-roster-gc usd-roster-gh usd-fstar-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '" role="columnheader"'
@@ -13879,23 +13975,82 @@
 				+ '</div>';
 			units.forEach(u => u.forEach((it, i) => {
 				const id = it.skillId, prev = i > 0;
-				const m = src.marks.get(id);
 				const gold = rarityOf(id) === 'gold';
 				const nameCell = it.goldRef
 					// 表示専用の金の行: 名前（説明の小窓）だけ。Pt・アイコン・削除は無い
 					? '<span class="usd-panel-namescroll usd-hscroll usd-fstar-goldname" data-usd-no-trim="1"><button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '"'
-						+ ' title="' + esc(getSkillName(id) + '（①のサポートカードが持つ金スキル。②の Pt と種数には数えません）') + '">' + esc(getSkillName(id)) + '</button></span>'
+						+ ' title="' + esc(getSkillName(id) + '（オススメサポのサポートカードが持つ金スキル。②の Pt と種数には数えません）') + '">' + esc(getSkillName(id)) + '</button></span>'
 					: panelOf(id);
 				h += '<div class="usd-roster-grow' + (gold ? ' usd-roster-grow--gold' : '') + (prev ? ' usd-roster-grow--prev' : '') + '" role="row" data-usd-el="factor-table-row" data-fstar-id="' + esc(id) + '"' + (it.goldRef ? ' data-usd-goldref="1"' : '') + '>'
 					+ '<div class="usd-roster-gc usd-roster-gc--name usd-fstar-namecell" role="rowheader">'
 					+ (prev ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '') + nameCell + '</div>'
-					+ cards.map(c => '<div class="usd-roster-gc' + colClass(c) + '" role="cell">'
-						+ (m && m.sure.indexOf(c.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
-							: m && m.maybe.indexOf(c.key) !== -1 ? '<span class="usd-roster-maybe" role="img" aria-label="選択肢しだいで得られる"></span>' : '')
-						+ '</div>').join('')
+					+ markCells(id)
 					+ '</div>';
 			}));
+			// 無効の段（C-225）: 見出しの行（表の幅いっぱい）と、無効の行（①の表の「取得しない」の行と同じ見た目）
+			if (offRows.length > 0) {
+				h += '<div class="usd-roster-grow" role="row" data-usd-el="factor-off-headrow"><div class="usd-roster-gc usd-fstar-offhead" role="cell" data-usd-el="factor-off-head" style="grid-column: 1 / -1">' + esc(factorOffHeadText(offRows.length)) + '</div></div>';
+				offRows.forEach(id => {
+					h += '<div class="usd-roster-grow usd-roster-grow--off" role="row" data-usd-el="factor-table-row" data-fstar-id="' + esc(id) + '" data-usd-fstar-off="1">'
+						+ '<div class="usd-roster-gc usd-roster-gc--name usd-fstar-namecell" role="rowheader">' + factorOffTileHtml(id) + '</div>'
+						+ markCells(id)
+						+ '</div>';
+				});
+			}
 			return h + '</div></div>';
+		}
+		/** 列見出しのメニュー（C-225。①の openColMenu と同じ形・文言）。「イベント/スキル」（そのカードにイベントがあるとき）と「ソート」 */
+		function openFactorColMenu(btn, key) {
+			const src = factorTableSourceOf(currentTarget());
+			const m = src.cards.find(x => x.key === key && x.label);
+			if (!m) return;
+			openPopover({
+				key: 'factor-col-menu:' + draftScopeKey + ':' + key, title: m.label || '', btn: btn, opener: btn, refocus: '[data-usd-act="factor-col-menu"][data-member-key="' + key + '"]',
+				build: (body) => {
+					const col = infoEl('div', 'usd-reset-ops usd-colmenu-ops');
+					col.setAttribute('data-usd-el', 'colmenu-ops');
+					const add = (el, text, fn, pressed) => {
+						const b = infoEl('button', 'uma-btn uma-btn--ghost usd-colmenu-item', text);
+						b.type = 'button';
+						b.setAttribute('data-usd-el', el);
+						if (pressed !== undefined) b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+						b.addEventListener('click', fn);
+						col.appendChild(b);
+					};
+					// サポカの列にイベントの項目を出す条件は①と同じ（選ぶイベント・結果の切り替え・固定の共通イベントのどれかがある）
+					const r = src.res;
+					const hasEvents = (r.events || []).some(e => e.memberKey === key) || (r.resultEvents || []).some(e => e.memberKey === key) || (r.fixedEvents || []).some(e => e.memberKey === key);
+					if (hasEvents) add('colmenu-events', 'イベント/スキル', () => { openFactorEvents(key); });
+					add('colmenu-sort', 'ソート', () => {
+						closeSkillInfo();
+						factorTableSort = factorTableSort === key ? null : key;
+						renderSelectedList();
+						const again = container.querySelector('[data-usd-act="factor-col-menu"][data-member-key="' + key + '"]');
+						if (again) focusNoScroll(again);
+					}, factorTableSort === key);
+					body.appendChild(col);
+				}
+			});
+		}
+		/**
+		 * 列のカードの「イベント」と「取得できるスキル」の小窓（C-225）。①の小窓と同じ部品（buildEventsInfo）で、見せるだけ（②では選択肢を選べない・保存しない）。
+		 * 中身は列の印と同じ計算（①の編成のカードをオススメサポのカードに置き換えたもの）
+		 */
+		function openFactorEvents(key) {
+			const src = factorTableSourceOf(currentTarget());
+			const m = src.res.members.find(x => x.key === key && x.kind === 'card' && x.label);
+			if (!m) return;
+			const sel = '[data-usd-act="factor-col-menu"][data-member-key="' + key + '"]';
+			const btn = container.querySelector(sel);
+			const typed = m.typeOrder !== null && m.typeOrder !== undefined;
+			const titleHtml = '<span class="usd-roster-legend-no' + (typed ? ' usd-roster-typed' : '') + '"' + (typed ? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '') + '>' + m.no + '</span>'
+				+ ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
+			let pane = 0;
+			openPopover({
+				key: 'factor-events:' + draftScopeKey + ':' + key, title: m.label || '', titleHtml: titleHtml, wide: true,
+				build: (body) => { buildEventsInfo(body, src.res, key, { wanted: filterPredicateOf(src.roster), interactive: false, showUnselected: false, getPane: () => pane, setPane: (n) => { pane = n; } }); },
+				btn: btn, opener: btn, refocus: sel
+			});
 		}
 		function renderSelectedList() {
 			const ids = editingSkillIds();
@@ -13908,9 +14063,13 @@
 			if (ids.length === 0 && mode) mode = null;
 			renderTierRow();
 			renderModes(ids.length);
-			if (ids.length === 0) {
+			// C-225: 無効の段（オススメサポのカードで得られるのに②に無いスキル）。②が空でも出す
+			const fsrc = setBased ? factorTableSourceOf(target) : null;
+			const offIds = fsrc ? factorOffIdsOf(ids, fsrc) : [];
+			const emptyNote = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">まだスキルが選択されていません。</p>';
+			if (ids.length === 0 && offIds.length === 0) {
 				el.classList.remove('usd-panels--table');
-				el.innerHTML = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">まだスキルが選択されていません。</p>';
+				el.innerHTML = emptyNote;
 				return;
 			}
 			// 段9（setBased）: 分類ごとの見出しは無く、すべて並べる。行は「アイコン／名前／Pt」。
@@ -13928,7 +14087,11 @@
 				const panelOf = (id) => factorPanelHtml(id, icons, cands, circ);
 				// ②因子周回 段3: 星取表の表示（factorView。保存しない）。行の名前セルはカード一覧と同じパネルの部品（名前・Pt・◎／○・アイコン・削除）
 				el.classList.toggle('usd-panels--table', factorView === 'table');
-				el.innerHTML = factorView === 'table' ? factorTableHtml(target, sorted, panelOf) : sorted.map(panelOf).join('');
+				// C-225: 有効（②のスキル）の下に無効の段（見出しと件数・無効の行）。カード一覧と星取表の両方
+				const offHtml = offIds.length > 0
+					? '<p class="usd-factor-offhead" data-usd-el="factor-off-head">' + esc(factorOffHeadText(offIds.length)) + '</p>' + offIds.map(factorOffTileHtml).join('') : '';
+				el.innerHTML = factorView === 'table' ? factorTableHtml(sorted, panelOf, fsrc, offIds)
+					: (ids.length === 0 ? emptyNote : sorted.map(panelOf).join('')) + offHtml;
 				attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
 				renderPanelPts();
 				refreshIcons();
@@ -14628,6 +14791,14 @@
 			if (!r || !r.ok) return;
 			const ids = r.skills.filter(s => !s.added && outsideUi.checked.has(s.skillId)).map(s => s.skillId);
 			if (ids.length === 0) return;
+			// C-225: 提案のカードを、このセットの①（roster.outsideOptions.cards）に保存する（②の星取表の列と無効の段の材料）。書くのはここ（「追加」）だけで、計算が終わるたびには書かない。
+			// 並びは小窓のカードの並び（増分の順。指定したカードは除く）のあとに、残りの枠に指定したカード（枠の順）。前の保存は置き換える
+			if (rosterOutsideSink) {
+				const pinnedNow = outsideOptionsOf(rosterOutsideSink.getRoster()).pinned;
+				const by = new Map(r.cards.map(c => [c.cardId, c]));
+				const order = (r.kindOrder || r.cards.map(c => c.cardId)).filter(id => by.has(id) && !by.get(id).pinned);
+				rosterOutsideSink.setOptions({ cards: order.concat(pinnedNow.filter(id => by.has(id))) });
+			}
 			const sink = pickerSinkFor(currentTarget(), 'list');
 			const baseline = sink.probe();
 			const added = sink.add(ids) || [];
