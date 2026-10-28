@@ -510,7 +510,10 @@ export async function register13(env) {
 		await settle(sp.page);
 		const d2 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
 		const t2 = await modalTiles(sp.page);
-		assert(JSON.stringify(d2) === JSON.stringify({ count: 4, exclude: {} }) && t2.filter((x) => x.el === 'outside-slot').length === 2, 'オススメサポ段13C1 「外す」で指定が解除され（pinned の項目が消える）、2枠とも「サポカを選ぶ」に戻る', d2);
+		// C-225（2026-10-28）: 「追加」を押すと提案のカード（outsideOptions.cards）を保存する。「外す」では変わらない（次の「追加」で置き換える）ので、それを除いて見る
+		const { cards: savedCards, ...d2rest } = d2;
+		assert(JSON.stringify(d2rest) === JSON.stringify({ count: 4, exclude: {} }) && t2.filter((x) => x.el === 'outside-slot').length === 2, 'オススメサポ段13C1 「外す」で指定が解除され（pinned の項目が消える）、2枠とも「サポカを選ぶ」に戻る', d2);
+		assert(Array.isArray(savedCards) && savedCards.length === 5 && savedCards[savedCards.length - 1] === 'syn-P', 'オススメサポ段13C1 「追加」で保存した提案のカード（指定した syn-P を末尾に含む5枚）は「外す」では変わらない（C-225）', savedCards);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C1 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
