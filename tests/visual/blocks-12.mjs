@@ -527,11 +527,17 @@ export async function register12(env) {
 		assert(auto === 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(exp.a.map(String)) && JSON.stringify(after.r) === JSON.stringify(exp.b) && exp.added.length === 0 && exp.limited,
 			'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計は変わらない。①の合計は、レースの距離に当たらない限定を持つスキルが外れた分だけ減る（母集団の規則はオススメサポにだけ効く。レースを選んでも②には自動で足さない＝' + auto + '種）', { before, after, auto, exp });
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
+		// C-222: 条件で検索では、①の絞り込み（FULL は R0 と同じ距離・バ場）に合わない行がレースを選ぶ前から選べない。レースを選ぶと、その行の理由が
+		// 「レース条件」に替わる（理由は1つだけ・レース条件が先）ので、選べる行の数は減らないことがある。レース条件の理由の行が出ることを見る
+		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await sp.page.waitForTimeout(200);
+		const pkRace = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="results"] [data-usd-el="excluded-reason"]')).filter((e) => /レース条件/.test(e.textContent)).length);
+		await sp.page.click('[data-usd-act="picker-close"]');
 		// C-129 で置き換えた: 段9 の「条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）」は、
 		// レース条件を追加の経路にも効かせたので逆になった。いまは「選べる行は減るだけで増えない」を見る（グレーアウトの作りと理由は blocks-15 の C129B）
 		const sub = (a, b) => a.split(',').filter(Boolean).every((id) => b.split(',').indexOf(id) !== -1);
-		assert(pk0.length > 0 && gr0.length > 0 && sub(pk1, pk0) && sub(gr1, gr0) && pk1.split(',').length < pk0.split(',').length,
-			'オススメサポ④段9→C-129 条件で検索・緑スキルの一覧は、レースを選ぶとレース条件に合わないスキルが選べなくなる（選べる行は減るだけで増えない）', { pk: [pk0.split(',').length, pk1.split(',').length], gr: [gr0.split(',').length, gr1.split(',').length] });
+		assert(pk0.length > 0 && gr0.length > 0 && sub(pk1, pk0) && sub(gr1, gr0) && pkRace > 0,
+			'オススメサポ④段9→C-129 条件で検索・緑スキルの一覧は、レースを選ぶとレース条件に合わないスキルが選べなくなる（選べる行は減るだけで増えない）', { pk: [pk0.split(',').length, pk1.split(',').length], pkRace, gr: [gr0.split(',').length, gr1.split(',').length] });
 		const ex = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(UmaSkillDeckCore.outside.getRace() ? JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) : {}).raceExcludedIds);
 		assert(ex.length > 0, 'オススメサポ④段9 前提: このレースで外れるスキルがある（' + ex.length + '種）', ex.length);
 		await open(sp.page);

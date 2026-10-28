@@ -458,8 +458,9 @@ const browser = await chromium.launch();
 		'「その他」の軸があり、空を「該当なし」と読む', scenarioAxis);
 	assert(axes.every((a) => !/^[①-⑳]/.test(a.label)) && axes.every((a) => !/その他[0-9]/.test(a.label)),
 		'軸のラベルに通し番号と「その他N」が残っていない', axes.map((a) => a.label));
-	assert(eq(scenarioAxis.opts, ['scenario', 'scenario_factor', 'gene']),
-		'「その他」の選択肢がシナリオスキル／シナリオ因子／遺伝子の3つ', scenarioAxis.opts);
+	// C-222: 「サポカ外」（non_support。データのタグには無い、ツールが付ける値）を足した
+	assert(eq(scenarioAxis.opts, ['scenario', 'scenario_factor', 'gene', 'non_support']),
+		'「その他」の選択肢がシナリオスキル／シナリオ因子／遺伝子／サポカ外の4つ', scenarioAxis.opts);
 
 	// 効果タイプの選択肢（70セッション目・段2 で 18 → 12 になった）
 	const effectOpts = await page.evaluate(() =>
@@ -482,7 +483,7 @@ const browser = await chromium.launch();
 	const readCount = () => page.evaluate(() =>
 		parseInt(document.querySelector('[data-usd-el="result-count"]').textContent, 10));
 	const listedNames = () => page.evaluate(() =>
-		[...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent));
+		[...document.querySelectorAll('[data-usd-el="results"] .usd-row [data-usd-info]')].map((el) => el.textContent));
 
 	assert(await readCount() === POOL.length,
 		'モーダルに母集団の ' + POOL.length + '件が表示される（パッシブは出ない）', await readCount());
@@ -1134,7 +1135,7 @@ const browser = await chromium.launch();
 			const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.poolExcluded);
 			c.tags[axis.key] = [axis.options[0].v];
 			UmaSkillDeckCore.openSkillPicker([], () => {});
-			return [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')]
+			return [...document.querySelectorAll('[data-usd-el="results"] .usd-row [data-usd-info]')]
 				.some((el) => el.textContent === '隠す軸のタグだけを持つ検査用スキル');
 		}, PROBE_ID);
 		assert(probe2 === false,
@@ -1176,7 +1177,7 @@ const browser = await chromium.launch();
 	   「条件で検索」の一覧には**並ばない**のが正しい姿になった。
 	   タグがコピー元と一致していること（上の6項目）は変わらず見ている。 */
 	const awakeListed = await page.evaluate((names) =>
-		names.filter((n) => [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].some((el) => el.textContent === n)),
+		names.filter((n) => [...document.querySelectorAll('[data-usd-el="results"] .usd-row [data-usd-info]')].some((el) => el.textContent === n)),
 		AWAKENINGS.map(([n]) => n));
 	assert(awakeListed.length === 0, '段8: 目覚め6件はパッシブなので一覧に並ばない', awakeListed);
 	const awakeAllPassive = AWAKENINGS.map(([n]) => n)

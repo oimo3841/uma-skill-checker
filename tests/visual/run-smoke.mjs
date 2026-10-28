@@ -81,6 +81,7 @@ import { register54 } from './blocks-54.mjs';
 import { register55 } from './blocks-55.mjs';
 import { register56 } from './blocks-56.mjs';
 import { register57 } from './blocks-57.mjs';
+import { register58 } from './blocks-58.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -4083,7 +4084,8 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		// マスターだけから引いていたときは、拡張スキルが「タグが空」に見えて (b) が誤って落ち、
 		// 逆に (a) は拡張スキルのパッシブを素通りしていた。引けない名前は `found: false` で返して (c) で落とす。
 		const listedTags = (key) => page.evaluate((k) => {
-			const names = [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent);
+			// C-222: スキル名は説明の小窓のボタン（[data-usd-info]）。理由の span と取り違えない
+			const names = [...document.querySelectorAll('[data-usd-el="results"] .usd-row [data-usd-info]')].map((el) => el.textContent);
 			const byName = new Map(UmaSkillDeckCore.getMasterSkills().map((s) => [s.name, s]));
 			for (const x of UmaSkillDeckCore.getExtraCatalog()) if (x.tags && !byName.has(x.name)) byName.set(x.name, x);
 			return names.map((n) => {
@@ -9985,7 +9987,8 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 		const inSearch = await page.evaluate(([a, b]) => {
 			const C = UmaSkillDeckCore;
 			C.openSkillPicker([], () => {});
-			const listed = [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent);
+			// C-222: スキル名は説明の小窓のボタン（[data-usd-info]）。理由の span と取り違えない
+			const listed = [...document.querySelectorAll('[data-usd-el="results"] .usd-row [data-usd-info]')].map((el) => el.textContent);
 			const green = C.getPoolExcludedSkills().map((s) => s.id);
 			C.closeSkillPicker();
 			return { filter: listed.filter((n) => n === a.name || n === b.name), listed: listed.length,
@@ -12575,8 +12578,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 		'段3b①: 除外中の行のチェックは無効で、チェックが入っていない', { disabled: s1.greyDisabled, checked: s1.greyChecked });
 	assert(s1.reasons.length === 3 && s1.reasons.every((t) => t.trim().length > 0) && new Set(s1.reasons).size === 1,
 		'段3b①: 除外中の行には理由の文言が添えられている（3行とも同じ文言）', s1.reasons);
-	// 実際に押しても足されない（無効なチェックのラベルを押す）
-	await page.click('[data-usd-excluded="1"] >> nth=0', { force: true });
+	// 実際に押しても足されない（無効なチェックのラベルを押す）。C-222: 行の真ん中はスキル名のボタン（説明の小窓が開く）なので、理由の文字のところを押す
+	await page.click('[data-usd-excluded="1"] [data-usd-el="excluded-reason"] >> nth=0', { force: true });
 	await page.waitForTimeout(150);
 	const afterClick = await listState();
 	assert(afterClick.checkedCount === '0種選択' && afterClick.greyChecked === false,
@@ -15332,6 +15335,7 @@ await register54({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register55({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register56({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register57({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register58({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

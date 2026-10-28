@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28c';
 
 	/* ============================================================
 	 * 定数
@@ -532,7 +532,11 @@
 		{ key: 'scenario', label: 'その他', emptyMeansNone: true, options: [
 			{ v: 'scenario', t: 'シナリオスキル' },
 			{ v: 'scenario_factor', t: 'シナリオ因子', internalOnly: true },
-			{ v: 'gene', t: '遺伝子', internalOnly: true }
+			{ v: 'gene', t: '遺伝子', internalOnly: true },
+			// 「サポカ外」（C-222・2026-10-28）。**データのタグには無い値**で、ツールが付ける（toolTag。中身は toolTagIdsOf）。
+			// non-support-skills.json（脚質オススメの「サポカ外」と同じ一覧）から、excludeValues の値（シナリオスキル）を持つものを除いたもの。
+			// 選ぶと、パッシブ（緑スキル）でもこの一覧にあれば「条件で検索」に出す（pickerPoolOf）。軸内は他の値と OR
+			{ v: 'non_support', t: 'サポカ外', toolTag: 'nonSupport', excludeValues: ['scenario'] }
 		]},
 		/* **パッシブ（ゲーム内の緑スキル）。71セッション目・段8 で新設。**
 		 *
@@ -5518,6 +5522,8 @@
 		// スキル名（押すとスキルの詳細。①の表のスキル名と同じ下線）。行の高さは変えない
 		'.usd-out-row .usd-out-namebtn { min-height: 0; text-align: left; font-weight: 400; font-size: inherit; line-height: inherit; }',
 		'.usd-row--excluded .usd-out-namebtn { color: inherit; cursor: pointer; }',
+		// 「条件で検索」の行のスキル名（C-222）。オススメサポの行の名前と同じ（行の高さは変えない）
+		'.usd-pick-row .usd-out-namebtn { min-height: 0; text-align: left; font-weight: 400; font-size: inherit; line-height: inherit; }',
 		'.usd-out-pt { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); white-space: nowrap; }',
 		'.usd-out-foot { flex-direction: column; align-items: stretch; gap: var(--uma-sp-1); }',
 		'.usd-out-foot[data-state="busy"] { visibility: hidden; }',
@@ -6389,11 +6395,11 @@
 		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
 		// 固有スキルの行の色（--usd-skill-unique-*）は、入口の「オススメサポ」のボタンも読むので :root に置いてある（段7・2026-10-04）
 		// 2026-10-27（夜間のまとめ・作業4）: イベントの小窓の一覧（.usd-ev-panes）も同じ変数で、回復・デバフ・緑の文字の色を①と同じにする
-		'.usd-roster-grid, .usd-ev-panes { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
+		'.usd-roster-grid, .usd-ev-panes, .usd-results[data-usd-el="results"] { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
 		// スキル名の列見出しの種類のアイコンと漏斗（段13・B3）。アイコンの色は変数（ダークモードで差し替える）
 		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); --usd-tone-icon-circle: var(--uma-text-heading); }',
 		// ダーク（C-134 段4）: 種類の色は色相を保って明るい側へ（回復＝青・パッシブ＝緑・デバフ＝赤。Pt は淡い灰）。アイコンの地は中間の濃さで、記号は暗い色
-		':root[data-theme="dark"] .usd-roster-grid, :root[data-theme="dark"] .usd-ev-panes { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
+		':root[data-theme="dark"] .usd-roster-grid, :root[data-theme="dark"] .usd-ev-panes, :root[data-theme="dark"] .usd-results[data-usd-el="results"] { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
 		'  --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
 		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 2px; }',
 		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
@@ -6878,6 +6884,13 @@
 	 */
 	let pickerRace = null;
 	/**
+	 * いま編集しているセットの①の絞り込み（距離・脚質・バ場。C-222。special の②だけ。無ければ null）。
+	 * { sel: resolvedFilterOf(編成), target: raceLockedTargetOf(レース) } ＝ ①の述語 filterPredicateOf と同じ材料。
+	 * **「条件で検索」の一覧だけ**で、合わないスキルをグレーアウト・チェック不可・理由つきで残す（テキストで検索・スクショで追加・緑スキルには効かせない）。
+	 * `pickerRace` と同じく `applyRosterHidden()` が入れる。
+	 */
+	let pickerRosterFilter = null;
+	/**
 	 * 選択肢パネルを開いているか（70セッション目・段4 の続き）。
 	 *
 	 * **選択中のタブをもう一度押すと閉じる。** 段4 で選択肢を3段にしたぶん、特に狭い画面で
@@ -6943,9 +6956,34 @@
 		const s = findSkill(skillId);
 		return !!s && raceBlocksSkill(s, pickerRace);
 	}
+	// ①の絞り込みに合わないスキル（C-222）。軸の名前（「距離」「脚質」「バ場」）の後ろに付ける
+	const PICKER_FILTER_REASON_SUFFIX = 'が合わないため選べない';
+	/**
+	 * ①の絞り込みに合わないとき、合わない軸（理由に名前を出す軸）。合う・絞り込んでいない・スキルが無いときは null（C-222）。
+	 * 合うかどうかは①の述語（filterPredicateOf）と同じ matchesFilters に同じ材料を渡して決める。理由の軸は、①の軸の並び（距離 → 脚質 → バ場）で最初に合わないもの。
+	 * レースで距離が決まっている（target がある）ときは、距離の軸がどの軸の判定にも効くので、先に距離だけで見る。
+	 */
+	function pickerFilterBlockAxisOf(skillId) {
+		const f = pickerRosterFilter;
+		if (!f) return null;
+		const s = findSkill(skillId);
+		const keys = ROSTER_FILTER_AXIS_KEYS.filter(k => f.sel[k]);
+		if (!s || keys.length === 0) return null;
+		const one = (k) => { const o = {}; o[k] = [f.sel[k]]; return o; };
+		const all = {};
+		keys.forEach(k => { all[k] = [f.sel[k]]; });
+		if (matchesFilters(s, all, f.target)) return null;
+		if (f.target && !matchesFilters(s, {}, f.target)) return TAG_AXES.find(a => a.targetDistance) || null;
+		const k = keys.find(x => !matchesFilters(s, one(x), f.target)) || keys[0];
+		return TAG_AXES.find(a => a.key === k) || null;
+	}
 	/** 追加の一覧で選べないか（本育成編成のため・レース条件に合わないため。C-129） */
 	function isPickerBlocked(skillId) {
 		return isPickerExcluded(skillId) || isPickerRaceBlocked(skillId);
+	}
+	/** チェックを入れられないか。isPickerBlocked に、「条件で検索」だけ①の絞り込みに合わないものを足す（C-222。テキストで検索・スクショで追加は今までどおり） */
+	function isPickerCheckBlocked(skillId) {
+		return isPickerBlocked(skillId) || (picker.mode === 'filter' && !!pickerFilterBlockAxisOf(skillId));
 	}
 
 	// ②への追加の知らせ（段F1）に出す、追加元の名前。入口のボタンの文字と同じ（緑スキルは1件ずつ足して知らせを出さないので無い）
@@ -7675,15 +7713,68 @@
 		// エラー（数字でない・レースが無い・区分と合わない）のときは d を使わずに絞る（C-97）
 		const usable = target.state === 'ok' ? target : null;
 		// レース条件に合わないもの（C-129）も、本育成の除外と同じくグレーアウトで残す。race は「レース条件だけで」選べない行の印（件数の内訳に使う）
+		// ①の絞り込みに合わないもの（C-222）も同じ。filterAxis は「①の絞り込みだけで」選べない行の、合わない軸（理由の文と件数の内訳に使う）。
+		// 理由が重なるときは1つだけ: 本育成編成 → レース条件 → ①の絞り込み の順
+		const tools = toolTagSelections(pickerFilters);
 		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id)
-			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable)
+			&& (!isPoolExcluded(s) || tools.some(t => t.ids.has(s.id)))
+			&& matchesPickerFilters(s, pickerFilters, usable, tools)
 			// 低効果の除外（ONのとき）。効果量が分からないスキル（isLowEffectSkill が false）は外さない側
 			&& (ignoreLowEffect || !pickerLowOff || !isLowEffectSkill(s.id)))
 			.map(s => {
 				const h = hidden.has(s.id);
 				const race = !h && isPickerRaceBlocked(s.id);
-				return { skill: s, excluded: h || race, race: race };
+				const filterAxis = (h || race) ? null : pickerFilterBlockAxisOf(s.id);
+				return { skill: s, excluded: h || race || !!filterAxis, race: race, filterAxis: filterAxis };
 			});
+	}
+
+	/**
+	 * 絞り込みで選んでいる、ツールが付けるタグの値（toolTag。C-222「サポカ外」）を軸ごとにまとめたもの。
+	 * [{ axis, ids: その値に当たるスキルの id の Set（同じ軸で2つ以上選べば合わせたもの）, others: 同じ軸で選んでいるふつうの値 }]
+	 */
+	function toolTagSelections(filters) {
+		const out = [];
+		TAG_AXES.forEach(axis => {
+			const sel = (filters && filters[axis.key]) || [];
+			const tools = axis.options.filter(o => o.toolTag && sel.includes(o.v));
+			if (tools.length === 0) return;
+			const ids = new Set();
+			tools.forEach(o => toolTagIdsOf(axis, o).forEach(id => ids.add(id)));
+			out.push({ axis: axis, ids: ids, others: sel.filter(v => !tools.some(o => o.v === v)) });
+		});
+		return out;
+	}
+	/**
+	 * ツールが付けるタグの値に当たるスキルの id（C-222）。いまは「サポカ外」だけ:
+	 * non-support-skills.json の全件から、その軸で excludeValues の値（シナリオスキル）を持つものを除いたもの。
+	 * 一覧を読めていない（読み込み中・失敗）ときは空（0件。読めたら描き直す＝openPicker）。
+	 */
+	function toolTagIdsOf(axis, opt) {
+		if (opt.toolTag !== 'nonSupport' || nonSupportState.status !== 'ok') return [];
+		const ex = opt.excludeValues || [];
+		return nonSupportState.ids.filter(id => {
+			const tags = getSkillTags(id) || {};
+			return !((tags[axis.key] || []).some(v => ex.includes(v)));
+		});
+	}
+	/**
+	 * 「条件で検索」の絞り込みの判定（C-222）。ツールが付けるタグの値を選んでいなければ matchesFilters そのもの。
+	 * 選んでいれば、その軸だけ「その値に当たる、または同じ軸のふつうの値に当たる」（軸内 OR）にして、ほかの軸は matchesFilters で見る（軸間 AND）。
+	 */
+	function matchesPickerFilters(s, filters, target, tools) {
+		const tt = tools || toolTagSelections(filters);
+		if (tt.length === 0) return matchesFilters(s, filters, target);
+		const rest = Object.assign({}, filters);
+		tt.forEach(t => { rest[t.axis.key] = []; });
+		if (!matchesFilters(s, rest, target)) return false;
+		return tt.every(t => {
+			if (t.ids.has(s.id)) return true;
+			if (t.others.length === 0) return false;
+			const o = {};
+			o[t.axis.key] = t.others;
+			return matchesFilters(s, o, null);
+		});
 	}
 
 	/**
@@ -7704,26 +7795,45 @@
 	 * 単位は**その一覧の数え方に合わせる**: 「条件で検索」は「絞り込み結果（N件）」なので「件」、
 	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」。
 	 */
-	function setExcludedCountLabel(el, count, unit, raceCount) {
+	function setExcludedCountLabel(el, count, unit, raceCount, filterCount) {
 		if (!el) return;
 		// 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数。
 		// C-129: レース条件だけで選べない行は別に数える（本育成の理由が先）
-		// 両方あるときは1行（折り返さない）に収めるため短い形「選べない：本育成編成 N件・レース条件 M件」（375px・320px で実測）
-		let text = '';
-		if (count > 0 && raceCount > 0) text = '選べない：本育成編成 ' + count + '件・レース条件 ' + raceCount + '件';
-		else if (count > 0) text = '本育成編成のため選べない ' + count + '件';
-		else if (raceCount > 0) text = 'レース条件に合わないため選べない ' + raceCount + '件';
+		// 2つ以上あるときは短い形「選べない：本育成編成 N件・レース条件 M件」（375px・320px で実測）。
+		// C-222: ①の絞り込みだけで選べない行（「条件で検索」だけ）も別に数え、同じ形で「①の絞り込み L件」を足す
+		const parts = [];
+		if (count > 0) parts.push(['本育成編成 ' + count + '件', '本育成編成のため選べない ' + count + '件']);
+		if (raceCount > 0) parts.push(['レース条件 ' + raceCount + '件', 'レース条件に合わないため選べない ' + raceCount + '件']);
+		if (filterCount > 0) parts.push(['①の絞り込み ' + filterCount + '件', '①の絞り込みに合わないため選べない ' + filterCount + '件']);
+		const text = parts.length === 0 ? '' : parts.length === 1 ? parts[0][1] : '選べない：' + parts.map(p => p[0]).join('・');
 		el.hidden = !text;
 		el.textContent = text;
 	}
 
-	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
-	function excludedRowHtml(skill, checkEl) {
-		return '<label class="usd-row usd-row--excluded" data-usd-excluded="1" aria-disabled="true">' +
+	/**
+	 * 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。
+	 * opts（「条件で検索」だけ。C-222）: { reason: 理由の文（省略時は pickerBlockReasonOf）, nameBtn: スキル名を説明の小窓のボタンにする }
+	 */
+	function excludedRowHtml(skill, checkEl, opts) {
+		const o = opts || {};
+		// 名前のボタンを置く行は、ラベルに aria-disabled を付けない（中のボタンまで押せない扱いになるため。チェックボックスは disabled。オススメサポの追加済みの行と同じ）
+		return '<label class="usd-row usd-row--excluded' + (o.nameBtn ? ' usd-pick-row' : '') + '" data-usd-excluded="1"' + (o.nameBtn ? '' : ' aria-disabled="true"') + '>' +
 			'<input type="checkbox" data-usd-el="' + checkEl + '" value="' + esc(skill.id) + '" disabled/>' +
-			'<span>' + esc(skill.name) + '</span>' +
-			'<span class="usd-row-reason" data-usd-el="excluded-reason">' + esc(pickerBlockReasonOf(skill.id) || PICKER_EXCLUDED_REASON) + '</span>' +
+			(o.nameBtn ? pickerNameBtnHtml(skill, '') : '<span>' + esc(skill.name) + '</span>') +
+			'<span class="usd-row-reason" data-usd-el="excluded-reason">' + esc(o.reason || pickerBlockReasonOf(skill.id) || PICKER_EXCLUDED_REASON) + '</span>' +
 		'</label>';
+	}
+	/**
+	 * 「条件で検索」の行のスキル名（C-222）。押すと説明の小窓（①の表・オススメサポと同じ部品。renderPickerResults が attachSkillInfoIn で付ける）。
+	 * ボタンはラベルの切り替えの対象外なので、名前を押してもチェックは変わらない。tone は①の表と同じ色分けのクラス（rowToneOf）
+	 */
+	function pickerNameBtnHtml(skill, tone) {
+		return '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn' + tone + '" data-usd-info="' + esc(skill.id) + '">' + esc(skill.name) + '</button>';
+	}
+	/** ①の表のスキル名と同じ色分け（回復・デバフ・パッシブ。段7e。判定は rowToneOf）のクラス */
+	function pickerNameToneClass(skillId) {
+		const tone = rowToneOf(skillId);
+		return tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
 	}
 
 	/**
@@ -7788,10 +7898,11 @@
 		const rows = getPickerPoolRows();
 		const filtered = rows.filter(r => !r.excluded).map(r => r.skill);
 		const raceCount = rows.filter(r => r.race).length;
-		const excludedCount = rows.length - filtered.length - raceCount;
+		const filterCount = rows.filter(r => r.filterAxis).length;
+		const excludedCount = rows.length - filtered.length - raceCount - filterCount;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
 		renderPickerLowEffect();
-		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount);
+		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount, filterCount);
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
 		updatePickerCommitState();
@@ -7804,13 +7915,15 @@
 		// 直下に p があると行の並びまで中央寄せになってしまう。
 		const lead = filtered.length === 0
 			? '<div class="text-xs text-slate-400 p-3" data-usd-el="results-none-addable">追加できるスキルがありません。</div>' : '';
+		// C-222: スキル名は説明の小窓を開くボタン（灰色の行も開く）・名前の文字は①の表と同じ色分け（灰色の行は灰色のまま）
 		el.innerHTML = lead + rows.map(r => r.excluded
-			? excludedRowHtml(r.skill, 'skill-check-excluded')
-			: '<label class="usd-row">' +
+			? excludedRowHtml(r.skill, 'skill-check-excluded', { nameBtn: true, reason: r.filterAxis ? r.filterAxis.label + PICKER_FILTER_REASON_SUFFIX : '' })
+			: '<label class="usd-row usd-pick-row">' +
 				'<input type="checkbox" data-usd-el="skill-check" value="' + esc(r.skill.id) + '"' + (picker.checked.has(r.skill.id) ? ' checked' : '') + '/>' +
-				'<span>' + esc(r.skill.name) + '</span>' +
+				pickerNameBtnHtml(r.skill, pickerNameToneClass(r.skill.id)) +
 			'</label>'
 		).join('');
+		attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
 	}
 
 	/* ------------------------------------------------------------
@@ -7918,7 +8031,7 @@
 	function onPickerCheck(skillId, checked) {
 		// 除外中の行にはチェックを入れさせない（段3b）。除外中の行のチェックは無効にしてあるので、
 		// ここへは通常は来ない。**押せてしまう経路があっても足さない**ための保険。
-		if (checked && isPickerBlocked(skillId)) { renderPickerResults(); return; }
+		if (checked && isPickerCheckBlocked(skillId)) { renderPickerResults(); return; }
 		if (checked) picker.checked.add(skillId); else picker.checked.delete(skillId);
 		// 一覧は作り直さない（チェックだけの操作でフォーカスを飛ばさない）ので、
 		// フッターの数だけをここで更新する。
@@ -7969,7 +8082,7 @@
 	function addCheckedSkills() {
 		if (picker.checked.size === 0) { toast('スキルにチェックを入れてください'); return; }
 		// 本育成で得るスキル（「本育成編成」が ON のセット）とレース条件に合わないスキル（C-129）は、どの経路からも足さない（段7の 旧4。保険）
-		const ids = Array.from(picker.checked).filter(id => !isPickerBlocked(id));
+		const ids = Array.from(picker.checked).filter(id => !isPickerCheckBlocked(id));
 		if (ids.length === 0) { picker.checked.clear(); renderPickerResults(); renderPasteReport(); return; }
 		const sink = picker.onAdd;
 		const undoable = sink && typeof sink === 'object' && typeof sink.add === 'function';
@@ -8382,6 +8495,8 @@
 		picker.onAdd = onAdd;
 		pickerLowOff = false;   // 低効果の除外は小窓を閉じたら既定のOFFに戻る（保存しない）
 		if (skillEffectState.status !== 'ok') { const lp = loadSkillEffectLevels(); if (lp) lp.then(() => { if (pickerEl && !pickerEl.hidden) renderPickerResults(); }); }
+		// 「サポカ外」（C-222）の一覧。条件で検索を開いたときに1回だけ読む（失敗したら次に開いたときにもう一度）。読めたら描き直す
+		if (picker.mode === 'filter' && nonSupportState.status !== 'ok') { const np = loadNonSupportSkills(); if (np) np.then(() => { if (pickerEl && !pickerEl.hidden) renderPickerResults(); }); }
 		pasteRows = [];
 		// 呼び出し元の口はモードをまたいで残さない。openSkillRowsPicker がこの後で入れ直す
 		pasteOptions = {};
@@ -13020,12 +13135,17 @@
 			const next = sure.concat(off);
 			// C-129: セットのレース条件（special の②＝setBased だけ。Deck 単体ページでは効かせない）
 			const race = setBased && linked ? raceOfRoster(linked) : null;
+			// C-222: ①の絞り込み（special の②だけ。①の述語 filterPredicateOf と同じ材料）。絞り込んでいなければ null
+			const rsel = setBased && linked ? resolvedFilterOf(linked) : {};
+			const rfilter = Object.keys(rsel).length > 0 ? { sel: rsel, target: raceLockedTargetOf(race) } : null;
 			const changed = next.length !== pickerHiddenIds.length || next.some((id, i) => id !== pickerHiddenIds[i])
 				|| off.length !== pickerOffIds.length || off.some((id, i) => id !== pickerOffIds[i])
-				|| JSON.stringify(race) !== JSON.stringify(pickerRace);
+				|| JSON.stringify(race) !== JSON.stringify(pickerRace)
+				|| JSON.stringify(rfilter) !== JSON.stringify(pickerRosterFilter);
 			pickerHiddenIds = next;
 			pickerOffIds = off;
 			pickerRace = race;
+			pickerRosterFilter = rfilter;
 			if (changed) { renderPickerResults(); renderPasteReport(); }
 		}
 		function renderRosterLink() {

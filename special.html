@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-28b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-28c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -442,7 +442,7 @@
 		.bg-slate-900\/80 { background-color: var(--star-img-count); }
 		/* ダーク: 金スキルの行の参考の Pt と、回復の名前の青（金の地の上で 4.5 以上）。特別な固有スキルの行の文字は白 */
 		/* 名前の色（回復・パッシブ・デバフ）は、ダークの本文の色（#f3f1ec）からライト以上に離す（色相はそのまま） */
-		:root[data-theme="dark"] body .usd-roster-grid, :root[data-theme="dark"] body .usd-ev-panes { --usd-skill-heal-text: #5aa9ff; --usd-skill-passive-text: #5fd889; --usd-skill-debuff-text: #ff7f75; }
+		:root[data-theme="dark"] body .usd-roster-grid, :root[data-theme="dark"] body .usd-ev-panes, :root[data-theme="dark"] body .usd-results[data-usd-el="results"] { --usd-skill-heal-text: #5aa9ff; --usd-skill-passive-text: #5fd889; --usd-skill-debuff-text: #ff7f75; }
 		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--heal, :root[data-theme="dark"] body .usd-ev-skill--gold .usd-ev-tone--heal, :root[data-theme="dark"] body .usd-roster-choice--on .usd-ev-tone--heal { color: #86c2ff; }
 		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--debuff, :root[data-theme="dark"] body .usd-ev-skill--gold .usd-ev-tone--debuff, :root[data-theme="dark"] body .usd-roster-choice--on .usd-ev-tone--debuff { color: #ffaaa2; }
 		:root[data-theme="dark"] .usd-roster-grow--gold .usd-roster-pt--ref { color: #cfc4a4; }

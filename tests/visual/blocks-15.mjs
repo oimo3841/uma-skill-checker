@@ -63,8 +63,9 @@ export async function register15(env) {
 			count: document.querySelector('[data-usd-el="result-count"]').textContent,
 			addable: rows.filter((r) => !r.classList.contains('usd-row--excluded')).length,
 			race: race.length, raceDisabled: race.every((r) => r.querySelector('input').disabled),
-			raceNames: race.map((r) => r.querySelector('span').textContent),
-			addableNames: rows.filter((r) => !r.classList.contains('usd-row--excluded')).map((r) => r.querySelector('span').textContent),
+			// C-222: スキル名は説明の小窓のボタン（[data-usd-info]）
+			raceNames: race.map((r) => r.querySelector('[data-usd-info]').textContent),
+			addableNames: rows.filter((r) => !r.classList.contains('usd-row--excluded')).map((r) => r.querySelector('[data-usd-info]').textContent),
 			label: document.querySelector('[data-usd-el="result-excluded"]').textContent,
 			// 件数の行は折り返さない作り（nowrap）なので、はみ出していないこと（右端が箱の中）
 			labelFits: (() => { const e = document.querySelector('[data-usd-el="result-excluded"]'); return e.hidden || e.getBoundingClientRect().right <= e.parentElement.getBoundingClientRect().right + 0.5; })(),
