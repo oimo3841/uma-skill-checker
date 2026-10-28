@@ -198,20 +198,23 @@ export async function register44(env) {
 	await block('C-185 B2 母集団の件数: Step 0 の実測と一致（P1 編成A・逃げ・長距離・芝＋race-0003 ＝99／P2 実編成・先行・中距離・芝＋race-0001 ＝132）／4つの除外は、除外なしより減る分がそれぞれ独立の数え方と一致', async () => {
 		const sp = await openSp({ roster: FULL });
 		await openOutside(sp.page);   // 同じものとして扱うスキルの組と効果量のデータを読ませる（Step 0 の実測と同じ条件）
-		const res = await sp.page.evaluate(async ({ A, FULL, races }) => {
+		const res = await sp.page.evaluate(async ({ A, FULL, races, pairs }) => {
 			await UmaSkillDeckCore.loadSkillEffectLevels();
 			const C = UmaSkillDeckCore.outside;
 			const race = (id) => races.find((r) => r.id === id);
-			const p = (roster, opts) => { const x = C.populationOf(roster, opts); return { n: x.ids.length, noRace: (x.noRaceExcludedIds || []).length, opt: x.optionExcludedIds.length, race: x.raceExcludedIds.length, user: (x.recommendExcludedIds || []).length }; };
+			// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白（とその組の相手）は母集団に残るようになった。restored はそのぶん（変更前の件数 ＝ n − restored）
+			const p = (roster, opts) => { const x = C.populationOf(roster, opts); const d = UmaSkillDeckCore.getRosterPtDetail(roster); const low = d ? d.lowHintIds : []; const back = new Set(low); pairs.forEach((pr) => pr.forEach((id, i) => { if (low.includes(id)) back.add(pr[1 - i]); }));
+				const restored = x.ids.filter((id) => back.has(id)).length; const restoredNoRace = (x.noRaceExcludedIds || []).filter((id) => back.has(id)).length;
+				return { n: x.ids.length, noRace: (x.noRaceExcludedIds || []).length, opt: x.optionExcludedIds.length, race: x.raceExcludedIds.length, user: (x.recommendExcludedIds || []).length, restored: restored + restoredNoRace, low: low.length }; };
 			const P1 = Object.assign({}, A, { skillFilter: { surface: 'turf', style: 'nige', distance: 'long' }, race: race('race-0003') });
 			const P2 = Object.assign({}, FULL, { race: race('race-0001') });
 			const P3 = Object.assign({}, A, { skillFilter: { surface: 'turf', style: 'nige', distance: 'medium' } });
 			return { P1: p(P1), P2: p(P2), P3: p(P3), P3none: p(P3, { exclude: {} }), P1none: p(P1, { exclude: {} }) };
-		}, { A: ROSTER_A, FULL, races: RACES });
+		}, { A: ROSTER_A, FULL, races: RACES, pairs: readJson('data/recommended-skills.json').equivalentPairs.map((x) => x.skillIds) });
 		console.log('     [実測] 母集団: P1 ' + JSON.stringify(res.P1) + ' / P2 ' + JSON.stringify(res.P2) + ' / P3 ' + JSON.stringify(res.P3));
-		assert(res.P1.n === 105 && res.P2.n === 135, 'C-185 B2 P1・P2 の母集団は Step 0 の実測（99・132）に、先行データ（2026-10-25a）で増えた分（逃げ・長距離＋5／先行・中距離＋2）と 2026-10-26 の ex-1693（距離・脚質の限定なし＋1）を足した値（105・135）と一致（レースを選んでいるので B3 は効かない）', { P1: res.P1, P2: res.P2 });
+		assert(res.P1.n - res.P1.restored === 105 && res.P2.n - res.P2.restored === 135 && res.P1.restored > 0, 'C-185 B2→C-223 P1・P2 の母集団は（①の Lv2 以下の白と組の相手で戻った分を除くと） Step 0 の実測（99・132）に、先行データ（2026-10-25a）で増えた分（逃げ・長距離＋5／先行・中距離＋2）と 2026-10-26 の ex-1693（距離・脚質の限定なし＋1）を足した値（105・135）と一致（レースを選んでいるので B3 は効かない）', { P1: res.P1, P2: res.P2 });
 		assert(res.P1.noRace === 0 && res.P2.noRace === 0, 'C-185 B3 レースを選んでいれば、レース条件の緑スキルは外さない', { P1: res.P1, P2: res.P2 });
-		assert(res.P3.n + res.P3.noRace === 150, 'C-185 B3 P3（レースなし）は、緑スキルを外した分（' + res.P3.noRace + '種）を戻すと Step 0 の実測（146）に先行データ（2026-10-25a）で増えた3種と 2026-10-26 の ex-1693 を足した値（150）と一致', res.P3);
+		assert(res.P3.n + res.P3.noRace - res.P3.restored === 150, 'C-185 B3→C-223 P3（レースなし）は、①の Lv2 以下の白と組の相手で戻った分を除き、緑スキルを外した分（' + res.P3.noRace + '種）を戻すと Step 0 の実測（146）に先行データ（2026-10-25a）で増えた3種と 2026-10-26 の ex-1693 を足した値（150）と一致', res.P3);
 		assert(res.P1none.n > res.P1.n && res.P3none.n > res.P3.n, 'C-185 B2 除外なしの母集団は、4つを除外したときより多い', { P1: [res.P1none.n, res.P1.n], P3: [res.P3none.n, res.P3.n] });
 		await sp.ctx.close();
 	});

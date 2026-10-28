@@ -82,6 +82,7 @@ import { register55 } from './blocks-55.mjs';
 import { register56 } from './blocks-56.mjs';
 import { register57 } from './blocks-57.mjs';
 import { register58 } from './blocks-58.mjs';
+import { register59 } from './blocks-59.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -13484,7 +13485,9 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		});
 		const tierOf = (sid) => (st.tiers && [1, 2, 3].includes(st.tiers[sid])) ? st.tiers[sid] : 2;
 		// 段8・D（C-120）: ①で得るスキル（確定の由来＝●でオン）は②の因子セットから除いて計算する（②に数えない）
-		const factorIds = (st.ids || []).filter((sid) => { const e = by.get(sid); return !(e && (e.P || e.ev.size > 0)); });
+		// C-223: ただし①での合計のヒントLv（練習のヒントなし・イベントの合計）が2以下の白（この仕込みでは Pt が 0 でない行）は、②でも数える（L は①の由来 ＋ F）
+		const lowRoster = (sid, e) => !e.P && Array.from(e.ev.values()).reduce((a, b) => a + b, 0) <= 2 && baseOf.has(sid) && baseOf.get(sid) !== 0;
+		const factorIds = (st.ids || []).filter((sid) => { const e = by.get(sid); return !(e && (e.P || e.ev.size > 0)) || lowRoster(sid, e); });
 		const calc = (cut) => {
 			const ids = new Set(by.keys());
 			factorIds.forEach((sid) => { if (tierOf(sid) <= cut) ids.add(sid); });
@@ -13654,11 +13657,14 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	v = await readNeed(sp.page);
 	const takenText = await sp.page.evaluate((id) => { const p = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"]');
 		return p ? { taken: p.classList.contains('usd-panel--taken'), pt: (p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent || null } : null; }, x(6));
-	assert(v.chips.every((c) => c.n === roster0.C) && roster0.levels[x(6)] === 2 && takenText && takenText.taken && takenText.pt === '①で取得',
-		'段5(3)→段8(D): 本育成のイベント（Lv2）で得る X6 は②に数えない（3つの累計は①だけ・②の行は「①で取得」）', { got: v.chips.map((c) => c.n), rosterOnly: roster0.C, takenText });
+	// C-223（ヒントLvの件・2026-10-28）: ①での合計のヒントLv が2以下の白は②でも数える。X6（Lv2）は L = min(5, 2 + F) で数え、②の行は差（②の額 − ①の額）と「①と重なり」
+	const e3 = (F) => expectedNeed({ on: [], status: 'none', F: F, ids: [x(6)], tiers: {} });
+	const diff3 = (F) => lvTotal(x(6), Math.min(5, 2 + F)) - lvTotal(x(6), 2);
+	assert(sameNeed(v, e3(5)) && v.chips[0].n === roster0.C && v.chips[2].n === roster0.C + diff3(5) && roster0.levels[x(6)] === 2 && takenText && !takenText.taken && takenText.pt === '−' + Math.abs(diff3(5)) + ' Pt',
+		'段5(3)→C-223: 本育成のイベント（Lv2）で得る X6 は②でも数える（優先まで・通常までは①だけ − ' + Math.abs(diff3(5)) + '・②の行は差）', { got: v.chips.map((c) => c.n), want: [e3(5).A, e3(5).B, e3(5).C], rosterOnly: roster0.C, takenText });
 	await sp.page.selectOption('[data-usd-el="pt-parent-level"]', '1');
 	v = await readNeed(sp.page);
-	assert(v.chips.every((c) => c.n === roster0.C) && lvTotal(x(6), 3) !== lvTotal(x(6), 5), '段5(3)→段8(D): F を替えても、①で得る X6 の Pt は変わらない（親のぶんを足さない）', { got: v.chips.map((c) => c.n), rosterOnly: roster0.C });
+	assert(sameNeed(v, e3(1)) && v.chips[2].n === roster0.C + diff3(1) && diff3(1) !== diff3(5), '段5(3)→C-223: F を 1 に替えると、X6 は L3 で数え直す（差 ' + diff3(1) + '）', { got: v.chips.map((c) => c.n), want: [e3(1).A, e3(1).B, e3(1).C] });
 	await sp.ctx.close();
 
 	/* ⑩ 本育成のスキルが0のとき、「うち本育成」の行が出ない（因子セットだけの合計）／両方空なら出ない */
@@ -13948,8 +13954,10 @@ await block('前段の必要Pt（段4b）', async () => {
 	await sp.page.evaluate(() => selectStepTab(1));
 	await sp.page.waitForTimeout(250);
 	const hidden = await sp.page.evaluate(() => window.UmaSkillDeckCore.getPickerHiddenIds());
-	assert(hidden.length > 0 && hidden.includes(z(1)) && hidden.includes(z(4)) && ![z(0), z(2), z(3)].some((id) => hidden.includes(id)),
-		'段4b(8)→段8: 同じセットの①があっても、前段（Z0・Z2・Z3）は選べなくする対象に入らない。本育成のスキル（Z1・Z4）は入る', { n: hidden.length });
+	// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白は②でも選べる。この仕込みの skill-pt は全部 rarity white なので、
+	// ◎ Z1（L2）も「金」Z4（L1。前段データの上では金の位置）も、①での Lv が2以下の白として選べる（金かどうかは skill-pt の rarity で見る。金が選べないことは blocks-59 の実データで見る）
+	assert(![z(0), z(2), z(3), z(1), z(4)].some((id) => hidden.includes(id)),
+		'段4b(8)→段8→C-223: 同じセットの①があっても、前段（Z0・Z2・Z3）は選べなくする対象に入らない。本育成のスキル（Z1 L2・Z4 L1。この仕込みでは白）も入らない', { hidden });
 	await sp.page.evaluate(() => selectStepTab(0));
 	v = await readPanel(sp.page);
 	assert(v.prevCount === 3, '段4b(8): ②へ移って戻っても「前段として必要」はそのまま', v.prevCount);
@@ -14632,8 +14640,11 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	const hiddenWhileFiltered = await sp.page.evaluate(() => window.UmaSkillDeckCore.getPickerHiddenIds());
 	// 段7d の ⑥：②に渡す本育成のスキルは、①の表に出ている●（絞り込みに当たるもの。取得しないスキルを除く）と同じ。絞り込みなしの全件ではない（段7 の決めを置き換えた）
 	const visibleSure = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]')).filter((r) => r.querySelector('.usd-roster-got') && !r.hasAttribute('data-usd-off')).map((r) => r.getAttribute('data-skill-id')));
-	assert(visibleSure.length > 0 && visibleSure.length < allSure.length + 1 && hiddenWhileFiltered.slice().sort().join() === visibleSure.slice().sort().join(),
-		'段7(17)→段7d(⑥): 絞り込み中は、②に渡す本育成のスキル（本育成編成の対象）も、①の表に出ている●だけ（絞り込みなしの全件ではない）', { n: hiddenWhileFiltered.length, visible: visibleSure.length, all: allSure.length + 1 });
+	// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白（製品の getRosterPtDetail().lowHintIds。判定そのものは blocks-59 が独立に見る）は②でも選べるので、選べなくする対象から除く
+	const lowWhileFiltered = await sp.page.evaluate(() => { const d = window.UmaSkillDeckCore.getRosterPtDetail(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))); return d ? d.lowHintIds : null; });
+	assert(visibleSure.length > 0 && visibleSure.length < allSure.length + 1 && Array.isArray(lowWhileFiltered) && lowWhileFiltered.every((id) => visibleSure.includes(id))
+		&& hiddenWhileFiltered.slice().sort().join() === visibleSure.filter((id) => !lowWhileFiltered.includes(id)).sort().join(),
+		'段7(17)→段7d(⑥)→C-223: 絞り込み中は、②に渡す本育成のスキル（本育成編成の対象）も、①の表に出ている●だけ（絞り込みなしの全件ではない。Lv2 以下の白は除く）', { n: hiddenWhileFiltered.length, visible: visibleSure.length, low: lowWhileFiltered, all: allSure.length + 1 });
 	await sp.page.evaluate(() => selectStepTab(0));   // 段8: 保存していないので「＋新規」（ドラフト）のまま（①の編成のタブは無い）
 	await sp.page.waitForTimeout(200);
 	await sp.page.selectOption(P + 'select[data-usd-act="filter"][data-axis="distance"]', '');
@@ -14713,8 +14724,10 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.evaluate(() => selectStepTab(1));
 	await sp.page.waitForTimeout(200);
 	let lk = await readLink(sp.page);
-	assert(lk.scope.skillIds.join() === [W[8], W[2], W[3]].join() && lk.hidden2.slice().sort().join() === allSure.slice().sort().join() && lk.taken.slice().sort().join() === [W[2], W[3]].sort().join(),
-		'段7(E)→段8(D): 同じセットの①で得るスキル（●）はセットから自動では外さず「①で取得」になり、追加の一覧で選べなくする対象になる（●の全件・絞り込みなし）', lk);
+	// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白は②でも選べる（選べなくする対象から除く。W2 は Lv3・W3 は金なので「①で取得」のまま）
+	const lowE = await sp.page.evaluate(() => { const d = window.UmaSkillDeckCore.getRosterPtDetail(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))); return d ? d.lowHintIds : null; });
+	assert(lk.scope.skillIds.join() === [W[8], W[2], W[3]].join() && Array.isArray(lowE) && lowE.length > 0 && lk.hidden2.slice().sort().join() === allSure.filter((id) => !lowE.includes(id)).sort().join() && lk.taken.slice().sort().join() === [W[2], W[3]].sort().join(),
+		'段7(E)→段8(D)→C-223: 同じセットの①で得るスキル（●）はセットから自動では外さず「①で取得」になり、追加の一覧で選べなくする対象になる（●の全件・絞り込みなし。Lv2 以下の白は除く）', { lk, low: lowE });
 	// 追加の一覧（条件で検索）: グレーアウト・理由・件数
 	await sp.page.click('[data-usd-act="editor-pick"]');
 	await sp.page.waitForTimeout(400);
@@ -14738,7 +14751,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
 	await sp.page.click('[data-usd-act="editor-pick-text"]');
 	await sp.page.waitForTimeout(300);
-	await sp.page.fill('[data-usd-el="paste-input"]', nameOf(W[7]) + '\n' + nameOf(W[4]));
+	// C-223: W7（①のイベント Lv1 の白）は②でも選べるようになったので、本育成で得るものはカード B の練習のヒント（Lv5）で見る
+	await sp.page.fill('[data-usd-el="paste-input"]', nameOf(hintsB[0]) + '\n' + nameOf(W[4]));
 	await sp.page.click('[data-usd-act="paste-run"]');
 	await sp.page.waitForTimeout(400);
 	const paste = await sp.page.evaluate(() => ({ blocked: (document.querySelector('[data-usd-el="paste-blocked"]') || {}).textContent || null, checked: document.querySelector('[data-usd-el="picker-checked-count"]').textContent, summary: document.querySelector('.usd-paste-ok').textContent }));
@@ -14746,7 +14760,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.click('[data-usd-el="picker-commit"]');
 	await sp.page.waitForTimeout(300);
 	lk = await readLink(sp.page);
-	assert(lk.scope.skillIds.includes(W[4]) && !lk.scope.skillIds.includes(W[7]), '段7(旧4): 追加を押しても、本育成で得るスキルは足されない', lk.scope.skillIds);
+	assert(lk.scope.skillIds.includes(W[4]) && !lk.scope.skillIds.includes(hintsB[0]), '段7(旧4): 追加を押しても、本育成で得るスキルは足されない', lk.scope.skillIds);
 	await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
 	// （段8（C-120）で、「なし」→ もう一度選ぶ・1種のときも外れる・「元に戻す」で戻る・「なし」で保存から消える、の検査は外した。理由は上の注記）
 	// 保存したセットには、①の下書きの編成の写しが baseRosterId で付く（段8: ✎ は共通の見出しの帯）
@@ -15336,6 +15350,7 @@ await register55({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register56({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register57({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register58({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register59({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

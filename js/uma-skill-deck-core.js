@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28d';
 
 	/* ============================================================
 	 * 定数
@@ -3212,7 +3212,9 @@
 		const added = new Set(withEquivalents((Array.isArray(po.addedSkillIds) ? po.addedSkillIds : []).filter(id => typeof id === 'string')));
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
 		// C-131: ①で得るスキルの組の相手（目覚めと対応するスキル）も、①で得るものとして母集団から外す
-		const taken = new Set(withEquivalents(vp.takenIds)), off = new Set(vp.offList);
+		// C-223: ①での合計のヒントLv が低い白（rosterLowHintWhiteIdsOf）は、まだ取る価値がある（親から得ると安くなる）ので母集団に残す。組の相手も同じ扱い
+		const lowHint = rosterLowHintWhiteIdsOf(r, vp);
+		const taken = new Set(withEquivalents(vp.takenIds.filter(id => !lowHint.has(id)))), off = new Set(vp.offList);
 		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
 		// C-185: 距離ごとの個別除外（userData の recommendExcluded。区分は①の距離〔レースで固定した距離を含む〕）
 		const distKey = recommendDistKeyOf(r);
@@ -4191,6 +4193,7 @@
 			umaHintLevel: a.umaHintLevel, enabledSkillIds: a.enabledSkillIds, offSkillIds: a.offSkillIds, parentHintLevels: parents
 		});
 		const base = run({});
+		let lastItems = [];
 		// 継承固有（段7d の ⑪）。種類の数だけ、選んだヒントLv と本育成編成の割引（状態）で数えて、3つの合計のすべてに足す。「種」には数えない
 		const uniq = a.inheritedUnique ? resolveInheritedUnique(a.inheritedUnique, rules) : null;
 		const uniqPt = uniq ? uniq.count * computeSkillPt(INHERITED_UNIQUE_BASE_PT, uniq.hintLevel, a.statusId, rules) : 0;
@@ -4204,6 +4207,7 @@
 			factorIds.forEach(id => { if (tierOf(a.tiers, id) <= t.id) parents[id] = F; });
 			const r = run(parents);
 			lastPrev = r.prevItems;
+			lastItems = r.items;
 			return { tier: t.id, label: t.label + (i === 0 ? 'だけ' : 'まで'), total: r.totalWithPrev + uniqPt, count: r.items.length, unpricedCount: r.allUnpricedCount, prevCount: r.prevItems.length, prevTotal: r.prevTotal, items: r.items };
 		});
 		// ランクごとの Pt（段7d の追加・A）。そのランクを足したことで増える分（前段を含む）。「通常まで」の合計 ＝ 本育成編成 ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常
@@ -4216,7 +4220,12 @@
 		// 前段の項目（②因子周回 段2・2026-10-28 に足した。既存の値は変えない）。いちばん広い計算の prevItems。②の◎として数える行の Pt（◎＋前段の○）を組み立てるのに使う
 		const prevPts = new Map();
 		lastPrev.forEach(it => { prevPts.set(it.skillId, { pt: it.pt, base: it.base, hintLevel: it.hintLevel }); });
+		// 系列の根ごとの項目（ヒントLvの件・C-223・2026-10-28 に足した。既存の値は変えない）。①と②の両方にあるスキルの行の差（②の額 − ①の額）を、
+		// 系列の根でまとめて出すのに使う（①の◎に上げた行・前段の○は根が同じなので、親で安くなるぶんをまとめて引ける）
+		const rootRows = (items, prev) => items.concat(prev).map(it => ({ skillId: it.skillId, rootSkillId: it.rootSkillId, pt: it.pt }));
 		return { ok: true, parentHintLevel: F, inheritedUniquePt: uniqPt, skillPts: skillPts, prevPts: prevPts,
+			rosterRootRows: rootRows(base.items, base.prevItems), widestRootRows: rootRows(lastItems, lastPrev),
+			rosterPrevIds: base.prevItems.map(it => it.skillId),
 			// total は前段を含む値（本育成パネルの「前段を含む合計」と同じ）。本育成のスキルだけの値は own
 			roster: { total: base.totalWithPrev, own: base.total, count: base.items.length, unpricedCount: base.allUnpricedCount, prevCount: base.prevItems.length, prevTotal: base.prevTotal },
 			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount, overlapRaisable: overlapRaisable };
@@ -4377,13 +4386,47 @@
 		const vp = visiblePartOf(copy, res);
 		const status = skillPtDataStatus();
 		return { status: status, sources: vp.visibleSources, enabledIds: [], sureIds: vp.takenIds, offIds: vp.offList,
+			// ヒントLvの件（C-223）: ①の取得のうち、②でも選べる白（①での合計のヒントLv が低いもの）
+			lowHintIds: Array.from(rosterLowHintWhiteIdsOf(copy, vp)),
 			settings: status === 'ok' ? resolveRosterPtSettings(copy, skillPtData.rules) : null };
 	}
 	/** 本育成編成が「なし」のときの材料（段7d の ⑥(b)）。編成の Pt は 0 として数える。①で選択中の編成には戻らない */
 	function emptyRosterPtInputs() {
 		const status = skillPtDataStatus();
-		return { status: status, sources: [], enabledIds: [], sureIds: [], offIds: [],
+		return { status: status, sources: [], enabledIds: [], sureIds: [], offIds: [], lowHintIds: [],
 			settings: status === 'ok' ? resolveRosterPtSettings({}, skillPtData.rules) : null };
+	}
+	/**
+	 * ヒントLvの件（C-223・2026-10-28・おいもさんの決定）。①での合計のヒントLv がこの値以下の白スキルは、①で取得していても②（因子周回）で選べる
+	 * （親から得ると Lv が上がって安くなるため）。金スキルは対象外（②の親から得られるのは白だけ）。練習のヒント（Lv5）・初期／覚醒（Lv3）は、この値を超えるので自然に外れる。
+	 */
+	const ROSTER_LOW_HINT_LEVEL_MAX = 2;
+	/**
+	 * ①の取得（vp.takenIds）のうち、①での合計のヒントLv（computeRosterPt の items の hintLevel。①の帯と同じ計算・親なし）が
+	 * ROSTER_LOW_HINT_LEVEL_MAX 以下の白スキルの id の Set。◎に上げた行（C-165）は○の id で、L は◎の項目（根の○の L）を使う。
+	 * 元データが使えないときは空（今までどおり①の取得はすべて②で選べない）。
+	 */
+	function rosterLowHintWhiteIdsOf(r, vp) {
+		const out = new Set();
+		if (skillPtDataStatus() !== 'ok' || !(skillPtData.skillPt instanceof Map) || !vp || !Array.isArray(vp.takenIds) || vp.takenIds.length === 0) return out;
+		const rules = skillPtData.rules;
+		const settings = resolveRosterPtSettings(r, rules);
+		const pt = computeRosterPt({ sources: vp.visibleSources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+			statusId: settings.status, umaHintLevel: settings.umaHintLevel, offSkillIds: vp.offList });
+		if (!pt.ok) return out;
+		const levelOf = new Map(pt.items.map(it => [it.skillId, it.hintLevel]));
+		vp.takenIds.forEach(id => {
+			const row = skillPtData.skillPt.get(id);
+			if (!row || row.rarity !== 'white') return;
+			const lv = levelOf.get((vp.circleOf && vp.circleOf.get(id)) || id);
+			if (isNonNegInt(lv) && lv <= ROSTER_LOW_HINT_LEVEL_MAX) out.add(id);
+		});
+		return out;
+	}
+	/** ①の取得のうち、②で選べないもの（ヒントLv が低い白を除いた残り）。inp は rosterPtInputsOf の返り値 */
+	function rosterFixedSureIdsOf(inp) {
+		const low = new Set((inp && inp.lowHintIds) || []);
+		return ((inp && inp.sureIds) || []).filter(id => !low.has(id));
 	}
 	/**
 	 * 保存した編成の本育成の Pt の合計（前段を含む・絞り込みなし・取得しないにしたスキルを除く。「本育成編成」のボタンに出す値）。
@@ -6657,6 +6700,8 @@
 		// 名前のボタンの押す範囲を上下に広げる（::after）と、送る箱の中では縦にはみ出してスクロールの種になるので、ここでは横だけ
 		'.usd-skillgroup .usd-panel-namebtn::after { inset: 0 -3px; }',
 		'.usd-skillgroup .usd-panel-pt { flex: none; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); white-space: nowrap; }',
+		// C-223: ①と重なる行の印「①と重なり」（名前の脇に小さく。名前と一緒に横に送る。押せない）
+		'.usd-panel-overlap { flex: none; margin-left: 4px; font-size: 10px; line-height: 1.2; font-weight: 400; color: var(--uma-text-subtle); white-space: nowrap; }',
 		// C-132: 削除の状態（パレットの「削除」を選んでいる）。タイルは破線の枠と、名前の取り消しの線（色だけに頼らない）。ボタンは選択中の輪と色
 		// 段G(4): 削除の状態でも、パネルの見た目（点線の枠・赤い取り消し線）は変えない。代わりにパネルの右に×印を出す（押せる範囲 44px。パネルを押しても削除できる）。
 		// ×は常に作ってあり、削除の状態（.usd-skillgroup--delete）のときだけ見える
@@ -12506,7 +12551,7 @@
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); if (setBased) { renderSetBar(); renderSelectedList(); } });
 		// C-131: 同じものとして扱うスキルの組も読めたので、選べなくするスキルを組み直す（開いている一覧はここで描き直る）
 		recommendedListeners.push(function (st) { if (st !== 'ok' || !container.isConnected || !setBased) return; applyRosterHidden(); });
-		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
+		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); if (setBased) applyRosterHidden(); });   // C-223: ①のヒントLv で選べる白が決まるため
 
 		// C-132: 削除の状態では、タイルのどこを押しても（アイコン・名前を含む）そのスキルを②から外す（今までの ✕ と同じ処理。「元に戻す」に積む）。
 		// 名前の説明・アイコンの付与より先に受けるので、捕捉の段で受けて止める
@@ -12927,17 +12972,22 @@
 			const p = infoEl('p', '', '合計 ＝ ① ' + formatPtNumber(sum.rosterPt) + ' ＋ ② ' + formatPtNumber(sum.factorPt));
 			p.setAttribute('data-usd-el', 'set-total-formula');
 			body.appendChild(p);
-			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds + (sum.crossPaired > 0 ? ' − ' + sum.crossPaired + '（金と下位の白を両方取るため1種に数える）' : ''));
+			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds + (sum.crossPaired > 0 ? ' − ' + sum.crossPaired + '（金と下位の白を両方取るため1種に数える）' : '')
+				+ (sum.overlapKinds > 0 ? ' − ' + sum.overlapKinds + '（①と②の両方にあるため1種に数える）' : ''));
 			k.setAttribute('data-usd-el', 'set-total-kinds-formula');
 			body.appendChild(k);
 			// C-178: ①の前段として数えているスキルが②の因子セットにもあるときは、②の額で数えていることを知らせる（表示だけ。数は変えない）
+			// C-223: ①で取得する（ヒントLv が低い）白が②にもあるときも同じ形で知らせる
 			const rows = prevOverlapRows(sum.st);
 			rows.slice(0, 5).forEach(o => {
 				const diff = o.factorPt - o.prevPt;
-				const p = infoEl('p', '', '①の前段として数えている「' + getSkillName(o.skillId) + '」' + formatPtNumber(o.prevPt) + ' Pt は、因子で得るため '
+				const head = o.kind === 'sure' ? '①で ' + formatPtNumber(o.prevPt) + ' Pt で数えている「' + getSkillName(o.skillId) + '」は'
+					: '①の前段として数えている「' + getSkillName(o.skillId) + '」' + formatPtNumber(o.prevPt) + ' Pt は';
+				const p = infoEl('p', '', head + '、因子で得るため '
 					+ formatPtNumber(o.factorPt) + ' Pt に置き換えて数えています（差 ' + (diff < 0 ? '−' : '') + formatPtNumber(Math.abs(diff)) + ' Pt）');
 				p.setAttribute('data-usd-el', 'set-total-overlap');
 				p.setAttribute('data-skill-id', o.skillId);
+				p.setAttribute('data-overlap', o.kind);
 				body.appendChild(p);
 			});
 			if (rows.length > 5) {
@@ -12950,19 +13000,18 @@
 		 * ①の「前段として必要」（取得していない白。ヒントLv0 などで数えているもの）のうち、②の因子セットにも入っているスキル（C-178）。
 		 * ①のPt は前段の項目の pt、②のPt は②の行の Pt（どちらも画面と同じ計算の値）。Pt が出ていない（未収録）ものは除く。表示用で、合計は変えない。
 		 */
+		// C-223: ①で取得する（ヒントLv が低い）白が②にもあるもの（kind 'sure'）も返す。額は系列の根でまとめた値（factorRowPts。行の差 ＝ factorPt − prevPt）。
+		// 並びは①の前段の並び（'prev'）→ ②の並び（'sure'）
 		function prevOverlapRows(st) {
-			if (!st || !st.r || !st.r.ok || !st.inp || !st.inp.settings || !Array.isArray(st.ids) || st.ids.length === 0) return [];
-			const pr = computeRosterPt({ sources: st.inp.sources, rules: st.rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
-				statusId: st.inp.settings.status, umaHintLevel: st.inp.settings.umaHintLevel, offSkillIds: st.inp.offIds || [] });
-			if (!pr.ok || !Array.isArray(pr.prevItems)) return [];
-			const inFactor = new Set(st.ids);
+			if (!st || !st.r || !st.r.ok || !st.overlap || st.overlap.size === 0 || !st.rowPts) return [];
 			const out = [];
-			pr.prevItems.forEach(it => {
-				if (!inFactor.has(it.skillId) || it.pt === null || it.pt === undefined) return;
-				const x = (st.rowPts || st.r.skillPts).get(it.skillId);   // ②の行の Pt（◎として数える行は合算。段2）
-				if (!x || x.base === null || x.base === undefined) return;
-				out.push({ skillId: it.skillId, prevPt: it.pt, factorPt: x.pt });
-			});
+			const push = (id, kind) => {
+				const x = st.rowPts.get(id);
+				if (!x || !x.overlap || x.base === null || x.base === undefined || typeof x.rosterPt !== 'number' || typeof x.factorPt !== 'number') return;
+				out.push({ skillId: id, kind: kind, prevPt: x.rosterPt, factorPt: x.factorPt });
+			};
+			(st.r.rosterPrevIds || []).forEach(id => { if (st.overlap.get(id) === 'prev') push(id, 'prev'); });
+			st.overlap.forEach((kind, id) => { if (kind === 'sure') push(id, kind); });
 			return out;
 		}
 		/**
@@ -13130,7 +13179,8 @@
 		function applyRosterHidden() {
 			const linked = linkedRosterOf(currentTarget());
 			// C-131: 同じものとして扱うスキルの組の相手も「本育成で得るスキル」にする（右回り○を①で得るなら右回りの目覚めも。逆も同じ。組のデータが読めていなければ今までどおり）
-			const sure = linked ? (setBased ? withEquivalents(rosterSureIdsOf(linked)) : rosterSureIdsOf(linked)) : [];
+			// C-223: special の②（setBased）では、①での合計のヒントLv が低い白（rosterLowHintWhiteIdsOf）は選べる。組の相手は、選べないスキルの相手だけを足す
+			const sure = linked ? (setBased ? withEquivalents(grouped && rosterPtSource ? rosterFixedSureIdsOf(rosterPtInputsOf(linked)) : []) : rosterSureIdsOf(linked)) : [];
 			const off = linked ? rosterOffIdsOf(linked).filter(id => sure.indexOf(id) === -1) : [];
 			const next = sure.concat(off);
 			// C-129: セットのレース条件（special の②＝setBased だけ。Deck 単体ページでは効かせない）
@@ -13295,7 +13345,8 @@
 			if (inp.status !== 'ok') return { inp: inp };
 			const allIds = skillIdsOf(target) || [];
 			// 段8（setBased）: ①で得るスキル（①の表に出ている●でオンのもの）は②の Pt と種に数えない（因子セットから除いて計算する。自動では外さない）
-			const taken = setBased ? new Set(inp.sureIds || []) : new Set();
+			// C-223: ただし①での合計のヒントLv が低い白（inp.lowHintIds）は②でも数える（親で安くなったぶんが②の帯の差になる）
+			const taken = setBased ? new Set(rosterFixedSureIdsOf(inp)) : new Set();
 			const ids = allIds.filter(id => !taken.has(id));
 			const rules = skillPtData.rules;
 			const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
@@ -13305,8 +13356,21 @@
 				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, enabledSkillIds: inp.enabledIds, offSkillIds: inp.offIds || [],
 				factorSkillIds: plan.pricedIds(ids), tiers: plan.pricedTiers(tiersOf(target)), parentHintLevel: F, inheritedUnique: inheritedUniqueOf(target) || {}
 			});
+			const overlap = factorOverlapOf(r, inp, ids);
 			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r,
-				circleCandidates: plan.candidates, circleOf: plan.circleOf, rowPts: factorRowPts(r, plan.circleOf), plan: plan };
+				circleCandidates: plan.candidates, circleOf: plan.circleOf, rowPts: factorRowPts(r, plan.circleOf, overlap, ids), plan: plan, overlap: overlap };
+		}
+		/**
+		 * ①と②の両方にあるスキル（C-223・C-178）。Map(②の id → 'sure'〔①で取得する・ヒントLv が低い白〕／'prev'〔①の前段として数えている〕)。並びは②の並び。
+		 * 'sure' は見出しの種数で1種に数える（①の種にも②の種にも入っているため）。'prev' は①の種に入っていないので引かない
+		 */
+		function factorOverlapOf(r, inp, ids) {
+			const out = new Map();
+			if (!setBased || !r || !r.ok) return out;
+			const low = new Set((inp && inp.lowHintIds) || []);
+			const prev = new Set(r.rosterPrevIds || []);
+			ids.forEach(id => { if (low.has(id)) out.set(id, 'sure'); else if (prev.has(id)) out.set(id, 'prev'); });
+			return out;
 		}
 		/**
 		 * ②の◎（②因子周回 段2・2026-10-28・おいもさんの決定）。②の○のうち、上の段の◎（circleUpOf）が引けるものは、Pt を数えるときだけ◎に差し替える
@@ -13347,7 +13411,10 @@
 			};
 			const keep = new Set(keepCircleIdsOf({ keepCircleIds: factorKeepCircleIdsOf(target) }));
 			const usedUp = new Set();
+			// C-223: ①で取得する○（ヒントLv が低いので②にも入れられるもの）は◎の候補にしない（◎で数えるかは①の切り替え1か所で決める）
+			const rosterSure = new Set(inp.sureIds || []);
 			ups.forEach(([id, up]) => {
+				if (rosterSure.has(id)) return;
 				if (inSet.has(up) || rosterIds.has(up) || usedUp.has(up) || rosterPrevIds().has(up)) return;
 				usedUp.add(up);
 				candidates.set(id, up);
@@ -13359,7 +13426,7 @@
 		 * ②の行の Pt（○の id → { pt, base, hintLevel }）。◎として数える行は「◎の Pt ＋ 前段の○の Pt」（①の circleComboOf と同じ合算。帯の数＝行の Pt の和を保つ）。
 		 * どちらかが見つからない・未収録のときは◎の値だけ。ほかの行は計算の値（skillPts）のまま
 		 */
-		function factorRowPts(r, circleOf) {
+		function factorRowPts(r, circleOf, overlap, rowIds) {
 			const out = new Map();
 			if (!r || !r.ok) return out;
 			r.skillPts.forEach((x, id) => out.set(id, x));
@@ -13371,7 +13438,38 @@
 				if (p && u.pt !== null && p.pt !== null && u.base !== null && p.base !== null) out.set(o, { pt: u.pt + p.pt, base: u.base + p.base, hintLevel: u.hintLevel });
 				else out.set(o, u);
 			});
+			// C-223: ①と②の両方にあるスキル（overlap）の行は、②に入れたことで変わったぶん（②の額 − ①の額）を出す（行の Pt の和＝②の帯を保つ）。
+			// 額は系列の根でまとめる（①の◎に上げた行・前段の○も、根の L に親の Lv が乗って安くなるため）。②のほかの行が数えている項目はまとめに入れない。
+			// 同じ根の重なりが2つ以上あるときは、先の行にまとめて出し、後の行は 0。どれかが Pt 未収録なら差を出さない（行は「Pt 未収録」）
+			if (overlap && overlap.size > 0) {
+				const rootOf = (skillPtData.stepUp && typeof skillPtData.stepUp.rootOf === 'function') ? skillPtData.stepUp.rootOf : (id => id);
+				const other = new Set();
+				(rowIds || []).forEach(id => { if (overlap.has(id)) return; other.add(id); if (circleOf.has(id)) other.add(circleOf.get(id)); });
+				const sumOf = (rows, g) => {
+					let s = 0, ok = true;
+					rows.forEach(x => { if (x.rootSkillId !== g || other.has(x.skillId)) return; if (x.pt === null || x.pt === undefined) ok = false; else s += x.pt; });
+					return ok ? s : null;
+				};
+				const usedRoot = new Set();
+				overlap.forEach((kind, id) => {
+					const x = out.get(id);
+					const g = rootOf(id);
+					const first = !usedRoot.has(g);
+					usedRoot.add(g);
+					const rosterPt = first ? sumOf(r.rosterRootRows || [], g) : 0, factorPt = first ? sumOf(r.widestRootRows || [], g) : 0;
+					const base = x ? x.base : null;
+					if (base === null || base === undefined || rosterPt === null || factorPt === null) { out.set(id, { pt: null, base: null, hintLevel: x ? x.hintLevel : null, overlap: kind }); return; }
+					out.set(id, { pt: factorPt - rosterPt, base: base, hintLevel: x.hintLevel, overlap: kind, rosterPt: rosterPt, factorPt: factorPt });
+				});
+			}
 			return out;
+		}
+		/** ②の行・脚質オススメの行の Pt の文字。①と重なる行（C-223）は差なので、負の数は「−60 Pt」 */
+		function factorRowPtText(x) {
+			if (!x) return '';
+			if (x.base === null) return 'Pt 未収録';
+			if (x.base === 0) return 'Pt 不要';
+			return (x.pt < 0 ? '−' + Math.abs(x.pt) : String(x.pt)) + ' Pt';
 		}
 		/**
 		 * セットの数字（段9・C-121。段8・B／D を置き換えた）。**ここ1か所**で数える（①の帯・②の帯・見出しの帯・「?」がすべてこの値を読む）。
@@ -13394,12 +13492,16 @@
 			const rosterPt = rs ? rs.total : 0;
 			const rosterKinds = countSkillKinds((st.inp && st.inp.sureIds) || []);
 			const factorPt = uniqPt + commonPt, factorKinds = uniqKinds + commonKinds;
-			// C-178: ①で取る金と、②にあるその前段の白は、見出しの合計の種数だけ1種に数える（①の帯・②の帯の種数は変えない）
-			const crossPaired = countCrossPairedKinds((st.inp && st.inp.sureIds) || [], st.ids);
+			// C-223: ①で取得していて②にも入れた白（ヒントLv が低いもの）は、①の種にも②の種にも入っているので、見出しの種数で1種に数える（②の帯の種数には数える）
+			const overlapSure = (st.ids || []).filter(id => st.overlap && st.overlap.get(id) === 'sure');
+			const overlapKinds = overlapSure.length;
+			// C-178: ①で取る金と、②にあるその前段の白は、見出しの合計の種数だけ1種に数える（①の帯・②の帯の種数は変えない）。
+			// C-223: ①にもある白（overlapSure）は①の種で金と組になっている（countSkillKinds）ので、ここでは②の側から除く（二重に引かない）
+			const crossPaired = countCrossPairedKinds((st.inp && st.inp.sureIds) || [], overlapKinds > 0 ? st.ids.filter(id => overlapSure.indexOf(id) === -1) : st.ids);
 			return { rosterPt: rosterPt, rosterKinds: rosterKinds, statusLabel: rs ? rs.statusLabel : '',
 				uniqPt: uniqPt, uniqKinds: uniqKinds, commonPt: commonPt, commonKinds: commonKinds,
-				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired,
-				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds - crossPaired,
+				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired, overlapKinds: overlapKinds,
+				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds - crossPaired - overlapKinds,
 				takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
 		}
 		/** ②の各行の Pt を描き直す（⑬）。行の Pt は、必要スキルPt に数えている値（親由来のレベルと本育成編成の割引を反映したもの） */
@@ -13415,10 +13517,22 @@
 				// 段8・D: ①で得るスキル（●でオン）は②に数えない。行は薄くして、Pt の代わりに「①で取得」（自動では外さない）
 				const panel = sp.closest ? sp.closest('.usd-panel') : null;
 				if (panel) panel.classList.toggle('usd-panel--taken', taken.has(id));
-				if (taken.has(id)) { sp.textContent = '①で取得'; return; }
 				// ②因子周回 段2: ◎として数える行は◎＋前段の○の合算（rowPts）
-				const x = st && st.r && st.r.ok ? st.rowPts.get(id) : null;
-				sp.textContent = x ? (x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt') : '';
+				const x = !taken.has(id) && st && st.r && st.r.ok ? st.rowPts.get(id) : null;
+				// C-223: ①と重なる行は、名前の脇に小さく「①と重なり」（行の Pt は差）。印は名前の横送りの中・名前のボタンの後ろ
+				const scroll = panel ? panel.querySelector('[data-usd-el="panel-namescroll"]') : null;
+				const mark = scroll ? scroll.querySelector('[data-usd-el="panel-overlap"]') : null;
+				const isOverlap = !!(x && x.overlap);
+				if (isOverlap && scroll && !mark) {
+					const m = global.document.createElement('span');
+					m.className = 'usd-panel-overlap';
+					m.setAttribute('data-usd-el', 'panel-overlap');
+					m.textContent = '①と重なり';
+					scroll.appendChild(m);
+				} else if (!isOverlap && mark) mark.remove();
+				if (panel) { if (isOverlap) panel.setAttribute('data-usd-overlap', x.overlap); else panel.removeAttribute('data-usd-overlap'); }
+				if (taken.has(id)) { sp.textContent = '①で取得'; return; }
+				sp.textContent = factorRowPtText(x);
 			});
 			scanEntryRows();
 		}
@@ -14589,10 +14703,11 @@
 				statusId: st.inp.settings.status, umaHintLevel: st.inp.settings.umaHintLevel, enabledSkillIds: st.inp.enabledIds, offSkillIds: st.inp.offIds || [],
 				factorSkillIds: plan.pricedIds(all), tiers: plan.pricedTiers(tiersOf(target)), parentHintLevel: st.F, inheritedUnique: inheritedUniqueOf(target) || {}
 			});
-			return r.ok ? { r: r, base: st.r, rowPts: factorRowPts(r, plan.circleOf), circleOf: plan.circleOf } : null;
+			// C-223: ①と重なる行（①のヒントLv が低い白・①の前段）は、足したときの差を出す（②の行と同じ）
+			return r.ok ? { r: r, base: st.r, rowPts: factorRowPts(r, plan.circleOf, factorOverlapOf(r, st.inp, all), all), circleOf: plan.circleOf } : null;
 		}
 		function stylePtText(x) {
-			return x ? (x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt') : '';
+			return factorRowPtText(x);   // C-223: ①と重なる行は、足したときの差（−60 Pt など）
 		}
 		/** 行の Pt（そのスキルを②に足したときのタイルの Pt）。モデルを作ったときに、足せる行を全部足して1回で数える */
 		function styleRowPtText(row) {
@@ -16038,6 +16153,7 @@
 				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, offSkillIds: inp.offIds });
 			if (!pt.ok) return null;
 			return { total: pt.totalWithPrev, own: pt.total, prevTotal: pt.prevTotal, kinds: countSkillKinds(inp.sureIds),
+				lowHintIds: (inp.lowHintIds || []).slice(),   // C-223: ②でも選べる①の白（①での合計のヒントLv が低いもの）
 				items: pt.items.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })),
 				prevItems: pt.prevItems.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })) };
 		},

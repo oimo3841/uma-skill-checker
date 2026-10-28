@@ -179,7 +179,14 @@ export async function register43(env) {
 		const all = m.secs.reduce((a, s) => a.concat(s.rows), []);
 		assert(new Set(all.map((r) => r.id)).size === all.length, 'C-184 どのスキルも1つの項目にだけ出る（重ならない）', all.length);
 		const on = all.filter((r) => r.state === 'on').length;
-		assert(all.length === 31 && on === 26 && out.length === 5 && /^追加するスキル 26種（合計 /.test(m.head), 'C-184 代表の編成A（逃げ×中山 芝2500m）: 緑6・シナリオ14・ためらい4・サポカ外5・斜行2＝31種、既定ON 26（Step 0 の実測と一致）', { total: all.length, on, outside: out.length, head: m.head });
+		// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白は②でも選べるので、灰色（①で得るため）から既定ON に変わる。この編成では2種（Step 0 の実測 26 ＋ 2）
+		const lowA = await sp.page.evaluate(() => { const d = UmaSkillDeckCore.getRosterPtDetail(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))); return d ? d.lowHintIds : null; });
+		// 組の相手（C-131。冬ウマ娘○ ↔ 冬の目覚め）も①のスキルと同じ扱い
+		const lowBack = new Set(lowA || []);
+		REC.equivalentPairs.forEach((p) => p.skillIds.forEach((id, i) => { if ((lowA || []).includes(id)) lowBack.add(p.skillIds[1 - i]); }));
+		const lowRows = all.filter((r) => lowBack.has(r.id));
+		assert(all.length === 31 && lowRows.length === 2 && lowRows.every((r) => r.state === 'on') && on === 26 + lowRows.length && out.length === 5 && /^追加するスキル 28種（合計 /.test(m.head),
+			'C-184→C-223 代表の編成A（逃げ×中山 芝2500m）: 緑6・シナリオ14・ためらい4・サポカ外5・斜行2＝31種、既定ON 28（Step 0 の実測 26 ＋ ①の Lv2 以下の白とその組の相手 2種）', { total: all.length, on, low: lowRows.map((r) => [r.id, r.state]), outside: out.length, head: m.head });
 		// 重なり（サポカ外にも入っているレース場○）は緑スキル側に出る
 		const overlap = NONSUP.filter((id) => expG.includes(id));
 		assert(overlap.length === 0 || overlap.every((id) => ids('green').includes(id) && !out.includes(id)), 'C-184 サポカ外と重なるレース場○は、緑スキルの項目に出て、サポカ外の項目からは除く', overlap);
@@ -252,8 +259,11 @@ export async function register43(env) {
 		let m = await readModal(sp.page);
 		const grays = m.secs.reduce((a, s) => a.concat(s.rows.filter((r) => r.state === 'gray').map((r) => Object.assign({ sec: s.key }, r))), []);
 		const winter = grays.filter((r) => r.sec === 'green');
-		assert(winter.length === 2 && winter.every((r) => r.reason === 'roster' && !r.checked), 'C-184 ①で得る: 編成Aでは緑スキルの2種（冬ウマ娘○・冬の目覚め）がグレー・理由は本育成', winter);
-		assert(grays.length === 4 && grays.some((r) => r.sec === 'lane' && r.reason === 'roster') && grays.some((r) => r.reason === 'race'), 'C-184 グレーは緑2・斜行1（①で得る）・バーニングソウル（レース条件）の4種', grays.map((r) => r.sec + ':' + r.reason));
+		// C-223（2026-10-28）: 編成Aの緑スキルの2種（冬ウマ娘○・冬の目覚め）は、①での合計のヒントLv が2以下の白（とその組の相手）なので、グレーでなくなった（既定ON）
+		const lowG = await sp.page.evaluate(() => { const d = UmaSkillDeckCore.getRosterPtDetail(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))); return d ? d.lowHintIds : []; });
+		const greenLow = rowsOf(m, 'green').filter((r) => lowG.includes(r.id));
+		assert(winter.length === 0 && greenLow.length >= 1 && greenLow.every((r) => r.state === 'on'), 'C-184→C-223 ①で得る: 編成Aの緑スキルの2種（冬ウマ娘○・冬の目覚め）は①の Lv2 以下の白とその組の相手なので、グレーでない（既定ON）', { winter, greenLow });
+		assert(grays.length === 2 && grays.some((r) => r.sec === 'lane' && r.reason === 'roster') && grays.some((r) => r.reason === 'race'), 'C-184→C-223 グレーは斜行1（①で得る）・バーニングソウル（レース条件）の2種', grays.map((r) => r.sec + ':' + r.reason));
 		// 押すと理由の1行（チェックは変わらない・小窓は閉じない・種数は変わらない）
 		const head0 = m.head;
 		const reasons = { roster: '①で得るため', already: '②に追加済みのため', race: 'レース条件に合わないため' };

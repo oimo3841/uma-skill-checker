@@ -68,9 +68,11 @@ export async function register9(env) {
 	let pick = [], free = [], freeAll = [];
 	const probe = await openSet({ tab: 0 });
 	const taken = await takenOf(probe.page);
+	// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白は②でも数える（「①で取得」にならない）ので、重なりの2つはそれ以外の白から選ぶ
+	const lowHint = await probe.page.evaluate(async (r) => { await UmaSkillDeckCore.loadSkillPtData(); const d = UmaSkillDeckCore.getRosterPtDetail(r); return d ? d.lowHintIds : null; }, REAL);
 	await probe.ctx.close();
 	const takenSet = new Set(taken);
-	pick = taken.filter((id) => rarityOf.get(id) === 'white').slice(0, 2);
+	pick = taken.filter((id) => rarityOf.get(id) === 'white' && lowHint && lowHint.indexOf(id) === -1).slice(0, 2);
 	freeAll = master.filter((s) => !takenSet.has(s.id) && rarityOf.get(s.id) === 'white' && !(s.tags.passive || []).length && (prevOf.get(s.id) || []).length === 0).map((s) => s.id);
 	free = freeAll.slice(0, 8);
 	assert(pick.length === 2 && free.length === 8, '段9 前提: ①で得る白スキル2つと、①で得ない（前段の無い）白スキル8つを用意できる', { pick, free: free.length });

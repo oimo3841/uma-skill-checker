@@ -146,11 +146,13 @@ export async function register40(env) {
 			const d = await detail(sp.page, A);
 			const prev = d.prev.find((x) => x.skillId === NEVER_LOW);
 			const r2 = await row2Pt(sp.page, NEVER_LOW);
-			const pt2 = Number((r2 || '').replace(/[^0-9]/g, ''));
+			// C-223（2026-10-28）: ②の行は差（②の額 − ①の前段の額。例 −72 Pt）を出すようにそろえた。（?）の文は②の額（全額）で今までの形のまま
+			const rowDiff = (String(r2 || '').trim().startsWith('−') ? -1 : 1) * Number((r2 || '').replace(/[^0-9]/g, ''));
+			const pt2 = (prev ? prev.pt : 0) + rowDiff;
 			const nm = await nameOf(sp.page, NEVER_LOW);
 			const help = await openHelp(sp.page);
 			assert(help.open, 'C-178(4) F=' + F + ' ?の小窓が開く', help);
-			assert(!!prev && prev.pt === ptOf(basePt, 0, 'kire') && pt2 === ptOf(basePt, F, 'kire'), 'C-178(4) F=' + F + ' 前提: ①の前段の項目 ' + (prev && prev.pt) + ' Pt・②の行 ' + r2 + '（独立の式と一致）', { prev, r2 });
+			assert(!!prev && prev.pt === ptOf(basePt, 0, 'kire') && rowDiff === ptOf(basePt, F, 'kire') - ptOf(basePt, 0, 'kire') && r2 === signed(rowDiff) + ' Pt', 'C-178(4)→C-223 F=' + F + ' 前提: ①の前段の項目 ' + (prev && prev.pt) + ' Pt・②の行は差 ' + r2 + '（独立の式と一致）', { prev, r2 });
 			assert(help.overlap.length === 1 && help.overlap[0] === '①の前段として数えている「' + nm + '」' + fmt(prev.pt) + ' Pt は、因子で得るため ' + fmt(pt2) + ' Pt に置き換えて数えています（差 ' + signed(pt2 - prev.pt) + ' Pt）',
 				'C-178(4) F=' + F + ' 1行の文面: 「…' + prev.pt + ' Pt は、因子で得るため ' + pt2 + ' Pt に置き換えて…（差 ' + signed(pt2 - prev.pt) + ' Pt）」', help.overlap);
 			assert(!/ヒント|必ず合う|合うことがある|合わない/.test(help.text || ''), 'C-178(4) F=' + F + ' 小窓に「ヒント」「必ず合う／合うことがある／合わない」の語を使わない', help.text);

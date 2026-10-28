@@ -258,6 +258,8 @@ export async function register7c(env) {
 		   編成を選んだときに●を外す動きと、知らせ「…不要にしたスキルがN種含まれています」（roster-link-off）は無くなったので、その検査は外した */
 		{
 			const allSureOn = [W[3], W[6]].concat(hintIds);
+			// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白（W6＝カード B のイベント Lv1）は②でも選べる。選べなくする対象は金の W3 と練習のヒント（Lv5）
+			const allSureFixed = [W[3]].concat(hintIds);
 			const rosterOffDraft = { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null], offSkillIds: [W[2], W[7]] };
 			const noRosterSet = USER_DATA.templates[0].templateId;   // baseRosterId を持たない＝①が空のセット
 			const mk = async (skillIds) => {
@@ -274,7 +276,7 @@ export async function register7c(env) {
 				let lk = await readLink();
 				assert(lk.scope.skillIds.slice().sort().join() === [W[8], W[2], W[3], W[7]].sort().join(),
 					tag + '同じセットの①で得るスキル（W3）も、オフにしたスキル（W2・W7）も、セットから自動では外さない', { scope: lk.scope.skillIds });
-				assert(lk.offIds.slice().sort().join() === [W[2], W[7]].sort().join() && lk.hidden.slice().sort().join() === allSureOn.concat([W[2], W[7]]).sort().join(),
+				assert(lk.offIds.slice().sort().join() === [W[2], W[7]].sort().join() && lk.hidden.slice().sort().join() === allSureFixed.concat([W[2], W[7]]).sort().join(),
 					tag + '追加の一覧で選べなくする対象は「本育成で得るもの（オンの●）」＋「不要にしているもの（オフ）」。オフはその内訳としても持つ', { hidden: lk.hidden, off: lk.offIds });
 				await select(noRosterSet);
 				lk = await readLink();
@@ -301,15 +303,15 @@ export async function register7c(env) {
 				// 貼り付け: オフのスキルは追加せず、「本育成編成のため追加しなかったもの N種」（本育成で得るものも含めた件数）
 				await sp.page.click('[data-usd-act="editor-pick-text"]');
 				await sp.page.waitForTimeout(300);
-				await sp.page.fill('[data-usd-el="paste-input"]', [nameOf(W[2]), nameOf(W[6]), nameOf(W[4])].join('\n'));
+				await sp.page.fill('[data-usd-el="paste-input"]', [nameOf(W[2]), nameOf(hintIds[0]), nameOf(W[4])].join('\n'));
 				await sp.page.click('[data-usd-act="paste-run"]');
 				await sp.page.waitForTimeout(400);
 				const paste = await sp.page.evaluate(() => ({ blocked: (document.querySelector('[data-usd-el="paste-blocked"]') || {}).textContent || null, checked: document.querySelector('[data-usd-el="picker-checked-count"]').textContent }));
-				assert(paste.blocked === '本育成編成のため追加しなかったもの 2種' && paste.checked === '1種選択', tag + '貼り付け: オフのスキル（W2）と本育成で得るもの（W6）は追加せず、「本育成編成のため追加しなかったもの 2種」が出る', paste);
+				assert(paste.blocked === '本育成編成のため追加しなかったもの 2種' && paste.checked === '1種選択', tag + '貼り付け: オフのスキル（W2）と本育成で得るもの（練習のヒント。C-223 で W6 は選べるようになった）は追加せず、「本育成編成のため追加しなかったもの 2種」が出る', paste);
 				await sp.page.click('[data-usd-el="picker-commit"]');
 				await sp.page.waitForTimeout(300);
 				const lk = await readLink();
-				assert(lk.scope.skillIds.includes(W[4]) && !lk.scope.skillIds.includes(W[2]) && !lk.scope.skillIds.includes(W[6]), tag + '追加を押しても、オフのスキルは足されない', lk.scope.skillIds);
+				assert(lk.scope.skillIds.includes(W[4]) && !lk.scope.skillIds.includes(W[2]) && !lk.scope.skillIds.includes(hintIds[0]), tag + '追加を押しても、オフのスキルは足されない', lk.scope.skillIds);
 				await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
 				// 追加しなかったものが0種のときは出さない
 				await sp.page.click('[data-usd-act="editor-pick-text"]');

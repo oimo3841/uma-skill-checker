@@ -416,7 +416,9 @@ export async function register7d(env) {
 			const read = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel')).map((p) => ({ id: p.getAttribute('data-skill-id'), btn: !!p.querySelector('button.usd-panel-namebtn'), info: !!p.querySelector('.usd-info-btn'), pt: (p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent, h: Math.round(p.getBoundingClientRect().height) })));
 			let rows = await read();
 			const r8 = rows.find((r) => r.id === W[8]);
-			assert(rows.length === 2 && r8.btn && !r8.info && r8.pt === pay(180, 5, 'kire') + ' Pt', '段7d(C)⑬: 行の名前は button、ⓘ は無い。Pt は親由来のレベル 5 と切れ者の割引を反映（' + pay(180, 5, 'kire') + ' Pt）', rows);
+			// C-223（2026-10-28）: W8 は①の金 W3 の前段（Lv0）でもあるので（C-178 の重なり）、行は差（②の額 − ①の前段の額）と「①と重なり」を出す
+			const d8 = pay(180, 5, 'kire') - pay(180, 0, 'kire');
+			assert(rows.length === 2 && r8.btn && !r8.info && r8.pt === '−' + Math.abs(d8) + ' Pt', '段7d(C)⑬→C-223: 行の名前は button、ⓘ は無い。Pt は親由来のレベル 5 と切れ者の割引を反映し、①の前段と重なる W8 は差（' + d8 + ' Pt）', rows);
 			// 段9（C-121）: 分類ごとのタブは無い（すべての行が並ぶ）
 			rows = await read();
 			assert(rows.length === 2 && rows.find((r) => r.id === W[4]).pt === pay(160, 5, 'kire') + ' Pt', '通常の分類だった行も同じ（' + pay(160, 5, 'kire') + ' Pt）', rows);

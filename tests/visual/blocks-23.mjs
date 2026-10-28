@@ -179,13 +179,22 @@ export async function register23(env) {
 		const ev = e.events.find((v) => v.choices.length === 1 && successOf(v.choices[0]).length > 0);
 		const id = successOf(ev.choices[0])[0].skillId;
 		const sp = await openSp({ roster: { umaId: e.umaId, cardIds: [] }, tab: 1 });
-		const r = await sp.page.evaluate(({ umaId, id }) => {
+		const r = await sp.page.evaluate(async ({ umaId, id }) => {
+			await UmaSkillDeckCore.loadSkillPtData();
+			await new Promise((ok) => setTimeout(ok, 300));   // 読み込み後の選べないスキルの組み直し（onSkillPtLoaded）を待つ
 			const roster = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'));
 			const res = UmaSkillDeckCore.computeRosterSkills(roster);
 			const pop = UmaSkillDeckCore.outside.populationOf(roster);
-			return { sure: res.skillIds.includes(id), hidden: UmaSkillDeckCore.getPickerHiddenIds().includes(id), taken: pop.takenIds.includes(id), inPop: pop.ids.includes(id) };
+			// C-223（2026-10-28）: ①での合計のヒントLv が2以下の白は、②でも選べ・オススメサポの母集団にも残る（lowHintIds）。それ以外の①の取得は今までどおり
+			const d = UmaSkillDeckCore.getRosterPtDetail(roster);
+			const low = d ? d.lowHintIds : [];
+			const hid = UmaSkillDeckCore.getPickerHiddenIds();
+			const fixed = UmaSkillDeckCore.getRosterVisiblePart(roster).takenIds.filter((x) => low.indexOf(x) === -1);
+			return { sure: res.skillIds.includes(id), hidden: hid.includes(id), taken: pop.takenIds.includes(id), inPop: pop.ids.includes(id), low: low.includes(id),
+				fixed: fixed.length, fixedOk: fixed.every((x) => hid.includes(x) && pop.takenIds.includes(x) && !pop.ids.includes(x)) };
 		}, { umaId: e.umaId, id });
-		assert(r.sure && r.hidden && r.taken && !r.inPop, '育成イベント段2E 確定のイベントのスキルは skillIds・②の選べない一覧・オススメサポの takenIds に入り、母集団（追加候補）には入らない', r);
+		assert(r.sure && (r.low ? (!r.hidden && !r.taken) : (r.hidden && r.taken && !r.inPop)) && r.fixed > 0 && r.fixedOk,
+			'育成イベント段2E→C-223 確定のイベントのスキルは skillIds に入り、①の Lv2 以下の白なら②で選べ（takenIds に入らない）、それ以外は②の選べない一覧・オススメサポの takenIds に入り、母集団（追加候補）には入らない（①のそのほかの取得 ' + r.fixed + '種も同じ）', r);
 		// △: 一部の選択肢にしかないスキル（選ぶまで●にならない）は takenIds に入らない
 		// 画面は autoChoose（スキルを持つ選択肢が1つだけなら自動で選ぶ）で計算するので、スキルを持つ選択肢が2つ以上あるイベントを使う
 		const e2 = EVDOC.entries.find((x) => x.events.some((v) => v.choices.map(successOf).filter((y) => y.length > 0).length >= 2));

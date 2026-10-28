@@ -41,9 +41,11 @@ export async function register57(env) {
 	const ONE12 = Array.from({ length: 12 }, (_, i) => String(i + 1));
 	const WHITES30 = master.map((s) => s.id).filter(isWhite).slice(0, 30);
 	// 固定の期待値（実データ。2026-10-28 に変更前〔f4d5d4a〕と変更後で測った。見積もり factor-loop-step2-estimate の S1・S2・S3・S4 と一致）
+	// C-223（ヒントLvの件・2026-10-28）: S1・S2 の「2」「5」は①で Lv1 の白なので、②でも数えるようになった（行は差 −60 Pt ずつ・②の種は +2）。
+	// S1・S2 の値はそのぶん動いた（after 1,680 → 1,560・before 1,212 → 1,092・種 14 → 16。◎の候補は変わらない）
 	const FIX = {
-		S1: { before: 1212, after: 1680, kinds: 14, roster: 4899, cand: 8 },
-		S2: { before: 1212, after: 1680, kinds: 14, roster: 8092, cand: 8 },
+		S1: { before: 1092, after: 1560, kinds: 16, roster: 4899, cand: 8 },
+		S2: { before: 1092, after: 1560, kinds: 16, roster: 8092, cand: 8 },
 		S3: { before: 648, after: 648, kinds: 8, roster: 4720, cand: 0 },
 		S4: { before: 2400, after: 4320, kinds: 36, roster: 0, cand: 30 }
 	};
@@ -96,11 +98,12 @@ export async function register57(env) {
 		if ((cur === 'true') !== on) { await page.click(T + '[data-usd-el="factor-circle-mode"]'); await page.waitForTimeout(250); }
 		return true;
 	};
-	const rowPtNum = (t) => Number(String(t).replace(/[^0-9]/g, '')) || 0;
+	// C-223: ①と重なる行は差（「−60 Pt」）なので、符号も読む
+	const rowPtNum = (t) => (String(t).trim().startsWith('−') ? -1 : 1) * (Number(String(t).replace(/[^0-9]/g, '')) || 0);
 	const draft = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')));
 	const ud = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:userData')));
 
-	await block('②◎(1) 計算: S1〜S4 の②の Pt は見積もりの値（S1 1,212→1,680・S2 同・S3 ±0・S4 2,400→4,320）／種数・①の Pt は変わらない／全部○に戻すと変更前の値', async () => {
+	await block('②◎(1) 計算: S1〜S4 の②の Pt は見積もりの値（S1 1,212→1,680・S2 同〔C-223 で①の Lv1 の白2つを数えて 1,092→1,560〕・S3 ±0・S4 2,400→4,320）／種数・①の Pt は変わらない／全部○に戻すと変更前の値', async () => {
 		const cases = { S1: { roster: R2, ids: ONE12 }, S2: { roster: R1, ids: ONE12 }, S3: { roster: A40, ids: ['230', '200041'] }, S4: { roster: null, ids: WHITES30 } };
 		for (const [k, c] of Object.entries(cases)) {
 			const fx = FIX[k];

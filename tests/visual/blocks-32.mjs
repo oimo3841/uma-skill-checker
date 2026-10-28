@@ -82,6 +82,8 @@ export async function register32(env) {
 				const r = r0.umaId && ACQ[r0.umaId] && Object.keys(ACQ[r0.umaId]).length ? Object.assign({}, r0, { acquirePicks: ACQ[r0.umaId] }) : r0;
 				const res = C.computeRosterSkills(r, { autoChoose: true, acquirePicks: r.acquirePicks });
 				const o = { pt: C.getRosterPtDetail(r), vp: C.getRosterVisiblePart(r), ids: res.skillIds, n: res.items.length };
+				// C-223（2026-10-28）: getRosterPtDetail に lowHintIds（②でも選べる①の白）を足した。①の計算は変えていないので、ハッシュはそれを除いた形で取る（変更前と同じ値のまま）
+				if (o.pt) delete o.pt.lowHintIds;
 				return { raw: JSON.stringify(o), canon: JSON.stringify(canon(o)) };
 			};
 			const hex = async (s) => {
