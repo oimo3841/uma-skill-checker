@@ -244,22 +244,27 @@ export async function registerDark(env) {
 	await block('ダーク7 結合画像（canvas）はダークでもライトの値で焼き込む（決定4）', async () => {
 		const { ctx, page } = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
 		await closeNotice(page);
+		// 段5（C-227）から、結合画像に描くのは種類の枠・塗りと凡例の帯（それまでは ◎○▲ の印）。色は core の markers のライトの値
 		const draw = () => page.evaluate(() => {
-			const c = document.createElement('canvas'); c.width = 360; c.height = 200;
-			const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, 360, 200);
-			const colors = tierMarkColors();
-			[1, 2, 3].forEach((t, i) => drawTierMark(g, t, 40 + i * 60, 40, 32, colors));
-			const bar = buildTierLegendBar(360, 360, true);
-			if (bar) g.drawImage(bar, 0, 100);
-			return { colors, url: c.toDataURL(), attr: document.documentElement.getAttribute('data-theme') };
+			const c = document.createElement('canvas'); c.width = 360; c.height = 300;
+			const g = c.getContext('2d'); g.fillStyle = '#e2e2e2'; g.fillRect(0, 0, 360, 300);
+			const colors = ['card', 'star', 'other'].map((k) => factorFrameStyleOf(k));
+			colors.forEach((st, i) => {
+				const box = factorFramePanelBox(60, 300, 30 + i * 60, 60);
+				tintFactorPanel(g, box, st.tint);
+				strokeFactorFrame(g, box, st.frame);
+			});
+			const bar = buildFactorFrameLegendBar(360, 360, true);
+			if (bar) g.drawImage(bar, 0, 200);
+			return { colors: colors.map((st) => [st.frame, st.tint]), url: c.toDataURL(), attr: document.documentElement.getAttribute('data-theme') };
 		});
 		const light = await draw();
 		await page.evaluate(() => window.UmaTheme.set('dark'));
-		const shown = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--uma-mark-tier-1').trim());
+		const shown = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--usd-mk-card-fill').trim().toLowerCase());
 		const dark = await draw();
-		assert(shown !== light.colors[1], 'ダーク7: 前提: ダークでは画面の印の色がライトと違う', { light: light.colors[1], dark: shown });
-		assert(JSON.stringify(dark.colors) === JSON.stringify(light.colors), 'ダーク7: tierMarkColors() はダークでもライトの値を返す', { light: light.colors, dark: dark.colors });
-		assert(dark.url === light.url && light.url.length > 1000, 'ダーク7: 印と凡例の帯を描いた canvas が、ダークとライトでピクセルまで同じ', [light.url.length, dark.url.length]);
+		assert(!!shown && shown !== light.colors[0][0].toLowerCase(), 'ダーク7: 前提: ダークでは画面のマーカーの色がライトと違う', { light: light.colors[0][0], dark: shown });
+		assert(JSON.stringify(dark.colors) === JSON.stringify(light.colors), 'ダーク7: 結合画像の枠と塗りの色は、ダークでもライトの値', { light: light.colors, dark: dark.colors });
+		assert(dark.url === light.url && light.url.length > 1000, 'ダーク7: 枠・塗りと凡例の帯を描いた canvas が、ダークとライトでピクセルまで同じ', [light.url.length, dark.url.length]);
 		assert(dark.attr === 'dark', 'ダーク7: 読み終わったあと、画面はダークのまま（属性を戻している）', dark.attr);
 		await page.evaluate(() => window.UmaTheme.set('auto'));
 		await ctx.close();

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-29a';
 
 	/* ============================================================
 	 * 定数
@@ -262,6 +262,7 @@
 	 * 形はゲーム内のアイコンに合わせる: 細い濃い四角の外枠（edge）・外枠より薄い内側（fill）・白抜きの記号（symbol）。
 	 * **形（SVG のパス）はここ1か所。** 画面の SVG（factorMarkerHtml）と、結合画像の凡例（段5。Canvas の Path2D）が同じパスを使う。座標は 20×20 の箱。
 	 * 記号は mode が 'fill'（塗る）か 'stroke'（線。width は線の太さ）。色はトークン（--usd-mk-<id>-edge／-fill。ライト・ダーク。記号は --usd-mk-symbol）。
+	 * 結合画像（段5・C-227）: スキルパネルの外側を囲む枠の色は light.fill、パネルの内側の白・灰色の地に掛け合わせる（乗算）塗りは imageTint（3種とも「薄め」。試し描き v2）。結合画像は画面がダークでもライトの値で描く。
 	 * 「その他（親から継承）」の記号の絵は遺伝子（二重らせん）のままだが、呼び名・凡例・読み上げに「遺伝子」の語は使わない（②の「遺伝子」のチェックと紛れるため）。
 	 */
 	const FACTOR_MARKER_FRAME = {
@@ -270,15 +271,15 @@
 	};
 	const FACTOR_MARKERS = [
 		{ id: 'card', label: '周回サポカスキル',
-			light: { edge: '#00473E', fill: '#008070' }, dark: { edge: '#00352E', fill: '#16A08D' },
+			light: { edge: '#00473E', fill: '#008070' }, dark: { edge: '#00352E', fill: '#16A08D' }, imageTint: '#E2F6F0',
 			// サポートカード（後ろのカードの縁と、前のカード）
 			symbol: { mode: 'fill', d: 'M5.2 13.6V5a1.1 1.1 0 0 1 1.1-1.1h6.3v1.4H6.6v8.3ZM8.6 6.5h5.3a1.1 1.1 0 0 1 1.1 1.1v7.4a1.1 1.1 0 0 1-1.1 1.1H8.6a1.1 1.1 0 0 1-1.1-1.1V7.6a1.1 1.1 0 0 1 1.1-1.1Z' } },
 		{ id: 'star', label: 'サポカ外スキル',
-			light: { edge: '#5E4000', fill: '#9C6A00' }, dark: { edge: '#4A3200', fill: '#B88412' },
+			light: { edge: '#5E4000', fill: '#9C6A00' }, dark: { edge: '#4A3200', fill: '#B88412' }, imageTint: '#FFF6CD',
 			// ★（五芒星）
 			symbol: { mode: 'fill', d: 'M10 4.2L11.53 8.5L16.09 8.62L12.47 11.4L13.76 15.78L10 13.2L6.24 15.78L7.53 11.4L3.91 8.62L8.47 8.5Z' } },
 		{ id: 'other', label: 'その他（親から継承）',
-			light: { edge: '#4A2370', fill: '#7A3FB0' }, dark: { edge: '#3A1B58', fill: '#9C6AD2' },
+			light: { edge: '#4A2370', fill: '#7A3FB0' }, dark: { edge: '#3A1B58', fill: '#9C6AD2' }, imageTint: '#F0E6FA',
 			// 二重らせん（2本の線と横の段）
 			symbol: { mode: 'stroke', width: 1.6, d: 'M6.6 3.6C6.6 7.2 13.4 6.6 13.4 10S6.6 12.8 6.6 16.4M13.4 3.6C13.4 7.2 6.6 6.6 6.6 10S13.4 12.8 13.4 16.4M7.9 5.7h4.2M7.9 14.3h4.2' } }
 	];
@@ -16607,9 +16608,9 @@
 		tabStrip: { html: tabStripHtml, reveal: revealSelectedTab, keydown: tabStripKeydown },
 		// スキルセットの分類（C-57）。呼び出し元（special の照合結果の表）が印を出すために使う
 		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel, markHtml: tierMarkHtml },
-		// ②のスキルの自動のマーカー（②因子周回 段4・C-226）。形（20×20 の SVG のパス）と色はここ1か所（FACTOR_MARKERS）。画面の印（html）と、結合画像の凡例（段5。Canvas の Path2D）が同じパスを使う。
+		// ②のスキルの自動のマーカー（②因子周回 段4・C-226）。形（20×20 の SVG のパス）と色はここ1か所（FACTOR_MARKERS）。画面の印（html）と、結合画像の凡例（段5。Canvas の Path2D）が同じパスを使う。結合画像の枠は light.fill・塗りは imageTint（段5・C-227）。
 		// 種類の判定は、セットの画面（createTemplateManager の getMarkerKinds）が持つ（①の保存のカード・★の一覧を読むため）
-		markers: { list: FACTOR_MARKERS.map(m => ({ id: m.id, label: m.label, light: Object.assign({}, m.light), dark: Object.assign({}, m.dark), symbol: Object.assign({}, m.symbol) })), frame: Object.assign({}, FACTOR_MARKER_FRAME), symbolColor: Object.assign({}, FACTOR_MARKER_SYMBOL), html: factorMarkerHtml },
+		markers: { list: FACTOR_MARKERS.map(m => ({ id: m.id, label: m.label, light: Object.assign({}, m.light), dark: Object.assign({}, m.dark), symbol: Object.assign({}, m.symbol), imageTint: m.imageTint })), frame: Object.assign({}, FACTOR_MARKER_FRAME), symbolColor: Object.assign({}, FACTOR_MARKER_SYMBOL), html: factorMarkerHtml },
 		// スキルのアイコン（段9・C-121）。表は SKILL_ICONS 1か所。tierOf は従来の分類への互換（◎＝1・○＝2・それ以外と無印＝3）
 		icons: { list: SKILL_ICONS.map(i => ({ id: i.id, mark: i.mark, light: i.light, dark: i.dark })), defaultIcon: SKILL_ICON_DEFAULT, tierOf: iconTier, html: skillIconHtml, fromTiers: iconsFromTiers, toTiers: tiersFromIcons },
 		listRosters: listRosters,

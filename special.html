@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-28g"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-29a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -969,7 +969,7 @@
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、1人につき2枚以上のスクリーンショットを縦につなぎ、親Aセット・親Bセットそれぞれで、画像のある人を1枚にまとめてSNS投稿用に出力します。1人分が1枚だけのときはエラーになります。画像の枚数が多いほど時間がかかります。</p>
 
-			<!-- 分類の印を結合画像に付けるかの切り替え（C-58 の作業C）。結果画像の見た目が変わる設定なので、
+			<!-- 分類の印を結合画像に付けるかの切り替え（C-58 の作業C。段5〔C-227〕から印ではなく種類の枠。保存キー・id は同じ）。結果画像の見た目が変わる設定なので、
 			     切り替えてもその場では何も変わらない引き出しの中ではなく、**結合を始める場所**に置く
 			     （C-30 で exam に入れたときと同じ判断）。既定は ON ―― 印が出るのは②で周回因子セットを
 			     選んだときだけで、選ぶこと自体が利用者の明示的な操作なので、そこから更にもう一段
@@ -977,7 +977,7 @@
 			     対象スキルを選ばない＝誰の画像にも勝手に付くため）。保存キー uma-special-tier-marks。 -->
 			<label id="tier-marks-row" class="mt-2 flex items-center justify-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
 				<input type="checkbox" id="opt-tier-marks" class="rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" checked onchange="setTierMarksEnabled(this.checked)">
-				<span>分類の印（◎超優先・○優先・▲通常）を付ける</span>
+				<span>種類の枠（周回サポカ・サポカ外・その他）を付ける</span>
 			</label>
 
 			<!-- 印を付けられるかどうかの状態表示（段0。C-59 の案(a)）。
@@ -2318,37 +2318,51 @@
 		 * ============================================================ */
 
 		/* ------------------------------------------------------------
-		 * 結合画像に分類の印（競馬の◎○▲）を焼く（C-58 の作業C）
+		 * 結合画像のスキルパネルを、②のマーカーの種類の色の枠で囲む（②因子周回 段5・C-227）
 		 *
-		 * どこに置くか: スキルパネルの**スキル名の左にある丸**の上。パネルの左端から丸までは
-		 * 丸の半分ほど、丸から名前までも同じくらいしか空いていないので、別枠を作る余白が無い
-		 * （名前の上に重ねると読めなくなる）。**元の丸は白い円で隠してから**印を描く
-		 * （丸の中の球が透けると、線だけの印が読みにくいため。おいもさんの選択）。
-		 * 消えるのは丸の中の装飾だけで、因子の種類はパネルの地の色が示すので情報は失われない。
+		 * それまで（C-58〜）はスキル名の左の丸の上に分類の印（◎○▲）を描いていたが、段4（C-226）で
+		 * ②の分類（パレットのアイコン）を無くしたので、**パネルの上には記号を一切置かない**形に替えた。
+		 * ②に入れたスキルのパネルだけを、段4 の判定の3種（周回サポカ・サポカ外・その他）の色の枠で
+		 * 外側から囲み、パネルの内側の白・灰色の地に薄い色を掛け合わせる（乗算）。
+		 * シナリオ因子◆・遺伝子◇の印も結合画像には描かない（③の画面の表には残る。D7）。
 		 *
-		 * 置き場所の求め方は C-30（exam の属性アイコン）と同じ表引き:
+		 * 置き場所の求め方は C-30（exam の属性アイコン）・C-58 と同じ表引き:
 		 *   スキル名 → skillSources[名前] → lines[i].rowKey（"画像の番号:行の番号"）
-		 *            → detectSkillRows() の rows[行番号]（元画像の座標）
-		 *            → stitchOnePerson() の _sourcePlacements（結合後の座標）
-		 * 画素の色は見ない（スクショの明るさや圧縮ノイズに左右されるため）。
+		 *   → personGeometry[人][画像の番号].rows[行の番号]（元画像の座標）
+		 *   → 結合後の Canvas の _sourcePlacements で平行移動
 		 *
-		 * **印は必ず結合の「後」に焼く**（C-30）。結合の前に元画像へ描き込むと、継ぎ目を画素の
-		 * 突き合わせで決めている stitchResolveOrder / stitchMeasureSeam が印に引きずられて位置が狂う。
+		 * **枠は必ず結合の「後」に描く**（C-30）。結合の前に元画像へ描き込むと、継ぎ目を画素の
+		 * 突き合わせで決めている stitchResolveOrder / stitchMeasureSeam が枠に引きずられて位置が狂う。
 		 *
-		 * 大きさ・位置の比（因子画面で実測。1179×2556／976×1735／765×1360 の3つで一致）:
-		 *   元の丸の直径 = 列と列の間隔 × 0.0738
-		 *   丸の中心x   = 列の左端 − 列と列の間隔 × 0.0725
-		 *   丸の中心y   = 行の外接矩形の中心y
-		 *   印の差し渡し = 元の丸の 1.20 倍（おいもさんの選択。◎の二重の輪も▲の頂点もつぶれない）
-		 * 基準を画像の幅ではなく**列と列の間隔**にするのも C-30 と同じ理由
-		 * （スクショの左右にゲーム画面以外が入る形で、幅とUIの大きさが対応しなくなるため）。
+		 * 位置の比（Step 0 の §3-2。継承画面の3サイズ 976／1179／765 幅と因子一覧の画面で実測）は
+		 * **行の間隔（step＝同じ列の行と行の y の差）基準**。列の間隔（pitch）基準は画面の種類で合わなかった:
+		 *   パネルの上端 = 行の中心 − 0.373 step／下端 = 行の中心 + 0.42 step
+		 *   パネルの左端 = 名前の列の左端 − 0.67 step／右端 = 次の列の左端 − 0.67 step − 0.10 step
+		 * 枠（D13・案A）: 線の中心をパネルの縁に置く（半分は外・半分は内側）。太さ 0.05 step（2px 以上）。
+		 * 下の辺は★の横の範囲（名前の列の左端 + 0.20〜0.50 pitch）で切る（★はパネルの下の縁を
+		 * またいで出るので、★を隠さない）。
+		 * 塗りは、パネルの内側（縁の線より内）の**白・灰色の地だけ**（文字・丸のアイコン・★の黄は元の色のまま）。
+		 * 画素ごとに、彩度（RGB の最大 − 最小）が 14 以下かつ最も暗い成分が 170 以上なら全部塗り、
+		 * 彩度 34 以上か 130 以下なら塗らない。その間はなめらかにつなぐ（試し描き v2 の §9-1 と同じ）。
+		 * 色は core の UmaSkillDeckCore.markers（枠＝light.fill・塗り＝imageTint）。画像は白地なので、
+		 * 画面がダークでもライトの値で描く（C-134・決定4）。
 		 * ------------------------------------------------------------ */
-		const TIER_CIRCLE_D_OVER_PITCH = 0.0738;
-		const TIER_CIRCLE_CX_OVER_PITCH = 0.0725;
-		const TIER_MARK_SCALE = 1.20;
+		const FACTOR_FRAME_TOP_OVER_STEP = 0.373;
+		const FACTOR_FRAME_BOTTOM_OVER_STEP = 0.42;
+		const FACTOR_FRAME_LEFT_OVER_STEP = 0.67;
+		const FACTOR_FRAME_GAP_OVER_STEP = 0.10;
+		const FACTOR_FRAME_LINE_OVER_STEP = 0.05;
+		const FACTOR_FRAME_STAR_FROM_OVER_PITCH = 0.20;
+		const FACTOR_FRAME_STAR_TO_OVER_PITCH = 0.50;
+		// 塗りの条件（白・灰色の地だけ）。彩度と、いちばん暗い成分のしきい値
+		const FACTOR_TINT_SAT_FULL = 14;
+		const FACTOR_TINT_SAT_NONE = 34;
+		const FACTOR_TINT_MIN_FULL = 170;
+		const FACTOR_TINT_MIN_NONE = 130;
+
 		/* 因子の印。分類（1/2/3）と同じ仕組みに乗せるので、印の種類を表す値を足す。
 		   **数字と混ざらない文字列**にしてあるので、tiers の値（1/2/3）と取り違えない。
-		   画面の表に出すぶんは html、結合画像に焼くぶんは drawTierMark() が描く。
+		   画面の表（③）に出す。結合画像には描かない（②因子周回 段5・C-227。D7）。
 
 		   **段G で節ごとに分けた。** C-2b では両方 ◆（--uma-mark-catalog）を共用していたが、
 		   それだと凡例を見ても「この◆はシナリオ因子か遺伝子か」が分からない。
@@ -2383,173 +2397,149 @@
 			CATALOG_MARK_HTML[m.mark] = '<span class="' + m.cls + (m.svg ? '' : ' font-bold') + '" title="'
 				+ 'スキルではないもの（' + m.legend + '）">' + inner + '</span>';
 		});
-		// 印の種類（'factor' / 'gene'）の一覧。凡例の並びもこの順。
-		const CATALOG_MARK_KEYS = Object.values(CATALOG_MARKS).map(m => m.mark);
-		const CATALOG_MARK_BY_KEY = {};
-		Object.values(CATALOG_MARKS).forEach(m => { CATALOG_MARK_BY_KEY[m.mark] = m; });
 
-		function tierCircleMetrics(g) {
-			const xs = g.columnXs || [];
-			// 列がちょうど2本のときだけ測る（間隔が測れなければ置き場所が決まらない。C-30 と同じ）
-			if (xs.length !== 2) return null;
-			const pitch = (xs[1] - xs[0]) * g.scale;
-			if (!(pitch > 0)) return null;
-			return { d: pitch * TIER_CIRCLE_D_OVER_PITCH, offset: pitch * TIER_CIRCLE_CX_OVER_PITCH };
+		// 種類（'card'｜'star'｜'other'）→ { frame: 枠の色, tint: 塗りの色, marker: core の定義 }。知らない種類は null
+		function factorFrameStyleOf(kind) {
+			const list = (UmaSkillDeckCore.markers && UmaSkillDeckCore.markers.list) || [];
+			const m = list.find(x => x.id === kind);
+			return m && m.imageTint ? { frame: m.light.fill, tint: m.imageTint, marker: m } : null;
+		}
+
+		function factorHexToRgb(hex) {
+			const v = parseInt(String(hex).replace('#', ''), 16);
+			return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
 		}
 
 		/**
-		 * 印の色をトークンから読む。Canvas には CSS が効かないので実行時に引く。
-		 * 1つでも読めなければ null を返し、呼び出し側は印そのものを描かない
-		 * （読めなかったときの代わりの色をここに書くと、生のhexが戻ってきてしまう。F-19）。
+		 * 1枚の画像の行の間隔（step。結合後の Canvas の座標）。測れなければ null。
+		 * 同じ列で検出された行の中心 y の差のうち、いちばん小さい差の 1.5 倍以内のものの中央値
+		 * （行が抜けたところは差が2倍になるので外す。Step 0 の §3-2）。行の高さより小さい差は数えない。
 		 */
-		function tierMarkColors() {
-			// 因子の印（段G で節ごとに分けた）。トークンの名前は CATALOG_MARKS が持つ
-			const marks = Object.values(CATALOG_MARKS);
-			const vals = readTokensLight(['--uma-mark-tier-1', '--uma-mark-tier-2', '--uma-mark-tier-3'].concat(marks.map(m => m.token)));
-			if (vals.some(v => !v)) return null;
-			const out = { 1: vals[0], 2: vals[1], 3: vals[2] };
-			marks.forEach((m, i) => { out[m.mark] = vals[3 + i]; });
-			return out;
+		function factorFrameStepOf(g) {
+			if (!g || !g.rows || !(g.scale > 0)) return null;
+			const hs = g.rows.map(r => r.h * g.scale).sort((a, b) => a - b);
+			const minDiff = hs.length ? hs[hs.length >> 1] : 0;
+			const diffs = [];
+			[0, 1].forEach(col => {
+				const ys = g.rows.filter(r => r.col === col).map(r => (r.y + r.h / 2) * g.scale).sort((a, b) => a - b);
+				for (let i = 1; i < ys.length; i++) {
+					const d = ys[i] - ys[i - 1];
+					if (d > minDiff) diffs.push(d);
+				}
+			});
+			if (diffs.length === 0) return null;
+			const min = Math.min(...diffs);
+			const near = diffs.filter(d => d <= min * 1.5).sort((a, b) => a - b);
+			const mid = near.length >> 1;
+			return near.length % 2 ? near[mid] : (near[mid - 1] + near[mid]) / 2;
 		}
 
-		/**
-		 * 結合画像（canvas）に焼き込む色は、**画面がダークでも常にライトの値で読む**（C-134・決定4）。
-		 * 画像は白地に描くので、ダークの値（明るい文字色など）を混ぜると読めなくなる。
-		 * <html data-theme> を一瞬 light に付け替えて読み、すぐ元に戻す（同期処理なので間に描画は挟まらない）。
-		 * ライトのときは何も付け替えない。
-		 */
-		function readTokensLight(names) {
-			const root = document.documentElement;
-			const prev = root.getAttribute('data-theme');
-			if (prev === 'dark') root.setAttribute('data-theme', 'light');
-			try {
-				const css = getComputedStyle(root);
-				return names.map(n => css.getPropertyValue(n).trim());
-			} finally {
-				if (prev === 'dark') root.setAttribute('data-theme', prev);
+		// 1つのパネルの縁（結合後の Canvas の座標）。colX＝名前の列の左端・pitch＝列の間隔・cy＝行の中心
+		function factorFramePanelBox(colX, pitch, cy, step) {
+			return {
+				left: colX - FACTOR_FRAME_LEFT_OVER_STEP * step,
+				right: colX + pitch - (FACTOR_FRAME_LEFT_OVER_STEP + FACTOR_FRAME_GAP_OVER_STEP) * step,
+				top: cy - FACTOR_FRAME_TOP_OVER_STEP * step,
+				bottom: cy + FACTOR_FRAME_BOTTOM_OVER_STEP * step,
+				starFrom: colX + FACTOR_FRAME_STAR_FROM_OVER_PITCH * pitch,
+				starTo: colX + FACTOR_FRAME_STAR_TO_OVER_PITCH * pitch,
+				line: Math.max(2, Math.round(step * FACTOR_FRAME_LINE_OVER_STEP))
+			};
+		}
+
+		// パネルの内側（縁の線より内）の白・灰色の地にだけ、塗りの色を掛け合わせる（乗算）
+		function tintFactorPanel(ctx, box, tintHex) {
+			const h = box.line / 2;
+			const x0 = Math.max(0, Math.round(box.left + h));
+			const y0 = Math.max(0, Math.round(box.top + h));
+			const x1 = Math.min(ctx.canvas.width, Math.round(box.right - h));
+			const y1 = Math.min(ctx.canvas.height, Math.round(box.bottom - h));
+			if (x1 <= x0 || y1 <= y0) return;
+			const tint = factorHexToRgb(tintHex);
+			const img = ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
+			const d = img.data;
+			for (let i = 0; i < d.length; i += 4) {
+				const r = d[i], g = d[i + 1], b = d[i + 2];
+				const mn = Math.min(r, g, b);
+				const sat = Math.max(r, g, b) - mn;
+				const kSat = sat <= FACTOR_TINT_SAT_FULL ? 1
+					: sat >= FACTOR_TINT_SAT_NONE ? 0 : (FACTOR_TINT_SAT_NONE - sat) / (FACTOR_TINT_SAT_NONE - FACTOR_TINT_SAT_FULL);
+				const kMin = mn >= FACTOR_TINT_MIN_FULL ? 1
+					: mn <= FACTOR_TINT_MIN_NONE ? 0 : (mn - FACTOR_TINT_MIN_NONE) / (FACTOR_TINT_MIN_FULL - FACTOR_TINT_MIN_NONE);
+				const k = kSat * kMin;
+				if (k === 0) continue;
+				d[i] = Math.round(r + (r * tint[0] / 255 - r) * k);
+				d[i + 1] = Math.round(g + (g * tint[1] / 255 - g) * k);
+				d[i + 2] = Math.round(b + (b * tint[2] / 255 - b) * k);
 			}
+			ctx.putImageData(img, x0, y0);
 		}
 
-		/**
-		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。
-		 * **◆（シナリオ因子）だけ中を塗り、あとは線だけ**（段I-5）。
-		 * 地の明るさがまちまちなので、色の線の外側に白いふち取りを入れる
-		 * （白で太く描いてから、その上に色で細く描く）。形の比率は core.js の
-		 * tiers.markHtml()（画面側のSVG）と同じ値にしてある。
-		 *
-		 * **線の太さは js/stitch.js の stitchOutlineWidth() から取る**（段J-1）。
-		 * それまでは自前で max(1.2, d * 0.08) を持っていて、exam の ◇（0.10）と
-		 * **太さが揃っていなかった** ―― 2つのツールで枠線の印の見え方が違う原因だった。
-		 *
-		 * **白いふち取りの幅は線の太さに依らない。** 白を (line + halo)、色を line で
-		 * 重ねるので、外にはみ出す白は常に halo ÷ 2（＝ d の 7.5%）になる。
-		 * 段J-1 で線を 0.08 → 0.16 に太くしたとき、ふち取りを一緒に太らせるかを
-		 * 実際に描いて見比べ、**据え置きにした**（線が太くなったぶん白の比率は下がるが、
-		 * 白を足すと印が膨らんで隣の段に近づく。地から浮かせる役目は果たせている）。
-		 */
-		function drawTierMark(ctx, tier, cx, cy, d, colors) {
-			const r = d / 2;
-			const line = stitchOutlineWidth(d);
-			const halo = Math.max(2, d * 0.15);
-			const paths = [];
-			let filled = false;          // 段I-5: ◆（シナリオ因子）だけ中を塗る
-			if (tier === 1) {            // ◎ 本命
-				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); });
-				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2); });
-			} else if (tier === 2) {     // ○ 対抗
-				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); });
-			} else if (tier === 'factor' || tier === 'gene') {
-				/* ◆ シナリオ因子 ／ ◇ 遺伝子（段I-5）。**同じ菱形を塗り方だけで分ける。**
-				   輪郭は js/stitch.js の stitchDiamondPath() の1か所から出すので、
-				   **exam の結合画像・画面の SVG とまったく同じ形**になる。
-				   前は因子だけ横を 0.82 に潰していたが、exam と形を揃えるためにやめた
-				   （そもそも画面の ◆ は潰れていないので、結合画像とも食い違っていた）。
-				   ○ の外接円より少しだけ大きく取るのは、菱形は同じ差し渡しだと
-				   円より小さく見えるため。◎○△ とは形の系統が違うので、
-				   「分類の段」ではなく「種類が違う」ことが読める。 */
-				filled = (tier === 'factor');
-				paths.push(() => stitchDiamondPath(ctx, cx, cy, r * 1.10));
-			} else {                   // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
-				const rr = r * 1.12;
-				paths.push(() => {
-					ctx.beginPath();
-					for (let i = 0; i < 3; i++) {
-						const a = -Math.PI / 2 + i * (Math.PI * 2 / 3);
-						const x = cx + Math.cos(a) * rr;
-						const y = cy + Math.sin(a) * rr * 0.98 + rr * 0.10;
-						if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-					}
-					ctx.closePath();
-				});
-			}
+		// 枠（線の中心をパネルの縁に。下の辺は★の横の範囲で切る）。画素の境目にそろえて描く
+		function strokeFactorFrame(ctx, box, color) {
+			const t = box.line, h = t / 2;
+			const rect = (x0, y0, x1, y1) => {
+				const a = Math.round(x0), b = Math.round(y0);
+				const w = Math.round(x1) - a, hh = Math.round(y1) - b;
+				if (w > 0 && hh > 0) ctx.fillRect(a, b, w, hh);
+			};
 			ctx.save();
-			ctx.lineJoin = 'round';
-			ctx.lineCap = 'round';
-			// 元の丸を白で隠す（印の差し渡しは丸の 1.20 倍なので、丸の直径は d ÷ 1.20）
-			ctx.beginPath();
-			ctx.arc(cx, cy, (d / TIER_MARK_SCALE) * 0.51, 0, Math.PI * 2);
-			ctx.fillStyle = 'rgba(255, 255, 255, .92)';
-			ctx.fill();
-			ctx.strokeStyle = '#ffffff';
-			ctx.lineWidth = line + halo;
-			paths.forEach(p => { p(); ctx.stroke(); });
-			// 塗りつぶす印（段I-5 の ◆）は、白い縁取りのあとで中を塗る。
-			// **白抜きの ◇ は塗らない** ―― 上で元の丸を白で隠してあるので中は白く残る。
-			if (filled) {
-				ctx.fillStyle = colors[tier];
-				paths.forEach(p => { p(); ctx.fill(); });
-			}
-			ctx.strokeStyle = colors[tier];
-			ctx.lineWidth = line;
-			paths.forEach(p => { p(); ctx.stroke(); });
+			ctx.fillStyle = color;
+			rect(box.left - h, box.top - h, box.left + h, box.bottom + h);     // 左
+			rect(box.right - h, box.top - h, box.right + h, box.bottom + h);   // 右
+			rect(box.left, box.top - h, box.right, box.top + h);               // 上
+			rect(box.left, box.bottom - h, box.starFrom, box.bottom + h);      // 下（★の左まで）
+			rect(box.starTo, box.bottom - h, box.right, box.bottom + h);       // 下（★の右から）
 			ctx.restore();
 		}
 
 		/**
-		 * 1人分の結合画像（縦につないだCanvas）の上に、分類の印を焼く。返り値は描いた数。
+		 * 1人分の結合画像（縦につないだCanvas）の上に、種類の枠を描く。返り値は枠を置いたパネルの数。
 		 *
-		 * 印が出るのは**②で選んだスキルセットに入っているスキルの行**と、
-		 * **B・C で対象に含めた因子のうち検出できた行**（◆。C-2b）。3段すべて出すので、
-		 * 「通常に分類したスキル」と「そもそもセットに入れていないスキル（印の無い行）」を見分けられる。
-		 * OCRを回していない人・セットを選んでいないときは、分類が分からないので1つも描かない。
+		 * 枠が付くのは**②で選んだスキルセットに入っているスキルの行**だけ（種類は段4 の判定＝
+		 * deckMarkerKindByName。画面のマーカー・③の表と同じ出どころ）。シナリオ因子・遺伝子の行には付けない。
+		 * OCRを回していない人・セットを選んでいないときは、種類が分からないので1つも描かない。
 		 */
-		function drawTierMarksOnPerson(canvas, personIdx) {
+		function drawFactorFramesOnPerson(canvas, personIdx) {
 			if (!tierMarksEnabled) return 0;
 			const geo = personGeometry[personIdx];
 			const lines = personLines[personIdx];
 			const res = personResults[personIdx];
 			if (!geo || !lines || !res) return 0;
-			// 行は取れているのに列の間隔を測れない画像が混ざっていたら、この人には印を付けない
-			if (geo.some(g => g && g.rows && !tierCircleMetrics(g))) {
-				devGeometry.push('[分類の印] ' + PERSON_LABELS[personIdx] +
-					': 列がちょうど2本にならない画像があり、置き場所を決められないため印を描きませんでした');
+			// 行は取れているのに列がちょうど2本でない画像が混ざっていたら、この人には枠を付けない
+			// （列の間隔が測れないと、右端と★の範囲が決まらない。C-30 と同じ）
+			if (geo.some(g => g && g.rows && !(g.columnXs && g.columnXs.length === 2 && g.columnXs[1] > g.columnXs[0]))) {
+				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] +
+					': 列がちょうど2本にならない画像があり、置き場所を決められないため枠を描きませんでした');
 				return 0;
 			}
-			const colors = tierMarkColors();
-			if (!colors) {
-				devGeometry.push('[分類の印] 色のトークンを読めなかったため、印を描きませんでした');
-				return 0;
-			}
-			// rowKey（"画像の番号:行の番号"）→ 印（分類 1/2/3 または ◆）
-			const tierByRowKey = {};
+			const kindByName = deckMarkerKindByName();
+			// rowKey（"画像の番号:行の番号"）→ 種類
+			const kindByRowKey = {};
 			res.detectedSkills.forEach(name => {
-				// 因子には分類が付かないので専用の印を置く（C-2b）。印が付くのはスキルではないものだけ（段A-2）。
-				// **節ごとに違う印**（段G）: ◆＝シナリオ因子／♡＝遺伝子
-				const tier = factorMarkByNorm.get(normalizeText(name)) || deckTierByName[name];
-				if (!tier) return;
+				const kind = kindByName[name];
+				if (!kind || !factorFrameStyleOf(kind)) return;
 				(res.skillSources[name] || []).forEach(li => {
 					const l = lines[li];
-					if (l && l.rowKey) tierByRowKey[l.rowKey] = tier;
+					if (l && l.rowKey) kindByRowKey[l.rowKey] = kind;
 				});
 			});
-			if (Object.keys(tierByRowKey).length === 0) return 0;
+			const want = Object.keys(kindByRowKey).length;
+			if (want === 0) return 0;
+			// 行の間隔は画像ごとに測る。測れない画像（行が1つしかない等）は、同じ人のほかの画像の中央値で代える
+			const steps = geo.map(g => factorFrameStepOf(g));
+			const known = steps.filter(s => s > 0).sort((a, b) => a - b);
+			if (known.length === 0) {
+				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] + ': 行の間隔を測れなかったため枠を描きませんでした');
+				return 0;
+			}
+			const fallbackStep = known[known.length >> 1];
 
 			// 結合を経ていないCanvasに備えて、恒等の対応表へ倒す（C-30 と同じ）
 			const placements = (canvas._sourcePlacements && canvas._sourcePlacements.length)
 				? canvas._sourcePlacements
 				: [{ fileIndex: 0, srcY0: 0, srcY1: canvas.height, outY0: 0 }];
-			const ctx = canvas.getContext('2d');
-			const placed = [];
+			const boxes = [];
 			// 2周する理由は C-30 と同じ。同じ段でも、写っている画像によって行として検出できたり
 			// できなかったりする（段がリスト表示枠の上端・下端で切れていると落ちる）ので、
 			// 1周目に「その画像から実際に採った範囲」の行を置き、2周目にそれ以外も同じ平行移動で写す。
@@ -2557,85 +2547,108 @@
 				placements.forEach(p => {
 					const g = geo[p.fileIndex];
 					if (!g || !g.rows || !g.columnXs) return;
-					const m = tierCircleMetrics(g);
-					if (!m) return;
-					const d = m.d * TIER_MARK_SCALE;
+					const step = steps[p.fileIndex] || fallbackStep;
+					const pitch = (g.columnXs[1] - g.columnXs[0]) * g.scale;
 					g.rows.forEach((row, rowIndex) => {
-						const tier = tierByRowKey[p.fileIndex + ':' + rowIndex];
-						if (!tier) return;
+						const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
+						if (!kind) return;
 						const cySrc = (row.y + row.h / 2) * g.scale;
 						const inRange = (cySrc >= p.srcY0 && cySrc < p.srcY1);
 						if (inRangeOnly !== inRange) return;
-						const cx = g.columnXs[row.col] * g.scale - m.offset;
+						const colX = g.columnXs[row.col] * g.scale;
 						const cy = p.outY0 + (cySrc - p.srcY0);
 						if (cy < 0 || cy >= canvas.height) return;
 						// 同じ行が2枚に写っていたときの重ね描きを避ける
-						if (placed.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) return;
-						placed.push({ x: cx, y: cy });
-						drawTierMark(ctx, tier, cx, cy, d, colors);
+						if (boxes.some(q => Math.abs(q.colX - colX) < step / 2 && Math.abs(q.cy - cy) < step / 2)) return;
+						boxes.push(Object.assign(factorFramePanelBox(colX, pitch, cy, step), { colX: colX, cy: cy, kind: kind }));
 					});
 				});
 			});
-			const want = Object.keys(tierByRowKey).length;
-			if (placed.length < want) {
-				devGeometry.push('[分類の印] ' + PERSON_LABELS[personIdx] + ': 印を置いた ' + placed.length +
+			const ctx = canvas.getContext('2d');
+			// 塗りを先に全部、枠をあとに全部（塗りが隣の枠の外側の半分に掛からないように）
+			boxes.forEach(b => tintFactorPanel(ctx, b, factorFrameStyleOf(b.kind).tint));
+			boxes.forEach(b => strokeFactorFrame(ctx, b, factorFrameStyleOf(b.kind).frame));
+			if (boxes.length < want) {
+				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] + ': 枠を置いた ' + boxes.length +
 					' / 置きたかった行 ' + want + '（結合後のCanvasに収まらなかった行があります）');
 			}
-			return placed.length;
+			return boxes.length;
 		}
 
 		/* ------------------------------------------------------------
-		 * 結合画像の下に敷く、印の凡例の帯（段3。C-59 の3節）
-		 *
-		 * **exam の帯をそのまま持ち込んではいない。** exam の帯は印の凡例と
-		 * 「集計条件」（追加・除外スキル・シナリオ因子の一覧）を一緒に描くが、
-		 * special には集計条件に当たるものが無い（対象はスキルセットで、
-		 * 名前を全部並べると長くなるだけ）。ここに出すのは印の見かた（◎○▲、
-		 * B・C を含めているときは◆も）と、印の無い行についての断り1行だけ。
+		 * 結合画像の下に敷く、枠の凡例の帯（段5・C-227。それまでは印の凡例＝C-59 の段3）
 		 *
 		 * 帯の骨格（白い矩形・区切り線・折り返し・文字の大きさの詰め方）は
-		 * js/stitch.js の stitchNoteMetrics / stitchDrawNoteBar が持つ（exam と共通）。
-		 *
-		 * **3段すべて出す**（その画像に出ていない段も含める）。◎○▲ は3段で1つの尺度で、
-		 * 「出ていない段がある」こと自体が読み手の情報になる。帯の高さがセットごとに
-		 * 変わらない利点もある。
+		 * js/stitch.js の stitchNoteMetrics / stitchDrawNoteBar が持つ（exam と共通。呼ぶだけ）。
+		 * 1行は「枠と塗りの見本＋②の自動のマーカー（core と同じ SVG のパスを Path2D で）＋種類の名前」。
+		 * **3行をいつも全部出す**（D9。その画像に出ていない種類も含める。「その種類が無い」こと自体が
+		 * 読み手の情報になり、帯の高さもセットで変わらない）。最後に断りの1行。
+		 * 呼び名に「遺伝子」の語は使わない（②の「遺伝子」のチェックと紛れるため。D10）。
 		 * ------------------------------------------------------------ */
-		const TIER_LEGEND_HEAD = '印の見かた：';
-		const TIER_LEGEND_LABEL = { 1: '超優先', 2: '優先', 3: '通常' };
-		const TIER_LEGEND_NOTE = '印の無い行は、スキルセットに入れていないスキルです。';
+		const FACTOR_LEGEND_HEAD = '枠の見かた：';
+		const FACTOR_LEGEND_NOTE = '枠の無いパネルは、②に入れていないスキルです。';
+		// 見本の塗りは、ゲームの画面のパネルの灰（226）に掛けた色で見せる
+		const FACTOR_LEGEND_PANEL_GRAY = 226;
+
+		// 見本1つ（中心 cx, cy・文字の大きさ d）: 左に枠と塗りの見本、右に②のマーカー
+		function drawFactorLegendSample(ctx, kind, cx, cy, d) {
+			const st = factorFrameStyleOf(kind);
+			if (!st) return;
+			const sw = d * 1.5, sh = d * 0.86, gap = d * 0.3;
+			const x0 = cx - (sw + gap + d) / 2;
+			const lw = Math.max(2, Math.round(d * 0.12));
+			const panel = factorHexToRgb(st.tint).map(v => Math.round(FACTOR_LEGEND_PANEL_GRAY * v / 255));
+			const markers = UmaSkillDeckCore.markers;
+			const mk = st.marker;
+			ctx.save();
+			ctx.fillStyle = 'rgb(' + panel.join(',') + ')';
+			ctx.fillRect(x0, cy - sh / 2, sw, sh);
+			ctx.strokeStyle = st.frame;
+			ctx.lineWidth = lw;
+			ctx.strokeRect(x0, cy - sh / 2, sw, sh);
+			// マーカー（20×20 の箱のパスを d に縮めて描く。外枠 → 内側 → 白抜きの記号）
+			ctx.translate(x0 + sw + gap, cy - d / 2);
+			ctx.scale(d / 20, d / 20);
+			ctx.fillStyle = mk.light.edge;
+			ctx.fill(new Path2D(markers.frame.edge));
+			ctx.fillStyle = mk.light.fill;
+			ctx.fill(new Path2D(markers.frame.fill));
+			const sym = new Path2D(mk.symbol.d);
+			if (mk.symbol.mode === 'stroke') {
+				ctx.strokeStyle = markers.symbolColor.light;
+				ctx.lineWidth = mk.symbol.width;
+				ctx.lineCap = 'round';
+				ctx.lineJoin = 'round';
+				ctx.stroke(sym);
+			} else {
+				ctx.fillStyle = markers.symbolColor.light;
+				ctx.fill(sym);
+			}
+			ctx.restore();
+		}
 
 		// totalWidth     … 帯の幅（＝結合画像の全幅）
 		// referenceWidth … 文字の大きさの基準にする幅（＝スクショ1人分の幅。exam と同じ考え方）
-		// 印を1つも付けていないとき・色を読めないときは null（帯そのものを置かない）。
-		function buildTierLegendBar(totalWidth, referenceWidth, hasMarks) {
-			if (!hasMarks) return null;
-			const colors = tierMarkColors();
-			if (!colors) {
-				devGeometry.push('[分類の印] 色のトークンを読めなかったため、凡例の帯を置きませんでした');
-				return null;
-			}
+		// 枠を1つも置いていないときは null（帯そのものを置かない）。
+		function buildFactorFrameLegendBar(totalWidth, referenceWidth, hasFrames) {
+			if (!hasFrames) return null;
+			const list = ((UmaSkillDeckCore.markers && UmaSkillDeckCore.markers.list) || []).filter(mk => factorFrameStyleOf(mk.id));
+			if (list.length === 0) return null;
 			const ctx = document.createElement('canvas').getContext('2d');
 			// 字の大きさの基準は、この帯でいちばん長い行（断りの1行）
-			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth, TIER_LEGEND_NOTE);
-			const headW = ctx.measureText(TIER_LEGEND_HEAD).width;
-			const glyphW = m.fontSize * 1.35;   // 記号1つ分の幅（exam の凡例と同じ比）
-			const rows = [];
-			// ◆（因子）は、B・C を対象に含めているときだけ足す（C-2b）。
-			// 含めていないときに出すと、画面に出ない印の説明が1行増えるだけになる。
-			// 因子の印は**節ごとに1行ずつ**（段G）。実際に対象へ含めている節のぶんだけ出す
-			// （含めていない節の印の説明を出しても、画像に出てこない印の話が増えるだけ）。
-			const usedFactorMarks = CATALOG_MARK_KEYS.filter(k => factorOnlyList
-				.some(n => factorMarkByNorm.get(normalizeText(n)) === k));
-			const marks = [1, 2, 3].concat(usedFactorMarks);
-			marks.forEach((tier, i) => {
-				// 2行目からは見出しの幅だけ空けて、記号の左端を1行目とそろえる
-				const row = [{ type: 'text', text: i === 0 ? TIER_LEGEND_HEAD : '', w: headW }];
-				row.push({ type: 'mark', w: glyphW, draw: (c, cx, cy, d) => drawTierMark(c, tier, cx, cy, d, colors) });
-				const label = ' ' + (CATALOG_MARK_BY_KEY[tier] ? CATALOG_MARK_BY_KEY[tier].legend : TIER_LEGEND_LABEL[tier]);
-				row.push({ type: 'text', text: label, w: ctx.measureText(label).width });
-				rows.push(row);
+			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth, FACTOR_LEGEND_NOTE);
+			const headW = ctx.measureText(FACTOR_LEGEND_HEAD).width;
+			const sampleW = m.fontSize * 2.9;   // 見本（枠 1.5＋隙間 0.3＋マーカー 1 文字ぶん）＋左右の余白
+			const rows = list.map((mk, i) => {
+				const label = ' ' + mk.label;
+				// 2行目からは見出しの幅だけ空けて、見本の左端を1行目とそろえる
+				return [
+					{ type: 'text', text: i === 0 ? FACTOR_LEGEND_HEAD : '', w: headW },
+					{ type: 'mark', w: sampleW, draw: (c, cx, cy, d) => drawFactorLegendSample(c, mk.id, cx, cy, d) },
+					{ type: 'text', text: label, w: ctx.measureText(label).width }
+				];
 			});
-			stitchWrapText(ctx, TIER_LEGEND_NOTE, m.maxTextWidth)
+			stitchWrapText(ctx, FACTOR_LEGEND_NOTE, m.maxTextWidth)
 				.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
 			return stitchDrawNoteBar(totalWidth, m, rows);
 		}
@@ -2661,7 +2674,7 @@
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
 				// 分類の印は**結合の後**に付ける（C-58 の作業C。前に描くと継ぎ目の判定が狂う）
-				if (withMarks) markCount += drawTierMarksOnPerson(contentCanvas, idx);
+				if (withMarks) markCount += drawFactorFramesOnPerson(contentCanvas, idx);
 				contentCanvases.push(contentCanvas);
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
@@ -2673,7 +2686,7 @@
 			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
 			// 印の凡例の帯（段3）。1つも付けていなければ置かない＝スキルパネルだけの画像になる。
 			// 帯の幅の基準は**スクショ1人分**（contentCanvases[0].width）に取る。人数で字が太らないように。
-			const legendBar = buildTierLegendBar(contentRow.width, contentCanvases[0].width, markCount > 0);
+			const legendBar = buildFactorFrameLegendBar(contentRow.width, contentCanvases[0].width, markCount > 0);
 			const result = legendBar ? stitchStackVertically(contentRow, legendBar) : contentRow;
 			result._stitchWarnings = allWarnings;
 			return result;
@@ -3021,14 +3034,14 @@
 		 * ------------------------------------------------------------ */
 		function tierMarksStatusText() {
 			if (!tierMarksEnabled) {
-				return { tone: 'off', text: '分類の印は付けません（上のチェックを入れると付きます）。' };
+				return { tone: 'off', text: '種類の枠は付けません（上のチェックを入れると付きます）。' };
 			}
 			if (!deckMode) {
 				// 旧UIの手貼りのリストには分類が無い（exitDeckMode が deckTierByName を空にする）
-				return { tone: 'warn', text: '分類の印は新UIでのみ付けられます。' };
+				return { tone: 'warn', text: '種類の枠は新UIでのみ付けられます。' };
 			}
 			if (Object.keys(deckTierByName).length === 0) {
-				return { tone: 'warn', text: '②で因子周回を選ぶと、分類の印を付けられるようになります。' };
+				return { tone: 'warn', text: '②で因子周回を選ぶと、種類の枠を付けられるようになります。' };
 			}
 			return { tone: 'none', text: '' };
 		}

@@ -85,6 +85,7 @@ import { register58 } from './blocks-58.mjs';
 import { register59 } from './blocks-59.mjs';
 import { register60 } from './blocks-60.mjs';
 import { register61 } from './blocks-61.mjs';
+import { register62 } from './blocks-62.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -8205,10 +8206,11 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 		'段I(special): 判定結果の表に印の無い行が無い（tiers.of() が既定を返すので抜けない）', spBare);
 
 
-	// 結合画像の凡例に◆の行が増える
+	// 結合画像の凡例は、因子を含めても行が増えない（段5・C-227 の D7: ◆◇は結合画像に描かないので、凡例にも◆の行は無い。
+	// それまでは C-2b で「因子を含めているときは◆の行が増える」を見ていた）
 	const legend = await page.evaluate(() => {
 		const rowsOf = () => {
-			const bar = buildTierLegendBar(600, 600, true);
+			const bar = buildFactorFrameLegendBar(600, 600, true);
 			return bar ? bar.height : 0;
 		};
 		const withFactor = rowsOf();
@@ -8218,8 +8220,8 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 		factorOnlyList = keep;
 		return { withFactor, withoutFactor };
 	});
-	assert(legend.withFactor > legend.withoutFactor,
-		'C-2b: 因子を含めているときは、凡例の帯に◆の行が増える', legend);
+	assert(legend.withFactor === legend.withoutFactor && legend.withFactor > 0,
+		'段5(C-227): 因子を含めていても、結合画像の凡例の帯の行は増えない（◆の行は無い）', legend);
 
 	/* --- 段G: 遺伝子も ON にして、◆と♡が**同時に**出ることを見る ---
 	   C-2b の段では節が1つしか ON になっていないので、2つの印が混ざらないことは確かめられない。
@@ -8239,7 +8241,7 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 		const rows = Array.from(document.querySelectorAll('#result-tbody tr'));
 		const glyphs = (sel) => rows.map(r => r.querySelector('td ' + sel))
 			.filter(Boolean).map(el => el.textContent);
-		const legendH = () => { const b = buildTierLegendBar(600, 600, true); return b ? b.height : 0; };
+		const legendH = () => { const b = buildFactorFrameLegendBar(600, 600, true); return b ? b.height : 0; };
 		const twoScopes = legendH();
 		const keep = factorMarkByNorm;
 		// 遺伝子の印を引けなくすると、凡例は◆の行だけになる（＝行数が減る）
@@ -8322,17 +8324,17 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 		&& !zeroGene.hidden,
 		'段F-2: 対象に含めた節は、その人が0件でも「0」と書く（節ごと消さない）', zeroGene);
 	/* ------------------------------------------------------------
-	 * 段J-2(special): **スキルの検出が0件でも、因子・遺伝子の印は付く**
+	 * 段J-2(special) → 段5(C-227): **結合画像では、因子・遺伝子の行に枠も印も付けない**（D7）
 	 *
-	 * exam 側と同じ考え方。印を置くのに要る材料だけを組んで、製品の
-	 * drawTierMarksOnPerson() をそのまま呼び、置いた数を数える。
-	 * special は tierCircleMetrics() が「列がちょうど2本」を要求するので、
-	 * columnXs を2本だけ持たせる。
+	 * それまで（段J-2）は「スキルの検出が0件でも因子・遺伝子の印は付く」を見ていた。
+	 * 枠を置くのに要る材料だけを組んで、製品の drawFactorFramesOnPerson() をそのまま呼び、
+	 * 置いた数を数える。列がちょうど2本を要求するので、columnXs を2本だけ持たせる。
 	 * ------------------------------------------------------------ */
 	const spZero = await page.evaluate(() => {
 		const factor = factorOnlyList.find((n) => factorMarkByNorm.get(normalizeText(n)) === 'factor');
 		const gene = factorOnlyList.find((n) => factorMarkByNorm.get(normalizeText(n)) === 'gene');
-		const skill = skillOnlyList.find((n) => deckTierByName[n]);
+		const kinds = deckMarkerKindByName();
+		const skill = skillOnlyList.find((n) => kinds[n]);
 		const geo = [{ scale: 1, columnXs: [100, 300],
 			rows: [{ y: 10, h: 24, col: 0 }, { y: 50, h: 24, col: 1 }, { y: 90, h: 24, col: 0 }] }];
 		const lines = [{ text: factor, rowKey: '0:0' }, { text: gene, rowKey: '0:1' }, { text: skill, rowKey: '0:2' }];
@@ -8348,7 +8350,7 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 			const c = document.createElement('canvas');
 			c.width = 600; c.height = 400;
 			c._sourcePlacements = [];
-			return drawTierMarksOnPerson(c, 0);
+			return drawFactorFramesOnPerson(c, 0);
 		};
 		const both = count([factor, gene, skill]);
 		const zero = count([factor, gene]);
@@ -8356,10 +8358,10 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 		personGeometry[0] = prev.g; personLines[0] = prev.l; personResults[0] = prev.r; tierMarksEnabled = prev.t;
 		return { both, zero, onlySkill, 使った名前: { factor, gene, skill } };
 	});
-	assert(spZero.zero === 2,
-		'段J-2(special): スキルの検出が0件でも、因子と遺伝子の印は付く（別勘定なので検出数に左右されない）', spZero);
-	assert(spZero.both === 3 && spZero.onlySkill === 1,
-		'段J-2(special): スキルも一緒に検出していれば3つとも付き、スキルだけなら1つ', spZero);
+	assert(!!spZero.使った名前.factor && !!spZero.使った名前.gene && !!spZero.使った名前.skill && spZero.zero === 0,
+		'段5(C-227): 因子と遺伝子だけを検出した人の結合画像には、枠を1つも置かない（D7）', spZero);
+	assert(spZero.both === 1 && spZero.onlySkill === 1,
+		'段5(C-227): 因子・遺伝子と一緒に検出しても、枠が付くのは②のスキルの行だけ', spZero);
 	/* **Deck が持つ菱形の写しが、stitch.js の計算と同じか**（段G-2・段I-5）。
 	   Deck は stitch.js を読まないので js/uma-skill-deck.js に同じ文字列を写してある。
 	   片方だけ直すと、Deck の比較シートだけ形が違う印になる。 */
@@ -8378,8 +8380,8 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 	assert(both.found === String(both.wantFound) && both.detectedGenes > 0,
 		'段F-2(special): 遺伝子を検出していても、スキルの検出数には入らない（別勘定）',
 		{ found: both.found, want: both.wantFound, 検出した遺伝子: both.detectedGenes });
-	assert(both.twoScopes > both.oneScope,
-		'段G(special): 凡例の帯は、含めている節のぶんだけ印の行が増える', both);
+	assert(both.twoScopes === both.oneScope && both.twoScopes > 0,
+		'段5(C-227): 凡例の帯は、含めている節の数で行が変わらない（◆◇は結合画像に描かない。段G の「節のぶんだけ増える」から変えた）', both);
 	assert(errors.length === 0, 'C-2b: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
@@ -8465,7 +8467,7 @@ await block('special と exam の操作感を揃える（59セッション目・
 	// **C-63 の (7) で「このまま結合すると印は入りません」の後半を落とした** ―― 印が付くのは
 	// 一体のボタンからだけになったので、「このまま結合すると」が指すものが無くなった。
 	const s0 = await status();
-	assert(s0.shown && s0.tone === 'warn' && s0.text === '②で因子周回を選ぶと、分類の印を付けられるようになります。',
+	assert(s0.shown && s0.tone === 'warn' && s0.text === '②で因子周回を選ぶと、種類の枠を付けられるようになります。',
 		'段0: セット未選択のときは「②で選ぶと付けられる」と出る', s0);
 
 	// 段0-2) セットを選ぶと**何も言わなくなる**（status() が③へ移しているので②へ戻してから押す）。
@@ -8500,7 +8502,7 @@ await block('special と exam の操作感を揃える（59セッション目・
 	await page.uncheck('#opt-tier-marks');
 	await page.waitForTimeout(200);
 	const s3 = await status();
-	assert(s3.tone === 'off' && s3.text === '分類の印は付けません（上のチェックを入れると付きます）。',
+	assert(s3.tone === 'off' && s3.text === '種類の枠は付けません（上のチェックを入れると付きます）。',
 		'段0: 印 OFF のときは「付けません」', s3);
 	await page.check('#opt-tier-marks');
 	await page.waitForTimeout(200);
@@ -8511,15 +8513,15 @@ await block('special と exam の操作感を揃える（59セッション目・
 
 	// 段3) 凡例の帯。印を1つも焼いていなければ置かない（＝これまでどおりスキルパネルだけ）
 	const legend = await page.evaluate(() => {
-		const off = buildTierLegendBar(1200, 1200, false);
-		const on = buildTierLegendBar(1200, 1200, true);
+		const off = buildFactorFrameLegendBar(1200, 1200, false);
+		const on = buildFactorFrameLegendBar(1200, 1200, true);
 		const ctx2 = on.getContext('2d');
 		const d = ctx2.getImageData(0, 0, on.width, on.height).data;
 		let white = 0, note = 0, red = 0;
 		for (let i = 0; i < d.length; i += 4) {
 			if (d[i] === 255 && d[i + 1] === 255 && d[i + 2] === 255) white++;
 			if (d[i] === 0x55 && d[i + 1] === 0x55 && d[i + 2] === 0x55) note++;
-			if (d[i] === 0xd8 && d[i + 1] === 0x1f && d[i + 2] === 0x26) red++;   // --uma-mark-tier-1
+			if (d[i] === 0x00 && d[i + 1] === 0x80 && d[i + 2] === 0x70) red++;   // 周回サポカの枠の色（段5・C-227。それまでは超優先の赤 --uma-mark-tier-1）
 		}
 		return { off: off, w: on.width, h: on.height, white: white, note: note, red: red, total: d.length / 4 };
 	});
@@ -8527,15 +8529,15 @@ await block('special と exam の操作感を揃える（59セッション目・
 	assert(legend.w === 1200 && legend.h > 0, '段3: 帯は結合画像と同じ幅で作られる', { w: legend.w, h: legend.h });
 	assert(legend.white > legend.total * 0.8, '段3: 帯の地は白', legend);
 	assert(legend.note > 100, '段3: 説明文が補助テキストの色（#555555）で入っている', legend.note);
-	assert(legend.red > 0, '段3: 超優先の印が赤（--uma-mark-tier-1）で入っている', legend.red);
+	assert(legend.red > 0, '段3 → 段5(C-227): 周回サポカの枠の見本が枠の色（#008070）で入っている', legend.red);
 
 	/* C-63 の (7): 分類の印が付くのは「OCR処理＋画像結合を開始する」からだけ。
 	   buildStitchedSetImage() の3つ目の引数（withMarks）が false なら1つも描かない。
 	   実際に結合させるのは重いので、**印を描く関数が呼ばれるかどうか**を差し替えて数える。 */
 	const marksRoute = await page.evaluate(async () => {
 		const calls = [];
-		const orig = window.drawTierMarksOnPerson;
-		window.drawTierMarksOnPerson = function (canvas, idx) { calls.push(idx); return 0; };
+		const orig = window.drawFactorFramesOnPerson;
+		window.drawFactorFramesOnPerson = function (canvas, idx) { calls.push(idx); return 0; };
 		const origBuild = window.stitchOnePerson;
 		// 1人分の結合はダミーのCanvasで済ませる（印の経路だけを見る）
 		window.stitchOnePerson = async () => { const c = document.createElement('canvas'); c.width = 10; c.height = 10; return c; };
@@ -8546,7 +8548,7 @@ await block('special と exam の操作感を揃える（59セッション目・
 		await buildStitchedSetImage(0, null, true);
 		const on = calls.length;
 		persons[0].files = [];
-		window.drawTierMarksOnPerson = orig;
+		window.drawFactorFramesOnPerson = orig;
 		window.stitchOnePerson = origBuild;
 		return { off: off, on: on };
 	});
@@ -8623,8 +8625,8 @@ await block('special の「OCR処理＋画像結合を開始する（高負荷�
 	// 「個別に実行することもできます」の説明は C-62 の (8)-4 で削除した
 	assert(!(await page.content()).includes('個別に実行することもできます'),
 		'C-62 (8): 「個別に実行することもできます」は無い');
-	assert((await page.textContent('#tier-marks-row')).trim() === '分類の印（◎超優先・○優先・▲通常）を付ける',
-		'C-62 (8) → C-63 (7): 印のチェックの文言（短いまま、動詞を「付ける」に）');
+	assert((await page.textContent('#tier-marks-row')).trim() === '種類の枠（周回サポカ・サポカ外・その他）を付ける',
+		'C-62 (8) → C-63 (7) → 段5(C-227): チェックの文言（印ではなく種類の枠）');
 
 	// 押せる条件。画像を足す前・足したあと・セットを外したあとの3通り
 	assert(L.combo.disabled && L.ocr.disabled && L.stitch.disabled,
@@ -15356,6 +15358,7 @@ await register58({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register59({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register60({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register61({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register62({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
