@@ -4,7 +4,7 @@
 // 決め（おいもさん・Step 0 の D1〜D15 は推奨どおり。色と塗りは試し描き v2 のとおり）:
 //  ・結合画像のスキルパネルには記号を一切置かない。段4 の判定の3種の色の枠で、パネルの外側を囲む。
 //  ・枠（D13・案A）: 線の中心をパネルの縁に・太さ 0.05 step・下の辺は★の横の範囲（colX＋0.20〜0.50 pitch）で切る。
-//    位置の比は行の間隔（step）基準（上端 cy−0.373 step・下端 cy+0.42 step・左端 colX−0.67 step・右端は次の列の左端 −0.67−0.10 step）。
+//    位置の比は行の間隔（step）基準（上端 cy−0.295 step・下端 cy+0.42 step・左端 colX−0.67 step・右端は次の列の左端 −0.67−0.10 step）。
 //  ・枠の色: 周回サポカ #008070／サポカ外 #9C6A00／その他 #7A3FB0。塗り（薄め・乗算）: #E2F6F0／#FFF6CD／#F0E6FA。
 //    塗りはパネルの内側の白・灰色の地だけ（文字・丸のアイコン・★の黄は元の色）。パネルの外の隙間は塗らない。
 //  ・凡例（D9）: 見出し「枠の見かた：」・3行をいつも全部・断りの1行。「遺伝子」の語を使わない。枠0 なら帯なし。
@@ -62,7 +62,7 @@ export async function register62(env) {
 		cys.forEach((cy, ri) => [0, 1].forEach((col) => {
 			const x = XS[col];
 			g.fillStyle = 'rgb(226,226,226)';
-			g.fillRect(x - 0.67 * S, cy - 0.373 * S, P - 0.10 * S, 0.793 * S);
+			g.fillRect(x - 0.67 * S, cy - 0.295 * S, P - 0.10 * S, 0.715 * S);
 			g.fillStyle = 'rgb(122,65,24)'; g.fillRect(x + 10, cy - 8, 90, 16);                    // 名前の文字
 			g.fillStyle = 'rgb(255,208,63)'; g.fillRect(x + 0.27 * P, cy + 0.30 * S, 0.18 * P, 0.20 * S);   // ★（パネルの下の縁をまたぐ）
 			g.fillStyle = 'rgb(150,150,230)'; g.fillRect(x - 0.45 * S, cy - 0.15 * S, 0.30 * S, 0.30 * S);  // 丸のアイコン
@@ -93,7 +93,7 @@ export async function register62(env) {
 		Object.keys(kindsByRow).forEach((key) => {
 			const [col, ri] = key.split(':').map(Number);
 			const x = XS[col], cy = cys[ri];
-			const L = x - 0.67 * S, R = x + P - 0.77 * S, T = cy - 0.373 * S, B = cy + 0.42 * S;
+			const L = x - 0.67 * S, R = x + P - 0.77 * S, T = cy - 0.295 * S, B = cy + 0.42 * S;
 			const st = factorFrameStyleOf(kindsByRow[key]);
 			per[key] = {
 				kind: kindsByRow[key], frame: st.frame, tint: st.tint,
@@ -112,13 +112,13 @@ export async function register62(env) {
 			const key = col + ':' + ri;
 			if (kindsByRow[key]) return;
 			const x = XS[col];
-			bare.push({ key, panel: changed(x + 150, cy - 0.2 * S), edge: changed(x - 0.67 * S, cy), top: changed(x + 100, cy - 0.373 * S) });
+			bare.push({ key, panel: changed(x + 150, cy - 0.2 * S), edge: changed(x - 0.67 * S, cy), top: changed(x + 100, cy - 0.295 * S) });
 		}));
 		return { count, per, bare, line: Math.max(2, Math.round(S * 0.05)) };
 	};
 	const mulHex = (base, hex) => { const v = parseInt(hex.slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((t) => Math.round(base * t / 255)); };
 
-	await block('結合画像の枠(1) 位置・太さ・下の辺の切れ目: 線の中心がパネルの縁（上 cy−0.373 step・下 cy+0.42 step・左 colX−0.67 step・右 次の列 −0.77 step）・太さ 0.05 step・下の辺は★の横の範囲（colX＋0.20〜0.50 pitch）だけ切れる・枠どうしの間の隙間は変えない', async () => {
+	await block('結合画像の枠(1) 位置・太さ・下の辺の切れ目: 線の中心がパネルの縁（上 cy−0.295 step・下 cy+0.42 step・左 colX−0.67 step・右 次の列 −0.77 step）・太さ 0.05 step・下の辺は★の横の範囲（colX＋0.20〜0.50 pitch）だけ切れる・枠どうしの間の隙間は変えない', async () => {
 		const { ctx, page, errors } = await openSp();
 		const ALL = { '0:0': 'card', '1:0': 'star', '0:1': 'other', '1:1': 'card', '0:2': 'star', '1:2': 'other', '0:3': 'card', '1:3': 'star' };
 		for (const S of [80, 62]) {
@@ -218,7 +218,7 @@ export async function register62(env) {
 			const off = buildFactorFrameLegendBar(1200, 1200, false);
 			// 期待の高さ: 同じ骨格に4行（3行＋断りの1行。1200px なら折り返さない）
 			const c2 = document.createElement('canvas').getContext('2d');
-			const m = stitchNoteMetrics(c2, 1200, 1200, '枠の無いパネルは、②に入れていないスキルです。');
+			const m = stitchNoteMetrics(c2, 1200, 1200, FACTOR_LEGEND_NOTE);
 			const ref = stitchDrawNoteBar(1200, m, [0, 1, 2, 3].map(() => stitchNoteTextRow(c2, 'x')));
 			const d = bar.getContext('2d').getImageData(0, 0, bar.width, bar.height).data;
 			const count = (hex) => { const v = parseInt(hex.slice(1), 16), R = (v >> 16) & 255, G = (v >> 8) & 255, B = v & 255; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] === R && d[i + 1] === G && d[i + 2] === B) n++; return n; };
@@ -238,12 +238,12 @@ export async function register62(env) {
 			const zero = await buildStitchedSetImage(0, null, true);
 			window.stitchOnePerson = keep.s; persons[0].files = keep.f; personGeometry[0] = keep.g; personLines[0] = keep.l; personResults[0] = keep.r;
 			return { texts, barCalls, off, w: bar.width, h: bar.height, refH: ref.height, colors, labels: UmaSkillDeckCore.markers.list.map((mk) => mk.label),
-				zeroH: zero.height, zeroW: zero.width, red: count('#d81f26') };
+				zeroLegend: !!zero._layout.legend, zeroTable: !!zero._layout.table, zeroParent: !!zero._layout.parent, red: count('#d81f26') };
 		});
 		assert(r.off === null, '結合画像の枠(4): 枠が0 なら凡例の帯を作らない', r.off);
-		assert(r.zeroH === 300 && r.zeroW === 400, '結合画像の枠(4): 枠を1つも置かなかった結合画像は、スキルパネルだけ（帯が付かない）', { h: r.zeroH, w: r.zeroW });
+		assert(!r.zeroLegend && !r.zeroTable && r.zeroParent, '結合画像の枠(4): 枠を1つも置かず表も無い（OCR の写しが無い）結合画像には凡例が付かない（段6 の構成では右の画像だけ）', r);
 		assert(r.barCalls === 1 && r.w === 1200 && r.h === r.refH, '結合画像の枠(4): 帯は stitch.js の骨格（stitchDrawNoteBar）で、4行ぶん（3行＋断りの1行）の高さ', { calls: r.barCalls, h: r.h, ref: r.refH });
-		const want = ['枠の見かた：', ' 周回サポカスキル', '', ' サポカ外スキル', '', ' その他（親から継承）', '枠の無いパネルは、②に入れていないスキルです。'];
+		const want = ['枠の見かた：', ' 周回サポカスキル', '', ' サポカ外スキル', '', ' その他（親から継承）', '枠の無いパネルは、因子周回スキルに入れていないスキルです。'];
 		assert(JSON.stringify(r.texts) === JSON.stringify(want), '結合画像の枠(4): 凡例の文字（見出し・3行の名前・断りの1行）が決定のとおり', r.texts);
 		assert(!r.texts.concat(r.labels).some((t) => t.includes('遺伝子')), '結合画像の枠(4): 凡例に「遺伝子」の語が無い', r.texts);
 		Object.entries(r.colors).forEach(([k, c]) => {
@@ -288,9 +288,9 @@ export async function register62(env) {
 			const dev = devGeometry.slice();
 			window.deckMarkerKindByName = keep.k; window.stitchOnePerson = keep.s; persons[0].files = keep.f;
 			personGeometry[0] = keep.g; personLines[0] = keep.l; personResults[0] = keep.r; tierMarksEnabled = keep.t;
-			return { order, barH: withBar.height, offCount, threeCols, noStep, dev };
+			return { order, legend: !!withBar._layout.legend, offCount, threeCols, noStep, dev };
 		});
-		assert(r.order.join() === 'stitch,frames' && r.barH > 260, '結合画像の枠(5): 枠は1人分の結合の後に描き、枠があれば凡例の帯が付く', r);
+		assert(r.order.join() === 'stitch,frames' && r.legend, '結合画像の枠(5): 枠は1人分の結合の後に描き、枠があれば凡例の帯が付く', r);
 		assert(r.offCount === 0, '結合画像の枠(5): 「種類の枠を付ける」が OFF なら描かない', r.offCount);
 		assert(r.threeCols === 0 && r.noStep === 0 && r.dev.some((s) => s.includes('[種類の枠]') && s.includes('列がちょうど2本')) && r.dev.some((s) => s.includes('[種類の枠]') && s.includes('行の間隔')),
 			'結合画像の枠(5): 列が2本でない・行の間隔が測れないときは描かず、開発ログに理由を残す', r);
