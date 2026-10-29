@@ -188,8 +188,10 @@ const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
                                          2番目以降が失敗側（成功に近い順）。編成パネルは先頭だけを使う
      選択肢が1つで { skills } の形のものは確定のイベントなので、skills を空にしない
    - 参照 … { skillId, name, hintLevel }。hintLevel はヒントのレベル（1以上の整数。上限は決めない）
-   同じ枠（1つの skills・1つの結果）の中で同じスキルが2回出たら落とす。 */
-const EVENT_KEYS = { need: ['step', 'choices'], opt: [] };
+   同じ枠（1つの skills・1つの結果）の中で同じスキルが2回出たら落とす。
+   2026-10-29（おいもさんが新しいキーを承認）: manualChoice（任意）… true＝ツールが自動で選ばないイベント（友人のカードのおでかけのトリガー）。
+     値は true だけ・chain の step だけ（キャラクター共通のイベントには書かない）・選択肢が2つ以上の step だけ */
+const EVENT_KEYS = { need: ['step', 'choices'], opt: ['manualChoice'] };
 // キャラクター共通のイベントの1つ（回の番号を持たない）
 // 2026-10-27（セッションJ・作業4。おいもさんが新しいキーを承認）: fixed（true＝どのシナリオでも決まった時期に起きる固定のイベント）・when（その時期。ゲーム画面の表記）を任意で持てる
 const CHARA_EVENT_KEYS = { need: ['choices'], opt: ['fixed', 'when'] };
@@ -385,6 +387,11 @@ function readEventChain(chain, where, withStep = true) {
 			prevStep = ev.step;
 		}
 		if (!isArr(ev.choices) || ev.choices.length === 0) { badTypes.push(w + '.choices: 1つ以上の配列'); return; }
+		// 自動で選ばない印（任意）: true だけ・選択肢が2つ以上の step だけ（chain 以外は EVENT_KEYS に無いので知らないキーで落ちる）
+		if (ev.manualChoice !== undefined) {
+			if (ev.manualChoice !== true) badTypes.push(w + '.manualChoice: true だけを書く（' + JSON.stringify(ev.manualChoice) + '）');
+			if (ev.choices.length < 2) badTypes.push(w + '.manualChoice: 選択肢が2つ以上の step にだけ書く');
+		}
 		let skillCount = 0;
 		ev.choices.forEach((c, j) => {
 			const cw = w + '.choices[' + j + ']';

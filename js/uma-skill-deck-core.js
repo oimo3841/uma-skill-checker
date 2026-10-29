@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-29a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-29b';
 
 	/* ============================================================
 	 * 定数
@@ -74,7 +74,7 @@
 		'data/non-support-skills.json': '2026-10-25a',
 		'data/training-umamusume.json': '2026-10-26a',
 		'data/support-cards.json': '2026-10-26b',
-		'data/support-card-event-skills.json': '2026-10-26c',
+		'data/support-card-event-skills.json': '2026-10-29a',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
 		'data/character-event-skills.json': '2026-10-27a',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
@@ -2191,13 +2191,16 @@
 		}
 		return count >= 2 ? d - 1 : -1;
 	}
+	/** イベントの行に、自動で選ばない印（任意項目 manualChoice が true）があるか。データ（support-card-event-skills の chain の step）で決める */
+	function isManualChoiceEvent(ev) { return !!(ev && ev.manualChoice === true); }
 	function resolveEventChoice(sides, eventKey, evOpts, ev) {
 		if (!evOpts || sides.length < 2) return null;
 		const chosen = evOpts.choices && evOpts.choices[eventKey];
 		const def = eventDefaultIndex(ev, sides.length);
 		if (Number.isInteger(chosen) && chosen >= 0 && chosen < sides.length) return { index: chosen, auto: false };
 		if (def >= 0) return chosen === EVENT_CHOICE_NONE ? null : { index: def, auto: false, byDefault: true };
-		if (evOpts.autoChoose) {
+		// 自動で選ばない印（manualChoice。2026-10-29・おいもさんの決定）のあるイベントは、残るスキルを持つ選択肢が1つでも自動にしない
+		if (evOpts.autoChoose && !isManualChoiceEvent(ev)) {
 			const has = (side) => side.some(ref => ref && ref.skillId && findSkill(ref.skillId) && (!evOpts.isWanted || evOpts.isWanted(ref.skillId)));
 			const cands = [];
 			sides.forEach((side, i) => { if (has(side)) cands.push(i); });
@@ -2240,7 +2243,8 @@
 			const wantedChoices = choices.filter(c => c.skills.some(s => !isWanted || isWanted(s.skillId))).length;
 			out.push({ eventKey: eventKey, index: idx, step: (ev && Number.isInteger(ev.step)) ? ev.step : null, choices: choices,
 				// 何も選んでいない（起きないものとして数えない）取得の切り替えのイベントは、選ぶ必要が無いので pending にしない（未確認の数は acquireEvents 側が持つ）
-				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2 && acquiredOf(ev, eventKey, evOpts),
+				// 自動で選ばない印（manualChoice）のあるイベントは、残るスキルを持つ選択肢が1つ以上なら「選ぶ必要あり」（0なら不要のまま）
+				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= (isManualChoiceEvent(ev) ? 1 : 2) && acquiredOf(ev, eventKey, evOpts),
 				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
 				// キャラクター共通のイベントの固定の印（2026-10-27・セッションJ・作業4。見出しを「固定イベント（when）」にする）
 				fixed: !!(ev && ev.fixed === true),
@@ -6575,6 +6579,10 @@
 		'.usd-roster-infoskills { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); overflow-wrap: anywhere; }',
 		'.usd-roster-autotag { display: inline-block; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
 		'  border-radius: var(--uma-r-full); background: var(--uma-surface-muted); color: var(--uma-text-subtle); vertical-align: middle; }',
+		// 「自動」の札だけ（2026-10-29・おいもさんの決定・案3）: 薄い黄の塗り・茶の文字・黄の枠・小さな角。「確定」は上のまま。大きさは同じ（枠は内側の影）
+		'.usd-roster-autotag--auto { background: var(--uma-warn-bg); color: var(--uma-warn-text); box-shadow: inset 0 0 0 1px var(--uma-warn-border); border-radius: var(--uma-r-sm); }',
+		// 取得できるスキルの一覧の名前に付ける「自動」の札の間隔
+		'.usd-ev-skill-name .usd-roster-autotag { margin-inline-start: var(--uma-sp-1-5); }',
 		'.usd-roster-choices { display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
 		'.usd-roster-choice { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-2); width: 100%; text-align: left;',
 		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-md); background: var(--uma-surface);',
@@ -10149,7 +10157,7 @@
 			box.setAttribute('data-event-key', e.eventKey);
 			const t = infoEl('p', 'usd-roster-eventtitle', eventTitle(e));
 			if (e.chosen !== null && e.auto) {
-				const tag = infoEl('span', 'usd-roster-autotag', '自動');
+				const tag = infoEl('span', 'usd-roster-autotag usd-roster-autotag--auto', '自動');
 				tag.setAttribute('data-usd-el', 'event-auto');
 				t.appendChild(global.document.createTextNode(' '));
 				t.appendChild(tag);
@@ -10304,7 +10312,20 @@
 		} else {
 			const ul = infoEl('ul', 'usd-ev-skilllist');
 			ul.setAttribute('data-usd-el', 'ev-skills');
-			const rowOf = (x) => eventSkillRowEl(x.it, x.maybe, !!wanted && !wanted(x.it.skillId), o.tagOf ? o.tagOf(x.it.skillId) : null);
+			// 自動で選んだ選択肢のスキル（2026-10-29・おいもさんの決定）。●の行に、左のイベントと同じ「自動」の札を名前の後ろに付ける
+			// （同じスキルをほかの由来でも得るときも、●の行なら付ける。△の行には付けない）
+			const autoIds = new Set();
+			list.forEach(e => { if (e.auto && e.chosen !== null) ((e.choices[e.chosen] || {}).skills || []).forEach(sk => autoIds.add(sk.skillId)); });
+			const rowOf = (x) => {
+				const li = eventSkillRowEl(x.it, x.maybe, !!wanted && !wanted(x.it.skillId), o.tagOf ? o.tagOf(x.it.skillId) : null);
+				if (!x.maybe && autoIds.has(x.it.skillId)) {
+					const nm = li.querySelector('.usd-ev-skill-name');
+					const tg = infoEl('span', 'usd-roster-autotag usd-roster-autotag--auto', '自動');
+					tg.setAttribute('data-usd-el', 'ev-skill-auto');
+					if (nm) nm.appendChild(tg);
+				}
+				return li;
+			};
 			const ordered = sure.map(it => ({ it: it, maybe: false })).concat(maybe.map(it => ({ it: it, maybe: true })));
 			// 衣装の小窓（育成ウマ娘）だけ: 進化先がある金スキルは、上に進化先（その衣装の候補すべて。レースの条件では絞らない）、
 			// 下にその前段の白スキル（同じ一覧にあるもの）を置き、進化 → └ 金 → └ 白 でつなぐ（C-153。進化スキルの説明の小窓と同じ「└」）。
