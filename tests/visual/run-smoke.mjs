@@ -116,6 +116,8 @@ function assert(cond, label, extra) {
  *   **部分実行のときは最後の行に「N塊中M塊のみ」を必ず出す**（「全項目OK」だけを見て
  *   全部通ったと誤解しないため）。**--only に当たる塊が1つも無いときは NG にして止める**
  *   （0塊で「全項目OK」と出ると、綴りを間違えただけで通ったことになってしまう）。
+ *   **数字だけの指定（--only=5）は番号にだけ当たる**（見出しの部分一致には使わない。2026-10-29。
+ *   npm run test:select の出す番号の並びを、そのとおりに回すため）。
  *
  * ■ try/catch（73セッション目）
  *   **投げてもその塊だけを [NG] にして次へ進む。** ここで握らないと、例外で全体が止まり
@@ -199,7 +201,8 @@ async function block(title, fn) {
 	const no = blockCount;
 	if (LIST_ONLY) { listed.push(no + '\t' + title); return; }
 	if (SHARD && (no - 1) % SHARD.n !== SHARD.k - 1) return;
-	if (ONLY.length > 0 && !ONLY.some((t) => t === String(no) || title.includes(t))) return;
+	// 数字だけの指定は番号としてだけ当てる（2026-10-29。以前は見出しの部分一致にも当たり、--only=5 が「段5」などの塊まで回していた）
+	if (ONLY.length > 0 && !ONLY.some((t) => t === String(no) || (!/^\d+$/.test(t) && title.includes(t)))) return;
 	ranCount++;
 	const t0 = performance.now();
 	const ok0 = okCount, ng0 = ngCount;

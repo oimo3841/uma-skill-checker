@@ -10,6 +10,7 @@
     "test:visual:parallel": "node tests/visual/run-parallel.mjs",
     "test:visual:capture": "node tests/visual/run-capture.mjs",
     "test:verify": "node tests/visual/run-verify.mjs",
+    "test:select": "node scripts/select-blocks.mjs",
     "test:master": "node tests/visual/run-master-tests.mjs",
     "test:ocr": "node tests/ocr/run-ocr-tests.mjs --dict=exam",
     "test:norm": "node tests/ocr/check-normalization.mjs",

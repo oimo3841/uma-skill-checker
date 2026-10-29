@@ -10,6 +10,10 @@ npm run test:visual          # 機能スモークテスト（項目数は実行�
 npm run test:visual:parallel # 同じ全塊を --shard=k/3 の3本に分けて同時に回し、結果を1本にまとめる（全体の検査はこれ。--shards=4 で本数を変える）
 #   ・同時に走らせてよい test:visual は1本だけ。os.tmpdir() の uma-test-visual.lock が二重起動を拒む（lib/lock.mjs。自己検査: node tests/visual/lock-selftest.mjs）
 #   ・塊ごとの時間は output/scratch/block-times-<日時>[-sKofN].jsonl に残り、終了時に上位20と占有率を出す（lib/block-times.mjs）
+npm run test:select          # 変更（origin/main との差）から回す塊を選び、--only=番号の並び・理由・時間の見込みを出す（scripts/select-blocks.mjs。恒久ルール22）
+#   ・「核」と「データに敏感な塊」の一覧は block-sets.json（見出しの先頭で書く。--check-sets で1塊ずつ当たるか見る）
+#   ・--base=A --head=B で commit の範囲から・--budget=10 で見込みを10分に収める（当たりの弱い塊から外す）・--list で静的に数えた塊の一覧
+#   ・--only は数字だけなら番号にだけ当たる（見出しの部分一致には使わない）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
 npm run test:master          # マスターデータ・8軸タグの検証（件数・フィルター・タグのコピー）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット
