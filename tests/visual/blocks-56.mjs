@@ -170,9 +170,14 @@ export async function register56(env) {
 	const R2 = ['card-0566', 'card-0002', 'card-0147', 'card-0149', 'card-0402', 'card-0248'];
 	// 2026-10-27（スキルの既定の並び）: rowsHash・othersHash・rightHash は並びが変わったので変更後の値（R1 a50791516eb2f219→7d0680abed707734・c8fba2eca29f0fb3→660b4c21a38f7b0e・3527d527ab1ddb48→7f6f2e2784733e3d／
 	// R2 0dfc95b7c8ce1790→79a1441f58d1a638・a8e4ccb9e6a2180d→8d44a49c6384c5e9）。*Canon は並べ替えた形で、変更前 d2e8499 で測った値（変更後も同じ＝変わったのは並びだけ）
+	// 2026-10-29（吾妻のおでかけのトリガーのイベントを自動で選ばない・manualChoice）: R1 の合計 8,959→8,863（card-0564 の step 1 が自動で選ばれず△になり、−96 Pt）・
+	// 吾妻の列の小窓 leftHash 3bd3bc372ae83bc7→78aa6a02cd962b23・rightHash 7f6f2e2784733e3d→766f5a64af63aec4・rightCanon 2482a4e3438cc9ad→126e0947b8b1dafc、
+	// ほかの列 othersHash（R1 660b4c21a38f7b0e→95449442aa405282・R2 8d44a49c6384c5e9→54b158e30cbb3187）・othersCanon（R1 be6076a4d4de2659→ed9602c3b628e817・R2 5476187973a5f043→73c181fe0c2e876d）
+	// は「自動」の札の class（usd-roster-autotag--auto）と、取得できるスキルの一覧の「自動」の札で変わった。印を外したデータで開き、札の差を取り除くと、
+	// 変更前（ce28f00）の値（合計・行・吾妻の列・ほかの列の HTML）と一致することを確かめた。行の文字（rowsHash）は変わらない
 	const BEFORE4 = {
-		R1: { total: '8,959', rows: 83, rowsHash: '7d0680abed707734', othersHash: '660b4c21a38f7b0e', leftHash: '3bd3bc372ae83bc7', rightHash: '7f6f2e2784733e3d', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: 'be6076a4d4de2659', rightCanon: '2482a4e3438cc9ad' },
-		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: '8d44a49c6384c5e9', rowsCanon: '14e40cb2351ce84e', othersCanon: '5476187973a5f043' }
+		R1: { total: '8,863', rows: 83, rowsHash: '7d0680abed707734', othersHash: '95449442aa405282', leftHash: '78aa6a02cd962b23', rightHash: '766f5a64af63aec4', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: 'ed9602c3b628e817', rightCanon: '126e0947b8b1dafc' },
+		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: '54b158e30cbb3187', rowsCanon: '14e40cb2351ce84e', othersCanon: '73c181fe0c2e876d' }
 	};
 	const dumpCols = async (cards) => {
 		const sp = await openPage(browser, base, 'special.html', { width: 1280, height: 900 }, EMPTY);
