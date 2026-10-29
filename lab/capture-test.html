@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（fetch・XHR・WebSocket・フォームの送信・外部のファイルの読み込みを、ブラウザの側で禁止する） -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob: mediastream:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>ウィンドウの取り込みの試し（作業用）</title>
+	<!--
+		PC版（DMM版）のウマ娘のウィンドウを、ブラウザの画面共有（navigator.mediaDevices.getDisplayMedia）で
+		取り込めるかを、おいもさんの PC で確かめるための試しのページ（2026-10-29 おいもさんの決定。
+		video-step-next-report-20261029.md の (3) の「PC版の実機確認」）。
+		**ツール本体には組み込まない**（css/styleguide.html・card-event-input.html と同じ扱い。どのページからもリンクしない）。
+		検索エンジンに載せない meta を付けている。共通の CSS・JS は読まない（このファイルだけで完結する）。
+
+		■ 外へ何も送らない
+		- 取れた画像と結果は、ボタンでおいもさんの PC に保存する（ブラウザのダウンロード）だけ。
+		- 上の Content-Security-Policy で、通信（connect-src）とフォームの送信を禁止している。
+		- ゲームの画像はリポジトリに置かない。
+
+		■ 見るもの（未確認の点）
+		- ゲームのウィンドウが選択画面に出るか・黒い画面にならないか（明るさの平均とばらつき）
+		- 取れる画の大きさ（Windows の拡大率がかかる）と縦横比（高さ÷幅）が、js/stitch.js の
+		  STITCH_KNOWN_SCREENSHOT_PROFILES の「DMM版(ブラウザ)相当」（幅700〜1300・縦横比1.55〜1.95）に入るか。
+		  範囲はここに写してある（stitch.js は凍結なので読まない）。stitch.js の値を変えたらここも合わせる。
+		- ウィンドウの枠（タイトルバー）が写るか（保存した画像で見る）
+		- フレームの頻度（requestVideoFrameCallback の回数を5秒数える）
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #222; --sub: #666; --line: #ccc; --ok: #0a7d32; --ng: #b3261e; --box: #f4f4f4; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #1b1b1b; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --box: #262626; } }
+		body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, sans-serif; }
+		main { max-width: 960px; margin: 0 auto; }
+		h1 { font-size: 20px; margin: 0 0 8px; }
+		h2 { font-size: 16px; margin: 20px 0 6px; }
+		ol { margin: 0; padding-left: 1.5em; }
+		.box { background: var(--box); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+		.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+		button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+		button.primary { background: #1565c0; border-color: #1565c0; color: #fff; }
+		button:disabled { opacity: .45; cursor: default; }
+		label { display: inline-flex; gap: 6px; align-items: center; }
+		#msg { min-height: 1.6em; }
+		#msg.ng { color: var(--ng); font-weight: bold; }
+		[hidden] { display: none !important; }
+		video { display: block; max-width: 100%; max-height: 70vh; margin: 8px 0; border: 1px solid var(--line); background: #000; }
+		table { border-collapse: collapse; width: 100%; }
+		th, td { border-top: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+		th { width: 12em; font-weight: normal; color: var(--sub); }
+		.ok { color: var(--ok); font-weight: bold; }
+		.ng { color: var(--ng); font-weight: bold; }
+		.sub { color: var(--sub); font-size: 13px; }
+		code { font-size: 13px; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>ウィンドウの取り込みの試し</h1>
+	<p class="sub">PC版（DMM版）のウマ娘のウィンドウを、ブラウザの画面共有で取り込めるかを確かめるページです。取れた画像と結果は、この PC に保存するだけで、どこにも送りません。Chrome か Edge で開いてください。</p>
+
+	<div class="box">
+		<b>手順</b>
+		<ol>
+			<li>ウマ娘（DMM版）を起動して、継承の画面（親の因子が並ぶタブ）を開いておく。</li>
+			<li>下の「ゲームの画面を取り込む」を押す。</li>
+			<li>出てきた選択画面の「ウィンドウ」の欄で、ウマ娘のウィンドウを選んで「共有」を押す。</li>
+			<li>ゲームのウィンドウで、継承のタブを少しスクロールする。</li>
+			<li>このページに戻って「画像を保存」と「結果を保存」を押す（5秒ほど待つと、フレームの頻度も結果に入ります）。</li>
+			<li>保存したファイル（ダウンロードのフォルダに入ります）を、Drive の引き継ぎメモのフォルダの中の <code>capture-test-&lt;日付&gt;</code> フォルダ（例：<code>capture-test-20261101</code>）に置く。</li>
+			<li>終わったら「停止」を押す。</li>
+		</ol>
+		<p class="sub">選択画面にウマ娘が出ないときや、映像が真っ黒のときも、その状態で「結果を保存」を押して置いてください（それも大事な結果です）。ゲームを全画面表示にしていると選べないことがあるので、ウィンドウ表示にしてください。このページ（ブラウザ）とゲームは、重ならないように並べて置くと確かめやすいです。</p>
+	</div>
+
+	<div class="buttons">
+		<button type="button" id="btnStart" class="primary">ゲームの画面を取り込む</button>
+		<button type="button" id="btnShot" disabled>画像を保存</button>
+		<label><input type="checkbox" id="chkAuto" disabled /> 5秒ごとに保存（最大12枚）</label>
+		<button type="button" id="btnResult">結果を保存</button>
+		<button type="button" id="btnFps" disabled>フレームの頻度を測り直す</button>
+		<button type="button" id="btnStop" disabled>停止</button>
+	</div>
+	<p id="msg" role="status" aria-live="polite"></p>
+
+	<video id="video" autoplay muted playsinline hidden></video>
+
+	<h2>結果</h2>
+	<table id="tbl"><tbody></tbody></table>
+	<p class="sub">「DMM版の範囲」は、画像結合（js/stitch.js）が受け付ける大きさ（幅700〜1300 px・縦横比〔高さ÷幅〕1.55〜1.95）です。</p>
+</main>
+
+<script>
+'use strict';
+(function () {
+	/* js/stitch.js の STITCH_KNOWN_SCREENSHOT_PROFILES の「DMM版(ブラウザ)相当」の写し（stitch.js は凍結なので読まない） */
+	var DMM = { minWidth: 700, maxWidth: 1300, minAspect: 1.55, maxAspect: 1.95 };
+	var AUTO_INTERVAL_MS = 5000;
+	var AUTO_MAX = 12;
+	var FPS_WINDOW_MS = 5000;
+
+	var $ = function (id) { return document.getElementById(id); };
+	var video = $('video');
+	var stream = null;
+	var track = null;
+	var autoTimer = null;
+	var autoCount = 0;
+	var shotCount = 0;
+	var startedAt = null;
+	var endedReason = '';
+	var fps = null; // { frames, ms, fps, method, visibility }
+	var fpsRunning = false;
+	var lastStats = null;
+	var log = [];
+
+	function pad(n) { return (n < 10 ? '0' : '') + n; }
+	function stamp(d) {
+		d = d || new Date();
+		return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+	}
+	function isoLocal(d) {
+		var off = -d.getTimezoneOffset();
+		var sign = off >= 0 ? '+' : '-';
+		off = Math.abs(off);
+		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
+			' (UTC' + sign + pad(Math.floor(off / 60)) + ':' + pad(off % 60) + ')';
+	}
+	function note(s) { log.push(isoLocal(new Date()) + ' ' + s); }
+	function say(s, bad) { var m = $('msg'); m.textContent = s; m.className = bad ? 'ng' : ''; }
+
+	/* ブラウザと OS の名前（userAgentData があれば詳しい版も） */
+	var env = { browser: '', os: '', ua: navigator.userAgent };
+	function guessFromUa(ua) {
+		var b = /Edg\/([\d.]+)/.exec(ua) ? 'Edge ' + /Edg\/([\d.]+)/.exec(ua)[1]
+			: /OPR\/([\d.]+)/.exec(ua) ? 'Opera ' + /OPR\/([\d.]+)/.exec(ua)[1]
+			: /Firefox\/([\d.]+)/.exec(ua) ? 'Firefox ' + /Firefox\/([\d.]+)/.exec(ua)[1]
+			: /Chrome\/([\d.]+)/.exec(ua) ? 'Chrome ' + /Chrome\/([\d.]+)/.exec(ua)[1]
+			: /Version\/([\d.]+).*Safari/.exec(ua) ? 'Safari ' + /Version\/([\d.]+)/.exec(ua)[1] : '不明';
+		var o = /Windows NT ([\d.]+)/.test(ua) ? 'Windows（NT ' + /Windows NT ([\d.]+)/.exec(ua)[1] + '）'
+			: /Android ([\d.]+)/.test(ua) ? 'Android ' + /Android ([\d.]+)/.exec(ua)[1]
+			: /iPhone|iPad/.test(ua) ? 'iOS'
+			: /Mac OS X/.test(ua) ? 'macOS'
+			: /Linux/.test(ua) ? 'Linux' : '不明';
+		return { browser: b, os: o };
+	}
+	(function () {
+		var g = guessFromUa(navigator.userAgent);
+		env.browser = g.browser; env.os = g.os;
+		var uad = navigator.userAgentData;
+		if (uad && uad.getHighEntropyValues) {
+			uad.getHighEntropyValues(['platformVersion', 'fullVersionList']).then(function (h) {
+				var brands = (h.fullVersionList || []).filter(function (x) { return !/Not.?A.?Brand/i.test(x.brand); });
+				var pick = brands.filter(function (x) { return /Edge/.test(x.brand); })[0] || brands.filter(function (x) { return /Google Chrome/.test(x.brand); })[0] || brands[0];
+				if (pick) env.browser = pick.brand + ' ' + pick.version;
+				if (h.platform === 'Windows' && h.platformVersion) {
+					var major = parseInt(h.platformVersion, 10);
+					env.os = (major >= 13 ? 'Windows 11' : major > 0 ? 'Windows 10' : 'Windows') + '（platformVersion ' + h.platformVersion + '）';
+				} else if (h.platform) env.os = h.platform + (h.platformVersion ? ' ' + h.platformVersion : '');
+				render();
+			}).catch(function () {});
+		}
+	})();
+
+	var supported = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+
+	/* ── 取れた画の数値 ── */
+	function judgeSize(w, h) {
+		if (!w || !h) return null;
+		var aspect = h / w;
+		var aspectOk = aspect >= DMM.minAspect && aspect <= DMM.maxAspect;
+		var widthOk = w >= DMM.minWidth && w <= DMM.maxWidth;
+		var advice = '';
+		var dpr = window.devicePixelRatio || 1;
+		var hint = function (px) {
+			return dpr !== 1 ? '（Windows の拡大率が ' + Math.round(dpr * 100) + '% なら、見た目の大きさで約 ' + Math.round(px / dpr) + ' px）' : '';
+		};
+		if (!aspectOk) {
+			// 幅を今のままにするなら高さを、高さを今のままにするなら幅を、範囲の中ほど（1.75）に合わせる
+			var mid = (DMM.minAspect + DMM.maxAspect) / 2;
+			var lo = Math.ceil(w * DMM.minAspect), hi = Math.floor(w * DMM.maxAspect);
+			advice = '縦横比が範囲の外です。今の幅 ' + w + ' px のままなら、高さを ' + lo + '〜' + hi + ' px（目安 ' + Math.round(w * mid) + ' px）' + hint(Math.round(w * mid)) +
+				'に。今の高さ ' + h + ' px のままなら、幅を ' + Math.ceil(h / DMM.maxAspect) + '〜' + Math.floor(h / DMM.minAspect) + ' px（目安 ' + Math.round(h / mid) + ' px）' + hint(Math.round(h / mid)) + 'に。';
+			if (aspect < 1) advice += 'ウィンドウが横長のようです。ゲームを縦画面にするか、取り込んだ範囲に余白が入っていないかを見てください。';
+		} else if (!widthOk) {
+			var target = w < DMM.minWidth ? DMM.minWidth : DMM.maxWidth;
+			var tw = w < DMM.minWidth ? Math.max(target, 760) : Math.min(target, 1200);
+			advice = (w < DMM.minWidth ? '幅が狭すぎます。' : '幅が広すぎます。') + 'ウィンドウの幅を ' + DMM.minWidth + '〜' + DMM.maxWidth + ' px（目安 ' + tw + ' px・高さ約 ' + Math.round(tw * aspect) + ' px）' + hint(tw) + 'にしてください。';
+		}
+		return { aspect: aspect, aspectOk: aspectOk, widthOk: widthOk, inRange: aspectOk && widthOk, advice: advice };
+	}
+
+	/* 黒い画面かの判定：縮小したフレームの明るさ（0〜255）の平均とばらつき（標準偏差） */
+	var probe = document.createElement('canvas');
+	function luminance() {
+		var vw = video.videoWidth, vh = video.videoHeight;
+		if (!vw || !vh) return null;
+		var s = Math.min(1, 320 / vw);
+		probe.width = Math.max(1, Math.round(vw * s));
+		probe.height = Math.max(1, Math.round(vh * s));
+		var ctx = probe.getContext('2d', { willReadFrequently: true });
+		ctx.drawImage(video, 0, 0, probe.width, probe.height);
+		var d = ctx.getImageData(0, 0, probe.width, probe.height).data;
+		var n = d.length / 4, sum = 0, sum2 = 0;
+		for (var i = 0; i < d.length; i += 4) {
+			var y = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+			sum += y; sum2 += y * y;
+		}
+		var mean = sum / n;
+		var sd = Math.sqrt(Math.max(0, sum2 / n - mean * mean));
+		var verdict = mean < 10 && sd < 6 ? '黒い画面の疑い（ほぼ真っ黒）'
+			: sd < 3 ? '一色の画面の疑い（ばらつきがほとんど無い）'
+			: '映っている見込み';
+		return { mean: mean, sd: sd, verdict: verdict, bad: verdict !== '映っている見込み' };
+	}
+
+	/*
+	 * フレームの頻度を5秒数える。2つの数え方を同時に回す:
+	 *   受け取り … MediaStreamTrackProcessor で、共有の映像から届いたフレームを数える（ページの描画に左右されない）
+	 *   描画     … requestVideoFrameCallback で、このページの映像に描かれたフレームを数える
+	 *              （このページが隠れていると描画が止まり、0 になることがある）
+	 * ゲームの画面が動いていないと、ブラウザが新しいフレームを送らないことがある（静止画は頻度が下がる）。
+	 */
+	function measureFps() {
+		if (!stream || fpsRunning) return;
+		fpsRunning = true;
+		fps = null;
+		render();
+		var vis = [document.visibilityState];
+		var onVis = function () { vis.push(document.visibilityState); };
+		document.addEventListener('visibilitychange', onVis);
+		var res = { track: null, render: null };
+		var pending = 2;
+		var done = function (key, r) {
+			if (res[key]) return;
+			res[key] = r;
+			if (--pending > 0) return;
+			document.removeEventListener('visibilitychange', onVis);
+			fps = { track: res.track, render: res.render, visibility: vis.join('→') };
+			fpsRunning = false;
+			note('フレームの頻度: ' + fpsText());
+			render();
+		};
+		var result = function (frames, ms, method) {
+			return { frames: frames, ms: ms, fps: ms > 0 ? frames / (ms / 1000) : null, method: method };
+		};
+
+		// 受け取り（複製したトラックを読むので、表示や保存の映像には触らない）
+		if (typeof window.MediaStreamTrackProcessor === 'function' && track) {
+			(async function () {
+				var clone = track.clone();
+				var reader = null, n = 0, t0 = performance.now();
+				var timer = setTimeout(function () { if (reader) reader.cancel().catch(function () {}); }, FPS_WINDOW_MS);
+				try {
+					reader = new MediaStreamTrackProcessor({ track: clone }).readable.getReader();
+					for (;;) {
+						var r = await reader.read();
+						if (r.done) break;
+						r.value.close();
+						if (performance.now() - t0 >= FPS_WINDOW_MS) break;
+						n++;
+					}
+				} catch (e) {
+					clearTimeout(timer); clone.stop();
+					return done('track', { frames: null, ms: 0, fps: null, method: '数えられない（' + (e && e.name) + '）' });
+				}
+				clearTimeout(timer);
+				if (reader) reader.cancel().catch(function () {});
+				clone.stop();
+				done('track', result(n, performance.now() - t0, 'MediaStreamTrackProcessor'));
+			})();
+		} else done('track', { frames: null, ms: 0, fps: null, method: 'このブラウザでは数えられない（MediaStreamTrackProcessor が無い）' });
+
+		// 描画
+		if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+			var frames = 0, t0 = performance.now();
+			var cb = function (now) {
+				if (!fpsRunning || res.render) return;
+				if (now - t0 >= FPS_WINDOW_MS) return done('render', result(frames, now - t0, 'requestVideoFrameCallback'));
+				frames++;
+				video.requestVideoFrameCallback(cb);
+			};
+			video.requestVideoFrameCallback(cb);
+			// 描画が止まっているとコールバックが来ないので、時間で締める
+			setTimeout(function () { done('render', result(frames, performance.now() - t0, 'requestVideoFrameCallback')); }, FPS_WINDOW_MS + 500);
+		} else done('render', { frames: null, ms: 0, fps: null, method: 'このブラウザでは数えられない（requestVideoFrameCallback が無い）' });
+	}
+	function fpsOne(r) {
+		if (!r) return '—';
+		return (r.fps == null ? '数えられない' : r.fps.toFixed(1) + ' 回/秒（' + r.frames + ' フレーム／' + (r.ms / 1000).toFixed(1) + ' 秒）') + '［' + r.method + '］';
+	}
+	function fpsText() {
+		if (fpsRunning) return '測っています（5秒）…';
+		if (!fps) return '—';
+		return '受け取り ' + fpsOne(fps.track) + '／描画 ' + fpsOne(fps.render) + '／このページの表示状態: ' + fps.visibility;
+	}
+
+	function collect() {
+		var st = track && track.getSettings ? track.getSettings() : {};
+		var w = video.videoWidth || st.width || 0, h = video.videoHeight || st.height || 0;
+		var j = judgeSize(w, h);
+		var lum = stream && video.videoWidth ? luminance() : null;
+		lastStats = { st: st, w: w, h: h, j: j, lum: lum };
+		return lastStats;
+	}
+
+	function rows() {
+		var s = lastStats || { st: {}, w: 0, h: 0, j: null, lum: null };
+		var r = [];
+		r.push(['状態', stream ? '共有中' : (endedReason || (supported ? '未開始' : 'このブラウザでは画面共有が使えません'))]);
+		r.push(['取り込んだもの', stream ? ((track && track.label) || '（名前なし）') + '（種類: ' + (s.st.displaySurface || '不明') + '）' : '—']);
+		r.push(['取れた画の大きさ', s.w ? s.w + ' × ' + s.h + ' px' : '—']);
+		r.push(['縦横比（高さ÷幅）', s.j ? s.j.aspect.toFixed(3) : '—']);
+		r.push(['端末の拡大率', 'devicePixelRatio ' + (window.devicePixelRatio || 1) + '（このブラウザの画面。Windows の拡大率 ' + Math.round((window.devicePixelRatio || 1) * 100) + '% に当たる見込み）']);
+		r.push(['DMM版の範囲', s.j ? (s.j.inRange ? { ok: '入る' } : { ng: '入らない（' + (!s.j.aspectOk ? '縦横比' : '幅') + '）' }) : '—']);
+		if (s.j && s.j.advice) r.push(['ウィンドウの大きさの目安', s.j.advice]);
+		r.push(['黒い画面かの判定', s.lum ? (s.lum.bad ? { ng: s.lum.verdict } : { ok: s.lum.verdict }) : '—']);
+		r.push(['明るさ', s.lum ? '平均 ' + s.lum.mean.toFixed(1) + '／ばらつき ' + s.lum.sd.toFixed(1) + '（0〜255）' : '—']);
+		r.push(['フレームの頻度（5秒）', fpsText()]);
+		r.push(['指定した頻度の上限', s.st.frameRate ? s.st.frameRate + ' 回/秒（getSettings）' : '—']);
+		r.push(['保存した画像', shotCount + ' 枚' + (autoTimer ? '（5秒ごとに保存中: ' + autoCount + '/' + AUTO_MAX + '）' : '')]);
+		r.push(['ブラウザ', env.browser]);
+		r.push(['OS', env.os]);
+		return r;
+	}
+
+	function render() {
+		var tb = $('tbl').tBodies[0];
+		tb.textContent = '';
+		rows().forEach(function (row) {
+			var tr = document.createElement('tr');
+			var th = document.createElement('th'); th.textContent = row[0];
+			var td = document.createElement('td');
+			var v = row[1];
+			if (v && typeof v === 'object') {
+				var span = document.createElement('span');
+				span.className = v.ok ? 'ok' : 'ng';
+				span.textContent = v.ok || v.ng;
+				td.appendChild(span);
+			} else td.textContent = v;
+			tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+		});
+		var on = !!stream;
+		$('btnStart').disabled = on || !supported;
+		$('btnShot').disabled = !on;
+		$('chkAuto').disabled = !on;
+		$('btnFps').disabled = !on || fpsRunning;
+		$('btnStop').disabled = !on;
+	}
+
+	function download(blob, name) {
+		var url = URL.createObjectURL(blob);
+		var a = document.createElement('a');
+		a.href = url; a.download = name;
+		document.body.appendChild(a); a.click(); a.remove();
+		setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+	}
+
+	function saveShot(tag) {
+		if (!stream || !video.videoWidth) { say('まだ映像が来ていません。少し待ってからもう一度押してください。', true); return; }
+		var c = document.createElement('canvas');
+		c.width = video.videoWidth; c.height = video.videoHeight;
+		c.getContext('2d').drawImage(video, 0, 0);
+		var name = 'capture-' + stamp() + (tag ? '-' + tag : '') + '.png';
+		c.toBlob(function (b) {
+			if (!b) { say('画像を作れませんでした。', true); return; }
+			download(b, name);
+			shotCount++;
+			note('画像を保存: ' + name + '（' + c.width + '×' + c.height + '）');
+			say('画像を保存しました: ' + name);
+			render();
+		}, 'image/png');
+	}
+
+	function setAuto(on) {
+		if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+		$('chkAuto').checked = !!on;
+		if (!on || !stream) { render(); return; }
+		autoCount = 0;
+		var tick = function () {
+			if (!stream) return setAuto(false);
+			autoCount++;
+			saveShot('auto' + pad(autoCount));
+			if (autoCount >= AUTO_MAX) { setAuto(false); say('5秒ごとの保存を終えました（' + AUTO_MAX + '枚）。'); }
+		};
+		autoTimer = setInterval(tick, AUTO_INTERVAL_MS);
+		note('5秒ごとの保存を開始');
+		tick();
+	}
+
+	function resultText() {
+		collect();
+		var out = [];
+		out.push('# ウィンドウの取り込みの試し 結果');
+		out.push('保存した日時: ' + isoLocal(new Date()));
+		out.push('共有を始めた日時: ' + (startedAt ? isoLocal(startedAt) : '—'));
+		out.push('ページ: ' + location.href);
+		out.push('');
+		rows().forEach(function (r) {
+			var v = r[1];
+			if (v && typeof v === 'object') v = v.ok || v.ng;
+			out.push('- ' + r[0] + ': ' + v);
+		});
+		out.push('');
+		out.push('## 詳細');
+		out.push('- userAgent: ' + env.ua);
+		out.push('- 画面（screen）: ' + screen.width + ' × ' + screen.height + '（devicePixelRatio をかけると ' + Math.round(screen.width * (window.devicePixelRatio || 1)) + ' × ' + Math.round(screen.height * (window.devicePixelRatio || 1)) + '）');
+		out.push('- getDisplayMedia: ' + (supported ? 'あり' : 'なし') + '／requestVideoFrameCallback: ' + ('requestVideoFrameCallback' in HTMLVideoElement.prototype ? 'あり' : 'なし') + '／CaptureController: ' + (typeof window.CaptureController === 'function' ? 'あり' : 'なし'));
+		var st = lastStats ? lastStats.st : {};
+		out.push('- track.getSettings(): ' + JSON.stringify(st));
+		if (track && track.getCapabilities) { try { out.push('- track.getCapabilities(): ' + JSON.stringify(track.getCapabilities())); } catch (e) {} }
+		out.push('- ウィンドウの枠（タイトルバー）が写っているかは、保存した画像で見てください。');
+		out.push('');
+		out.push('## 記録');
+		log.forEach(function (l) { out.push('- ' + l); });
+		return out.join('\n') + '\n';
+	}
+
+	function stop(reason) {
+		setAuto(false);
+		if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+		stream = null; track = null;
+		video.srcObject = null; video.hidden = true;
+		endedReason = reason || '停止しました';
+		note(endedReason);
+		render();
+	}
+
+	async function start() {
+		if (!supported) { say('このブラウザでは画面共有が使えません（スマホ・タブレットでは使えません）。PC の Chrome か Edge で開いてください。', true); return; }
+		say('選択画面で「ウィンドウ」の欄のウマ娘を選んで「共有」を押してください。');
+		var opts = {
+			video: { displaySurface: 'window', frameRate: { ideal: 30 } },
+			audio: false,
+			selfBrowserSurface: 'exclude',
+			monitorTypeSurfaces: 'exclude',
+			surfaceSwitching: 'exclude',
+			systemAudio: 'exclude'
+		};
+		note('getDisplayMedia を呼ぶ: ' + JSON.stringify(opts));
+		try {
+			stream = await navigator.mediaDevices.getDisplayMedia(opts);
+		} catch (e) {
+			stream = null;
+			var name = e && e.name ? e.name : 'Error';
+			var text = name === 'NotAllowedError' ? '共有が取り消されたか、許可されませんでした。'
+				: name === 'NotFoundError' ? '共有できるウィンドウが見つかりませんでした。'
+				: name === 'NotSupportedError' || name === 'TypeError' ? 'このブラウザでは、この形の画面共有が使えません（スマホ・タブレットでは使えません。PC の Chrome か Edge で開いてください）。'
+				: '画面共有を始められませんでした。';
+			endedReason = text + '（' + name + (e && e.message ? ': ' + e.message : '') + '）';
+			note(endedReason);
+			say(endedReason, true);
+			render();
+			return;
+		}
+		track = stream.getVideoTracks()[0];
+		startedAt = new Date();
+		endedReason = '';
+		note('共有を開始: ' + (track && track.label) + ' ' + JSON.stringify(track && track.getSettings ? track.getSettings() : {}));
+		track.addEventListener('ended', function () { stop('共有が終わりました（ブラウザの「共有を停止」かウィンドウが閉じた）'); });
+		video.srcObject = stream;
+		video.hidden = false;
+		try { await video.play(); } catch (e) {}
+		var st = track.getSettings ? track.getSettings() : {};
+		if (st.displaySurface && st.displaySurface !== 'window') say('ウィンドウではなく「' + st.displaySurface + '」が選ばれました。試すのはウィンドウなので、「停止」してからもう一度選んでください。', true);
+		else say('取り込んでいます。ゲームで継承のタブを少しスクロールしてから、「画像を保存」と「結果を保存」を押してください。');
+		var waitSize = function () {
+			if (!stream) return;
+			if (video.videoWidth) { collect(); render(); measureFps(); }
+			else setTimeout(waitSize, 200);
+		};
+		waitSize();
+	}
+
+	video.addEventListener('resize', function () { if (stream) { note('画の大きさが変わった: ' + video.videoWidth + '×' + video.videoHeight); collect(); render(); } });
+	setInterval(function () { if (stream && video.videoWidth) { collect(); render(); } }, 1000);
+
+	$('btnStart').addEventListener('click', start);
+	$('btnShot').addEventListener('click', function () { saveShot(''); });
+	$('chkAuto').addEventListener('change', function (e) { setAuto(e.target.checked); });
+	$('btnFps').addEventListener('click', measureFps);
+	$('btnStop').addEventListener('click', function () { stop('停止しました'); say('停止しました。'); });
+	$('btnResult').addEventListener('click', function () {
+		var name = 'capture-result-' + stamp() + '.txt';
+		download(new Blob([resultText()], { type: 'text/plain;charset=utf-8' }), name);
+		note('結果を保存: ' + name);
+		say('結果を保存しました: ' + name);
+	});
+
+	if (!supported) say('このブラウザでは画面共有が使えません（スマホ・タブレットでは使えません）。PC の Chrome か Edge で開いてください。', true);
+	render();
+})();
+</script>
+</body>
+</html>
