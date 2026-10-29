@@ -3,7 +3,7 @@
 //
 //   node scripts/select-blocks-backtest.mjs                         … 既定（既存の tests/ の変更は見ない＝あとから直した期待値を当てにしない）
 //   node scripts/select-blocks-backtest.mjs --with-tests             … 既存の tests/ の変更も入れる（参考。直した期待値の行で当たるので甘い）
-//   node scripts/select-blocks-backtest.mjs --budget=10              … 残りの引数は select-blocks.mjs へそのまま渡す
+//   node scripts/select-blocks-backtest.mjs --budget=15              … 残りの引数は select-blocks.mjs へそのまま渡す
 //   node scripts/select-blocks-backtest.mjs --json=<path>            … 回ごとの結果を JSON で書く
 //
 // 事例は tests/visual/select-blocks-backtest.json（NG の塊の見出しは、実行したときのもの）。見出しの照合は、完全一致 → 先頭16文字の

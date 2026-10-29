@@ -7,7 +7,8 @@
 //   npm run test:select -- --no-core             … 「核」の塊を足さない（内訳を見るとき）
 //   npm run test:select -- --list                … 静的に数えた塊の一覧（番号・見出し・ファイルと行）だけを出す
 //   npm run test:select -- --check-sets          … tests/visual/block-sets.json の項目がそれぞれ1塊に当たるかだけを見る
-//   npm run test:select -- --budget=10           … 見込み（並列 N=3）が10分に収まるよう、(2) だけで選んだ塊を当たりの弱い順に外す
+//   npm run test:select -- --budget=15           … 見込み（並列 N=3）が15分に収まるよう、(2) だけで選んだ塊を当たりの弱い順に外す
+//                                                  （段1・段2 の push の前は既定の出力が標準。見込みが15分を超えるときだけ使ってよい。恒久ルール22・2026-10-30）
 //   npm run test:select -- --times=<フォルダ>     … 時間の見込みに使う計器のログ（block-times-*-sKof3.jsonl）を探す場所を足す
 //   npm run test:select -- --drop-modified-tests … 既存の tests/ の変更を見ない（バックテスト用。あとから直した期待値を当てにしない）
 //   npm run test:select -- --cap=20            … 1つの識別子が当たる塊がこれより多ければ「広すぎ」として使わない（既定 20。文言は --jp-cap=10）
@@ -23,6 +24,8 @@
 //   (3) 「核」の塊（tests/visual/block-sets.json の core）。段2 以上（.html・.js・.css を変えた）のときだけ足す。
 //   (4) data/ を変えたら「データに敏感な塊」（block-sets.json の dataSensitive）。
 //   (5) 検査の土台（tests/visual/lib/・run-smoke.mjs の塊の外・run-parallel.mjs・package-lock.json）を変えたら「全体」と出す。
+//   (6) 「寸法に敏感な塊」（block-sets.json の dimensionSensitive。列見出し・帯・入口の行の高さ・寸法・見た目を固定値で測る）。
+//       段2 以上で、.css・画面の HTML（リポジトリ直下の *.html。版の付け替えとコメントだけなら除く）・帯や列見出しを作る関数（DIM_FUNCS）を変えたときだけ足す（2026-10-30）。
 //   段3 と決まる変更（CSS トークンと共有の CSS・保存データの形と移行・凍結ファイル・検査の土台）と、段3 かもしれない変更
 //   （core・2ページで共有の部品・保存の鍵）は、その旨を出す（中身で決めるのは人）。
 //
@@ -286,6 +289,16 @@ const STAGE3_FILES = [
 const STORAGE_RE = /schemaVersion|migrat/;                                  // 保存データの形と移行 → 段3
 const STORAGE_MAYBE_RE = /localStorage|sessionStorage|STORAGE_KEY|indexedDB/; // 保存の鍵に触れている → 段3 かもしれない
 const FULL_FILES = [/^tests\/visual\/lib\//, /^tests\/visual\/run-parallel\.mjs$/, /^package-lock\.json$/];
+// (6) 寸法に敏感な塊を足すきっかけ（段2 以上のときだけ）: .css・画面の HTML（リポジトリ直下の *.html。版の付け替えとコメントだけなら除く）・帯や列見出しを作る関数
+const DIM_FILES = [/\.css$/, /^[^/]+\.html$/];
+const DIM_FUNCS = new Set([
+	'renderSetBar', 'renderSetHead', 'fitSetHead', 'renderRosterLink',   // セットの帯・②の合計の行
+	'renderPalette', 'fitEntryHead', 'entryPickHtml',                    // ②の入口の行
+	'evoBandHtml', 'fitBand',                                            // ①の帯
+	'colHead',                                                           // ①の表・②の星取表の列見出し
+	'syncStickyTop',                                                     // special のタイトルの行と帯の上に残る高さ
+]);
+// core の中の CSS（CORE_STYLES の文字列）はきっかけにしない（指示の範囲は .css のファイル。入れてもバックテストの数は同じだった。2026-10-30）
 // test:visual 以外の検査（変えた場所 → npm の名前）
 const OTHER_CHECKS = [
 	[/^data\//, 'npm run check:catalog'],
@@ -327,6 +340,7 @@ export function main() {
 	const otherChecks = new Set(['npm run test:verify']);
 	const broad = [];            // 広すぎて使わなかった語
 	const productText = [];      // 製品の変えた行（コメントを除く）。日本語の文言の照合に使う
+	const dimWhy = [];           // 寸法に敏感な塊を足すきっかけ（段2 以上のときだけ足す）
 	const tokens = new Map();    // 語 -> 出どころ（ファイル）
 	const addToken = (t, from) => { if (t && t.length >= 5 && !STOP_WORDS.has(t) && !tokens.has(t)) tokens.set(t, from); };
 	const changedFiles = [];
@@ -393,11 +407,19 @@ export function main() {
 		}
 		const after = readText(rel);
 		const afterLines = after ? after.split('\n') : [];
+		// .css・画面の HTML は、版の付け替え（?v= ・-version）とコメントだけの変更では足さない
+		const isVerLine = (l) => /\?v=\d{4}-\d{2}-\d{2}/.test(l) || /-version:\s*'?\d{4}-\d{2}-\d{2}/.test(l) || /_VERSION\s*=\s*'\d{4}-\d{2}-\d{2}/.test(l);
+		if (!isData && DIM_FILES.some((re) => re.test(rel)) && fd.hunks.some((h) => h.plus.concat(h.minus).some((l) => l.trim() && !isComment(l) && !isVerLine(l)))) dimWhy.push((/\.css$/.test(rel) ? 'CSS' : '画面の HTML') + ': ' + rel);
 		for (const h of fd.hunks) {
 			if (isData) break;   // data の中身の語・文言は拾わない（ファイル名とデータに敏感な塊で拾う）
 			const lines = h.plus.concat(h.minus);
 			if (/\.(js|html|mjs)$/.test(rel)) {
-				for (const n of enclosingFunctions(afterLines, h.newCount > 0 ? h.newStart : h.newStart + 1)) addToken(n, rel + '（変えた行を囲む関数）');
+				const at = h.newCount > 0 ? h.newStart : h.newStart + 1;
+				const last = h.newCount > 0 ? h.newStart + h.newCount - 1 : at;
+				for (const n of enclosingFunctions(afterLines, at)) addToken(n, rel + '（変えた行を囲む関数）');
+				// 帯や列見出しを作る関数（変えた行の最初と最後を囲む関数・変えた行で宣言した関数）
+				const fns = new Set([...enclosingFunctions(afterLines, at), ...enclosingFunctions(afterLines, last), ...lines.map(declName).filter(Boolean)]);
+				for (const n of fns) if (DIM_FUNCS.has(n)) dimWhy.push('帯や列見出しを作る関数 ' + n + ': ' + rel);
 			}
 			for (const raw of lines) {
 				if (STORAGE_RE.test(raw)) stage3.push('保存データの形・移行（' + raw.trim().slice(0, 60) + '）: ' + rel);
@@ -462,9 +484,12 @@ export function main() {
 	if (full.length > 0) stage = 3;
 	// 核は段2 以上（画面の処理・表示の作りを変えたとき）だけ足す。段1（データ・文言・検査だけ）は関係する塊だけ
 	if (!NO_CORE && stage >= 2) for (const s of sets.core || []) for (const b of matchSet(idx.blocks, s)) addReason(b.no, '(3) 核: ' + (s.why || ''));
+	// (6) 寸法に敏感な塊: 段2 以上で、.css・画面の HTML・帯や列見出しを作る関数・core の CSS を変えたとき
+	const dimAdded = stage >= 2 && dimWhy.length > 0;
+	if (dimAdded) for (const s of sets.dimensionSensitive || []) for (const b of matchSet(idx.blocks, s)) addReason(b.no, '(6) 寸法に敏感な塊: ' + (s.why || ''));
 
 	let nos = [...reasons.keys()].sort((a, b) => a - b);
-	// --budget: (1)(3)(4) の塊は残し、(2) だけの塊を当たりの弱い順に外して、見込みを枠に収める（外した塊は一覧に出す。夜間の全体で拾う）
+	// --budget: (1)(3)(4)(6) の塊は残し、(2) だけの塊を当たりの弱い順に外して、見込みを枠に収める（外した塊は一覧に出す。夜間の全体で拾う）
 	const dropped = [];
 	if (BUDGET != null) {
 		const weak = nos.filter((no) => reasons.get(no).every((x) => x.startsWith('(2)'))).sort((a, b) => (score.get(a) || 0) - (score.get(b) || 0));
@@ -483,6 +508,7 @@ export function main() {
 		changedFiles, stage, stage3: [...new Set(stage3)], stage3Maybe: [...new Set(stage3Maybe)], full: [...new Set(full)], otherChecks: [...otherChecks],
 		selected: nos.map((no) => ({ no, title: idx.blocks[no - 1].title, reasons: reasons.get(no) })),
 		selectedBeforeCore: [...selectedBeforeCore].sort((a, b) => a - b),
+		dimensionSensitive: dimAdded ? [...new Set(dimWhy)] : [],
 		broad, estimate: est, budget: BUDGET, dropped,
 		only: nos.join(','),
 	};
@@ -561,6 +587,11 @@ function printResult(r) {
 	out.push('段の見立て: 段' + r.stage + (r.stage === 3 ? '（push の前に全体を1回。下の理由が「表示用の定数・文言だけ」なら段2 でよい。決めるのは人）' : r.stage === 2 ? '（関係する塊＋核。全体はしない）' : '（関係する塊。全体はしない）'));
 	r.stage3.forEach((s) => out.push('  段3 の理由: ' + s));
 	r.stage3Maybe.forEach((s) => out.push('  段3 かもしれない（中身で決める）: ' + s));
+	if (r.dimensionSensitive.length > 0) {
+		out.push('寸法に敏感な塊を足した（段2 以上で、次を変えた）:');
+		r.dimensionSensitive.slice(0, 8).forEach((s) => out.push('  ' + s));
+		if (r.dimensionSensitive.length > 8) out.push('  ほか ' + (r.dimensionSensitive.length - 8) + '件');
+	}
 	if (r.full.length > 0) {
 		out.push('全体が要る（検査の土台を変えた）: npm run test:visual:parallel');
 		r.full.forEach((s) => out.push('  ' + s));
@@ -570,7 +601,7 @@ function printResult(r) {
 	out.push('選んだ塊: ' + r.selected.length + '個' + (e.source ? '・見込み 並列 N=3 で約 ' + mmss(e.parallelSec) + '（直列なら約 ' + mmss(e.serialSec) + '。' + e.source + ' の塊ごとの時間から' + (e.unknownBlocks ? '・記録の無い ' + e.unknownBlocks + '塊は中央値 ' + e.medianSec + '秒で仮置き' : '') + '）' : '・' + e.note));
 	if (r.selected.length > 0) out.push('コマンド: npm run test:visual:parallel -- --only=' + r.only);
 	if (r.budget != null) out.push('--budget=' + r.budget + '分: 当たりの弱い ' + r.dropped.length + '塊を外した（夜間の全体で拾う）' + (r.dropped.length ? ': ' + r.dropped.map((d) => '#' + d.no).join(' ') : ''));
-	else if (e.source && e.parallelSec > 600) out.push('見込みが10分を超える。--budget=10 で当たりの弱い塊から外せる（外した塊は夜間の全体で拾う）');
+	else if (e.source && e.parallelSec > 900) out.push('見込みが15分を超える。--budget=15 で当たりの弱い塊から外してよい（恒久ルール22。外した塊は夜間の全体で拾う）');
 	out.push('');
 	out.push('理由:');
 	for (const s of r.selected) out.push('  #' + s.no + ' ' + s.title.slice(0, 60) + '\n      ← ' + s.reasons.slice(0, 4).join(' ／ ') + (s.reasons.length > 4 ? ' ／ ほか' + (s.reasons.length - 4) : ''));
@@ -589,7 +620,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 			const blocks = buildIndex().blocks;
 			const sets = JSON.parse(readText(SETS_FILE));
 			let bad = 0;
-			for (const key of ['core', 'dataSensitive']) {
+			for (const key of ['core', 'dataSensitive', 'dimensionSensitive']) {
 				for (const s of sets[key] || []) {
 					const hit = matchSet(blocks, s);
 					if (hit.length !== 1) { bad++; console.log('[NG] ' + key + ': 「' + s.title + '」は ' + hit.length + '塊に当たる' + (hit.length ? '（' + hit.map((b) => '#' + b.no).join(' ') + '）' : '')); }
