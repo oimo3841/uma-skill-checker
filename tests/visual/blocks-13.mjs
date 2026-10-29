@@ -234,11 +234,12 @@ export async function register13(env) {
 	// 一部だけ公開のレース（会場・距離が無く、バ場と距離区分だけ）。2026-10-25a で race-0004 が全部公開になったため、同じ形（芝・中距離だけ）の最初の1件で見る（検査する形は変えていない）
 	const PART = racesReal.races.find((x) => !x.venue && !x.distance && x.surface === 'turf' && x.distanceCategory === 'medium');
 	const barInfo = (page) => page.evaluate(() => {
+		// C-235: レースのボタンはタイトルの行（btnTop はその位置・sumL はツール切り替えの左端）。帯はセット名と合計だけ
 		const bar = document.querySelector('#deck-set-bar [data-usd-el="setbar"]');
-		const b = bar.querySelector('[data-usd-el="set-race-btn"]');
+		const b = document.querySelector('#hdr-race-slot [data-usd-el="set-race-btn"]');
 		const t = b.querySelector('[data-usd-el="set-race-text"]');
 		const n = bar.querySelector('[data-usd-el="set-name"]');
-		const sum = bar.querySelector('[data-usd-el="set-total"]');
+		const sum = document.getElementById('tool-dropdown-btn');
 		return { barH: Math.round(bar.getBoundingClientRect().height), text: t.textContent, cut: t.scrollWidth > t.clientWidth + 1, ellipsis: getComputedStyle(t).textOverflow, fs: parseFloat(getComputedStyle(t).fontSize),
 			nameCut: n.scrollWidth > n.clientWidth + 1, btnTop: Math.round(b.getBoundingClientRect().top), nameTop: Math.round(n.getBoundingClientRect().top), btnR: b.getBoundingClientRect().right, sumL: sum ? sum.getBoundingClientRect().left : null,
 			on: b.getAttribute('aria-pressed') === 'true', title: b.title, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
@@ -265,7 +266,7 @@ export async function register13(env) {
 			const exp = await raceLabel(sp.page, R0);
 			assert(exp && b.text === exp && b.on && b.title.indexOf(R0.name) !== -1, tag + '全部公開のレース: 「' + exp + '」（レース名の全文は title と選択欄）', { text: b.text, title: b.title });
 			assert(b.barH === a.barH && b.btnTop === a.btnTop && !b.nameCut && b.btnR <= b.sumL + 0.5 && b.sw <= b.iw && b.ellipsis === 'ellipsis' && b.fs >= 10,
-				tag + '帯は1行のまま（高さ ' + a.barH + 'px・ボタンの位置も同じ）・セット名は切れない・合計と重ならない・横にはみ出さない。入りきらないときは「…」（' + (b.cut ? '切れている' : '全部入っている') + '・' + b.fs + 'px）', b);
+				tag + '帯は1行のまま（高さ ' + a.barH + 'px・ボタンの位置も同じ）・セット名は切れない・ツール切り替えと重ならない（C-235 でタイトルの行へ）・横にはみ出さない。入りきらないときは「…」（' + (b.cut ? '切れている' : '全部入っている') + '・' + b.fs + 'px）', b);
 			await sp.page.evaluate((r) => UmaSkillDeckCore.outside.setRace(r), PART);
 			await sp.page.waitForTimeout(250);
 			const c = await barInfo(sp.page);
@@ -295,7 +296,7 @@ export async function register13(env) {
 
 	await block('オススメサポ段13B2 再読み込み: 直前まで開いていたセットを開く（①もそのセット）／「＋新規」なら「＋新規」／削除された・見つからないセットは「＋新規」／覚える値は書き出しの対象外', async () => {
 		const sp = await openSp({ userData: SAVED2, roster: null, tab: 0 });
-		assert((await setName(sp.page)) === '＋新規', 'オススメサポ段13B2 前提: 初めて開いたときは「＋新規」', await setName(sp.page));
+		assert((await setName(sp.page)) === '無題（新規）', 'オススメサポ段13B2 前提: 初めて開いたときは「＋新規」', await setName(sp.page));
 		const umaLabel = () => sp.page.evaluate(() => document.querySelector('#deck-roster-panel [data-usd-el="pick-uma"]').getAttribute('aria-label'));
 		await sp.page.click(BAR + '[data-usd-act="set-list"]');
 		await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
@@ -316,18 +317,18 @@ export async function register13(env) {
 		await sp.page.click('[data-usd-el="set-list"] input[value=""]').catch(async () => { await sp.page.evaluate(() => { const i = Array.from(document.querySelectorAll('[data-usd-el="set-list"] input')).find((x) => !x.value || x.value === '__draft__'); if (i) i.click(); }); });
 		await sp.page.waitForTimeout(300);
 		await reloadSp(sp.page);
-		assert((await setName(sp.page)) === '＋新規', 'オススメサポ段13B2 「＋新規」を開いて読み込み直すと「＋新規」', await setName(sp.page));
+		assert((await setName(sp.page)) === '無題（新規）', 'オススメサポ段13B2 「＋新規」を開いて読み込み直すと「＋新規」', await setName(sp.page));
 		// 見つからない（削除された）セット
 		await sp.page.evaluate(() => localStorage.setItem('umaSkillDeck:lastSet:special', 't-gone'));
 		await reloadSp(sp.page);
-		assert((await setName(sp.page)) === '＋新規', 'オススメサポ段13B2 覚えていたセットが無いときは「＋新規」', await setName(sp.page));
+		assert((await setName(sp.page)) === '無題（新規）', 'オススメサポ段13B2 覚えていたセットが無いときは「＋新規」', await setName(sp.page));
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13B2 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 		// 開いていたセット（S1）が削除された保存データ（検査の土台は読み込みのたびに保存データを入れ直すので、別の窓で開く）
 		const gone = JSON.parse(JSON.stringify(SAVED2));
 		gone.templates = gone.templates.filter((t) => t.templateId !== 't1');
 		const sp2 = await openSp({ userData: gone, roster: null, tab: 0, storage: { 'umaSkillDeck:lastSet:special': 't1' } });
-		assert((await setName(sp2.page)) === '＋新規', 'オススメサポ段13B2 開いていたセット（S1）が削除されていたら「＋新規」', await setName(sp2.page));
+		assert((await setName(sp2.page)) === '無題（新規）', 'オススメサポ段13B2 開いていたセット（S1）が削除されていたら「＋新規」', await setName(sp2.page));
 		const sp3 = await openSp({ userData: SAVED2, roster: null, tab: 0, storage: { 'umaSkillDeck:lastSet:special': 't1' } });
 		assert((await setName(sp3.page)) === 'S1', 'オススメサポ段13B2 比べる側: 同じ値で、セットが在れば S1 が開く（上の「＋新規」は削除のため）', await setName(sp3.page));
 		await sp2.ctx.close(); await sp3.ctx.close();
@@ -665,7 +666,7 @@ export async function register13(env) {
 		assert(JSON.stringify(d.outsideOptions.filter) === JSON.stringify({ phase: ['late'] }) && JSON.stringify(d.outsideOptions.exclude) === JSON.stringify({ effect: ['debuff', 'stamina'], extra: ['lowEffect'] }), 'オススメサポ段13C2 除外を書いても、段12 の filter は消さない（ルール28）', d.outsideOptions);
 		await sp.page.keyboard.press('Escape');
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
-		const pick = await sp.page.evaluate(async () => { document.querySelector('#deck-template-panel [data-usd-act="editor-pick"]').click(); await new Promise((res) => setTimeout(res, 200)); const v = Array.from(document.querySelectorAll('input[data-usd-el="filter-check"]:checked')).length; document.querySelector('[data-usd-act="picker-close"]').click(); return v; });
+		const pick = await sp.page.evaluate(async () => { document.querySelector('#deck-template-panel [data-usd-act="entry-search"]').click(); document.querySelector('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick"]').click(); await new Promise((res) => setTimeout(res, 200)); const v = Array.from(document.querySelectorAll('input[data-usd-el="filter-check"]:checked')).length; document.querySelector('[data-usd-act="picker-close"]').click(); return v; });
 		assert(pick === 0, 'オススメサポ段13C2 条件で検索には何も選ばれていない（状態は混ざらない）', pick);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C2 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();

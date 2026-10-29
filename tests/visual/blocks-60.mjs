@@ -148,8 +148,9 @@ export async function register60(env) {
 			const order = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="tier-row"] > *')).map((e) => e.getAttribute('data-usd-el') || e.className));
 			// C-226（②因子周回 段4）: 入口の行の右端の塊は「◎（候補があるときだけ）・表の切り替え・削除」（削除が一番右）
 			const iCircle = order.indexOf('factor-circle-mode');
-			const want = (iCircle === -1 ? [] : ['factor-circle-mode']).concat(['factor-view', 'palette-delete']);
-			assert(JSON.stringify(order) === JSON.stringify(want), '②星取表(1) ' + c.k + ' 切り替えのボタンは' + (iCircle === -1 ? '塊の先頭' : '◎のボタンのすぐ右') + '・「削除」の左', order);
+			// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右）
+			const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(iCircle === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
+			assert(JSON.stringify(order) === JSON.stringify(want), '②星取表(1) ' + c.k + ' 切り替えのボタンは塊の一番右（' + (iCircle === -1 ? '虫眼鏡' : '◎のボタン') + 'のすぐ右。C-235）', order);
 			const a = await read(sp.page);
 			assert((await viewBtn(sp.page)) === 'false' && !a.table, '②星取表(1) ' + c.k + ' 既定はカード一覧（ボタンは押していない状態）', null);
 			await setView(sp.page, true);

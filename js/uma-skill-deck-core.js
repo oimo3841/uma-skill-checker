@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30b';
 
 	/* ============================================================
 	 * 定数
@@ -6696,11 +6696,23 @@
 		'.usd-band-kunit { margin-left: 1px; font-size: 11px; font-weight: 400; color: var(--uma-text-muted); }',
 		'.usd-band-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }',
 		'.usd-band-main .uma-help-btn { flex: none; }',
-		// ②因子周回 段1（2026-10-27）: タグ2つをやめ、継承固有・共通スキルの「Pt／種」を1行目の中・↺ の左に右寄せの小さい文字の2行で出す
-		// （10px×1.2×2行＝24px。行の高さは ↺ の 28px のまま）。2行と ↺ は1つの右寄せの塊（.usd-band-end）で、
-		// 収まらない幅（320px など）では塊ごと2行目に落ちる（↺ だけが落ちて離れないように。①の fitBand と同じく2行目を許す）
-		'.usd-band-end { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }',
-		'.usd-band-stats { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; font-size: 10px; line-height: 1.2; color: var(--uma-text); }',
+		// C-235（②因子周回 段1 の右寄せの2行と ↺ の塊 .usd-band-end を置き換えた）:合計の行は［N Pt／N種］［?］［右寄せ：継承固有｜種数▾｜Lv▾］［共通スキルのヒントLv｜Lv▾］の1行。部品は 28px（中のセレクト 26px）で帯の高さを保つ。
+		// 入らない幅は文字を段階的に小さくし（data-usd-fit 1〜3）、それでも入らない幅だけ部品2つを2行目へ（data-usd-wrap。文字は元の大きさ）
+		'.usd-setband .usd-band-main { flex-wrap: nowrap; }',
+		'.usd-band-cfg { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex: none; }',
+		'.usd-band-cfg .usd-uniq { min-height: 28px; }',
+		'.usd-band-cfg .usd-uniq-sel { min-height: 26px; }',
+		'.usd-setband[data-usd-fit="1"] .usd-band-cfg .usd-uniq { font-size: 11px; padding-inline: 8px 2px; }',
+		'.usd-setband[data-usd-fit="2"] .usd-band-cfg .usd-uniq { font-size: 10px; padding-inline: 6px 1px; }',
+		'.usd-setband[data-usd-fit="2"]:not([data-usd-wrap]) .usd-band-pt { font-size: 20px; }',
+		'.usd-setband[data-usd-fit="3"] .usd-band-cfg .usd-uniq { font-size: 10px; padding-inline: 5px 0; }',
+		'.usd-setband[data-usd-fit="3"] .usd-band-cfg { gap: 4px; }',
+		'.usd-setband[data-usd-fit="3"] .usd-band-main { gap: 4px; }',
+		'.usd-setband[data-usd-fit="3"]:not([data-usd-wrap]) .usd-band-pt { font-size: 18px; }',
+		'.usd-setband[data-usd-fit="3"]:not([data-usd-wrap]) :is(.usd-band-slash, .usd-band-kinds) { font-size: 13px; }',
+		'.usd-setband[data-usd-wrap] .usd-band-main { flex-wrap: wrap; row-gap: 4px; }',
+		'.usd-setband[data-usd-wrap] .usd-band-cfg { margin-left: 0; flex-basis: 100%; }',
+		// ? の小窓の2行（継承固有・共通スキルの「Pt／種」）
 		'.usd-band-stat { white-space: nowrap; }',
 		'.usd-band-stat strong { color: var(--uma-text-heading); font-weight: 700; font-variant-numeric: tabular-nums; }',
 		'.usd-band-statname { color: var(--uma-text-muted); }',
@@ -6773,7 +6785,20 @@
 		'.usd-panel-xbtn svg { width: 16px; height: 16px; }',
 		'.usd-panel-xbtn:hover { color: var(--uma-danger-text); }',
 		'.usd-panel-xbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
-		'.usd-palette-del { display: inline-flex; align-items: center; gap: 3px; }',
+		// C-235: 削除はゴミ箱のアイコンだけの 28px の丸い枠（↺ と同じ大きさ）。選んでいるときの 2px の枠は今のまま
+		'.usd-palette-del { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--uma-r-full); }',
+		'.usd-palette-del svg { width: 15px; height: 15px; }',
+		// C-235: 虫眼鏡（↺ と同じ 28px の丸い枠）と、その小窓（4つの入口を縦に。幅いっぱい・左寄せ）
+		'.usd-search-btn svg { display: block; width: 16px; height: 16px; }',
+		'.usd-entry-search { display: flex; flex-direction: column; gap: 8px; }',
+		'.usd-entry-search > .uma-btn { width: 100%; justify-content: flex-start; white-space: nowrap; }',
+		// C-235: 入口の行が入らない幅は、オススメサポ・脚質オススメの文字を段階的に小さくする（data-usd-fit 1〜3。320px などそれでも入らない幅は今の横送り）
+		'.usd-skillgroup-head[data-usd-fit="1"] .usd-outside-entry { font-size: 10px; padding-inline: 8px; }',
+		'.usd-skillgroup-head[data-usd-fit="2"] .usd-outside-entry { font-size: 10px; padding-inline: 6px; gap: 2px; }',
+		'.usd-skillgroup-head[data-usd-fit="2"], .usd-skillgroup-head[data-usd-fit="2"] .usd-entry-row { gap: 4px; }',
+		'.usd-skillgroup-head[data-usd-fit="3"] .usd-outside-entry { font-size: 9px; padding-inline: 5px; gap: 2px; }',
+		'.usd-skillgroup-head[data-usd-fit="3"] .usd-outside-entry svg { width: 12px; height: 12px; }',
+		'.usd-skillgroup-head[data-usd-fit="3"], .usd-skillgroup-head[data-usd-fit="3"] .usd-entry-row { gap: 4px; }',
 		// ②因子周回 段2: 「削除」の右の◎のボタン（①の◎の漏斗のボタンの◎の絵だけを押せるようにした形。押せる範囲 28px＝①の列見出しのボタンと同じ）。
 		// 入っているときは「削除」を選んでいるときと同じ選択の印（2px の枠）
 		'.usd-factor-circlebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--uma-r-sm);',
@@ -6820,7 +6845,20 @@
 		'.usd-fstar-offhead { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2); font-weight: 700; color: var(--uma-text-muted); background: var(--uma-surface-muted); }',
 		'.usd-link-opt--off { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); }',
 		'.usd-link-opt--off .usd-link-name { color: var(--uma-text-faint); }',
-		'.usd-setlist-ops { display: flex; justify-content: flex-end; margin-top: var(--uma-sp-3); }',
+		'.usd-setlist-ops { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: var(--uma-sp-3); }',
+		// C-235: 編成セットの小窓。見出しの数「3/10」・小さい「空にする」・名前の入力の囲み（入力欄・一言・キャンセル・保存）
+		'.usd-setlist-count { margin-left: 8px; font-size: 12px; font-weight: 700; color: var(--uma-text-muted); font-variant-numeric: tabular-nums; }',
+		'.usd-setlist-clear { font: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; padding: 4px 8px; border: 0; border-radius: var(--uma-r-md); background: transparent;',
+		'  color: var(--uma-text-muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }',
+		'.usd-setlist-clear:hover { color: var(--uma-text-heading); background: var(--uma-surface-muted); }',
+		'.usd-setlist-clear:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-setname-box { margin-top: var(--uma-sp-3); padding: var(--uma-sp-2-5); border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface-muted); }',
+		'.usd-setname-label { display: block; font-size: 12px; font-weight: 700; color: var(--uma-text-heading); margin-bottom: 6px; }',
+		'.usd-setname-input { display: block; width: 100%; box-sizing: border-box; height: 36px; padding: 0 10px; border: 1px solid var(--uma-control-mark); border-radius: var(--uma-r-md);',
+		'  font: inherit; font-size: 14px; background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-setname-msg { margin: 6px 0 0; font-size: 12px; line-height: 1.4; font-weight: 600; color: var(--uma-danger-text); }',
+		'.usd-setname-msg[hidden] { display: none; }',
+		'.usd-setname-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }',
 		// 共通の見出しの帯（段9・C-121。段8・B を置き換えた）。左＝セット名（16px・太字）と「✎ 3／10 ▾」の丸い札（11px・線・薄い地）、
 		// 右＝2行（1行目「16,230 Pt／169種」＝18px・太字＋12px、2行目「切れ者・①＋②」10.5px の薄い字＋ ?）。375px で高さ 40px 以下
 		'.usd-setbar { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); min-height: 36px; }',
@@ -6828,6 +6866,10 @@
 		'.usd-setbar-r { display: flex; align-items: center; gap: var(--uma-sp-1); flex: none; }',
 		'.usd-setbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 1.25; font-weight: 800; color: var(--uma-text-heading); }',
 		'.usd-setbar-name--new { color: var(--uma-text-muted); }',
+		// C-235: セット名そのものが一覧の小窓のボタン（下線）。押せる高さは帯のボタンと同じ 28px
+		'button.usd-setbar-name { display: block; max-width: 100%; min-height: 28px; padding: 0; border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer;',
+		'  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }',
+		'button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; border-radius: var(--uma-r-sm); }',
 		'.usd-setbar-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
 		'.usd-setbar-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
 		'.usd-setbar-btn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: transparent; }',
@@ -6851,6 +6893,9 @@
 		'.usd-setbar-race--on:hover { background: var(--uma-control); }',
 		'.usd-setbar-race--on .usd-setbar-caret { color: var(--uma-control-text); }',
 		'@media (max-width: 359px) { .usd-setbar-race-caret { display: none; } .usd-setbar-race { padding: 0 7px; } .usd-setbar-race--on { padding: 0 5px; } .usd-setbar-race--on .usd-setbar-race-text { font-size: 10px; } }',
+		// C-235: ページのタイトルの行に置いたとき（opts.raceSlot）。入りきらなければ 11→10px（fitRaceSlot）、それでも入らなければ「…」
+		'.usd-setbar-race { max-width: 100%; }',
+		'.usd-setbar-race[data-usd-tight] { font-size: 10px; padding: 0 6px; }',
 		// レースの選択欄の行（1行目＝日付＋名前、2行目＝公開された条件）
 		'.usd-race-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }',
 		'.usd-race-cond { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }',
@@ -6898,7 +6943,8 @@
 		// ───── 段7c（2026-10-03）: 画面の最終調整（P） ─────
 		// (7) デスクトップ（641px 以上）: 表の高さを、画面の高さから FAB の置き場（ページが --usd-fab-dock に入れる）とわずかな余白を引いた値にする。
 		// ①のタブは本文の最後が表なので、ページを下端までスクロールすると表が画面いっぱいに見える（最小 360px）
-		'@media (min-width: 641px) { .usd-roster-grid-wrap { max-height: max(360px, calc(100dvh - var(--usd-fab-dock, 96px) - var(--uma-sp-6))); } }',
+		// C-235: special はタイトルの行と帯が上に残るので、その高さ（--usd-sticky-top。無いページは 0）も引く（下端までスクロールしたとき表の上が隠れない）
+		'@media (min-width: 641px) { .usd-roster-grid-wrap { max-height: max(360px, calc(100dvh - var(--usd-fab-dock, 96px) - var(--uma-sp-6) - var(--usd-sticky-top, 0px))); } }',
 		// (6) スマホ（640px 以下）: 操作と情報を1画面に収める。余白を詰め、育成ウマ娘とサポートカードを1つの帯にまとめ、
 		// 表を残りの高さいっぱいに広げる（表の上端の位置は JS が --usd-grid-top に入れる。入るまでの既定は 380px）
 		'@media (max-width: 640px) {',
@@ -9735,6 +9781,12 @@
 				if (e.key !== 'Escape' || !skillInfoCur) return;
 				e.preventDefault();
 				e.stopPropagation();
+				// 小窓の中に、Esc で先に閉じる部分（入力の囲みなど）があれば、そちらだけを閉じる（onEscape が true を返したとき）
+				if (typeof skillInfoCur.onEscape === 'function') {
+					let used = false;
+					try { used = skillInfoCur.onEscape() === true; } catch (err) { used = false; }
+					if (used) return;
+				}
 				closeSkillInfo();
 			}, true);
 		}
@@ -9771,13 +9823,14 @@
 	 *   o.titleHtml … 見出しを HTML で渡す（呼び出し元が esc 済みのもの。番号のバッジを付けるとき。段7b の ⑩）。無ければ o.title
 	 *   o.popClass … この小窓だけに付ける追加のクラス（次に別の小窓を開くと外れる。進化の画面の色・高さ・× の大きさ）
 	 *   o.wide … 広い幅で小窓の幅を広げる（イベントの選択の2カラム。共有の CSS には触らず、core のスタイルの修飾クラスで広げる）
+	 *   o.onEscape … Esc を押したときに先に呼ぶ。true を返すと小窓は閉じない（小窓の中の入力の囲みだけを閉じるとき）
 	 */
 	function openPopover(o) {
 		const ui = ensureSkillInfoUi();
 		if (skillInfoCur && skillInfoCur.btn) skillInfoCur.btn.setAttribute('aria-expanded', 'false');
 		if (skillInfoCur && typeof skillInfoCur.onClose === 'function' && skillInfoCur.key !== o.key) { try { skillInfoCur.onClose(); } catch (e) {} }
 		const token = ++skillInfoToken;
-		skillInfoCur = { key: o.key || '', skillId: o.skillId || null, btn: o.btn || null, opener: o.opener || o.btn || null, token: token, refocus: o.refocus || null, onClose: o.onClose || null };
+		skillInfoCur = { key: o.key || '', skillId: o.skillId || null, btn: o.btn || null, opener: o.opener || o.btn || null, token: token, refocus: o.refocus || null, onClose: o.onClose || null, onEscape: o.onEscape || null };
 		ui.pop.classList.toggle('usd-info-pop--wide', !!o.wide);
 		if (ui.popClass) ui.pop.classList.remove(ui.popClass);
 		ui.popClass = o.popClass || '';
@@ -12422,6 +12475,10 @@
 		const setBased = grouped && !!opts.setMode;
 		// 共通の見出しの帯の置き場（段8・B。中身は renderSetBar()）
 		const setBarEl = setBased && opts.setBar && opts.setBar.nodeType === 1 ? opts.setBar : null;
+		// C-235: レース条件のボタンを帯の外（ページのタイトルの行）に描くときの置き場。無ければ今までどおり帯の中
+		const raceSlotEl = setBarEl && opts.raceSlot && opts.raceSlot.nodeType === 1 ? opts.raceSlot : null;
+		// C-235: 編成セットの小窓の入力の囲み（{ mode: 'save'|'rename', value }。開いていなければ null。保存しない）
+		let setListEdit = null;
 		// シナリオ因子／遺伝子のチェックの置き場（段8・E。③の先頭の1行）
 		const scopesBarEl = setBased && opts.scopesBar && opts.scopesBar.nodeType === 1 ? opts.scopesBar : null;
 		const scopesHostEl = () => q(container, 'extra-scopes') || (scopesBarEl ? q(scopesBarEl, 'extra-scopes') : null);
@@ -12549,38 +12606,8 @@
 							// 「脚質オススメ」（2026-10-21。special の②だけ）。オススメサポの直後。オススメサポと同じクラス（usd-outside-entry）
 							(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="style-open" data-usd-el="style-open" aria-haspopup="dialog">' +
 								'<i data-lucide="flag" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 脚質オススメ</button>' : '') +
-						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
-							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
-						'</button>' +
-						// 「条件で検索」と「テキストで検索」の間（72セッション目・段9。おいもさんの指示）。
-						// 段8 でパッシブを「条件で検索」の母集団から外したので、**ここが唯一の入口**になる。
-						// 条件で選べないものを条件の隣に置くのは、利用者から見れば
-						// 「条件で探す／緑は名前で選ぶ／テキストで探す」という探し方の並びだから。
-						/* **色で名乗るのは草の芽のアイコン1つだけ**（72セッション目・段9 の追加のやり直し）。
-						   いったん面・枠・文字を緑で塗る形（`.uma-btn--danger` と同じ組み方）にしたが、
-						   **実機で他のボタンより明らかに大きく見えた** ―― 膨張色に加えて
-						   「緑スキルを追加（N種追加済み）」という長い文字でボタン自体が横に広がり、
-						   375px では入口の段数まで増えた（3段→4段）。
-						   いまは **地・枠・文字は他の入口と同じ黒系統**、呼び名も「緑スキル」に短くし、
-						   件数は**タブと同じ数字バッジ**（`.usd-entry-count`）にしてある。
-						   **0種のときは出さない**（数える意味が無い）。 */
-						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-passive">' +
-							'<i data-lucide="sprout" class="w-3.5 h-3.5 usd-green-icon" style="display:inline;vertical-align:-2px;"></i> 緑スキル' +
-							'<span class="usd-entry-count" data-usd-el="passive-added" hidden></span>' +
-						'</button>' +
-						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
-							'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
-						'</button>' +
-						// 4つ目の入口（スクショから読み取る）は呼び出し元が opts.screenshotEntry を渡したときだけ出す
-						// （special.html だけ。uma-skill-deck.html には出さない＝Deck 単体ページの入口は後続）。
-						// アイコンはツール内のアップロード枠と同じ lucide の upload-cloud（雲＋上矢印）。見た目は他の入口と揃える。
-						// 隣に「?」（撮影ガイド）を置いていたが外した: 入口を押せば必ずガイドが出るので情報を足さず、
-						// スマホ幅で「?」の直前に改行が入って並びが崩れたため（30セッション目・おいもさんの指示）。
-						(opts.screenshotEntry ?
-							'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-screenshot">' +
-								'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
-							'</button>'
-						: '') +
+						// 4つの入口（条件で検索・緑スキル・テキストで検索・スクショで追加）。special の②（setBased）では行に置かず、虫眼鏡の小窓に並べる（C-235）
+						(setBased ? '' : entryPickHtml()) +
 						// 「未収録スキルを追加」（editor-pick-custom）は 2026-09-27 に廃止した（C-100）
 						/* **「リセット」はここから名前の行へ移した**（73セッション目）。
 						   C-3 では「消す範囲が位置から分かる」ようにA の中へ置いていたが、
@@ -12607,6 +12634,43 @@
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
 			'</div>';
 
+		/** 4つの入口のボタン（Deck 単体ページは入口の行に、special の②は虫眼鏡の小窓に出す。C-235）。緑スキルの件数のバッジは描いたあとに入れる */
+		function entryPickHtml() {
+			return '' +
+				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
+					'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
+				'</button>' +
+				// 「条件で検索」と「テキストで検索」の間（72セッション目・段9。おいもさんの指示）。
+				// 段8 でパッシブを「条件で検索」の母集団から外したので、**ここが唯一の入口**になる。
+				// 条件で選べないものを条件の隣に置くのは、利用者から見れば
+				// 「条件で探す／緑は名前で選ぶ／テキストで探す」という探し方の並びだから。
+				/* **色で名乗るのは草の芽のアイコン1つだけ**（72セッション目・段9 の追加のやり直し）。
+				   いったん面・枠・文字を緑で塗る形（`.uma-btn--danger` と同じ組み方）にしたが、
+				   **実機で他のボタンより明らかに大きく見えた** ―― 膨張色に加えて
+				   「緑スキルを追加（N種追加済み）」という長い文字でボタン自体が横に広がり、
+				   375px では入口の段数まで増えた（3段→4段）。
+				   いまは **地・枠・文字は他の入口と同じ黒系統**、呼び名も「緑スキル」に短くし、
+				   件数は**タブと同じ数字バッジ**（`.usd-entry-count`）にしてある。
+				   **0種のときは出さない**（数える意味が無い）。 */
+				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-passive">' +
+					'<i data-lucide="sprout" class="w-3.5 h-3.5 usd-green-icon" style="display:inline;vertical-align:-2px;"></i> 緑スキル' +
+					'<span class="usd-entry-count" data-usd-el="passive-added" hidden></span>' +
+				'</button>' +
+				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
+					'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
+				'</button>' +
+				// 4つ目の入口（スクショから読み取る）は呼び出し元が opts.screenshotEntry を渡したときだけ出す
+				// （special.html だけ。uma-skill-deck.html には出さない＝Deck 単体ページの入口は後続）。
+				// アイコンはツール内のアップロード枠と同じ lucide の upload-cloud（雲＋上矢印）。見た目は他の入口と揃える。
+				// 隣に「?」（撮影ガイド）を置いていたが外した: 入口を押せば必ずガイドが出るので情報を足さず、
+				// スマホ幅で「?」の直前に改行が入って並びが崩れたため（30セッション目・おいもさんの指示）。
+				(opts.screenshotEntry ?
+					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-screenshot">' +
+						'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
+					'</button>'
+				: '') +
+				'';
+		}
 		// 段8・D（setBased）: 青灰色の枠をやめて①と同じ白いパネルにし、並びを組み替える。
 		//   「X Pt/N種 ? とチップ4つ」（pt-need）→ 継承固有・共通スキルのヒントLv（roster-link）→ 入口 → ランクと再分類・削除（tier-row）→ 一覧。
 		// 見出し「スキルセット」・合計のスロット・「追加済みスキル（N種）」の行は無い（再分類・削除は tier-row の右端に描く）。
@@ -12650,6 +12714,11 @@
 			group.appendChild(head);
 			group.appendChild(q(container, 'selected-list'));
 			body.appendChild(group);
+			// C-235: 合計の行と入口の行の文字の段（入らない幅だけ小さくする）。描き直しと幅の変化（タブを開いて見えたときを含む）で測り直す
+			if (typeof ResizeObserver === 'function') {
+				new ResizeObserver(() => fitSetHead()).observe(q(container, 'pt-need'));
+				new ResizeObserver(() => fitEntryHead()).observe(head);
+			}
 		}
 		// grouped（special の②）には名前の入力欄が無い（名前はタブの中で編集する）
 		const nameInput = grouped ? null : q(container, 'name-input');
@@ -12750,7 +12819,14 @@
 			else if (act === 'style-open') openStyleAdvisor(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
-			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
+			// C-235: 見出しは「編成セット 3/10」（保存済みの数／上限。無題は数えない）。入力の囲みは Esc・キャンセルでその部分だけ閉じる
+			else if (act === 'set-list') {
+				setListEdit = null;
+				openPopover({ key: 'set-list:' + draftScopeKey, titleHtml: setListTitleHtml(), build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]',
+					onClose: () => { setListEdit = null; }, onEscape: closeSetListEdit });
+			}
+			// C-235: 虫眼鏡。4つの入口を縦に並べた小窓（1つを押すと小窓を閉じて、今と同じ画面へ）
+			else if (act === 'entry-search') openPopover({ key: 'entry-search:' + draftScopeKey, title: 'スキルを探して追加', build: fillEntrySearch, btn: btn, opener: btn, refocus: '[data-usd-act="entry-search"]' });
 			else if (act === 'set-total-help') openPopover({ key: 'set-total:' + draftScopeKey, title: '合計', build: fillSetTotalInfo, btn: btn, opener: btn, refocus: '[data-usd-act="set-total-help"]' });
 			else if (act === 'set-race') openPopover({ key: 'set-race:' + draftScopeKey, title: 'レース', build: fillRaceList, btn: btn, opener: btn, refocus: '[data-usd-act="set-race"]' });
 		}
@@ -12774,6 +12850,15 @@
 				if (e.key === 'Enter') { e.preventDefault(); commitNameEdit(); }
 				else if (e.key === 'Escape' && nameEdit) { e.preventDefault(); e.stopPropagation(); nameEdit = null; render(); }
 			});
+		}
+		// C-235: レース条件のボタンの置き場（ページのタイトルの行。opts.raceSlot）。押したときの処理は帯と同じ
+		if (raceSlotEl) {
+			raceSlotEl.addEventListener('click', (e) => {
+				const b = e.target.closest('[data-usd-act]');
+				if (!b || !raceSlotEl.contains(b)) return;
+				onTmAct(b, b.dataset.usdAct);
+			});
+			if (typeof ResizeObserver === 'function') new ResizeObserver(() => fitRaceSlot()).observe(raceSlotEl);
 		}
 		container.addEventListener('change', (e) => {
 			const box = e.target;
@@ -13025,46 +13110,47 @@
 
 		/* ------------------------------------------------------------
 		 * 共通の見出しの帯（段8・B。special だけ＝setBased で opts.setBar を渡したとき）
-		 *   左：セット名・✎（名前の入力。Enter＝確定・Esc＝取り消し）・「3／10 ▾」（保存済みのセットの数／上限。押すと一覧の小窓）
+		 *   左：セット名（下線。押すと編成セットの小窓。C-235 で「✎｜3／10 ▾」の札とレース条件を帯から無くした。名前の入力・変更は小窓の中）
 		 *   右：「合計 N Pt（切れ者、①＋②）」と ?（式「合計 ＝ ① X ＋ ② Y」）
+		 * レース条件のボタンは、opts.raceSlot があればそこ（ページのタイトルの行）に描く。
 		 * 帯の置き場（sticky）は呼び出し元のページが決める。中身はここが描く
 		 * ------------------------------------------------------------ */
 		function setNameOf(target) {
 			if (target.kind === 'template') return target.obj.name || '（名称未設定）';
-			return '＋新規';
+			return '無題（新規）';
+		}
+		/** レース条件のボタン（④・段9）。①の roster が持つ（帯は①の描き直しの知らせで描き直る）。選んでいるときは濃色 */
+		function setRaceBtnHtml() {
+			// 段13・B1: 選んでいるときは条件の短い形（「京都 芝2200m」「芝 中距離」）を出す。入りきらなければ 11→10px（C-235）、それでも入らなければ「…」で切る。レース名の全文は選択欄の中で見る
+			const race = raceOfRoster(rosterOutsideSink.getRoster());
+			const lab = race ? 'レース：' + (raceDateText(race) ? raceDateText(race) + ' ' : '') + race.name : 'レース';
+			const text = race ? (raceShortText(race) || 'レース') : 'レース';
+			return '<button type="button" class="usd-setbar-race' + (race ? ' usd-setbar-race--on' : '') + '" data-usd-act="set-race" data-usd-el="set-race-btn" aria-haspopup="dialog" aria-expanded="false"'
+				+ ' aria-pressed="' + (race ? 'true' : 'false') + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '">'
+				+ '<span class="usd-setbar-race-text" data-usd-el="set-race-text">' + esc(text) + '</span><span class="usd-setbar-caret usd-setbar-race-caret" aria-hidden="true">▾</span></button>';
+		}
+		/** タイトルの行のレースのボタン: 入りきらなければ文字を 11→10px（data-usd-tight）。それでも入らなければ CSS の「…」 */
+		function fitRaceSlot() {
+			if (!raceSlotEl) return;
+			const b = raceSlotEl.querySelector('.usd-setbar-race');
+			if (!b) return;
+			b.removeAttribute('data-usd-tight');
+			const t = b.querySelector('.usd-setbar-race-text');
+			if (t && t.scrollWidth > t.clientWidth + 1) b.setAttribute('data-usd-tight', '');
 		}
 		function renderSetBar() {
 			if (!setBarEl) return;
 			const target = currentTarget();
 			const list = ensureUserData().templates;
 			const sum = setSummaryOf(target);
-			const icon = (name, cls) => '<i data-lucide="' + name + '" class="' + (cls || 'w-4 h-4') + '" aria-hidden="true"></i>';
-			const btn = (act, el, label, inner, extra) => '<button type="button" class="usd-setbar-btn" data-usd-act="' + act + '" data-usd-el="' + el + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"' + (extra || '') + '>' + inner + '</button>';
-			let left;
-			if (nameEdit) {
-				const value = String(nameEdit.value || '');
-				left = '<input class="usd-setbar-input" type="text" data-usd-el="name" data-usd-act="name" value="' + esc(value) + '" placeholder="セットの名前" aria-label="セットの名前" />'
-					+ btn('name-commit', 'name-commit', target.kind === 'template' ? '名前を確定' : 'セットを保存', icon('check'), target.kind !== 'template' && !value.trim() ? ' disabled' : '')
-					+ btn('name-cancel', 'name-cancel', '編集を取り消す', icon('undo-2'));
-			} else {
-				const name = setNameOf(target);
-				// 名前（16px・太字）と、「✎ 3／10 ▾」の丸い札（11px・1pxの線・薄い地）。札は名前と区別するためのもの
-				left = '<span class="usd-setbar-name' + (target.kind === 'template' ? '' : ' usd-setbar-name--new') + '" data-usd-el="set-name" title="' + esc(name) + '">' + esc(name) + '</span>'
-					+ '<span class="usd-setbar-pill" data-usd-el="set-pill">'
-					+ btn('name-edit', 'name-edit', target.kind === 'template' ? 'セットの名前を変える' : '名前を付けて保存', icon('pencil', 'w-3 h-3'))
-					+ '<button type="button" class="usd-setbar-list" data-usd-act="set-list" data-usd-el="set-list-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）">'
-					+ '<span data-usd-el="set-count">' + list.length + '／' + TEMPLATE_LIMIT + '</span><span class="usd-setbar-caret" aria-hidden="true">▾</span></button></span>';
-				// レース条件（④・段9）。①の roster が持つ（帯は①の描き直しの知らせで描き直る）。選んでいるときは濃色。
-				// 段13・B1: 選んでいるときは条件の短い形（「京都 芝2200m」「芝 中距離」）を出す。入りきらなければ「…」で切る。レース名の全文は選択欄の中で見る
-				if (rosterOutsideSink) {
-					const race = raceOfRoster(rosterOutsideSink.getRoster());
-					const lab = race ? 'レース：' + (raceDateText(race) ? raceDateText(race) + ' ' : '') + race.name : 'レース';
-					const text = race ? (raceShortText(race) || 'レース') : 'レース';
-					left += '<button type="button" class="usd-setbar-race' + (race ? ' usd-setbar-race--on' : '') + '" data-usd-act="set-race" data-usd-el="set-race-btn" aria-haspopup="dialog" aria-expanded="false"'
-						+ ' aria-pressed="' + (race ? 'true' : 'false') + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '">'
-						+ '<span class="usd-setbar-race-text" data-usd-el="set-race-text">' + esc(text) + '</span><span class="usd-setbar-caret usd-setbar-race-caret" aria-hidden="true">▾</span></button>';
-				}
-			}
+			const name = setNameOf(target);
+			// C-235: セット名（16px・太字・下線）がそのまま一覧の小窓のボタン。読み上げの名前は「セットの一覧（3／10件）」（名前は title に）
+			let left = '<button type="button" class="usd-setbar-name' + (target.kind === 'template' ? '' : ' usd-setbar-name--new') + '" data-usd-act="set-list" data-usd-el="set-name"'
+				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）" title="' + esc(name) + '">' + esc(name) + '</button>';
+			if (rosterOutsideSink) {
+				if (raceSlotEl) raceSlotEl.innerHTML = setRaceBtnHtml();
+				else left += setRaceBtnHtml();
+			} else if (raceSlotEl) raceSlotEl.innerHTML = '';
 			let right = '';
 			if (sum) {
 				// 1行目「16,230 Pt／169種」、2行目「切れ者・①＋②」＋ ?（式「合計 ＝ ① X ＋ ② Y」）
@@ -13075,17 +13161,10 @@
 					+ '<span class="usd-setbar-subline"><span class="usd-setbar-sub" data-usd-el="set-total-sub">' + esc(sub) + '</span>'
 					+ '<button type="button" class="uma-help-btn" data-usd-act="set-total-help" data-usd-el="set-total-help" aria-haspopup="dialog" aria-expanded="false" aria-label="合計の式" title="合計の式">?</button></span></span>';
 			}
-			const nameHadFocus = inputFocusedIn(setBarEl, 'name');   // C-128: あったときだけ当て直す
 			setBarEl.innerHTML = '<div class="usd-setbar" data-usd-el="setbar"><div class="usd-setbar-l">' + left + '</div><div class="usd-setbar-r">' + right + '</div></div>';
-			refreshIcons();
+			fitRaceSlot();
 			// ②のタブの脇の「N種」は②の先頭の N と同じ値（special が受け取って出す）
 			if (typeof opts.onSetSummary === 'function') { try { opts.onSetSummary(sum); } catch (e) { /* 呼び出し元の不具合で帯を止めない */ } }
-			// 名前の欄は、✎で開いた直後か、描き直しの前に focus があったときだけ（C-128。描き直しのたびに当てると、閉じたキーボードがまた出る）
-			if (nameEdit && (nameEdit.focusOnce || nameHadFocus)) {
-				const input = q(setBarEl, 'name');
-				if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
-			}
-			if (nameEdit) nameEdit.focusOnce = false;
 		}
 		/** 合計の式の小窓（?）。「合計 ＝ ① X ＋ ② Y」 */
 		function fillSetTotalInfo(body) {
@@ -13189,7 +13268,96 @@
 			if (!a || !b || a.kind !== b.kind) return false;
 			return a.kind === 'draft' || (a.obj && b.obj && a.obj.templateId === b.obj.templateId);
 		}
-		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
+		/** 編成セットの小窓の見出し「編成セット 3/10」（保存済みの数／上限。無題は数えない。C-235） */
+		function setListTitleHtml() {
+			return '編成セット<span class="usd-setlist-count" data-usd-el="set-count">' + ensureUserData().templates.length + '/' + TEMPLATE_LIMIT + '</span>';
+		}
+		/**
+		 * 名前の入力の止め方（C-235）。block＝保存を押せない、msg＝欄の下に出す一言（無ければ ''）。
+		 * 10/10（名前を付けて保存のときだけ）→ 空 → 同じ名前（名前を変えるときは、いまのセット自身は除く）の順
+		 */
+		function setNameProblemOf(value, mode) {
+			const data = ensureUserData();
+			if (mode === 'save' && data.templates.length >= TEMPLATE_LIMIT) return { block: true, msg: 'セットは' + TEMPLATE_LIMIT + '件までです。削除してから保存してください。' };
+			const v = String(value || '').trim();
+			if (!v) return { block: true, msg: '' };
+			const curId = currentTemplateId() || '';
+			if (data.templates.some(t => !(mode === 'rename' && t.templateId === curId) && String(t.name || '').trim() === v)) return { block: true, msg: '同じ名前のセットがあります。別の名前にしてください。' };
+			return { block: false, msg: '' };
+		}
+		/** 小窓を開いたまま、中身だけ描き直す（入力の囲みの開け閉め） */
+		function refillSetList(focusEl) {
+			if (!skillInfoUi || !skillInfoCur || skillInfoCur.key !== 'set-list:' + draftScopeKey) return;
+			skillInfoUi.body.textContent = '';
+			fillSetList(skillInfoUi.body);
+			const f = focusEl ? q(skillInfoUi.body, focusEl) : null;
+			if (f) focusNoScroll(f);
+		}
+		/** 入力の囲みを開く（mode: 'save'＝名前を付けてセットを保存／'rename'＝セット名を変更。変更は今の名前から） */
+		function openSetListEdit(mode) {
+			const t = currentTarget();
+			setListEdit = { mode: mode, value: mode === 'rename' && t.kind === 'template' ? String(t.obj.name || '') : '' };
+			refillSetList('set-name-input');
+			const input = skillInfoUi ? q(skillInfoUi.body, 'set-name-input') : null;
+			if (input) input.setSelectionRange(input.value.length, input.value.length);
+		}
+		/** Esc・キャンセル: 入力の囲みだけを閉じる（小窓は開いたまま）。閉じたときは true（openPopover の onEscape） */
+		function closeSetListEdit() {
+			if (!setListEdit) return false;
+			const mode = setListEdit.mode;
+			setListEdit = null;
+			refillSetList(mode === 'save' ? 'set-save-open' : 'set-rename-open');
+			return true;
+		}
+		/** 入力の囲みの「保存」（Enter も同じ）。止める条件に当たるときは何もしない */
+		function commitSetListEdit() {
+			if (!setListEdit) return;
+			const input = skillInfoUi ? q(skillInfoUi.body, 'set-name-input') : null;
+			const value = input ? input.value : setListEdit.value;
+			const mode = setListEdit.mode;
+			if (setNameProblemOf(value, mode).block) return;
+			const v = String(value).trim();
+			setListEdit = null;
+			closeSkillInfo();
+			if (mode === 'save') { saveCurrent(v); return; }
+			// 名前の変更: 付いている①の編成の名前も同じにする（今の名前の変更と同じ）
+			const target = currentTarget();
+			if (target.kind !== 'template') return;
+			target.obj.name = v;
+			target.obj.updatedAt = nowIso();
+			const r = setRosterOfTemplate(target.obj);
+			if (r) { r.name = v; r.updatedAt = nowIso(); }
+			saveUserData();
+			nameEdit = null;
+			render();
+			fireSelection();
+			fireChange();
+		}
+		/** 虫眼鏡の小窓（C-235）。4つの入口を今と同じ名前・アイコンで縦に並べる。1つを押すと小窓を閉じて、今と同じ画面へ */
+		function fillEntrySearch(body) {
+			const list = infoEl('div', 'usd-entry-search');
+			list.setAttribute('data-usd-el', 'entry-search-list');
+			list.innerHTML = entryPickHtml();
+			const passiveAdded = q(list, 'passive-added');
+			if (passiveAdded) {
+				const n = countPassiveSkills(editingSkillIds());
+				passiveAdded.hidden = n === 0;
+				passiveAdded.textContent = String(n);
+			}
+			list.addEventListener('click', (e) => {
+				const b = e.target.closest ? e.target.closest('[data-usd-act]') : null;
+				if (!b || !list.contains(b)) return;
+				closeSkillInfo();
+				onTmAct(b, b.dataset.usdAct);
+			});
+			body.appendChild(list);
+			refreshIcons();
+		}
+		/**
+		 * 編成セットの小窓（ラジオで切り替え・無題（新規）・選んだセットの操作）。C-235:
+		 *   無題を選んでいるとき …「名前を付けてセットを保存」（入力欄・キャンセル・保存の囲みを開く）と、小さく「空にする」（無題の①②の下書きを空にする）
+		 *   保存済みを選んでいるとき …「セット名を変更」（同じ囲み。今の名前から）と「削除」
+		 */
 		function fillSetList(body) {
 			const data = ensureUserData();
 			const curId = currentTemplateId() || '';
@@ -13198,7 +13366,7 @@
 			group.setAttribute('role', 'radiogroup');
 			group.setAttribute('aria-label', 'セット');
 			group.setAttribute('data-usd-el', 'set-list');
-			const items = [{ id: '', name: '＋新規' }].concat(data.templates.map(t => ({ id: t.templateId, name: t.name || '（名称未設定）' })));
+			const items = [{ id: '', name: '無題（新規）' }].concat(data.templates.map(t => ({ id: t.templateId, name: t.name || '（名称未設定）' })));
 			items.forEach(o => {
 				const on = o.id === curId;
 				const blocked = !o.id && full && !on;   // 上限のときは「＋新規」へ移れない
@@ -13225,13 +13393,68 @@
 				warn.setAttribute('data-usd-el', 'limit-notice');
 				body.appendChild(warn);
 			}
+			const mk = (cls, text, el, onClick) => {
+				const b = infoEl('button', cls, text);
+				b.type = 'button';
+				b.setAttribute('data-usd-el', el);
+				b.addEventListener('click', onClick);
+				return b;
+			};
 			const row = infoEl('div', 'usd-setlist-ops');
-			const del = infoEl('button', 'uma-btn uma-btn--danger', '削除');
-			del.type = 'button';
-			del.setAttribute('data-usd-el', 'set-delete');
-			del.addEventListener('click', () => { closeSkillInfo(); askResetTab(); });
-			row.appendChild(del);
-			body.appendChild(row);
+			const editing = setListEdit;
+			// 削除（保存済み＝そのセットを①②ごと削除）と空にする（無題＝①②の下書きを空にする）は、今の「削除」と同じ処理・同じ確認
+			const askReset = () => { closeSkillInfo(); askResetTab(); };
+			if (!curId) {
+				if (!editing) {
+					row.appendChild(mk('usd-setlist-clear', '空にする', 'set-clear', askReset));
+					row.appendChild(mk('uma-btn uma-btn--primary', '名前を付けてセットを保存', 'set-save-open', () => openSetListEdit('save')));
+				}
+			} else {
+				if (!editing) row.appendChild(mk('uma-btn uma-btn--secondary', 'セット名を変更', 'set-rename-open', () => openSetListEdit('rename')));
+				row.appendChild(mk('uma-btn uma-btn--danger', '削除', 'set-delete', askReset));
+			}
+			if (row.firstChild) body.appendChild(row);
+			if (!editing) return;
+			// 入力の囲み（入力欄・一言・キャンセル・保存）。Enter＝保存、Esc・キャンセル＝この囲みだけを閉じる
+			const box = infoEl('div', 'usd-setname-box');
+			box.setAttribute('data-usd-el', 'set-name-box');
+			box.setAttribute('data-mode', editing.mode);
+			const title = editing.mode === 'save' ? '名前を付けてセットを保存' : 'セット名を変更';
+			const label = infoEl('label', 'usd-setname-label', title);
+			const inputId = uid('usdsetname');
+			label.setAttribute('for', inputId);
+			const input = infoEl('input', 'usd-setname-input');
+			input.type = 'text';
+			input.id = inputId;
+			input.value = editing.value;
+			input.placeholder = 'セットの名前';
+			input.setAttribute('data-usd-el', 'set-name-input');
+			const msg = infoEl('p', 'usd-setname-msg');
+			msg.setAttribute('data-usd-el', 'set-name-msg');
+			msg.setAttribute('role', 'status');
+			const btns = infoEl('div', 'usd-setname-btns');
+			const cancel = mk('uma-btn uma-btn--secondary', 'キャンセル', 'set-name-cancel', () => closeSetListEdit());
+			const save = mk('uma-btn uma-btn--primary', '保存', 'set-name-save', () => commitSetListEdit());
+			const check = () => {
+				const p = setNameProblemOf(input.value, editing.mode);
+				save.disabled = p.block;
+				msg.textContent = p.msg;
+				msg.hidden = !p.msg;
+			};
+			input.addEventListener('input', () => { if (setListEdit) setListEdit.value = input.value; check(); });
+			input.addEventListener('keydown', (e) => {
+				if (e.key !== 'Enter' || e.isComposing) return;
+				e.preventDefault();
+				commitSetListEdit();
+			});
+			btns.appendChild(cancel);
+			btns.appendChild(save);
+			box.appendChild(label);
+			box.appendChild(input);
+			box.appendChild(msg);
+			box.appendChild(btns);
+			body.appendChild(box);
+			check();
 		}
 
 		function renderNameRow() {
@@ -13325,30 +13548,8 @@
 			if (!el) return;
 			if (!grouped || !rosterPtSource) { el.hidden = true; el.innerHTML = ''; return; }
 			const target = currentTarget();
-			if (setBased) {
-				// 段8・D: ②の2行目［継承固有 6種▾ Lv3▾］［共通スキルのヒントLv 5▾］（「親由来のレベル」を改名。保存は今のまま）。
-				// 継承固有の Pt は1行目のチップに出すので、ここには出さない。重なり・不要にしたスキルの知らせは出さない（①で取得するものは②に数えない）
-				const rules = skillPtData.rules;
-				const uq0 = resolveInheritedUnique(inheritedUniqueOf(target), rules);
-				const opt = (list, cur, fmt) => list.map(v => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + fmt(v) + '</option>').join('');
-				let s = '<div class="usd-roster-linkrow usd-setcfg usd-hscroll" data-usd-no-trim="1" data-usd-el="roster-link-row">'
-					+ '<span class="usd-uniq" role="group" aria-label="継承固有" data-usd-el="uniq">'
-					+ '<span class="usd-uniq-label">継承固有</span>'
-					+ '<select class="usd-uniq-sel" data-usd-act="uniq-count" data-usd-el="uniq-count" aria-label="継承固有の種類">' + opt(inheritedUniqueCountChoices(), uq0.count, v => v + '種') + '</select>'
-					+ '<select class="usd-uniq-sel" data-usd-act="uniq-level" data-usd-el="uniq-level" aria-label="継承固有のヒントレベル">' + opt(inheritedUniqueLevelChoices(rules), uq0.hintLevel, v => 'Lv' + v) + '</select>'
-					+ '</span>';
-				if (rules) {
-					const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
-					s += '<span class="usd-uniq" role="group" aria-label="共通スキルのヒントLv" data-usd-el="parent-level-group">'
-						+ '<span class="usd-uniq-label">共通スキルのヒントLv</span>'
-						+ '<select class="usd-uniq-sel" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="共通スキルのヒントLv">'
-						+ opt(parentHintLevelChoices(rules), F, v => String(v)) + '</select></span>';
-				}
-				el.hidden = false;
-				el.innerHTML = s + '</div>';
-				scanEntryRows();
-				return;
-			}
+			// C-235: special の②（setBased）の［継承固有｜種数▾｜Lv▾］［共通スキルのヒントLv｜Lv▾］は合計の行（renderSetHead）に移した。設定の枠の行は無い
+			if (setBased) { el.hidden = true; el.innerHTML = ''; return; }
 			const linked = linkedRosterOf(target);
 			const sure = new Set(linked ? rosterSureIdsOf(linked) : []);
 			const offSet = new Set(linked ? rosterOffIdsOf(linked) : []);
@@ -13727,55 +13928,105 @@
 		}
 
 		/**
-		 * ②の帯（段9・C-121。段8・D の1行目を置き換えた）。薄い帯の中に、1段目「X Pt／N種 ?」と右端の「↺」（リセット。E）、
-		 * その間（↺ の左）に右寄せの小さい文字の2行「継承固有 720 Pt／6種」「共通スキル 7,693 Pt／98種」（押せない表示。②因子周回 段1・2026-10-27 に
-		 * 2段目のタグ2つから置き換えた）。収まらない幅では、2行の塊と ↺ が2段目に落ちる。
-		 * 「?」の小窓には、理論値の説明・式・数えていないスキルの注記を入れる（①と重なるものがあるときだけ赤い点）。
+		 * ②の帯（段9・C-121。段8・D の1行目を置き換えた）。C-235: 薄い帯の中に「X Pt／N種」「?」と、右寄せの部品2つ
+		 * ［継承固有｜種数▾｜Lv▾］［共通スキルのヒントLv｜Lv▾］（設定の枠の行から移した）。収まらない幅は文字を小さくし、それでも入らない幅だけ部品が2段目へ（fitSetHead）。
+		 * 「?」の小窓には「継承固有 720 Pt／6種」「共通スキル 7,693 Pt／98種」の2行だけ。↺ は入口の行の右端の塊（renderPalette）。
 		 */
 		function renderSetHead(el, st) {
 			const r = st.r;
 			if (!r || !r.ok) { el.hidden = true; el.innerHTML = ''; return; }
-			const sum = setSummaryOf(currentTarget());
+			const target = currentTarget();
+			const sum = setSummaryOf(target);
 			if (!sum) { el.hidden = true; el.innerHTML = ''; return; }
-			const taken = sum.takenIds.length;
-			const fmt = formatPtNumber;
-			const tag = (el2, name, pt, kinds, extra) => '<span class="usd-band-stat" data-usd-el="' + el2 + '" data-pt="' + pt + '" data-kinds="' + kinds + '">'
-				+ '<span class="usd-band-statname">' + esc(name) + '</span> <strong>' + fmt(pt) + '</strong> Pt／' + kinds + '種</span>';
 			// data-cuts は検査用（画面には出さない）。分類（アイコンから導いた tiers）ごとの「そのランクのぶん」と「そのランクまでの累計」。
 			// 計算（computeFactorSetPt）の検証に使う。合計・種の表示には使わない（共通スキルはアイコンに関係なく全部数える）
 			const cuts = JSON.stringify(r.cuts.map(c => ({ tier: c.tier, own: c.own, total: c.total })));
+			// C-235: 右寄せの部品2つ［継承固有｜6種▾｜Lv3▾］［共通スキルのヒントLv｜5▾］（設定の枠の行から移した。保存は今のまま）。
+			// 継承固有・共通スキルの「Pt／種」の2行は ? の小窓の中だけ。? の赤い点（①で取得するスキル）は無くした。↺ は入口の行の右端の塊へ
+			const rules = skillPtData.rules;
+			const uq0 = resolveInheritedUnique(inheritedUniqueOf(target), rules);
+			const opt = (list, cur, fmt) => list.map(v => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + fmt(v) + '</option>').join('');
+			let cfg = '<span class="usd-band-cfg" data-usd-el="band-cfg">'
+				+ '<span class="usd-uniq" role="group" aria-label="継承固有" data-usd-el="uniq">'
+				+ '<span class="usd-uniq-label">継承固有</span>'
+				+ '<select class="usd-uniq-sel" data-usd-act="uniq-count" data-usd-el="uniq-count" aria-label="継承固有の種類">' + opt(inheritedUniqueCountChoices(), uq0.count, v => v + '種') + '</select>'
+				+ '<select class="usd-uniq-sel" data-usd-act="uniq-level" data-usd-el="uniq-level" aria-label="継承固有のヒントレベル">' + opt(inheritedUniqueLevelChoices(rules), uq0.hintLevel, v => 'Lv' + v) + '</select>'
+				+ '</span>';
+			if (rules) {
+				const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
+				cfg += '<span class="usd-uniq" role="group" aria-label="共通スキルのヒントLv" data-usd-el="parent-level-group">'
+					+ '<span class="usd-uniq-label">共通スキルのヒントLv</span>'
+					+ '<select class="usd-uniq-sel" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="共通スキルのヒントLv">'
+					+ opt(parentHintLevelChoices(rules), F, v => String(v)) + '</select></span>';
+			}
+			cfg += '</span>';
 			el.innerHTML = '<div class="usd-setband usd-bandbox" data-usd-el="set-head" data-cuts="' + esc(cuts) + '">'
 				+ '<div class="usd-band-main">'
 				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span>'
-				+ '<button type="button" class="uma-help-btn usd-band-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'
-				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明' + (taken > 0 ? '（①で取得するスキルあり）' : '') + '" title="②の Pt の説明">?</button>'
-				+ '<span class="usd-band-end">'
-				+ '<span class="usd-band-stats" data-usd-no-trim="1" data-usd-el="pt-chips">'
-				+ tag('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds)
-				+ tag('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds)
-				+ '</span>'
-				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
-				+ '</span></div></div>';
+				+ '<button type="button" class="uma-help-btn usd-band-help" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
+				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明" title="②の Pt の説明">?</button>'
+				+ cfg
+				+ '</div></div>';
 			el.hidden = false;
+			// ↺ は入口の行の右端の塊（renderPalette）。押せるか（消すスキルがあるか）はここで合わせる
+			const reset = q(container, 'factor-reset');
+			if (reset) reset.disabled = !canResetFactor(target);
 			renderPanelPts();
+			fitSetHead();
 			scanEntryRows();
+		}
+		/**
+		 * 合計の行が1行に入らないときは文字を段階的に小さくし（data-usd-fit 1〜3）、それでも入らない幅だけ
+		 * 部品2つを2行目に折り返す（data-usd-wrap。折り返したら文字は元の大きさ）。C-235
+		 */
+		function fitSetHead() {
+			const band = q(container, 'set-head');
+			const main = band ? band.querySelector('.usd-band-main') : null;
+			if (!main || !main.offsetParent) return;
+			band.removeAttribute('data-usd-wrap');
+			for (let lv = 0; lv <= 3; lv++) {
+				if (lv) band.setAttribute('data-usd-fit', String(lv)); else band.removeAttribute('data-usd-fit');
+				if (main.scrollWidth <= main.clientWidth + 0.5) return;
+			}
+			band.removeAttribute('data-usd-fit');
+			band.setAttribute('data-usd-wrap', '');
+			// 2行目でも元の大きさで入らない幅（320px など）だけ、2行目の部品の文字を同じ段で小さくする（横にはみ出さない）
+			for (let lv = 1; lv <= 3 && main.scrollWidth > main.clientWidth + 0.5; lv++) band.setAttribute('data-usd-fit', String(lv));
+		}
+		/**
+		 * 入口の行（オススメサポ・脚質オススメ｜右端の塊）が入らないときは、オススメサポ・脚質オススメの文字を段階的に小さくする（data-usd-fit 1〜3）。
+		 * それでも入らない幅（320px など）だけ、今の横に送る形（端のフェード・切り詰め）が残る。C-235
+		 */
+		function fitEntryHead() {
+			const head = container.querySelector('.usd-skillgroup-head');
+			const row = head ? head.querySelector('.usd-entry-row') : null;
+			if (!row || !row.offsetParent) return;
+			row.style.setProperty('--usd-entry-trim', '0px');
+			for (let lv = 0; lv <= 3; lv++) {
+				if (lv) head.setAttribute('data-usd-fit', String(lv)); else head.removeAttribute('data-usd-fit');
+				if (row.scrollWidth <= row.clientWidth + 0.5) break;
+			}
+			measureEntryRowTrim(row);
+			updateEntryRowFade(row);
 		}
 		/** ②に消すものがあるか（スキルが1つでも）。↺ を押せるかの判定。C-226: アイコン（skillIcons）は②では読まないので数えない */
 		function canResetFactor(target) {
 			return (skillIdsOf(target) || []).length > 0;
 		}
-		/** ②の「?」の小窓（段9）。理論値の説明・式・数えていないもの */
+		/** ②の「?」の小窓（段9）。C-235: 中身は「継承固有 720 Pt／6種」「共通スキル 7,693 Pt／98種」の2行だけ（合計の行から移した） */
 		function fillFactorHelp(body) {
-			const target = currentTarget();
-			const sum = setSummaryOf(target);
-			const line = (text, el) => { const p = infoEl('p', '', text); p.setAttribute('data-usd-el', el); body.appendChild(p); };
+			const sum = setSummaryOf(currentTarget());
 			if (!sum) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'Pt のデータを読み込めませんでした')); return; }
-			const r = sum.st.r, fmt = formatPtNumber;
-			line('理論値です。親から得るスキルは、共通スキルのヒントLv（いま ' + sum.st.F + '）で得たものとして計算しています。', 'factor-help-theory');
-			line('② ＝ 継承固有 ' + fmt(sum.uniqPt) + ' ＋ 共通スキル ' + fmt(sum.commonPt), 'factor-help-formula');
-			if (r.unpricedCount > 0) line('Pt 未収録のスキル ' + r.unpricedCount + '種は数えていません', 'factor-help-unpriced');
-			if (sum.takenIds.length > 0) line('①で取得するスキル ' + sum.takenIds.length + '種は数えていません', 'factor-help-taken');
-			if (skillPtData.meta.stepUp === 'failed') line('前段のデータを読み込めませんでした', 'factor-help-prev-error');
+			const line = (el, name, pt, kinds) => {
+				const p = infoEl('p', 'usd-band-stat');
+				p.setAttribute('data-usd-el', el);
+				p.setAttribute('data-pt', String(pt));
+				p.setAttribute('data-kinds', String(kinds));
+				p.innerHTML = '<span class="usd-band-statname">' + esc(name) + '</span> <strong>' + formatPtNumber(pt) + '</strong> Pt／' + kinds + '種';
+				body.appendChild(p);
+			};
+			line('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds);
+			line('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds);
 		}
 		// 親由来のレベル F を替えて保存する（因子セット＝選んでいるセット側に持つ）。「元に戻す」には積まない（選び直せば戻る設定）
 		function setParentHintLevel(level) {
@@ -14923,8 +15174,8 @@
 
 		/**
 		 * 入口の行の右端の固定の塊（②因子周回 段4・C-226。段9 のパレット「削除 │ ◎ ○ △ ◇ ★ ✕」の行を無くした＝D5）。
-		 * 並びは「◎（◎を○に変えるモード。候補が無いときは出さない）・表の切り替え（カード一覧／星取表）・削除」で、**削除が一番右**。
-		 * 塊は横に送らない（入口のボタンだけが横に送られる）ので、狭い幅でも常に見える。◎が消えても削除の位置は動かない（右詰め）。
+		 * C-235: 並びは「削除・↺・虫眼鏡・◎（◎を○に変えるモード。候補が無いときは出さない）・表の切り替え（カード一覧／星取表）」で、**表が一番右**。
+		 * 塊は横に送らない（入口のボタンだけが横に送られる）ので、狭い幅でも常に見える。
 		 * 「削除」はブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）のまま。選んでいるときは 2px の枠（aria-pressed）
 		 */
 		function renderPalette() {
@@ -14936,15 +15187,19 @@
 			const hasCircle = !!(cst && cst.circleCandidates && cst.circleCandidates.size > 0);
 			if (!hasCircle) factorCircleMode = false;
 			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
-			el.innerHTML = (hasCircle ? '<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
+			// C-235: 並びは［削除（ゴミ箱のアイコンだけ・28px の丸）］［↺（合計の行から移した）］［虫眼鏡（4つの入口の小窓）］［◎］［表］
+			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
+					+ ' aria-label="削除" title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-4 h-4" aria-hidden="true"></i></button>'
+				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
+				+ '<button type="button" class="usd-reset-btn usd-search-btn" data-usd-act="entry-search" data-usd-el="entry-search" aria-haspopup="dialog" aria-expanded="false" aria-label="スキルを探して追加" title="スキルを探して追加">'
+					+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>'
+				+ (hasCircle ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
 					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
 					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
 				// ②因子周回 段3: カード一覧と星取表の切り替え。押している＝星取表（◎のボタンと同じ選択の枠）
 				+ '<button type="button" class="usd-factor-circlebtn usd-factor-viewbtn" data-usd-act="factor-view" data-usd-el="factor-view" aria-pressed="' + (factorView === 'table' ? 'true' : 'false') + '"'
 					+ ' aria-label="星取表で見る" title="' + (factorView === 'table' ? 'カード一覧に戻す' : '星取表で見る') + '">'
-					+ '<svg class="usd-factor-viewsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 4v16"/></svg></button>'
-				+ '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
-					+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>';
+					+ '<svg class="usd-factor-viewsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 4v16"/></svg></button>';
 			// 削除の状態は、スキルのまとまりの印でタイルの見た目にも出す（控えめな破線の枠と、名前の取り消しの線）
 			const group = q(container, 'skill-group');
 			if (group) group.classList.toggle('usd-skillgroup--delete', del);
@@ -14952,6 +15207,7 @@
 			if (group) group.classList.toggle('usd-skillgroup--circle', factorCircleMode);
 			refreshIcons();
 			scanEntryRows();
+			fitEntryHead();
 		}
 		/** 追加しないものの内訳（「追加済み N種」「本育成編成のため N種」「レース条件に合わないため N種」。0 の理由は出さない） */
 		function recommendSkipReasons(plan) {

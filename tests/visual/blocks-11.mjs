@@ -9,6 +9,8 @@ import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 小窓の中のスキル名・カード名は画面に出る文字として読むだけで、検査の側に名前は書かない（恒久ルール1）。
 
 import { noticeOf } from './lib/add-notice.mjs';
+import { pickEntry } from './lib/entry-search.mjs';
+import { openSetNameEdit } from './lib/set-name.mjs';
 
 export async function register11(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -567,7 +569,7 @@ export async function register11(env) {
 		// 既存の追加（テキストで検索）と比べる: 別のスキルを足したときも、アイコンの扱いは同じ
 		const other = whites.find((id) => sc.skillIds.indexOf(id) === -1 && masterWhite.indexOf(id) !== -1);
 		const otherName = await sp.page.evaluate((id) => UmaSkillDeckCore.getSkillName(id), other);
-		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp.page, 'editor-pick-text');
 		await sp.page.fill('[data-usd-el="paste-input"]', otherName);
 		await sp.page.click('[data-usd-act="paste-run"]');
 		await sp.page.click('[data-usd-el="picker-commit"]');
@@ -630,16 +632,19 @@ export async function register11(env) {
 					const first = btns[0], rr = row.getBoundingClientRect(), cs = getComputedStyle(row);
 					const visible = btns.filter((b) => b.getBoundingClientRect().right <= rr.right + 1).length;
 					const partly = btns.filter((b) => b.getBoundingClientRect().left < rr.right - 1).length;
-					return { bandH: rect(band).h, bandBtn: !!band.querySelector('[data-usd-act="outside-open"], .usd-outside-btn'), outsideAnywhereInBand: band.textContent.indexOf('オススメサポ'),
+					return { bandH: rect(band).h, bandWrap: band.hasAttribute('data-usd-wrap'), bandBtn: !!band.querySelector('[data-usd-act="outside-open"], .usd-outside-btn'), outsideAnywhereInBand: band.textContent.indexOf('オススメサポ'),
 						texts: btns.map((b) => b.textContent.replace(/\s+/g, '').replace(/[0-9]+$/, '')), firstAct: first.getAttribute('data-usd-act'), firstW: Math.round(first.getBoundingClientRect().width), firstH: Math.round(first.getBoundingClientRect().height),
 						cls: first.className, others: btns.slice(1).map((b) => b.className.split(' ').filter((c) => c.indexOf('uma-btn') === 0).join(' ')),
 						ov: cs.overflowX, wrap: cs.flexWrap, scrolls: row.scrollWidth > row.clientWidth, visible, partly, sw: document.documentElement.scrollWidth, iw: window.innerWidth, rowW: Math.round(rr.width) };
 				});
 				const tag = 'オススメサポ(G) ' + w + 'px・' + label + ': ';
-				assert(!r.bandBtn && r.outsideAnywhereInBand === -1 && r.bandH === BAND_H[w + ':' + label] && r.sw <= r.iw, tag + '②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ（' + r.bandH + 'px）。画面が横にはみ出さない', r);
-				assert(r.texts.join() === 'オススメサポ,脚質オススメ,条件で検索,緑スキル,テキストで検索,スクショで追加' && r.firstAct === 'outside-open' && !/uma-btn--primary/.test(r.cls) && r.others[0] === 'uma-btn' && r.others.slice(1).every((c) => c === 'uma-btn uma-btn--secondary'),
+				// C-235: 合計の行に継承固有・共通スキルのヒントLv の部品が入り、スマホの幅では部品2つが2行目に折り返す（66px）。1行に入れば 36px
+				assert(!r.bandBtn && r.outsideAnywhereInBand === -1 && r.bandH === (r.bandWrap ? 66 : 36) && r.sw <= r.iw, tag + '②の帯にボタンは無く、帯の高さは 1行 36px／部品を折り返して 66px（' + r.bandH + 'px）。画面が横にはみ出さない', r);
+				// C-235: ほかの4つの入口は虫眼鏡の小窓へ移った（入口の行は「オススメサポ」「脚質オススメ」）
+				assert(r.texts.join() === 'オススメサポ,脚質オススメ' && r.firstAct === 'outside-open' && !/uma-btn--primary/.test(r.cls) && r.others.join() === 'uma-btn',
 					tag + '入口列の先頭（「条件で検索」の左）に「オススメサポ」（段13 の仕上げで付けた αテストの表記は C-130 で外した）。ほかの4つは今までどおり（secondary）。黒い塗り（primary）にはしない', { texts: r.texts, cls: r.cls, others: r.others });
-				assert(r.ov === 'auto' && r.wrap === 'nowrap' && (w > 414 || r.scrolls), tag + '入口列は折り返さず横スクロール（幅 ' + r.rowW + 'px。先頭に ' + r.firstW + 'px 足された。' + (r.scrolls ? '右にスクロールして見る' : '収まる') + '）', r);
+				// C-235: 入らない幅は文字を小さくして1行に入れ、それでも入らない 320px だけ横に送る
+				assert(r.ov === 'auto' && r.wrap === 'nowrap' && (w > 340 ? !r.scrolls : true), tag + '入口列は折り返さず、横に送るのは 320px（◎のあるとき）だけ（幅 ' + r.rowW + 'px。先頭に ' + r.firstW + 'px 足された。' + (r.scrolls ? '右にスクロールして見る' : '収まる') + '）', r);
 				if (label === '②が空') console.log('     [実測] ' + w + 'px: ボタンの幅 ' + r.firstW + '×' + r.firstH + 'px・最初に全体が見えるボタン ' + r.visible + '個（一部でも見えるもの ' + r.partly + '個）');
 				assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 				await sp.ctx.close();
@@ -647,7 +652,7 @@ export async function register11(env) {
 		}
 		// ほかの入口の動きは変わらない（条件で検索を押すと、スキル選択の小窓が開く）
 		const sp = await openSp({ w: 375, h: 812, roster: FULL });
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		const picker = await sp.page.evaluate(() => { const t = document.querySelector('[data-usd-el="picker-title"]'); return { title: t ? t.textContent : null, vis: !!t && !!t.offsetParent }; });
 		assert(picker.vis && /条件で検索/.test(picker.title), 'オススメサポ(G) ほかの入口（条件で検索）の動きは変わらない（スキル選択の小窓が開く）', picker);
 		await sp.page.click('[data-usd-act="picker-close"]');
@@ -1009,7 +1014,7 @@ export async function register11(env) {
 		await open(sp.page);
 		const s0 = await snap(sp.page);
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		const inPicker = await sp.page.evaluate((ids) => ids.filter((id) => !!document.querySelector('[data-usd-el="skill-check"][value="' + id + '"]')), s0.rows.filter((r) => !r.added).map((r) => r.id));
 		await sp.page.click('[data-usd-act="picker-close"]');
 		const pick = inPicker.slice(0, 3);
@@ -1025,12 +1030,12 @@ export async function register11(env) {
 		const after = await nums();
 		assert(JSON.stringify(before) === JSON.stringify(after), 'オススメサポ(I) ②の合計（Pt・種数）・①の合計・見出しの数・②の一覧の行数は、除外スキルで変わらない', { before, after });
 		// 条件で検索: 除外したスキルも一覧に出て、選べる
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		const rows = await sp.page.evaluate((ids) => ids.map((id) => { const i = document.querySelector('[data-usd-el="skill-check"][value="' + id + '"]'); return !!i && !i.disabled; }), pick);
 		await sp.page.click('[data-usd-act="picker-close"]');
 		assert(rows.every(Boolean), 'オススメサポ(I) 条件で検索の一覧には、除外したスキルも出て、選べる', rows);
 		// テキストで検索: 名前で照合できて、チェックが入る
-		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp.page, 'editor-pick-text');
 		await sp.page.fill('[data-usd-el="paste-input"]', name0);
 		await sp.page.click('[data-usd-act="paste-run"]');
 		const txt = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="picker-checked-count"]') || {}).textContent);
@@ -1113,8 +1118,8 @@ export async function register11(env) {
 		await sp.ctx.close();
 		// ＋新規の保存: この項目だけを持つ下書きの①も写される
 		sp = await openSp({ roster: { outsideSkillExcluded: [X] } });
-		await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-		await sp.page.fill(BAR + '[data-usd-el="name"]', '除外スキルだけ');
+		await openSetNameEdit(sp.page);
+		await sp.page.fill('[data-usd-el="set-name-input"]', '除外スキルだけ');
 		await sp.page.keyboard.press('Enter');
 		await sp.page.waitForTimeout(250);
 		dd = await ud(sp.page);

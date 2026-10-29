@@ -560,8 +560,16 @@
 		header[data-hdr-tight] .hdr-row, header[data-hdr-tight] .hdr-bar, header[data-hdr-tight] .hdr-acts { column-gap: 4px; }
 		header[data-hdr-tight] .header-edition-pill { padding-left: 4px; padding-right: 4px; letter-spacing: -0.3px; }
 		@media (max-width: 322px) { .header-edition-sub { display: none; } }
-		.theme-cycle-btn { width: 44px; height: 44px; padding: 0; flex: none; }
-		.theme-cycle-btn svg { display: none; width: 20px; height: 20px; flex: none; }
+		/* C-235: ツール切り替えと同じ 34×38px（アイコン 16px。special.html と同じ） */
+		.theme-cycle-btn { width: 34px; height: 38px; padding: 0; flex: none; }
+		.theme-cycle-btn svg { display: none; width: 16px; height: 16px; flex: none; }
+		/* C-235: PC のタイトルは UmaStar と同じ値（上の余白 12px・内側 上下8px／左右20px・角丸 16px・カードとの間 8px・文字 26px）。スクロールで上に残さない */
+		@media (min-width: 641px) {
+			.exam-page-wrap { padding-top: 12px; }
+			.exam-header { margin-bottom: 8px; padding: 8px 20px; border-radius: 16px; }
+			.exam-header > [aria-hidden="true"] { border-radius: inherit; }
+			.exam-title { font-size: 1.625rem; line-height: 1.2; }
+		}
 		.theme-cycle-btn[data-theme-state="auto"] svg[data-theme-icon="auto"],
 		.theme-cycle-btn[data-theme-state="light"] svg[data-theme-icon="light"],
 		.theme-cycle-btn[data-theme-state="dark"] svg[data-theme-icon="dark"] { display: block; }
@@ -573,7 +581,8 @@
 		   新UIの中（#new-step-slot）だけに当てる（旧UIは動作保証の外。恒久ルール20）。共通CSSは触らない。 */
 		@media (max-width: 640px) {
 			.exam-page-wrap { padding-left: 0; padding-right: 0; padding-top: 0; }
-			.exam-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1-5) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			/* C-235: 上下の余白 6→4px（38px のボタンが入ってタイトルが 47px。UmaStar と同じ高さ） */
+			.exam-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、special.html のタイトルと同じ大きさ（22px。360px 以下は20px）にそろえる */
 			.exam-title { font-size: 1.375rem; line-height: 1.2; }
 			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }

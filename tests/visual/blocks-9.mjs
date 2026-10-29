@@ -56,10 +56,19 @@ export async function register9(env) {
 	const rowMarkers = (page) => page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]'))
 		.map((p) => [p.getAttribute('data-skill-id'), (p.querySelector('[data-usd-el="factor-marker"]') || { dataset: {} }).dataset.marker || null])));
 	/** ②の数字（帯）。factor-pt / factor-count とタグ2つ、見出しの合計、①の数字 */
-	const nums = (page) => page.evaluate(() => {
+	// C-235: 継承固有・共通スキルの「Pt／種」は②の「?」の小窓の中だけ。開いて読み、閉じる（? が無いときは読まない）
+	const nums = async (page) => {
+		const HELP = '#deck-template-panel [data-usd-act="pt-need-help"]';
+		const has = !!(await page.$(HELP)) && (await page.isVisible(HELP));
+		if (has) await page.click(HELP);
+		const r = await numsIn(page);
+		if (has) await page.keyboard.press('Escape');
+		return r;
+	};
+	const numsIn = (page) => page.evaluate(() => {
 		const q = (s) => document.querySelector(s);
 		const n = (s) => { const e = q(s); return e ? Number((e.textContent || '').replace(/[^0-9-]/g, '')) : null; };
-		const tag = (el) => { const e = q('#deck-template-panel [data-usd-el="' + el + '"]'); return e ? { pt: Number(e.dataset.pt), kinds: Number(e.dataset.kinds) } : null; };
+		const tag = (el) => { const e = q('[data-usd-el="info-body"] [data-usd-el="' + el + '"]'); return e ? { pt: Number(e.dataset.pt), kinds: Number(e.dataset.kinds) } : null; };
 		const tot = q('#deck-set-bar [data-usd-el="set-total"]');
 		return { fPt: n('#deck-template-panel [data-usd-el="factor-pt"]'), fKinds: n('#deck-template-panel [data-usd-el="factor-count"]'),
 			uniq: tag('pt-need-uniq'), common: tag('pt-need-common'),
@@ -161,8 +170,9 @@ export async function register9(env) {
 		const sp = await openSet({ tab: 1, scope: SCOPE });
 		const before = await nums(sp.page);
 		const ui = await sp.page.evaluate(() => ({ pal: document.querySelectorAll('#deck-template-panel .usd-palette-btn, #deck-template-panel [data-usd-el^="palette-"]:not([data-usd-el="palette-delete"])').length,
-			btns: document.querySelectorAll('#deck-template-panel [data-usd-act="skill-icon"]').length, del: (document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]') || {}).textContent }));
-		assert(ui.pal === 0 && ui.btns === 0 && ui.del === '削除', '段9(B) C-226: パレットのアイコン・行の先頭のアイコンのボタンは無い（「削除」は残る）', ui);
+			btns: document.querySelectorAll('#deck-template-panel [data-usd-act="skill-icon"]').length, del: (document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]') || { getAttribute: () => null }).getAttribute('aria-label') }));
+		// C-235: 「削除」は文字を消したゴミ箱のアイコンのボタン（読み上げの名前は「削除」）
+		assert(ui.pal === 0 && ui.btns === 0 && ui.del === '削除', '段9(B) C-226: パレットのアイコン・行の先頭のアイコンのボタンは無い（「削除」は残る。C-235 でゴミ箱のアイコン・読み上げは「削除」）', ui);
 		await sp.ctx.close();
 		const sp1 = await openSet({ tab: 1, scope: Object.assign({}, SCOPE, { skillIcons: icons }) });
 		const withIcons = await nums(sp1.page);
@@ -220,9 +230,10 @@ export async function register9(env) {
 			await sp.page.keyboard.press('Escape');
 			// ②の ? の中
 			await sp.page.click(T + '[data-usd-act="pt-need-help"]');
-			const help = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el^="factor-help"]')).map((p) => p.getAttribute('data-usd-el') + ':' + p.textContent));
-			assert(help.some((x) => /factor-help-theory:.*理論値/.test(x)) && help.some((x) => /factor-help-formula:② ＝ 継承固有 [\d,]+ ＋ 共通スキル [\d,]+/.test(x)) && help.some((x) => /factor-help-taken:①で取得するスキル 2種は数えていません/.test(x)),
-				tag + '?の中：理論値・式（継承固有＋共通スキル）・①で取得するスキルは数えていない', help);
+			// C-235: ? の中は「継承固有 … Pt／…種」「共通スキル … Pt／…種」の2行だけ（理論値・式・①で取得の1行は消した）
+			const help = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-body"] > *')).map((p) => p.getAttribute('data-usd-el') + ':' + p.textContent));
+			assert(help.length === 2 && /^pt-need-uniq:継承固有 [\d,]+ Pt／\d+種$/.test(help[0]) && /^pt-need-common:共通スキル [\d,]+ Pt／\d+種$/.test(help[1]),
+				tag + '?の中：継承固有・共通スキルの2行だけ', help);
 			await sp.page.keyboard.press('Escape');
 			// 継承固有の種類を変えると、継承固有の Pt・種だけが変わる（共通スキルは変わらない）
 			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '3');
@@ -280,8 +291,9 @@ export async function register9(env) {
 				};
 			});
 			assert(g1.bar <= (w === 375 ? 40 : 60), tag + '見出しの帯の高さは 375px で 40px 以下（' + g1.bar + 'px）', g1.bar);
-			assert(g1.name.join() === '16px,800' && g1.pill[0] === '11px' && g1.pill[1] === '1px' && g1.pill[2] === '999px' && g1.pill[4] === '2／10▾' && g1.pill[3] !== 'rgba(0, 0, 0, 0)',
-				tag + '左：セット名 16px/800。「✎ 2／10 ▾」は 11px・1px の線・角丸999px・薄い地の札', g1);
+			// C-235: 「✎ 2／10 ▾」の札は無くした（セット名を押すと編成セットの小窓）
+			assert(g1.name.join() === '16px,800' && g1.pill.every((x) => x === null),
+				tag + '左：セット名 16px/800。「✎ 2／10 ▾」の札は無い（C-235）', g1);
 			assert(g1.num.join() === '18px,800' && g1.k.join() === '12px,700' && g1.sub[0] === '10.5px' && /^(切れ者・|勉強家・)?①＋②$/.test(g1.sub[1]) && g1.subHelp,
 				tag + '右：1行目「N」18px/800＋Pt・／M種 12px/700、2行目「…①＋②」10.5px＋?', g1);
 			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === (w <= 640 ? '4px' : '8px') && g1.band[3] === (w <= 640 ? '4px' : '10px'), tag + '①の「Pt／種」は薄い帯（角丸10px・スマホは縦横4px（段4で進化ボタン44pxのために詰めた）／PC は縦8px・横10px・背景 --uma-band）', g1.band);
@@ -311,12 +323,13 @@ export async function register9(env) {
 					order: [r('[data-usd-el="set-head"]'), r('[data-usd-el="roster-link"]'), r('[data-usd-el="skill-group"]')].map((x) => x && x.top),
 					inGroup: ['.usd-entry-row', '[data-usd-el="tier-row"]', '[data-usd-el="selected-list"]'].map((s) => !!q('[data-usd-el="skill-group"] ' + s)),
 					tops: { entry: r('.usd-entry-row'), pal: r('[data-usd-el="tier-row"]'), list: r('[data-usd-el="selected-list"]') },
-					tagBand: { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), tags: r('[data-usd-el="pt-chips"]'), tag: r('[data-usd-el="pt-need-uniq"]'), tag2: r('[data-usd-el="pt-need-common"]'), reset: r('[data-usd-el="factor-reset"]'),
+					tagBand: { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), tags: r('[data-usd-el="pt-chips"]'), tag: r('[data-usd-el="pt-need-uniq"]'), tag2: r('[data-usd-el="pt-need-common"]'), reset: r('[data-usd-el="factor-reset"]'), resetInBand: !!document.querySelector('#deck-template-panel [data-usd-el="set-head"] [data-usd-el="factor-reset"]'),
 						tagFs: [cs('[data-usd-el="pt-need-uniq"]', 'fontSize'), cs('[data-usd-el="pt-chips"]', 'lineHeight')], tagBg: cs('[data-usd-el="pt-need-uniq"]', 'backgroundColor'), tagBorder: cs('[data-usd-el="pt-need-uniq"]', 'borderTopWidth') },
-					tagTexts: ['pt-need-uniq', 'pt-need-common'].map((k) => (q('[data-usd-el="' + k + '"]') || {}).textContent.replace(/\s+/g, ' ').trim()),
+					tagTexts: ['pt-need-uniq', 'pt-need-common'].map((k) => (q('[data-usd-el="' + k + '"]') || { textContent: null }).textContent),
 					sumText: (q('[data-usd-el="factor-sum"]') || {}).textContent,
 					sumFs: [cs('[data-usd-el="factor-pt"]', 'fontSize'), cs('[data-usd-el="factor-pt"]', 'fontWeight')],
-					cfgText: (q('[data-usd-el="roster-link-row"]') || {}).textContent.replace(/\s+/g, ' ').trim().slice(0, 60),
+					// C-235: 継承固有・共通スキルのヒントLv の部品は合計の行（band-cfg）に移した。点線の設定の枠の行は無い
+					cfgText: (q('[data-usd-el="band-cfg"]') || { textContent: '' }).textContent.replace(/\s+/g, ' ').trim().slice(0, 60), cfgBox: r('[data-usd-el="band-cfg"]'),
 					entries: Array.from(document.querySelectorAll('#deck-template-panel .usd-entry-row > button:not([data-usd-act="outside-open"])')).map((b) => b.textContent.replace(/\s+/g, '')),
 					entryRowOverflow: cs('.usd-entry-row', 'overflowX'),
 					gone: ['tier-total', 'mode-reclass', 'mode-delete', 'selected-count', 'clear-skills'].filter((k) => q('[data-usd-el="' + k + '"]')).concat(q('.usd-tier-tab') ? ['tier-tab'] : [], q('[data-usd-act="tier-move"]') ? ['tier-move'] : [], q('.usd-ptneed-chip--rank') ? ['rank-chip'] : []),
@@ -333,19 +346,20 @@ export async function register9(env) {
 				};
 			});
 			assert(o.band.bg === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144 */ o.band.radius === '10px' && o.band.pad === (w <= 640 ? '4px 4px' : '8px 10px'), tag + '②の帯: 薄い地（--uma-band）・角丸10px・PC は横10px縦8px／スマホは①と同じ縦横4px（②因子周回 段1）', o.band);
-			assert(o.cfg.style === 'dashed' && o.cfg.width === '1px' && o.cfg.radius === '10px' && o.cfg.bg !== 'rgba(0, 0, 0, 0)', tag + '②の設定の枠: 破線・薄い地・角丸10px', o.cfg);
+			assert(o.order[1] === null, tag + '②の設定の枠（破線）の行は無い（C-235。部品は合計の行へ）', o.order);
 			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '10px' && o.grp.bg === await tokRgb(sp.page, 'var(--uma-group-bg)') &&   /* C-144: まとまりの面はトークンの値（UmaStar は #fffdf8） */ o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い枠・線あり・角丸10px・横8px', o.grp);
-			assert(o.order.every((v, i) => v !== null && (i === 0 || v > o.order[i - 1])) && o.inGroup.every(Boolean), tag + '上から 帯 → 設定の枠 → スキルのまとまり（入口・パレット・一覧はまとまりの中）', o);
-			assert(o.tagTexts[0].startsWith('継承固有') && /Pt／6種$/.test(o.tagTexts[0]) && o.tagTexts[1].startsWith('共通スキル') && /Pt／\d+種$/.test(o.tagTexts[1]) && /Pt／\d+種$/.test(o.sumText) && o.sumFs.join() === '22px,800',
-				tag + '帯の1段目「X Pt／N種」、右寄せの2行は「継承固有 … Pt／6種」「共通スキル … Pt／N種」', o);
-			// ②因子周回 段1（2026-10-27）: タグ2つをやめ、10px の小さい文字の2行（枠・地なし）にした
-			assert(o.tagBand.tagFs.join() === '10px,12px' && o.tagBand.tagBorder === '0px' && o.tagBand.tagBg === 'rgba(0, 0, 0, 0)', tag + '2行は 10px（行の高さ 12px）・枠も地も無い', o.tagBand);
+			assert(o.order[0] !== null && o.order[2] !== null && o.order[2] > o.order[0] && o.inGroup.every(Boolean), tag + '上から 帯 → スキルのまとまり（入口・右端の塊・一覧はまとまりの中）', o);
+			// C-235: 継承固有・共通スキルの「Pt／種」の2行は帯から消し、? の小窓の中だけに出す（小窓の中身は 段9(C)）
+			assert(o.tagTexts[0] === null && o.tagTexts[1] === null && /Pt／\d+種$/.test(o.sumText) && o.sumFs.join() === '22px,800',
+				tag + '帯の1段目「X Pt／N種」。継承固有・共通スキルの2行は帯に無い（C-235）', o);
 			// どの幅でも1行目: 合計 → ? → 2行（右寄せ）→ ↺。2行は縦に重なり、↺ の左に接する。帯の高さは 375px で①と同じ 36px（1280px は 44px）
 			const tb = o.tagBand;
-			assert(tb.tag.top < tb.sum.bottom && tb.tag2.top >= tb.tag.bottom - 1 && tb.tag2.bottom <= tb.reset.bottom + 1 && tb.reset.top < tb.sum.bottom && tb.tags.left > tb.help.right && tb.tags.right <= tb.reset.left && tb.band.h === (w === 375 ? 36 : 44),
-				tag + w + 'px: 2行は1行目の中で ↺ の左に右寄せ・帯の高さ ' + tb.band.h + 'px', tb);
-			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '設定の枠は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
-			assert(o.entries.map((x) => x.replace(/\d+$/, '')).join() === '脚質オススメ,条件で検索,緑スキル,テキストで検索,スクショで追加' && o.entryRowOverflow === 'auto', tag + '入口のボタン4つ（横スクロール）', o.entries);
+			// C-235: 合計 → ? → 右寄せの部品2つ。入らない幅（375px）は部品2つが2行目（帯 66px）、1280px は1行（44px）。↺ は入口の行へ
+			assert(o.cfgBox && tb.resetInBand === false && (w === 375 ? (o.cfgBox.top >= tb.sum.bottom - 1 && tb.band.h === 66) : (o.cfgBox.top < tb.sum.bottom && o.cfgBox.left > tb.help.right && tb.band.h === 44)),
+				tag + w + 'px: 部品2つは ' + (w === 375 ? '2行目' : '1行目の右寄せ') + '・帯の高さ ' + tb.band.h + 'px・↺ は帯に無い', { tb, cfg: o.cfgBox });
+			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '合計の行の部品は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
+			// C-235: 4つの入口は虫眼鏡の小窓へ。行に残るのは「オススメサポ」「脚質オススメ」
+			assert(o.entries.join() === '脚質オススメ' && o.entryRowOverflow === 'auto', tag + '入口の行のボタンはオススメサポと脚質オススメだけ（横スクロールの作りは残る）', o.entries);
 			assert(o.gone.length === 0, tag + '超優先／優先／通常・再分類・削除（ランク）・ランク別の見出し・ランクのチップは無い', o.gone);
 			// C-226: 行の先頭は自動のマーカー（20px の画像）。箱は段9 のアイコンのボタンと同じ幅 26px・高さ 32px（名前の位置を変えない）
 			assert(o.iconBtn.join() === '26,32' && o.icon.join() === '20,20' && o.markerRole === 'img', tag + '行の先頭は自動のマーカー（20px・画像）。箱は 26×32px（' + o.iconBtn.join('×') + '）', o);
@@ -633,16 +647,20 @@ export async function register9(env) {
 			const g = await s2.page.evaluate(() => {
 				const r = (s) => { const e = document.querySelector('#deck-template-panel ' + s); if (!e || !e.getClientRects().length) return null; const b = e.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right), h: Math.round(b.height) }; };
 				const head = document.querySelector('#deck-template-panel [data-usd-el="head"]');
-				return { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), tags: r('[data-usd-el="pt-chips"]'), reset: r('[data-usd-el="factor-reset"]'),
-					common: (document.querySelector('#deck-template-panel [data-usd-el="pt-need-common"]') || {}).textContent, headShown: !!(head && head.getClientRects().length),
+				// C-235: 帯は「合計・?・部品2つ（継承固有・共通スキルのヒントLv）」。共通スキルの「Pt／種」は ? の小窓の中（下で開いて読む）
+				return { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), cfg: r('[data-usd-el="band-cfg"]'), wrap: document.querySelector('#deck-template-panel [data-usd-el="set-head"]').hasAttribute('data-usd-wrap'),
+					headShown: !!(head && head.getClientRects().length),
 					tabsToBand: Math.round(document.querySelector('#deck-template-panel [data-usd-el="set-head"]').getBoundingClientRect().top - document.querySelector('.main-card .step-tabs').getBoundingClientRect().bottom),
 					page: document.documentElement.scrollWidth - document.documentElement.clientWidth };
 			});
+			await s2.page.click('#deck-template-panel [data-usd-act="pt-need-help"]');
+			g.common = await s2.page.evaluate(() => (document.querySelector('[data-usd-el="info-body"] [data-usd-el="pt-need-common"]') || {}).textContent);
+			await s2.page.keyboard.press('Escape');
 			const t = '段1 ' + w + 'px（' + g.common + '）: ';
 			assert(/共通スキル \d{2},\d{3} Pt／\d{2,3}種/.test(g.common || ''), t + '桁の多い例（共通スキル 1万 Pt 台）', g.common);
 			assert(g.page <= 0 && !g.headShown && g.tabsToBand === 4, t + '横にはみ出さない・②の空の見出しの行は隠れ、タブの下から帯まで 4px（タブの下の余白だけ）', g);
-			if (w === 320) assert(g.tags.top >= g.sum.bottom && g.reset.top >= g.sum.bottom && g.tags.right <= g.reset.left && g.reset.right >= g.band.right - 5, t + '収まらない幅では、2行と ↺ が塊ごと2行目に落ちる（右寄せ）', g);
-			else assert(g.tags.top < g.sum.bottom && g.reset.top < g.sum.bottom && g.tags.left > g.help.right && g.tags.right <= g.reset.left && g.band.h === 36, t + '2行は1行目に収まる（? の右・↺ の左）。帯の高さは①と同じ 36px（' + g.band.h + 'px）', g);
+			// C-235: スマホの幅では部品2つが2行目に折り返す（帯 66px）。横にははみ出さない
+			assert(g.wrap && g.cfg && g.cfg.top >= g.sum.bottom - 1 && g.cfg.right <= g.band.right && g.band.h === 66, t + '入らない幅では部品2つ（継承固有・共通スキルのヒントLv）が2行目に折り返す（帯 ' + g.band.h + 'px）', g);
 			assert(jsErrors(s2.errors).length === 0, t + 'コンソールのエラー0', jsErrors(s2.errors).slice(0, 3));
 			await s2.ctx.close();
 		}

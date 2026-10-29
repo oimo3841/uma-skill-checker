@@ -37,7 +37,7 @@ export async function register52(env) {
 	};
 	const raceRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="race-list"] [data-usd-el="race-opt"]')).map((l) => ({
 		id: l.getAttribute('data-race-id'), checked: l.querySelector('input').checked, line1: (l.querySelector('[data-usd-el="race-line1"]') || l.querySelector('.usd-link-name')).textContent })));
-	const openRaceList = async (page) => { await page.click(BAR + '[data-usd-act="set-race"]'); await page.waitForSelector('[data-usd-el="race-list"]'); };
+	const openRaceList = async (page) => { await page.click('#hdr-race-slot [data-usd-act="set-race"]'); await page.waitForSelector('[data-usd-el="race-list"]'); };
 
 	await block('段0b(1)(2)(5) 選択欄に終わったレース（selectable: false）が出ない／ほかの行（selectable: false 以外）はすべて出る／行は消えていない（getUpcomingRaces は全行・終わったレースは selectable: false のまま）', async () => {
 		assert(ENDED.length === 1 && ENDED[0] === 'race-0001' && RACES.length === 7 && SEL.length === 6, '段0b データ: selectable: false は race-0001 の1行だけ・全7行・選べるのは6行', { ENDED, n: RACES.length, sel: SEL.length });
@@ -63,7 +63,7 @@ export async function register52(env) {
 			const sp = await openSp({ w, h: w === 1280 ? 900 : 844, roster });
 			const before = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).race);
 			assert(before && before.id === 'race-0001', `段0b(3) ${w}px: 開いたあとも、保存したレース（race-0001）は保たれている`, before);
-			const bar = await sp.page.evaluate(() => { const b = document.querySelector('#deck-set-bar [data-usd-el="set-race-text"]'); return b ? b.textContent : null; });
+			const bar = await sp.page.evaluate(() => { const b = document.querySelector('#hdr-race-slot [data-usd-el="set-race-text"]'); return b ? b.textContent : null; });
 			assert(bar && bar.length > 0 && bar !== 'レース', `段0b(3) ${w}px: 帯のレースの表示は、保存したレースの短い表記のまま（${bar}）`, bar);
 			await openRaceList(sp.page);
 			const rows = await raceRows(sp.page);

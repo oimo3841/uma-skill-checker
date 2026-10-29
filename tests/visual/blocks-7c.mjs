@@ -1,5 +1,6 @@
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
+import { pickEntry } from './lib/entry-search.mjs';
 // 段7c（2026-10-03・C-115）の検査。run-smoke.mjs の末尾から register7c() で呼ばれる（塊の見出しはすべて「段7c」を含むので、
 // `npm run test:visual -- --only=段7c` で全部、`--only=段7c(M)` のように括弧つきの見出しで1つずつ回せる）。
 //
@@ -151,9 +152,9 @@ export async function register7c(env) {
 				const hd = document.querySelector('header');
 				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), badge: b ? b.textContent.trim() : null, pill: pill ? pill.innerText.replace(/\s+/g, ' ').trim() : null, badgeSize: b ? parseFloat(getComputedStyle(b).fontSize) : null, hdH: hd.getBoundingClientRect().height };
 			});
-			assert(hd.badge === 'β版' && hd.pill === '2nd Edition' && hd.h1.endsWith('β版') && !hd.h1.includes('α版') && hd.title.includes('2nd Edition'),
-				tag + 'ヘッダーは「β版」と、その右のピル「2nd Edition」（段7d の追加・B。exam の「β版」「新UI」と同じ形式。「α版」でも「2nd edition β版」でもない）', hd);
-			if (w <= 640) assert(hd.badgeSize <= 11.5, tag + 'スマホではバッジの文字を 11px にする', { size: hd.badgeSize });
+			// C-235: タイトルの行から「β版」「2nd Edition」を消した（ページの題の「2nd Edition」は今のまま）
+			assert(hd.badge === null && hd.pill === null && hd.h1 === 'UmaStar OCR' && hd.title.includes('2nd Edition'),
+				tag + 'ヘッダーは「UmaStar OCR」だけ（C-235 で「β版」とピル「2nd Edition」を消した。ページの題には「2nd Edition」が残る）', hd);
 			assert(!v.alpha && !(await sp.page.textContent('#step-panel-0')).includes('結果が正しくないことがあります'), tag + '①のタブの赤い注意書き「αテスト中の機能です…」は出ない');
 			assert(v.filtering === null && !(await sp.page.textContent(P + '[data-usd-el="pt-sum"]')).includes('絞り込み中'), tag + '絞り込み中でも、合計の下に「絞り込み中」の印は出ない', { filtering: v.filtering });
 			assert(!v.legend && (await sp.page.$$(P + '.usd-roster-legend')).length === 0, tag + '表の最下段の育成ウマ娘・カード名の凡例は、どの幅でも出ない', { legend: v.legend });
@@ -287,7 +288,7 @@ export async function register7c(env) {
 			{
 				const tag = '段7c(M) ②(2): ';
 				const { sp, select, readLink } = await mk([W[8]]);
-				await sp.page.click('[data-usd-act="editor-pick"]');
+				await pickEntry(sp.page, 'editor-pick');
 				await sp.page.waitForTimeout(400);
 				const pick = await sp.page.evaluate(() => {
 					const grey = [...document.querySelectorAll('[data-usd-el="results"] [data-usd-excluded="1"]')];
@@ -301,7 +302,7 @@ export async function register7c(env) {
 				assert(pick.label === '本育成編成のため選べない ' + pick.ids.length + '件', tag + '件数は「本育成編成のため選べない M件」（本育成で得るためと、不要にしているための両方を合わせた件数）', pick);
 				await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
 				// 貼り付け: オフのスキルは追加せず、「本育成編成のため追加しなかったもの N種」（本育成で得るものも含めた件数）
-				await sp.page.click('[data-usd-act="editor-pick-text"]');
+				await pickEntry(sp.page, 'editor-pick-text');
 				await sp.page.waitForTimeout(300);
 				await sp.page.fill('[data-usd-el="paste-input"]', [nameOf(W[2]), nameOf(hintIds[0]), nameOf(W[4])].join('\n'));
 				await sp.page.click('[data-usd-act="paste-run"]');
@@ -314,7 +315,7 @@ export async function register7c(env) {
 				assert(lk.scope.skillIds.includes(W[4]) && !lk.scope.skillIds.includes(W[2]) && !lk.scope.skillIds.includes(hintIds[0]), tag + '追加を押しても、オフのスキルは足されない', lk.scope.skillIds);
 				await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
 				// 追加しなかったものが0種のときは出さない
-				await sp.page.click('[data-usd-act="editor-pick-text"]');
+				await pickEntry(sp.page, 'editor-pick-text');
 				await sp.page.waitForTimeout(300);
 				await sp.page.fill('[data-usd-el="paste-input"]', nameOf(W[0]));
 				await sp.page.click('[data-usd-act="paste-run"]');
@@ -650,8 +651,10 @@ export async function register7c(env) {
 			await sp.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 			await sp.page.waitForTimeout(300);
 			const m = await measure(sp.page);
-			const want = Math.max(360, m.vh - 96 - 24);
-			if (h >= 768) assert(m.fullRows >= (h === 900 ? 18 : 12), tag + '下端までスクロールすると、表の行が ' + (h === 900 ? 18 : 12) + ' 行以上見える（実測 ' + m.fullRows + ' 行。以前は7行）', { rows: m.fullRows });
+			// C-235: タイトルの行と帯が上に残るので、表の高さはその高さ（--usd-sticky-top。PC は 56＋39＝95px）も引く。見える行はそのぶん減る（900px で 18→16 行）
+			const stickTop = await sp.page.evaluate(() => parseFloat(document.documentElement.style.getPropertyValue('--usd-sticky-top')) || 0);
+			const want = Math.max(360, m.vh - 96 - 24 - stickTop);
+			if (h >= 768) assert(m.fullRows >= (h === 900 ? 16 : 10), tag + '下端までスクロールすると、表の行が ' + (h === 900 ? 16 : 10) + ' 行以上見える（実測 ' + m.fullRows + ' 行。以前は7行。C-235 で上に残る高さぶん 2行減）', { rows: m.fullRows, stickTop });
 			assert(Math.abs(m.grid.h - want) <= 24 && m.grid.b <= m.vh, tag + '表の高さは「画面の高さ − FAB の置き場 − わずかな余白」（最小 360px）。実測 ' + m.grid.h + 'px・表の下端 ' + m.grid.b + 'px は画面の下端 ' + m.vh + 'px に収まる', { h: m.grid.h, want, b: m.grid.b });
 			assert(m.fabOverlap === 0, tag + '右下のボタン（FAB）が表（縦スクロールバーと最後の列）を覆わない', { overlap: m.fabOverlap, fab: m.fab, grid: m.grid });
 			assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない・コンソールのエラー0', { docW: m.docW, errors: jsErrors(sp.errors).slice(0, 2) });

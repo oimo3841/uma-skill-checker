@@ -61,7 +61,7 @@ export async function register44(env) {
 		await sleep(page, 200);
 	};
 	const pickRace = async (page, id) => {
-		await page.click('#deck-set-bar [data-usd-act="set-race"]');
+		await page.click('#hdr-race-slot [data-usd-act="set-race"]');
 		await page.waitForSelector('[data-usd-el="race-list"]');
 		await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input');
 		await sleep(page, 400);

@@ -113,8 +113,18 @@ export async function register21(env) {
 				const fsBy = {};
 				for (const which of ['special', 'exam']) {
 					const { ctx, page, errors } = await openTool(which, w, theme);
-					const p = await headerProbe(page);
 					const tag = which + '・' + w + 'px・' + theme;
+					if (which === 'special') {
+						// C-235: special のタイトルの行には「β版」・バッジ・一言が無い（exam は今のまま）
+						const s = await page.evaluate(() => { const hd = document.querySelector('header'); return { h1fs: parseFloat(getComputedStyle(hd.querySelector('h1')).fontSize), gone: ['.header-edition', '.header-edition-pill', '.header-tagline'].every((q) => !hd.querySelector(q)), text: hd.textContent.includes('チャンミ/LoH用ツール'), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth }; });
+						fsBy[which] = s.h1fs;
+						assert(s.gone && !s.text && s.sw <= s.vw, '微調整3A2(' + tag + '): special には「β版」「2nd Edition」「チャンミ/LoH用ツール」が無い（C-235）・横にはみ出さない', s);
+						assert(jsErrors(errors).length === 0, '微調整3A2(' + tag + '): コンソールエラーなし', errors.slice(0, 3));
+						n++;
+						await ctx.close();
+						continue;
+					}
+					const p = await headerProbe(page);
 					fsBy[which] = p.h1fs;
 					assert(p.tagText === (which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験用ツール') && /^2nd( Edition)?$/.test(p.pillText) && p.pillFs >= 10,
 						'微調整3A2(' + tag + '): 「2nd Edition」のバッジ（文字10px以上）と一言がある', { tag: p.tagText, pill: p.pillText, pillFs: p.pillFs });

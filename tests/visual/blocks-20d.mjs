@@ -21,12 +21,15 @@ export async function register20d(env) {
 	const probe = (page) => page.evaluate(() => {
 		const hd = document.querySelector('header'); const r = hd.getBoundingClientRect(); const h1 = hd.querySelector('h1');
 		const pill = hd.querySelector('.header-edition-pill'), tag = hd.querySelector('.header-tagline');
-		const pr = pill.getBoundingClientRect(), tg = tag.getBoundingClientRect(), tr = h1.getBoundingClientRect();
+		// C-235: special のタイトルの行から「β版」・ピル・一言を消した（無ければ null。exam は今のまま）
+		const Z = { top: 0, right: 0, left: 0, bottom: 0, height: 0 };
+		const pr = pill ? pill.getBoundingClientRect() : Z, tg = tag ? tag.getBoundingClientRect() : Z, tr = h1.getBoundingClientRect();
 		const beta = hd.querySelector('.header-edition');
 		return { hdrH: r.height, hdrW: r.width, hdrRight: r.right, h1fs: parseFloat(getComputedStyle(h1).fontSize), h1Text: h1.textContent.replace(/\s+/g, ''), h1Top: tr.top - r.top, h1Bottom: r.bottom - tr.bottom, h1Lines: Math.round(tr.height / parseFloat(getComputedStyle(h1).lineHeight)),
-			pillText: pill.innerText.replace(/\s+/g, ' ').trim(), short: hd.hasAttribute('data-hdr-short'), pillRow: Math.abs(pr.top - tr.top) < tr.height, pillRight: pr.right, tagText: tag.textContent.trim(), tagfs: parseFloat(getComputedStyle(tag).fontSize), tagLines: Math.round(tg.height / parseFloat(getComputedStyle(tag).lineHeight)),
+			pillText: pill ? pill.innerText.replace(/\s+/g, ' ').trim() : null, short: hd.hasAttribute('data-hdr-short'), pillRow: Math.abs(pr.top - tr.top) < tr.height, pillRight: pr.right, tagText: tag ? tag.textContent.trim() : null, tagfs: tag ? parseFloat(getComputedStyle(tag).fontSize) : null, tagLines: tag ? Math.round(tg.height / parseFloat(getComputedStyle(tag).lineHeight)) : 0,
 			tagSameRowAsPill: Math.abs(tg.top - pr.top) < 12, tagRight: tg.right, tagLeft: tg.left, tagBottom: tg.bottom, hdrBottom: r.bottom, beta: beta ? beta.textContent.trim() : null,
-			helpBtns: hd.querySelectorAll('.uma-help-btn, [aria-haspopup="dialog"]').length, qMarks: [...hd.querySelectorAll('button')].filter((b) => /^[?？]$/.test(b.textContent.trim())).length,
+			// C-235: タイトルの行のレース条件のボタン（aria-haspopup="dialog"）は「？」ではないので数えない
+			helpBtns: [...hd.querySelectorAll('.uma-help-btn, [aria-haspopup="dialog"]')].filter((e) => !e.closest('#hdr-race-slot')).length, qMarks: [...hd.querySelectorAll('button')].filter((b) => /^[?？]$/.test(b.textContent.trim())).length,
 			themeBtn: !!hd.querySelector('#theme-cycle-btn'), toolBtn: !!hd.querySelector('#tool-dropdown-btn'), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth,
 			// ツール切り替えのメニュー（開くまで隠れている。UmaStar の説明に「β版」を含む〔2026-10-25〕）は、見出しの文字には数えない
 			headerText: (() => { const c = hd.cloneNode(true); const m = c.querySelector('#tool-dropdown-menu'); if (m) m.remove(); return c.textContent.replace(/\s+/g, ' '); })() };
@@ -38,13 +41,14 @@ export async function register20d(env) {
 		const setName = await sp.page.evaluate(() => { const e = document.querySelector('#deck-set-bar [data-usd-el="set-name"]') || document.querySelector('.usd-setbar-name'); return e ? parseFloat(getComputedStyle(e).fontSize) : null; });
 		await sp.ctx.close();
 		assert(setName > 0, '微調整2D1: special のセット名の文字サイズを読めた（' + setName + 'px）', setName);
-		const want = (w) => (w <= 360 ? 20 : w <= 640 ? 22 : w <= 767 ? 24 : 30);
+		// C-235: 641px 以上は両ツールとも 26px（PC のタイトルの見直し）
+		const want = (w) => (w <= 360 ? 20 : w <= 640 ? 22 : 26);
 		for (const w of [320, 360, 361, 375, 393, 600, 640, 641, 1280]) {
 			const a = await openTool('special', w), b = await openTool('exam', w);
 			const pa = await probe(a.page), pb = await probe(b.page);
 			assert(pa.h1fs === pb.h1fs && pa.h1fs === want(w) && pa.h1fs >= Math.round(setName * 1.1) && pa.h1fs > setName,
 				'微調整2D1(' + w + 'px): 両ツールのタイトルは同じ大きさ（' + pa.h1fs + 'px・exam ' + pb.h1fs + 'px）で、セット名（' + setName + 'px）の1.1倍（' + (setName * 1.1).toFixed(1) + 'px）以上', { special: pa.h1fs, exam: pb.h1fs, setName });
-			assert(pa.h1Text === 'UmaStarOCRβ版' && pb.h1Text === 'UmaExamOCR', '微調整2D1(' + w + 'px): タイトルの文字は special「UmaStar OCR」（＋β版）・exam「UmaExam OCR」（β版なし）', { sp: pa.h1Text, ex: pb.h1Text });
+			assert(pa.h1Text === 'UmaStarOCR' && pb.h1Text === 'UmaExamOCR', '微調整2D1(' + w + 'px): タイトルの文字は special「UmaStar OCR」（C-235 で β版を消した）・exam「UmaExam OCR」', { sp: pa.h1Text, ex: pb.h1Text });
 			await a.ctx.close(); await b.ctx.close();
 		}
 	});
@@ -55,7 +59,14 @@ export async function register20d(env) {
 				const { ctx, page, errors } = await openTool(which, w, theme);
 				const p = await probe(page);
 				const tag = which + '・' + w + 'px・' + theme;
-				const wantTag = which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験用ツール';
+				// C-235: special のタイトルの行には「β版」・バッジ・一言が無い（exam は今のまま）
+				if (which === 'special') {
+					assert(p.pillText === null && p.tagText === null && p.beta === null && p.h1Lines === 1 && p.sw <= p.vw, '微調整2D2(' + tag + '): special には「β版」「2nd Edition」「チャンミ/LoH用ツール」が無い（C-235）・タイトルは1行・横にはみ出さない', p);
+					assert(jsErrors(errors).length === 0, '微調整2D2(' + tag + '): コンソールエラーなし', errors.slice(0, 3));
+					await ctx.close();
+					continue;
+				}
+				const wantTag = '技能試験用ツール';
 				// C-141（微調整3・A-2）: 一言を入れる幅が足りないときは「2nd」だけ（data-hdr-short）。373px 以上は必ず「2nd Edition」
 				assert(p.tagText === wantTag && p.pillText === ((w <= 322 || p.short) ? '2nd' : '2nd Edition') && (w < 373 || !p.short),
 					'微調整2D2(' + tag + '): 「' + ((w <= 322 || p.short) ? '2nd' : '2nd Edition') + '」のバッジと、その脇の一言「' + wantTag + '」', { tag: p.tagText, pill: p.pillText, short: p.short });
@@ -82,15 +93,17 @@ export async function register20d(env) {
 			const a = await openTool('special', w), b = await openTool('exam', w);
 			const pa = await probe(a.page), pb = await probe(b.page);
 			// 旧（微調整1の先端）: special は 47px、exam は 96px（375px）。新: 6px の上下の余白を取り、ボタン 44px ＋ 12px ＋ 罫線 1px
-			assert(Math.abs(pa.hdrH - pb.hdrH) <= 1 && pa.hdrH <= 60 && pa.hdrH >= 56 && pa.h1Top >= 6 - 0.5 && pb.h1Top >= 6 - 0.5,
-				'微調整2D3(' + w + 'px): 見出しの高さは special ' + pa.hdrH + 'px・exam ' + pb.hdrH + 'px（同じ。60px以下）／タイトルの上の余白は6px以上', { special: pa, exam: pb });
+			// C-235: 上下の余白 6→4px・ボタン 38px（＋罫線 1px）で両ツールとも 47px。タイトル（文字の箱）はボタンより低いので、上の余白は 4px 以上
+			assert(Math.abs(pa.hdrH - pb.hdrH) <= 1 && Math.abs(pa.hdrH - 47) <= 1 && pa.h1Top >= 4 - 0.5 && pb.h1Top >= 4 - 0.5,
+				'微調整2D3(' + w + 'px): 見出しの高さは special ' + pa.hdrH + 'px・exam ' + pb.hdrH + 'px（同じ。47px）／タイトルの上の余白は4px以上', { special: pa, exam: pb });
 			await a.ctx.close(); await b.ctx.close();
 		}
 		{
 			const a = await openTool('special', 1280), b = await openTool('exam', 1280);
 			const pa = await probe(a.page), pb = await probe(b.page);
-			assert(Math.abs(pa.hdrH - 110) <= 1 && pb.hdrH <= 128 && Math.abs(pa.hdrH - pb.hdrH) <= 1,
-				'微調整2D3(1280px): 見出しの高さは special ' + pa.hdrH + 'px（従来どおり110px）・exam ' + pb.hdrH + 'px（旧128px から増えていない）', { special: pa.hdrH, exam: pb.hdrH });
+			// C-235: PC のタイトルは両ツールとも 56px（内側 上下8px・38px のボタン・罫線 2px）
+			assert(Math.abs(pa.hdrH - 56) <= 1 && Math.abs(pa.hdrH - pb.hdrH) <= 1,
+				'微調整2D3(1280px): 見出しの高さは special ' + pa.hdrH + 'px・exam ' + pb.hdrH + 'px（C-235 で 110→56px。両ツールで同じ）', { special: pa.hdrH, exam: pb.hdrH });
 			await a.ctx.close(); await b.ctx.close();
 		}
 	});

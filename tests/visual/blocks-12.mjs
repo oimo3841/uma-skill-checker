@@ -1,4 +1,6 @@
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
+import { pickEntry } from './lib/entry-search.mjs';
+import { openSetNameEdit } from './lib/set-name.mjs';
 // オススメサポ ④（レース条件と、小窓の絞り込み。段7〜段12。2026-10-04・C-126）の検査。run-smoke.mjs の末尾から register12() で呼ばれる
 // （塊の見出しはすべて「オススメサポ④」で始まる。`npm run test:visual -- --only=オススメサポ④` で回せる。段ごとに「④段7」のように回せる）。
 //
@@ -202,8 +204,8 @@ export async function register12(env) {
 		}
 		// (7) ＋新規の保存: この項目だけを持つ下書きの①も写される
 		sp = await openSp({ roster: { [key]: val } });
-		await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-		await sp.page.fill(BAR + '[data-usd-el="name"]', key + 'だけ');
+		await openSetNameEdit(sp.page);
+		await sp.page.fill('[data-usd-el="set-name-input"]', key + 'だけ');
 		await sp.page.keyboard.press('Enter');
 		await sp.page.waitForTimeout(250);
 		d = await ud(sp.page);
@@ -305,19 +307,20 @@ export async function register12(env) {
 	 * 段9: セットの帯の「レース ▾」と選択欄・母集団の規則
 	 * ==================================================================== */
 	const barInfo = (page) => page.evaluate(() => {
+		// C-235: レースのボタンはタイトルの行（タイトルとツール切り替えの間・ボタン寄せ）。sumL＝ツール切り替えの左端・pillR＝タイトルの右端
 		const bar = document.querySelector('#deck-set-bar [data-usd-el="setbar"]');
-		const b = bar.querySelector('[data-usd-el="set-race-btn"]');
-		const sum = bar.querySelector('[data-usd-el="set-total"]');
+		const b = document.querySelector('#hdr-race-slot [data-usd-el="set-race-btn"]');
+		const sum = document.getElementById('tool-dropdown-btn');
 		const caret = b ? b.querySelector('.usd-setbar-race-caret') : null;
 		const rect = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; };
 		return { barH: Math.round(bar.getBoundingClientRect().height), btn: b ? rect(b) : null, text: b ? b.innerText.replace(/\s+/g, '') : null, caretShown: !!caret && getComputedStyle(caret).display !== 'none',
 			on: b ? b.getAttribute('aria-pressed') === 'true' : null, bg: b ? getComputedStyle(b).backgroundColor : null, sumL: sum ? sum.getBoundingClientRect().left : null,
-			pillR: bar.querySelector('[data-usd-el="set-pill"]').getBoundingClientRect().right, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
+			pillR: document.querySelector('header.site-header h1').getBoundingClientRect().right, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 	});
 	const raceRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="race-list"] [data-usd-el="race-opt"]')).map((l) => ({
 		id: l.getAttribute('data-race-id'), checked: l.querySelector('input').checked, line1: (l.querySelector('[data-usd-el="race-line1"]') || l.querySelector('.usd-link-name')).textContent,
 		line2: (l.querySelector('[data-usd-el="race-line2"]') || {}).textContent || null })));
-	const openRaceList = async (page) => { await page.click(BAR + '[data-usd-act="set-race"]'); await page.waitForSelector('[data-usd-el="race-list"]'); };
+	const openRaceList = async (page) => { await page.click('#hdr-race-slot [data-usd-act="set-race"]'); await page.waitForSelector('[data-usd-el="race-list"]'); };
 	const chooseRace = async (page, id) => { await openRaceList(page); await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input'); await page.waitForTimeout(300); };
 
 	await block('オススメサポ④段9 帯の「レース ▾」: 「0/10 ▾」の右・高さ28px・選ぶと濃色／帯の高さは変わらない／320px は「レース」だけ（320・375・414px）。選んだときの文字は段13・B1（blocks-13）', async () => {
@@ -327,7 +330,7 @@ export async function register12(env) {
 			await chooseRace(sp.page, R0.id);
 			const b = await barInfo(sp.page);
 			const tag = 'オススメサポ④段9 ' + w + 'px: ';
-			assert(a.btn && Math.round(a.btn.h) === 28 && a.btn.l >= a.pillR && a.btn.r <= a.sumL && a.sw <= a.iw && !a.on, tag + '「レース」のボタンは札（0/10 ▾）の右・合計の左に入り、高さ28px。画面は横にはみ出さない', a);
+			assert(a.btn && Math.round(a.btn.h) === 28 && a.btn.l >= a.pillR && a.btn.r <= a.sumL && a.sw <= a.iw && !a.on, tag + '「レース」のボタンはタイトルの行のタイトルの右・ツール切り替えの左に入り（C-235）、高さ28px。画面は横にはみ出さない', a);
 			assert(a.text === (w < 360 ? 'レース' : 'レース▾') && a.caretShown === (w >= 360), tag + (w < 360 ? '320px は「レース」だけ（▾を省く）' : '「レース ▾」'), { text: a.text, caret: a.caretShown });
 			assert(b.on && b.bg !== a.bg && b.barH === a.barH && b.btn.r <= b.sumL && b.sw <= b.iw, tag + '選ぶとボタンが濃色になる。帯の高さ（' + a.barH + 'px）は変わらない（文字は段13・B1 で条件の短い形）', { a: [a.barH, a.bg], b: [b.barH, b.bg, b.text] });
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
@@ -502,7 +505,7 @@ export async function register12(env) {
 			return { f: [q('#deck-template-panel [data-usd-el="factor-pt"]'), q('#deck-template-panel [data-usd-el="factor-count"]')], r: [q('#deck-roster-panel [data-usd-el="pt-total"]'), q('#deck-roster-panel [data-usd-el="pt-count"]')], badge: q('#skill-count-badge') }; });
 		// 条件で検索・緑スキルの一覧（選べる行の id）
 		const pickerIds = async (act) => {
-			await sp.page.click(T + '[data-usd-act="' + act + '"]');
+			await pickEntry(sp.page, act);   // C-235: 虫眼鏡の小窓から
 			await sp.page.waitForTimeout(200);
 			const ids = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="skill-check"]')).filter((i) => !i.disabled).map((i) => i.value).sort().join());
 			await sp.page.click('[data-usd-act="picker-close"]');
@@ -529,7 +532,7 @@ export async function register12(env) {
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
 		// C-222: 条件で検索では、①の絞り込み（FULL は R0 と同じ距離・バ場）に合わない行がレースを選ぶ前から選べない。レースを選ぶと、その行の理由が
 		// 「レース条件」に替わる（理由は1つだけ・レース条件が先）ので、選べる行の数は減らないことがある。レース条件の理由の行が出ることを見る
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		await sp.page.waitForTimeout(200);
 		const pkRace = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="results"] [data-usd-el="excluded-reason"]')).filter((e) => /レース条件/.test(e.textContent)).length);
 		await sp.page.click('[data-usd-act="picker-close"]');

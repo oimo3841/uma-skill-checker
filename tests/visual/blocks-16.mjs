@@ -6,6 +6,7 @@
 // D: オススメサポは、②で追加済みのスキルを、除外の設定に関わらず数える
 // E: 「オススメサポαテスト」→「オススメサポ」
 // スキル名・グループの文字・レース名は検査の側に書かない（恒久ルール1。データか画面から読む）。
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register16(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -52,13 +53,13 @@ export async function register16(env) {
 	const draftIds = (page) => page.evaluate(() => { const d = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || 'null'); return d ? d.skillIds : []; });
 	const toastText = (page) => page.evaluate(() => document.getElementById('toast-message').textContent);
 	const pickRace = async (page, id) => {
-		await page.click(BAR + '[data-usd-act="set-race"]');
+		await page.click('#hdr-race-slot [data-usd-act="set-race"]');
 		await page.waitForSelector('[data-usd-el="race-list"]');
 		await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input');
 		await sleep(page, 500);
 	};
 	const addByText = async (page, names) => {
-		await page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(page, 'editor-pick-text');
 		await page.fill('[data-usd-el="paste-input"]', names.join('\n'));
 		await page.click('[data-usd-act="paste-run"]');
 		await sleep(page, 200);

@@ -9,6 +9,7 @@
 //     先頭の件数に「①の絞り込み N件」を足す。理由が重なる行は1つだけ（本育成編成 → レース条件 → ①の絞り込み〔距離 → 脚質 → バ場〕）。
 //  4. スキル名の文字に、①の表と同じ色（回復・デバフ・パッシブ）。灰色の行は灰色のまま。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register58(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -49,7 +50,7 @@ export async function register58(env) {
 		return sp;
 	};
 	const openFilter = async (page) => {
-		await page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(page, 'editor-pick');
 		await page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		await page.waitForTimeout(300);
 	};

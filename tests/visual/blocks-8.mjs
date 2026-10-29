@@ -52,7 +52,8 @@ export async function register8(env) {
 		const tot = q('#deck-set-bar [data-usd-el="set-total"]');
 		return { total: tot ? Number(tot.getAttribute('data-total')) : null, totalText: (q('#deck-set-bar [data-usd-el="set-total-num"]') || {}).textContent || null,
 			sub: (q('#deck-set-bar [data-usd-el="set-total-sub"]') || {}).textContent || null, name: (q('#deck-set-bar [data-usd-el="set-name"]') || {}).textContent || null,
-			count: (q('#deck-set-bar [data-usd-el="set-count"]') || {}).textContent || null };
+			// C-235: 帯の「3／10」は無くした。保存数はセット名のボタンの読み上げの名前「セットの一覧（N／10件）」から読む
+			count: (((q('#deck-set-bar [data-usd-el="set-name"]') || { getAttribute: () => '' }).getAttribute('aria-label') || '').match(/（(\d+／\d+)件）/) || [])[1] || null };
 	});
 
 	/* ====================================================================
@@ -125,18 +126,19 @@ export async function register8(env) {
 			// 段9（C-121）: 数字は 18px（太字）、2行目は 10.5px。見出しの帯の細かい形は blocks-9.mjs の段9(D)
 				assert(g.numFs === '18px' && Number(g.numFw) >= 700 && g.subFs === '10.5px', tag + '合計の数字は 18px の太字、2行目は 10.5px', g);
 			let b = await barNums(sp.page);
-			assert(b.name === '＋新規' && b.count === '2／10', tag + '左：セット名（＋新規）と「保存数／10」', b);
+			assert(b.name === '無題（新規）' && b.count === '2／10', tag + '左：セット名（無題（新規）。C-235）と、読み上げの名前の「保存数／10」', b);
 			// sticky: 下へスクロールしても帯は画面の上に残る（ヘッダーは残らない）
 			// 帯の元の位置より下までスクロールする（画面の高さを小さくして、スクロールできる量を作ってある）
 			await sp.page.evaluate(() => scrollTo(0, document.getElementById('deck-set-bar').getBoundingClientRect().top + scrollY + 120));
 			await sp.page.waitForTimeout(150);
-			const st = await sp.page.evaluate(() => ({ y: scrollY, bar: Math.round(document.getElementById('deck-set-bar').getBoundingClientRect().top), header: Math.round(document.querySelector('.site-header').getBoundingClientRect().bottom) }));
-			assert(st.y > 0 && st.bar === 0 && st.header <= 0, tag + 'スクロールしても帯は画面の上（top 0）に残り、ヘッダーは残らない', st);
+			// C-235: タイトルの行も上に残るので、帯はその直下
+			const st = await sp.page.evaluate(() => ({ y: scrollY, bar: Math.round(document.getElementById('deck-set-bar').getBoundingClientRect().top), header: Math.round(document.querySelector('.site-header').getBoundingClientRect().bottom), headerTop: Math.round(document.querySelector('.site-header').getBoundingClientRect().top) }));
+			assert(st.y > 0 && st.headerTop === 0 && st.header > 0 && st.bar === st.header, tag + 'スクロールしてもタイトルの行は画面の上端、帯はその直下に残る（C-235）', st);
 			await sp.page.evaluate(() => scrollTo(0, 0));
 			// 一覧の小窓で t1 を選ぶ → ①は t1 の編成（uma-0002）、帯の名前・状態（切れ者）
 			await sp.page.click(BAR + '[data-usd-act="set-list"]');
 			const items = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="set-list"] label')).map((l) => l.textContent));
-			assert(items.join() === '＋新規,中距離・差し 想定,ダート', tag + '一覧の小窓：＋新規と保存済みのセット（ラジオ）', items);
+			assert(items.join() === '無題（新規）,中距離・差し 想定,ダート', tag + '一覧の小窓：無題（新規）と保存済みのセット（ラジオ）', items);
 			await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
 			await sp.page.waitForTimeout(250);
 			await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
@@ -150,27 +152,31 @@ export async function register8(env) {
 			const formula = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="set-total-formula"]') || {}).textContent);
 			assert(formula === '合計 ＝ ① ' + r1.rosterPt.toLocaleString('en-US') + ' ＋ ② ' + r1.factorPt.toLocaleString('en-US'), tag + '?の中：合計 ＝ ① X ＋ ② Y', formula);
 			await sp.page.keyboard.press('Escape');
-			// ✎ で名前を変える → template と roster の両方。Esc は取り消し
-			await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-			await sp.page.fill(BAR + '[data-usd-el="name"]', '取り消す');
+			// 名前を変える → template と roster の両方。Esc は取り消し（C-235: ✎ をやめ、小窓の「セット名を変更」。Esc は入力の部分だけ閉じる）
+			await sp.page.click(BAR + '[data-usd-act="set-list"]');
+			await sp.page.click('[data-usd-el="set-rename-open"]');
+			await sp.page.fill('[data-usd-el="set-name-input"]', '取り消す');
+			await sp.page.keyboard.press('Escape');
 			await sp.page.keyboard.press('Escape');
 			await sp.page.waitForTimeout(150);
 			b = await barNums(sp.page);
-			assert(b.name === '中距離・差し 想定', tag + '✎ の入力は Esc で取り消し', b);
-			await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-			await sp.page.fill(BAR + '[data-usd-el="name"]', '中距離2');
+			assert(b.name === '中距離・差し 想定', tag + '名前の入力は Esc で取り消し', b);
+			await sp.page.click(BAR + '[data-usd-act="set-list"]');
+			await sp.page.click('[data-usd-el="set-rename-open"]');
+			await sp.page.fill('[data-usd-el="set-name-input"]', '中距離2');
 			await sp.page.keyboard.press('Enter');
 			await sp.page.waitForTimeout(150);
 			await sp.page.click(P + '[data-usd-act="clear-card"]');   // ①に触っても古い名前に戻らない
 			await sp.page.waitForTimeout(150);
 			let d = await ud(sp.page);
 			assert(d.templates[0].name === '中距離2' && d.rosters.find((r) => r.rosterId === 'r1').name === '中距離2', tag + '名前は Enter で確定。template と付いている roster の両方が変わる（①を触っても戻らない）', [d.templates[0].name, d.rosters.map((r) => r.name)]);
-			// ＋新規 → ✎ → Enter で保存（①の下書きに中身があれば、写しを付ける）
+			// 無題（新規） → 「名前を付けてセットを保存」 → Enter で保存（①の下書きに中身があれば、写しを付ける。C-235 で ✎ から置き換えた）
 			await sp.page.click(BAR + '[data-usd-act="set-list"]');
 			await sp.page.click('[data-usd-el="set-list"] input[value=""]');
 			await sp.page.waitForTimeout(200);
-			await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-			await sp.page.fill(BAR + '[data-usd-el="name"]', '新しいセット');
+			await sp.page.click(BAR + '[data-usd-act="set-list"]');
+			await sp.page.click('[data-usd-el="set-save-open"]');
+			await sp.page.fill('[data-usd-el="set-name-input"]', '新しいセット');
 			await sp.page.keyboard.press('Enter');
 			await sp.page.waitForTimeout(200);
 			d = await ud(sp.page);

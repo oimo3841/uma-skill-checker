@@ -92,7 +92,16 @@ export async function register7d(env) {
 			old: ['pt-prev-count', 'pt-prev-total', 'pt-prev-list', 'pt-with-prev'].filter((k) => document.querySelector('#deck-roster-panel [data-usd-el="' + k + '"]')),
 			badge: (document.getElementById('deck-roster-excluded') || {}).textContent };
 	});
-	const readNeed = (page) => page.evaluate(() => {
+	// C-235: 継承固有の「Pt／種」は②の「?」の小窓の中だけ。開いて読み、閉じる
+	const readNeed = async (page) => {
+		const HELP = '#deck-template-panel [data-usd-act="pt-need-help"]';
+		const has = !!(await page.$(HELP)) && (await page.isVisible(HELP));
+		if (has) await page.click(HELP);
+		const r = await readNeedIn(page);
+		if (has) await page.keyboard.press('Escape');
+		return r;
+	};
+	const readNeedIn = (page) => page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		if (!el || el.hidden) return { hidden: true };
 		// チップの数字は「そのランクのぶんだけ」（段7d の追加・A）。cum はそのランクまでの累計（data-cum）
@@ -101,7 +110,7 @@ export async function register7d(env) {
 		const cuts = band ? JSON.parse(band.getAttribute('data-cuts')) : null;
 		const chips = [1, 2, 3].map((k) => (cuts ? { text: '', n: cuts[k - 1].own, cum: cuts[k - 1].total, top: 0 } : null));
 
-		const uniqEl = el.querySelector('[data-usd-el="pt-need-uniq"]');
+		const uniqEl = document.querySelector('[data-usd-el="info-body"] [data-usd-el="pt-need-uniq"]');
 		const uniq = uniqEl ? { text: uniqEl.textContent.replace(/\s+/g, ' ').trim(), n: Number(uniqEl.getAttribute('data-pt')), cum: null, top: Math.round(uniqEl.getBoundingClientRect().top) } : null;
 		// 段8（C-120）: ②の合計（pt-total-row／pt-total-head）は無くなり、合計は共通の見出しの帯（#deck-set-bar）の「合計 X Pt」（① ＋ ②）だけになった。
 		// 合計の式（① ＋ 継承固有 ＋ ON のランクの Pt。既定は全部 ON）はそれまでの②の合計と同じなので、帯の data-total を読む
@@ -178,29 +187,15 @@ export async function register7d(env) {
 		//    「β版」は exam と同じ文字の大きさ、ピルは exam の「新UI」と同じ高さ・フォントサイズ・太さ。色は special の緑（--uma-accent-soft）。
 		//    ヘッダーの高さは増えない（実測の基準: 1280px 110px／700px 86px／640px 以下 47px（C-140・微調整2・D で上下に6pxの余白を取り 57px）。C-139 で 44px の画面の色のボタンが入ったため 104／80 から変わった）。323px 以上はピルの文字が全部入り、322px 以下だけ「2nd」
 		{
-			// 基準は、exam.html のヘッダーの「β版」（768px 以上 16px）と「新UI」のバッジ（10px・太字・高さ 20px 超）だった。
-			// exam からは C-139（微調整1・C(11)）で両方を外したので、そのときの実測値を固定値にして、special のピルがこの形を保つことを見る
-			const ref = { beta: '16px', fs: '10px', fw: '700' };
-			const HD = (w) => (w >= 1000 ? 110 : w > 640 ? 86 : 57);   // C-140（微調整2・D）: 640px 以下はタイトルの上下に6pxの余白を取り 47→57px。基準は C-139（微調整1・C(13)）で、44px の画面の色のボタンが入って 104→110・80→86 に変わった（640px 以下は余白を詰めて 47px のまま）
+			// C-235: タイトルの行から「β版」とピル「2nd Edition」を消した（ページの題の「2nd Edition」は今のまま）。タイトルの高さは PC 56px／スマホ 47px
+			const HD = (w) => (w > 640 ? 56 : 47);
 			for (const w of [1280, 700, 390, 375, 360, 323, 322, 300]) {
 				const sp = await open({ w, h: 800 });
-				const m = await sp.page.evaluate(() => {
-					const pill = document.querySelector('header .header-edition-pill'); const beta = document.querySelector('header .header-edition'); const hd = document.querySelector('header'); const h1 = document.querySelector('header h1');
-					const cs = getComputedStyle(pill); const pr = pill.getBoundingClientRect(); const probe = document.createElement('i'); probe.style.cssText = 'background:var(--star-badge-green-bg, var(--uma-accent-soft));color:var(--star-badge-green-text, var(--uma-accent-soft-text))';   /* C-144: ピルは緑のバッジの色（--star-badge-green-*。無ければ従来の --uma-accent-soft） */ document.body.appendChild(probe);
-					const pc = getComputedStyle(probe); const soft = { bg: pc.backgroundColor, color: pc.color }; probe.remove();
-					const btnLeft = Math.min(...Array.from(hd.querySelectorAll('button')).map((b) => b.getBoundingClientRect().left).filter((x) => x > 0));
-					return { tag: pill.tagName, full: pill.innerText.replace(/\s+/g, ' ').trim(), short: hd.hasAttribute('data-hdr-short'), insideH1: h1.contains(pill), fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(pr.height * 10) / 10, cursor: cs.cursor, bg: cs.backgroundColor, color: cs.color, soft, betaFs: getComputedStyle(beta).fontSize, betaText: beta.textContent.trim(),
-						hdH: Math.round(hd.getBoundingClientRect().height), pillRight: pr.right, btnLeft, sameRow: Math.abs((pr.top + pr.height / 2) - (beta.getBoundingClientRect().top + beta.getBoundingClientRect().height / 2)) < 8, title: document.title, docW: document.documentElement.scrollWidth, iw: innerWidth };
-				});
-				const tag = '段7d追加(B) ' + w + 'px: ';
-				assert(m.betaText === 'β版' && !m.insideH1 && m.tag === 'SPAN' && m.title.includes('2nd Edition'), tag + 'h1 の中は「β版」、ピル「2nd Edition」は h1 の外（文字の抜きグラデーションを受けない）にある。押せるものではない（span）', m);
-				assert(m.fs === ref.fs && m.fw === ref.fw && m.h > 20, tag + 'ピルのフォントサイズ（' + m.fs + '）・太さ（' + m.fw + '）・高さ（' + m.h + 'px・20px 超）は、以前の exam の「新UI」と同じ（固定値）', { m: [m.fs, m.fw, m.h], ref });
-				assert(m.bg === m.soft.bg && m.color === m.soft.color && m.cursor === 'default', tag + 'ピルの色は special の緑（--uma-accent-soft／--uma-accent-soft-text）。手のカーソルにならない', { bg: m.bg, color: m.color, soft: m.soft, cursor: m.cursor });
-				const wantBeta = w >= 768 ? ref.beta : w > 640 ? '14px' : '11px';   // exam と同じ（768px 以上 16px／それ未満 14px）。640px 以下は詰めて 11px
-				assert(m.betaFs === wantBeta, tag + '「β版」の大きさ ' + wantBeta + (w > 640 ? '（exam と同じ）' : '（スマホは 11px）'), m.betaFs);
-				// C-141（微調整3・A-2）: 一言をバッジの右隣に入れる幅が足りないときは「2nd」だけにする（data-hdr-short）。373px 以上は必ず「2nd Edition」
-				assert(m.full === ((w <= 322 || m.short) ? '2nd' : '2nd Edition') && (w < 373 || !m.short), tag + (w <= 322 ? '全部は入らない幅（322px 以下）は「2nd」' : m.short ? '一言を入れる幅が足りないので「2nd」' : 'ピルは「2nd Edition」（全部入る）'), m.full);
-				assert(m.hdH === HD(w) && m.pillRight <= m.btnLeft - 4 && m.sameRow && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px（実測 ' + m.hdH + 'px）。ピルは右のボタンの手前（余白 ' + Math.round(m.btnLeft - m.pillRight) + 'px）で、「β版」と同じ行に並び、横にはみ出さない', m);
+				const m = await sp.page.evaluate(() => ({ pill: !!document.querySelector('header .header-edition-pill'), beta: !!document.querySelector('header .header-edition'), h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(),
+					hdH: Math.round(document.querySelector('header').getBoundingClientRect().height), title: document.title, docW: document.documentElement.scrollWidth, iw: window.innerWidth }));
+				const tag = '段7d追加(B)→C-235 ' + w + 'px: ';
+				assert(!m.pill && !m.beta && m.h1 === 'UmaStar OCR' && m.title.includes('2nd Edition'), tag + 'タイトルの行に「β版」とピル「2nd Edition」は無い（ページの題には残る）', m);
+				assert(m.hdH === HD(w) && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px（実測 ' + m.hdH + 'px）・横にはみ出さない', m);
 				await sp.ctx.close();
 			}
 		}

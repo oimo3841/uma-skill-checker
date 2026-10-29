@@ -1,4 +1,5 @@
 import { removeFromSet } from './lib/fixtures.mjs';
+import { pickEntry } from './lib/entry-search.mjs';
 // 小回り・直線コースのレース条件（C-155・2026-10-14）の画面の検査。run-smoke.mjs の末尾から register26() で呼ばれる
 // （塊の見出しはすべて「小回り直線」で始まる。`npm run test:visual -- --only=小回り直線` で回せる）。
 //
@@ -42,7 +43,7 @@ export async function register26(env) {
 	};
 	/** 緑スキルの一覧で、各 id の行が「レース条件に合わないため選べない」か（行が無ければ null） */
 	const passiveState = async (page, ids) => {
-		await page.click(T + '[data-usd-act="editor-pick-passive"]');
+		await pickEntry(page, 'editor-pick-passive');
 		await page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
 		const r = await page.evaluate((ids) => ids.map((id) => {
 			const i = document.querySelector('[data-usd-el="passive-results"] input[value="' + id + '"]');
@@ -151,7 +152,7 @@ export async function register26(env) {
 		await sp.page.waitForTimeout(300);
 		const draftIds = () => sp.page.evaluate(() => { const d = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || 'null'); return d ? d.skillIds : []; });
 		const pick = async (id) => {
-			await sp.page.click('#deck-set-bar [data-usd-act="set-race"]');
+			await sp.page.click('#hdr-race-slot [data-usd-act="set-race"]');
 			await sp.page.waitForSelector('[data-usd-el="race-list"]');
 			await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input');
 			await sp.page.waitForTimeout(500);

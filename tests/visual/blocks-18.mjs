@@ -8,6 +8,7 @@
 // E: 誤認識の読み替え辞書は「スクショで追加」の小窓の中
 // F: 右下の「＋」の展開に「セット」「レース」
 // スキル名・レース名は検査の側に書かない（恒久ルール1。データか画面から読む）。
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register18(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -155,7 +156,8 @@ export async function register18(env) {
 					sameRow: tools.parentElement.contains(document.querySelector('#deck-template-panel .usd-entry-row')), ox: getComputedStyle(tools).overflowX };
 			});
 			const ck = r.kids.indexOf('factor-circle-mode');
-			const want = (ck === -1 ? [] : ['factor-circle-mode']).concat(['factor-view', 'palette-delete']);
+			// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右）
+			const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(ck === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
 			assert(JSON.stringify(r.kids) === JSON.stringify(want) && r.pal === 0 && r.sameRow && r.ox === 'visible', 'C132A5 塊の並びは（◎）・表の切り替え・削除。パレット（アイコン）は無い。入口のボタンと同じ行・塊は横に送らない', r);
 			await sp.ctx.close();
 		}
@@ -297,7 +299,7 @@ export async function register18(env) {
 		const where = await p.evaluate(() => ({ inGuide: !!document.querySelector('#skillset-guide-box #ocr-dict-box'), inPanel: !!document.querySelector('#step-panel-1 #ocr-dict-box'), value: document.getElementById('ocr-dict').value }));
 		assert(where.inGuide && !where.inPanel, 'C132E 新UIでは「スクショで追加」の小窓の中にあり、②の下には無い', where);
 		assert(where.value === 'あいう = テスト', 'C132E 保存してある中身がそのまま読まれる（キーは uma-special-ocr-dict のまま）', where);
-		await p.click(T + '[data-usd-act="editor-pick-screenshot"]');
+		await pickEntry(p, 'editor-pick-screenshot');
 		await p.waitForTimeout(200);
 		const vis = await p.evaluate(() => { const d = document.getElementById('ocr-dict-box'); return { shown: d.getClientRects().length > 0, guide: !document.getElementById('skillset-guide-box').hidden }; });
 		assert(vis.guide && vis.shown, 'C132E 「スクショで追加」を押すと、小窓の中に辞書が見える', vis);
@@ -348,7 +350,7 @@ export async function register18(env) {
 		const r = await p.evaluate(() => {
 			const t = document.getElementById('fab-race-text');
 			const item = document.getElementById('fab-item-race');
-			return { text: t.textContent, hidden: t.hidden, bar: document.querySelector('#deck-set-bar [data-usd-el="set-race-text"]').textContent, oneLine: item.getBoundingClientRect().height <= 52, sw: document.documentElement.scrollWidth, iw: innerWidth };
+			return { text: t.textContent, hidden: t.hidden, bar: document.querySelector('#hdr-race-slot [data-usd-el="set-race-text"]').textContent, oneLine: item.getBoundingClientRect().height <= 52, sw: document.documentElement.scrollWidth, iw: innerWidth };
 		});
 		assert(!r.hidden && r.text === r.bar && r.oneLine && r.sw <= r.iw, 'C132F レースを選ぶと、帯と同じ短い表記（' + r.text + '）を1行で添える', r);
 		assert(jsErrors(sp.errors).length === 0, 'C132F コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));

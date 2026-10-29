@@ -5,6 +5,7 @@
 // C: 「低効果を除外」（①の列見出し。②のパレットのボタンは C-130 で脚質のボタンに置き換えて削除した＝その塊は下で外した）
 // D: オススメサポ（当時は「オススメサポαテスト」）の除外の既定（デバフ・持久力回復・視野・緑スキル・低効果）と、新しい2つのチップ
 // スキル名・レース名・段階の名前は検査の側に書かない（恒久ルール1。データか画面から読む）。
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register15(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -84,7 +85,7 @@ export async function register15(env) {
 	 * ==================================================================== */
 	await block('C129B 条件で検索・緑スキル: レース条件に合わないスキルは、チェック不可のグレーアウトで残り、理由「レース条件に合わないため選べない」／「N件」は追加できる行だけ／指定なしでは今までどおり', async () => {
 		const sp = await openSp({ roster: Object.assign({}, FULL, { race: RACE }) });
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		await sp.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const a = await readFilterList(sp.page);
 		assert(a.race > 0 && a.raceDisabled, 'C129B(a) 条件で検索: レース条件に合わない行がグレーアウト（チェック不可）で残る（' + a.race + '件。空振りでない）', { race: a.race });
@@ -95,7 +96,7 @@ export async function register15(env) {
 		// 本育成の理由が重なるものは、本育成の理由が先（レース条件の件数には数えない）
 		assert(a.label.indexOf('本育成') === -1 || a.label.indexOf('本育成') < a.label.indexOf('レース条件'), 'C129B(a) 件数の並びは本育成の分が先', a.label);
 		await closePicker(sp.page);
-		await sp.page.click(T + '[data-usd-act="editor-pick-passive"]');
+		await pickEntry(sp.page, 'editor-pick-passive');
 		await sp.page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
 		const b = await readPassiveList(sp.page);
 		assert(b.race > 0 && b.raceDisabled && raceNum(b.label) === b.race, 'C129B(b) 緑スキル: レース条件に合わない行がグレーアウト（チェック不可）で残る（' + b.race + '件）', b);
@@ -109,20 +110,20 @@ export async function register15(env) {
 		await sp.ctx.close();
 		// 指定なしでは今までどおり（レース条件の行は無い）
 		const sp2 = await openSp({ roster: FULL });
-		await sp2.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp2.page, 'editor-pick');
 		await sp2.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const n = await readFilterList(sp2.page);
 		// （レースは①の距離・バ場も固定するので、本育成で得るスキルの顔ぶれも変わる。比べるのは追加できる行の数だけ）
 		assert(n.race === 0 && n.addable > a.addable && !/レース条件/.test(n.label), 'C129B 指定なし: レース条件の行は無く、追加できる行はレースありより多い', { none: n.addable, race: a.addable });
 		await closePicker(sp2.page);
-		await sp2.page.click(T + '[data-usd-act="editor-pick-passive"]');
+		await pickEntry(sp2.page, 'editor-pick-passive');
 		await sp2.page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
 		const n2 = await readPassiveList(sp2.page);
 		assert(n2.race === 0, 'C129B 指定なし: 緑スキルにもレース条件の行は無い', n2);
 		await sp2.ctx.close();
 		// 320px でも、件数の行（本育成とレース条件の両方）は1行に収まる
 		const sp3 = await openSp({ w: 320, h: 568, roster: Object.assign({}, FULL, { race: RACE }) });
-		await sp3.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp3.page, 'editor-pick');
 		await sp3.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const n3 = await readFilterList(sp3.page);
 		assert(n3.race > 0 && n3.labelFits && /^選べない：本育成編成 \d+件・レース条件 \d+件$/.test(n3.label), 'C129B 320px: 両方あるときの件数は短い形で、1行に収まる', { label: n3.label, fits: n3.labelFits });
@@ -132,14 +133,14 @@ export async function register15(env) {
 	await block('C129B テキストで検索・スクショで追加: 一致した行のうちレース条件に合わないものは追加せず、「レース条件に合わないため追加しなかったもの N種」を出す／指定なしでは今までどおり', async () => {
 		const sp = await openSp({ roster: Object.assign({}, FULL, { race: RACE }) });
 		// 名前は画面から読む（条件で検索の一覧の、合わない行と追加できる行）
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		await sp.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const a = await readFilterList(sp.page);
 		await closePicker(sp.page);
 		const bad = a.raceNames[0], ok = a.addableNames[0];
 		assert(!!bad && !!ok, 'C129B(c) 材料: レース条件に合わない名前と、追加できる名前がある', { bad, ok });
 		// (c) テキストで検索
-		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp.page, 'editor-pick-text');
 		await sp.page.fill('[data-usd-el="paste-input"]', bad + '\n' + ok);
 		await sp.page.click('[data-usd-act="paste-run"]');
 		await sp.page.waitForTimeout(300);
@@ -171,7 +172,7 @@ export async function register15(env) {
 		await sp.ctx.close();
 		// 指定なし: 同じ2つがどちらも選択に入る（今までどおり）
 		const sp2 = await openSp({ roster: FULL });
-		await sp2.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp2.page, 'editor-pick-text');
 		await sp2.page.fill('[data-usd-el="paste-input"]', bad + '\n' + ok);
 		await sp2.page.click('[data-usd-act="paste-run"]');
 		await sp2.page.waitForTimeout(300);
@@ -182,12 +183,12 @@ export async function register15(env) {
 
 	await block('C129B レースを選んだあとも、手で追加済みのスキルは②の一覧から消えない', async () => {
 		const sp = await openSp({ roster: FULL });
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		await sp.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const names = (await readFilterList(sp.page)).addableNames;
 		await closePicker(sp.page);
 		// 足しておく（全部）→ レースを選ぶ（保存の口から直接）
-		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp.page, 'editor-pick-text');
 		await sp.page.fill('[data-usd-el="paste-input"]', names.slice(0, 30).join('\n'));
 		await sp.page.click('[data-usd-act="paste-run"]');
 		await sp.page.waitForTimeout(200);

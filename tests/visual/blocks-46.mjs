@@ -54,16 +54,19 @@ export async function register46(env) {
 	await block('C-187(a)→段F0 入口の2つのボタン（オススメサポ・脚質オススメ）は同じ見た目: 同じクラス（usd-outside-entry）・同じ枠線（1px・固有スキルの縁の色）・同じ内側の塗り（淡い3色のグラデーション）・同じ文字色。ほかの入口より目立つ。文字は塗りの上で 4.5:1 以上（ライト・ダーク × 390・360・1280）', async () => {
 		for (const [w, theme] of [[390, 'light'], [390, 'dark'], [360, 'light'], [360, 'dark'], [1280, 'light'], [1280, 'dark']]) {
 			const sp = await openSp({ w, theme, tab: '1', h: w === 1280 ? 900 : 844 });
+			// C-235: ほかの入口（条件で検索）は虫眼鏡の小窓の中。開いてから読み、あとで閉じる
+			await sp.page.click('#deck-template-panel [data-usd-act="entry-search"]');
 			const r = await sp.page.evaluate(() => {
 				const pick = (sel) => {
-					const b = document.querySelector('#deck-template-panel ' + sel);
+					const b = document.querySelector(/^\[data-usd-el="entry-search-list"\]/.test(sel) ? sel : '#deck-template-panel ' + sel);
 					if (!b) return null;
 					const cs = getComputedStyle(b), rc = b.getBoundingClientRect();
 					return { cls: b.className, bgImg: cs.backgroundImage, bw: cs.borderTopWidth, bs: cs.borderTopStyle, bc: cs.borderTopColor, color: cs.color, bgClip: cs.backgroundClip, h: Math.round(rc.height), text: b.textContent.trim(), icon: !!b.querySelector('[data-lucide], svg') };
 				};
 				const root = getComputedStyle(document.documentElement);
-				return { a: pick('[data-usd-el="outside-open"]'), b: pick('[data-usd-el="style-open"]'), other: pick('.usd-entry-row [data-usd-act="editor-pick"]'), from: root.getPropertyValue('--usd-skill-unique-from'), mid: root.getPropertyValue('--usd-skill-unique-mid'), to: root.getPropertyValue('--usd-skill-unique-to'), edge: root.getPropertyValue('--usd-skill-unique-edge') };
+				return { a: pick('[data-usd-el="outside-open"]'), b: pick('[data-usd-el="style-open"]'), other: pick('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick"]'), from: root.getPropertyValue('--usd-skill-unique-from'), mid: root.getPropertyValue('--usd-skill-unique-mid'), to: root.getPropertyValue('--usd-skill-unique-to'), edge: root.getPropertyValue('--usd-skill-unique-edge') };
 			});
+			await sp.page.keyboard.press('Escape');
 			const tag = 'C-187(a) ' + w + 'px・' + theme + ': ';
 			assert(r.a && r.b && r.a.cls === r.b.cls && /usd-outside-entry/.test(r.a.cls), tag + '2つは同じクラス（usd-outside-entry）で作られている', [r.a && r.a.cls, r.b && r.b.cls]);
 			assert(r.a.bgImg === r.b.bgImg && r.a.bw === r.b.bw && r.a.bs === r.b.bs && r.a.bc === r.b.bc && r.a.color === r.b.color && r.a.bgClip === r.b.bgClip && r.a.h === r.b.h, tag + '枠線・内側の塗り（淡い3色）・文字色・高さが同じ', { a: [r.a.bgImg.slice(0, 60), r.a.bw, r.a.color, r.a.h], b: [r.b.bgImg.slice(0, 60), r.b.bw, r.b.color, r.b.h] });

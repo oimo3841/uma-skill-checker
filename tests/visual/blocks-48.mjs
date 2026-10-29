@@ -70,8 +70,13 @@ export async function register48(env) {
 			const k = w + '-' + theme, want = BASE[k], tag = '段F0(a) ' + w + 'px・' + theme + ': ';
 			const m = await measure(sp.page, SEL.outside);
 			assert(!!m && !!want, tag + 'オススメサポのボタンがある', !!m);
-			const bad = FIELDS.filter((f) => JSON.stringify(m[f]) !== JSON.stringify(want[f]));
-			assert(bad.length === 0 && m.w === want.w && m.h === want.h, tag + '計算された見た目が 0530272 と同一（枠 ' + (m && m.border[0]) + '・高さ ' + (m && m.h) + '・角丸 ' + (m && m.radius) + '）', bad.map((f) => [f, m[f], want[f]]));
+			// C-235: 入口の行が入らない幅（390・360px）は、オススメサポ・脚質オススメの文字と左右の余白を段階的に小さくする（data-usd-fit）。
+			// その幅では文字の大きさ・行の高さ・余白・アイコンの大きさ・幅だけが変わってよく、ほかの見た目（枠・地・文字色・高さ・角丸・アイコン）は 0530272 のまま。画素の一致は小さくしない幅（1280px）で見る
+			const fit = await sp.page.evaluate(() => (document.querySelector('#deck-template-panel .usd-skillgroup-head') || { getAttribute: () => null }).getAttribute('data-usd-fit'));
+			const bad = FIELDS.filter((f) => !(fit && ['pad', 'fontSize', 'lineHeight', 'gap', 'icon'].includes(f)) && JSON.stringify(m[f]) !== JSON.stringify(want[f]));
+			assert(bad.length === 0 && (fit || m.w === want.w) && m.h === want.h && (!fit || /^(9|10)px$/.test(m.fontSize)), tag + '計算された見た目が 0530272 と同一（枠 ' + (m && m.border[0]) + '・高さ ' + (m && m.h) + '・角丸 ' + (m && m.radius) + (fit ? '。C-235 の段 ' + fit + ' で文字 ' + m.fontSize + '・余白だけ小さい' : '') + '）', bad.map((f) => [f, m[f], want[f]]));
+			// C-235: 390・360px は入口の行に残るボタンが減って行が横に送られなくなった（端のフェードの重ね描きが無い）ため、周りの画素が 0530272 と同じにならない。画素の一致は 1280px で見る
+			if (fit || w !== 1280) { await sp.ctx.close(); continue; }
 			const ph = await cropHash(sp.page, SEL.outside);
 			// ②因子周回 段1（2026-10-27）: ボタンの上端が整数の位置にあるときは、0530272 で上端を整数の位置にそろえて測った値（pixelSha256IntY）と比べる
 			// （0530272 の 390・360px は上端が小数の位置で、にじみの分だけ画素が違う。値の出どころは f0-baseline-0530272.json の _noteIntY）

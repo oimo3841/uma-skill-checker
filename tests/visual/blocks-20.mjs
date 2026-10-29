@@ -77,9 +77,10 @@ export async function register20(env) {
 	});
 
 	await block('微調整2A2 広い画面（641px以上）は余白を変えていない（1280・768・700px）', async () => {
-		const want = { 1280: { wrapPadL: '24px', wrapPadT: '48px', cardPad: '24px', hdrRadius: '24px', boxPad: '16px' },
-			768: { wrapPadL: '24px', wrapPadT: '48px', cardPad: '24px', hdrRadius: '24px', boxPad: '16px' },
-			700: { wrapPadL: '16px', wrapPadT: '32px', cardPad: '20px', hdrRadius: '24px', boxPad: '16px' } };
+		// C-235: タイトルは UmaStar と同じ値にした（上の余白 48／32 → 12px・角丸 24 → 16px）。ほかの余白は従来のまま
+		const want = { 1280: { wrapPadL: '24px', wrapPadT: '12px', cardPad: '24px', hdrRadius: '16px', boxPad: '16px' },
+			768: { wrapPadL: '24px', wrapPadT: '12px', cardPad: '24px', hdrRadius: '16px', boxPad: '16px' },
+			700: { wrapPadL: '16px', wrapPadT: '12px', cardPad: '20px', hdrRadius: '16px', boxPad: '16px' } };
 		for (const w of [1280, 768, 700]) {
 			const { ctx, page, errors } = await openExam({ w, eff: true });
 			const e = await page.evaluate(() => {

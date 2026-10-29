@@ -11,6 +11,7 @@
 //    下書き・保存・セットへの写し・複製に乗る。切り替えは「元に戻す」に積む。「すべて消す」で消える（元に戻せる）。「アイコンだけ外す」は触らない。
 //  ・脚質オススメの行の Pt（stylePtCalc）も◎で数える。オススメサポの Pt（outsidePtOf）は変えない。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
+import { openSetNameEdit } from './lib/set-name.mjs';
 
 export async function register57(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -311,8 +312,8 @@ export async function register57(env) {
 		await dk.ctx.close();
 		// 下書き → セットへの保存（名前を付けて保存）で写る
 		sp = await openSp({ w: 1280, roster: R2, ids: ONE12, keep: [id] });
-		await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-		await sp.page.fill(BAR + '[data-usd-el="name"]', '段2');
+		await openSetNameEdit(sp.page);
+		await sp.page.fill('[data-usd-el="set-name-input"]', '段2');
 		await sp.page.keyboard.press('Enter');
 		await sp.page.waitForTimeout(400);
 		d = await ud(sp.page);
@@ -351,13 +352,13 @@ export async function register57(env) {
 			const sp = await openSp({ w, roster: R2, ids: ONE12, keep: ['6'] });
 			const n0 = await read(sp.page);
 			const pos = await sp.page.evaluate(() => {
-				const del = document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]'), b = document.querySelector('#deck-template-panel [data-usd-el="factor-circle-mode"]');
+				// C-235: 塊の並びは「削除・↺・虫眼鏡・◎・表の切り替え」（表が一番右）。◎は虫眼鏡のすぐ右・表の切り替えの左
+				const del = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'), b = document.querySelector('#deck-template-panel [data-usd-el="factor-circle-mode"]');
 				if (!del || !b) return null;
 				const d = del.getBoundingClientRect(), r = b.getBoundingClientRect();
-				// C-226: 塊の並びは「◎・表の切り替え・削除」（削除が一番右）。◎は塊の先頭
-				return { first: b.parentElement.firstElementChild === b && b.parentElement === del.parentElement, left: r.right <= d.left, sameRow: Math.abs((r.top + r.bottom) / 2 - (d.top + d.bottom) / 2) < 4, w: Math.round(r.width), h: Math.round(r.height) };
+				return { first: !!b.previousElementSibling && b.previousElementSibling.getAttribute('data-usd-el') === 'entry-search' && b.nextElementSibling === del && b.parentElement === del.parentElement, left: r.right <= d.left, sameRow: Math.abs((r.top + r.bottom) / 2 - (d.top + d.bottom) / 2) < 4, w: Math.round(r.width), h: Math.round(r.height) };
 			});
-			assert(n0.modeBtn === 'false' && !!pos && pos.first && pos.left && pos.sameRow && pos.w >= 24 && pos.h >= 24, tag + '◎のボタンは右端の塊の先頭（「削除」より左）・同じ行（押せる範囲 24px 以上）・入っていない', pos);
+			assert(n0.modeBtn === 'false' && !!pos && pos.first && pos.left && pos.sameRow && pos.w >= 24 && pos.h >= 24, tag + '◎のボタンは右端の塊の虫眼鏡の右・表の切り替えの左（C-235）・同じ行（押せる範囲 24px 以上）・入っていない', pos);
 			assert(n0.rows.every((r) => r.toggle === null) && n0.rows.filter((r) => r.pt !== '').every((r) => r.ptShown), tag + '通常の表示: 行に切り替えは無く、Pt が見える', n0.rows.slice(0, 3));
 			await setMode(sp.page, true);
 			const m = await read(sp.page);

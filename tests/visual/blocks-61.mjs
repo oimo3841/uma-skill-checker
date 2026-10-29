@@ -213,20 +213,21 @@ export async function register61(env) {
 					const head = tools ? tools.parentElement : null;
 					const entry = head ? head.querySelector('.usd-entry-row') : null;
 					return { order: tools ? Array.from(tools.children).map((e) => e.getAttribute('data-usd-el')) : null,
-						tools: box(tools), entry: box(entry), del: box(document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]')), vw: window.innerWidth,
+						tools: box(tools), entry: box(entry), del: box(document.querySelector('#deck-template-panel [data-usd-el="factor-view"]')), vw: window.innerWidth,
 						overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
 						palette: document.querySelectorAll('#deck-template-panel .usd-palette-btn, #deck-template-panel [data-usd-act="skill-icon"], #deck-template-panel .usd-palette').length,
 						sameRow: !!(tools && entry && Math.abs((tools.getBoundingClientRect().top + tools.getBoundingClientRect().bottom) / 2 - (entry.getBoundingClientRect().top + entry.getBoundingClientRect().bottom) / 2) < 6) };
 				});
-				const want = c.k === '◎あり' ? ['factor-circle-mode', 'factor-view', 'palette-delete'] : ['factor-view', 'palette-delete'];
+				// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右。下の del は表の切り替えのボタンの位置）
+				const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(c.k === '◎あり' ? ['factor-circle-mode'] : []).concat(['factor-view']);
 				assert(JSON.stringify(r.order) === JSON.stringify(want), '②マーカー(6) ' + w + 'px ' + c.k + ': 塊の並びは ' + want.join('・'), r.order);
 				assert(r.palette === 0, '②マーカー(6) ' + w + 'px ' + c.k + ': パレット（アイコンの印・行の先頭のアイコンのボタン）は無い', r.palette);
 				assert(r.tools && r.del && r.tools.l >= 0 && r.del.r <= r.vw && r.del.r >= r.tools.r - 1 && r.entry.r <= r.tools.l + 1 && r.sameRow && !r.overflowX,
-					'②マーカー(6) ' + w + 'px ' + c.k + ': 塊は画面内・削除が一番右・入口のボタンと同じ行で重ならない・横スクロールなし', r);
+					'②マーカー(6) ' + w + 'px ' + c.k + ': 塊は画面内・表の切り替えが一番右（C-235）・入口のボタンと同じ行で重ならない・横スクロールなし', r);
 				pos[c.k] = r.del;
 				await sp.ctx.close();
 			}
-			assert(Math.abs(pos['◎あり'].r - pos['◎なし'].r) < 1 && Math.abs(pos['◎あり'].l - pos['◎なし'].l) < 1, '②マーカー(6) ' + w + 'px: ◎が出ても出なくても削除の位置は同じ', pos);
+			assert(Math.abs(pos['◎あり'].r - pos['◎なし'].r) < 1 && Math.abs(pos['◎あり'].l - pos['◎なし'].l) < 1, '②マーカー(6) ' + w + 'px: ◎が出ても出なくても表の切り替え（一番右）の位置は同じ', pos);
 		}
 	});
 

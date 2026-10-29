@@ -1,5 +1,6 @@
 import { removeFromSet } from './lib/fixtures.mjs';
 import { noticeText } from './lib/add-notice.mjs';
+import { pickEntry } from './lib/entry-search.mjs';
 // C-131（2026-10-07）の検査。run-smoke.mjs の末尾から register17() で呼ばれる
 // （塊の見出しはすべて「C131」で始まる。`npm run test:visual -- --only=C131` で回せる。A・C だけなら「C131A」「C131C」）。
 //
@@ -49,7 +50,7 @@ export async function register17(env) {
 	const toastText = (page) => page.evaluate(() => document.getElementById('toast-message').textContent);
 	const hiddenIds = (page) => page.evaluate(() => UmaSkillDeckCore.getPickerHiddenIds());
 	const addByText = async (page, names) => {
-		await page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(page, 'editor-pick-text');
 		await page.fill('[data-usd-el="paste-input"]', names.join('\n'));
 		await page.click('[data-usd-act="paste-run"]');
 		await page.waitForTimeout(200);
@@ -60,7 +61,7 @@ export async function register17(env) {
 	};
 	/** 緑スキルの一覧を開き、渡した id の行の様子（出ているか・押せないか・理由）を読む。閉じて返す */
 	const passiveRows = async (page, ids) => {
-		await page.click(T + '[data-usd-act="editor-pick-passive"]');
+		await pickEntry(page, 'editor-pick-passive');
 		await page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
 		await page.waitForTimeout(400);
 		const r = await page.evaluate((ids) => ids.map((id) => {
@@ -75,7 +76,7 @@ export async function register17(env) {
 	const PAIR = REC.equivalentPairs.find((p) => UMAS_DOC.entries.some((u) => (u.awakeningSkills || []).some((a) => a.level === 0 && (a.skills || []).some((s) => s.skillId === p.skillIds[1]))));
 	const UMA_WITH = PAIR ? UMAS_DOC.entries.find((u) => (u.awakeningSkills || []).some((a) => a.level === 0 && (a.skills || []).some((s) => s.skillId === PAIR.skillIds[1]))) : null;
 	const pickRace = async (page, id) => {
-		await page.click('#deck-set-bar [data-usd-act="set-race"]');
+		await page.click('#hdr-race-slot [data-usd-act="set-race"]');
 		await page.waitForSelector('[data-usd-el="race-list"]');
 		await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input');
 		await page.waitForTimeout(600);
@@ -247,13 +248,13 @@ export async function register17(env) {
 		const rows = await passiveRows(sp.page, [awk, base1]);
 		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B (1) 緑スキルの一覧で、目覚めも対応するスキルと同じく「本育成で得るため選べません」のグレーアウト', rows);
 		assert((await hiddenIds(sp.page)).includes(awk), 'C131B (1) 選べなくするスキル（条件で検索・テキストで検索・スクショで追加が使う）に目覚めが入る', true);
-		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(sp.page, 'editor-pick');
 		await sp.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const inFilter = await sp.page.evaluate((ids) => ids.filter((id) => !!document.querySelector('[data-usd-el="results"] input[value="' + id + '"]:not([disabled])')), [awk, base1]);
 		assert(inFilter.length === 0, 'C131B (1) 条件で検索で、目覚め・対応するスキルは選べない（どちらも緑スキルなので、もともとこの一覧には出ない）', inFilter);
 		await sp.page.click('[data-usd-act="picker-close"]');
 		// テキストで検索: 目覚めの名前を貼っても「本育成編成のため追加しなかったもの」
-		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp.page, 'editor-pick-text');
 		await sp.page.fill('[data-usd-el="paste-input"]', nameOf(awk));
 		await sp.page.click('[data-usd-act="paste-run"]');
 		await sp.page.waitForTimeout(300);

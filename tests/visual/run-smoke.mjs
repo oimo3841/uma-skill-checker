@@ -78,6 +78,7 @@ import { register51 } from './blocks-51.mjs';
 import { register52 } from './blocks-52.mjs';
 import { register53 } from './blocks-53.mjs';
 import { register54 } from './blocks-54.mjs';
+import { pickEntry, ENTRY_SEARCH_BTN, entryItem } from './lib/entry-search.mjs';
 import { register55 } from './blocks-55.mjs';
 import { register56 } from './blocks-56.mjs';
 import { register57 } from './blocks-57.mjs';
@@ -87,7 +88,9 @@ import { register60 } from './blocks-60.mjs';
 import { register61 } from './blocks-61.mjs';
 import { register62 } from './blocks-62.mjs';
 import { register63 } from './blocks-63.mjs';
+import { openSetNameEdit } from './lib/set-name.mjs';
 import { register64 } from './blocks-64.mjs';
+import { register65 } from './blocks-65.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -527,8 +530,8 @@ await block('special.html（UmaStar OCR）', async () => {
 			note: !!p.querySelector('[data-usd-el="editor-note"]')
 		};
 	});
-	assert(draftTab.label === '＋新規' && draftTab.selected === 'true' && draftTab.tabs === 0,
-		'special: 帯のセット名は「＋新規」で、最初はそれが選ばれている（②のタブの帯は無い）', draftTab);
+	assert(draftTab.label === '無題（新規）' && draftTab.selected === 'true' && draftTab.tabs === 0,
+		'special: 帯のセット名は「無題（新規）」（C-235）で、最初はそれが選ばれている（②のタブの帯は無い）', draftTab);
 	assert(!draftTab.hasOld, 'special: 「開く」・ラジオ・ドラフトの行は無い（タブで選んでその場で編集する）', draftTab);
 	// 名前欄の呼び名は core の setLabel（C-1）。special は「因子セット」、Deck 単体ページは「スキルセット」。
 	// **ここが「スキルセット」に戻ったら、core の文字列を一律置換してしまった印。**
@@ -610,7 +613,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	/* 選んだときに出る名前（getSelection().name）もタブと揃っていること。
 	   ドラフトは空だと選べないので、「テキストで検索」で実際に1件入れてから確かめる
 	   （ついでに、貼り付け→追加の一連が通ることも見ている）。 */
-	await page.click('#deck-template-panel [data-usd-act="editor-pick-text"]');
+	await pickEntry(page, 'editor-pick-text');
 	await page.waitForTimeout(700);
 	await page.fill('[data-usd-el="paste-input"]', '右回り○');
 	await page.click('[data-usd-act="paste-run"]');
@@ -676,8 +679,10 @@ await block('special.html（UmaStar OCR）', async () => {
 
 		// (1) 入口の位置 ―― 「条件で検索」と「テキストで検索」の間
 		//     ラベルは**件数の脇（passive-added）を抜いた本体**で見る（件数は下で別に見る）
+		//     C-235: 4つの入口は虫眼鏡の小窓に縦に並ぶ（並びは今のまま）。小窓を開いて読み、(1b) のあとで閉じる
+		await page.click(ENTRY_SEARCH_BTN);
 		const entryOrder = await page.evaluate(() =>
-			[...document.querySelectorAll('#deck-template-panel .usd-entry-row button')].map((b) => {
+			[...document.querySelectorAll('[data-usd-el="entry-search-list"] button')].map((b) => {
 				const added = b.querySelector('[data-usd-el="passive-added"]');
 				return { act: b.dataset.usdAct, label: b.textContent.replace(added ? added.textContent : '', '').trim() };
 			}));
@@ -698,8 +703,8 @@ await block('special.html（UmaStar OCR）', async () => {
 		   対して行ったのと同じ形）。**空振り防止**として、アイコンの緑が
 		   **ボタンの文字の色と違う**ことも見る（トークンが黒と同じ値になったら落ちる）。 */
 		const passiveColor = await page.evaluate(() => {
-			const btn = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-passive"]');
-			const plain = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-text"]');
+			const btn = document.querySelector('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick-passive"]');
+			const plain = document.querySelector('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick-text"]');
 			const probe = document.createElement('span');
 			probe.style.cssText = 'position:absolute;left:-9999px';
 			document.body.appendChild(probe);
@@ -723,9 +728,10 @@ await block('special.html（UmaStar OCR）', async () => {
 			&& passiveColor.アイコン.色 !== passiveColor.got.text
 			&& /sprout/.test(passiveColor.アイコン.印),
 			'段9: 草の芽のアイコンだけが --uma-green-skill の緑（ボタンの文字の色とは違う）', passiveColor);
+		await page.keyboard.press('Escape');   // 虫眼鏡の小窓を閉じる（C-235）
 
 		// (2) 開いたときの姿
-		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await pickEntry(page, 'editor-pick-passive');
 		await page.waitForTimeout(700);
 		const p0 = await passiveState();
 		assert(p0.mode.passive && !p0.mode.filter && !p0.mode.paste && !p0.mode.custom,
@@ -789,7 +795,7 @@ await block('special.html（UmaStar OCR）', async () => {
 		await page.waitForTimeout(400);
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(400);
-		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await pickEntry(page, 'editor-pick-passive');
 		await page.waitForTimeout(700);
 		const p3 = await passiveState();
 		assert(p3.checked.join() === p3.ids.filter((id) => p3.saved.includes(id)).join()
@@ -804,7 +810,7 @@ await block('special.html（UmaStar OCR）', async () => {
 		// C-132: special の②のタイルに × は無い。パレットの「削除」を選んでタイルを押す
 		await removeFromSet(page, target);
 		await page.waitForTimeout(400);
-		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await pickEntry(page, 'editor-pick-passive');
 		await page.waitForTimeout(700);
 		const p4 = await passiveState();
 		assert(!p4.saved.includes(target) && !p4.checked.includes(target)
@@ -824,7 +830,7 @@ await block('special.html（UmaStar OCR）', async () => {
 		   （「条件で検索」の一覧にはパッシブが出ないので、何を選んでも必ずパッシブでない）。 */
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(400);
-		await page.click('#deck-template-panel [data-usd-act="editor-pick"]');
+		await pickEntry(page, 'editor-pick');
 		await page.waitForTimeout(700);
 		await page.click('[data-usd-el="results"] .usd-row input');
 		await page.waitForTimeout(300);
@@ -836,15 +842,21 @@ await block('special.html（UmaStar OCR）', async () => {
 		   **「同じバッジ」であること自体を見る** ―― 見た目は `.usd-tab-count` と1か所で
 		   定義してあるので、片方だけ色や大きさが変われば食い違う。
 		   軸のタブのバッジを実際に1つ出し（`filter-check` を1つ押す）、**描かれた値どうし**を比べる。 */
-		const addedLabel = () => page.evaluate(() => {
-			const el = document.querySelector('#deck-template-panel [data-usd-el="passive-added"]');
-			const cs = getComputedStyle(el);
-			return {
-				text: el.textContent, hidden: el.hidden, cls: el.className,
-				見た目: { bg: cs.backgroundColor, color: cs.color, r: cs.borderTopLeftRadius, h: cs.height, fs: cs.fontSize, w: cs.fontWeight },
-				セット: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
-			};
-		});
+		// C-235: 入口は虫眼鏡の小窓の中。開いて読み、閉じる
+		const addedLabel = async () => {
+			await page.click(ENTRY_SEARCH_BTN);
+			const r = await page.evaluate(() => {
+				const el = document.querySelector('[data-usd-el="entry-search-list"] [data-usd-el="passive-added"]');
+				const cs = getComputedStyle(el);
+				return {
+					text: el.textContent, hidden: el.hidden, cls: el.className, shown: el.offsetParent !== null,
+					見た目: { bg: cs.backgroundColor, color: cs.color, r: cs.borderTopLeftRadius, h: cs.height, fs: cs.fontSize, w: cs.fontWeight },
+					セット: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
+				};
+			});
+			await page.keyboard.press('Escape');
+			return r;
+		};
 		const lab1 = await addedLabel();
 		const want1 = lab1.セット.filter((id) => expect.listed.includes(id)).length;
 		assert(want1 > 0 && lab1.セット.length > want1,
@@ -858,12 +870,14 @@ await block('special.html（UmaStar OCR）', async () => {
 		   軸のタブのバッジを実際に1つ出して、**描かれた見た目どうし**を突き合わせる
 		   ―― クラス名の一致ではなく計算後の値で見るので、
 		   片方だけ色や大きさを変えたら落ちる。 */
+		await page.click(ENTRY_SEARCH_BTN);
 		const badgeSame = await page.evaluate(() => {
 			const read = (el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, color: cs.color, r: cs.borderTopLeftRadius, h: cs.height, fs: cs.fontSize, w: cs.fontWeight }; };
 			const axis = UmaSkillDeckCore.pickableAxes()[0];
 			const tabBadge = document.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
-			return { タブ: read(tabBadge), 入口: read(document.querySelector('#deck-template-panel [data-usd-el="passive-added"]')) };
+			return { タブ: read(tabBadge), 入口: read(document.querySelector('[data-usd-el="entry-search-list"] [data-usd-el="passive-added"]')) };
 		});
+		await page.keyboard.press('Escape');
 		assert(JSON.stringify(badgeSame.タブ) === JSON.stringify(badgeSame.入口)
 			&& badgeSame.入口.bg !== 'rgba(0, 0, 0, 0)',
 			'段9: 件数は「条件で検索」のタブに出るのと同じ数字バッジの形（地・文字色・角・高さ・字）', badgeSame);
@@ -872,18 +886,18 @@ await block('special.html（UmaStar OCR）', async () => {
 		   **`hidden` 属性で見る** ―― 中身が空文字かどうかではなく、実際に消えているか。 */
 		// （段7b の ⑫：「リセット」ボタンは無くなったので、「＋新規」の × → 確認の小窓 → OK で空にする）
 		// 段8（C-120）で②のタブの × を無くしたので、共通の見出しの帯の一覧 → 削除 → 確認の小窓 → OK で空にする
+		// C-235: 無題（新規）の「削除」は「空にする」になった（同じ処理・同じ確認）
 		await page.click('#deck-set-bar [data-usd-act="set-list"]');
-		await page.click('[data-usd-el="set-delete"]');
+		await page.click('[data-usd-el="set-clear"]');
 		await page.click('button[data-usd-act="confirm-ok"]');
 		await page.waitForTimeout(400);
 		const lab0 = await addedLabel();
-		const shown0 = await page.evaluate(() =>
-			document.querySelector('#deck-template-panel [data-usd-el="passive-added"]').offsetParent !== null);
+		const shown0 = lab0.shown;
 		assert(lab0.セット.length === 0 && lab0.hidden && !shown0,
 			'段9: 緑スキルが0種のときは件数のバッジを出さない', { ...lab0, 見えている: shown0 });
 
 		// 片付け（このあとの検査は「ドラフトに右回り○が1件」「Undo は空」を前提にする）
-		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await pickEntry(page, 'editor-pick-passive');
 		await page.waitForTimeout(700);
 		await page.click('[data-usd-el="passive-check"][value="' + already[0] + '"]');
 		await page.waitForTimeout(400);
@@ -1304,11 +1318,13 @@ await block('special.html — ステップ①の入口「スキルセット画�
 	// 一覧の画面には無い。ドラフトの編集を開いてから見る。
 	// 編集画面のマークアップは一覧と同じコンテナに hidden で同居するので、「見えているか」で見る
 	// 入口は常に見えている（C-53: 別画面の編集ビューは無く、タブで選んだものをその場で編集する）
-	assert(await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-screenshot"]'); return !!b && b.offsetParent !== null; }),
-		'special/ocr入口: 入口が入口の並びに見えている');
+	// C-235: 4つの入口は、入口の行の虫眼鏡を押して開く小窓（「スキルを探して追加」）に縦に並ぶ。並びは入口の行（オススメサポ・脚質オススメ）→ 小窓の順で見る
+	await page.click(ENTRY_SEARCH_BTN);
+	assert(await page.evaluate(() => { const b = document.querySelector('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick-screenshot"]'); return !!b && b.offsetParent !== null; }),
+		'special/ocr入口: 入口が虫眼鏡の小窓の並びに見えている');
 	const entry = await page.evaluate(() => {
-		const row = document.querySelector('#deck-template-panel .usd-entry-row');
-		const buttons = [...row.querySelectorAll('button')].map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim(), cls: b.className, icon: (b.querySelector('svg, i') || {}).getAttribute ? (b.querySelector('svg, i').getAttribute('data-lucide') || b.querySelector('svg, i').getAttribute('class')) : null }));
+		const row = document.querySelector('[data-usd-el="entry-search-list"]');
+		const buttons = [...document.querySelectorAll('#deck-template-panel .usd-entry-row button, [data-usd-el="entry-search-list"] button')].map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim(), cls: b.className, icon: (b.querySelector('svg, i') || {}).getAttribute ? (b.querySelector('svg, i').getAttribute('data-lucide') || b.querySelector('svg, i').getAttribute('class')) : null }));
 		const btn = row.querySelector('[data-usd-act="editor-pick-screenshot"]');
 		const input = document.getElementById('deck-ocr-files');
 		window.__filePickerOpened = 0;
@@ -5439,7 +5455,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 
 	// ピッカーを開いて、指定した数だけチェックして追加する
 	const bulkAdd = async (n) => {
-		await page.click('#deck-template-panel [data-usd-act="editor-pick"]');
+		await pickEntry(page, 'editor-pick');
 		await page.waitForTimeout(700);
 		const r = await page.evaluate((count) => {
 			const boxes = [...document.querySelectorAll('[data-usd-el="skill-check"]')].slice(0, count);
@@ -5487,7 +5503,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 		const cur = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
 		return { cur };
 	});
-	await page.click('#deck-template-panel [data-usd-act="editor-pick-text"]');
+	await pickEntry(page, 'editor-pick-text');
 	await page.waitForTimeout(700);
 	const dupeRun = await page.evaluate(async (already) => {
 		// すでに入っている1種＋未追加の2種を、テキスト照合で同時に採用する
@@ -5526,7 +5542,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 		const real = window.showToast;
 		window.showToast = (m) => { n++; return real(m); };
 		UmaSkillDeckCore.configure({ toast: window.showToast });
-		document.querySelector('#deck-template-panel [data-usd-act="editor-pick"]').click();
+		document.querySelector('#deck-template-panel [data-usd-act="entry-search"]').click(); document.querySelector('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick"]').click();
 		await new Promise((r) => setTimeout(r, 500));
 		[...document.querySelectorAll('[data-usd-el="skill-check"]')].slice(0, 2)
 			.forEach((b) => { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
@@ -9571,7 +9587,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 		return {
 			見えている: row.offsetParent !== null,
 			高さ: Math.round(row.getBoundingClientRect().height),
-			ボタン数: row.querySelectorAll('button').length,
+			// C-235: 行に残る入口は「オススメサポ」「脚質オススメ」の2つ＋（4つの入口を開く）虫眼鏡の1つ＝3つ
+			ボタン数: row.querySelectorAll('button').length + ((p.querySelector('[data-usd-act="entry-search"]') || {}).offsetParent ? 1 : 0),
 			// 畳む仕掛けの名残が1つも残っていないこと
 			畳む見出し: !!p.querySelector('[data-usd-el="entry-toggle"]'),
 			畳む入れ物: !!p.querySelector('[data-usd-el="entry-body"]'),
@@ -9582,8 +9599,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	const e0 = await entryState();
 	/* **数そのものを見る**（73セッション目に「6つ」→「5つ」へ直した。段9 で「緑スキル」を
 	   足したときに数え直さず 6 と書いたままで、判定が `> 1` だったので落ちずに残っていた）。 */
-	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 6,
-		'段11(⑩): 入口の並びは、開く操作をしなくても最初から見えている（4つ＋先頭の「オススメサポ」「脚質オススメ」＝6つ。2026-10-21 に5→6）', e0);
+	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 3,
+		'段11(⑩): 入口の並びは、開く操作をしなくても最初から見えている（「オススメサポ」「脚質オススメ」と、4つの入口を開く虫眼鏡＝3つ。C-235 で6→3）', e0);
 	assert(!e0.畳む見出し && !e0.畳む入れ物 && !e0.見出しの文字 && !e0.向きの印,
 		'段11(⑩): 畳む見出し「スキルの追加」と開閉の仕掛けは残っていない', e0);
 
@@ -9594,7 +9611,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));   // 段8（C-120）: 帯のタブの代わりに setSelectedId
 	await page.waitForTimeout(400);
 	const e3 = await entryState();
-	assert(e2.見えている && e2.ボタン数 === 6 && e3.見えている && e3.ボタン数 === 6,
+	assert(e2.見えている && e2.ボタン数 === 3 && e3.見えている && e3.ボタン数 === 3,
 		'段11(⑩): 因子セットを切り替えても入口は見えたまま', { 移った先: e2, 戻った: e3 });
 
 	/* **開き直しても同じ。** 状態を持たなくなったので、リロードで変わるものが無い。
@@ -9606,7 +9623,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.waitForTimeout(400);
 	const e5 = await entryState();
 	const keysAfter = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
-	assert(e5.見えている && e5.ボタン数 === 6 && e5.高さ === e0.高さ,
+	assert(e5.見えている && e5.ボタン数 === 3 && e5.高さ === e0.高さ,
 		'段11(⑩): リロードしても入口は最初から6つ見えていて、高さも同じ', { 前: e0, 後: e5 });
 	assert(keysAfter === keysBefore,
 		'段11(⑩): 入口の並びのために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
@@ -9718,14 +9735,15 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 		return out;
 	};
 
-	const WIDTHS = [[1280, 900], [768, 1024], [375, 812]];
+	// C-235: 入口の行に残るのは「オススメサポ」「脚質オススメ」の2つ（右端に削除・↺・虫眼鏡・◎・表の塊）。入らない幅は文字を小さくし、それでも入らない 320px だけ横に送る
+	const WIDTHS = [[1280, 900], [768, 1024], [375, 812], [300, 812]];
 
 	for (const バッジ of ['無し', '有り']) {
 		if (バッジ === '有り') {
 			// 緑スキルを4件足して件数バッジを出す（本物の経路で）
 			await page.setViewportSize({ width: 1280, height: 900 });
 			await page.waitForTimeout(300);
-			await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+			await pickEntry(page, 'editor-pick-passive');
 			await page.waitForTimeout(700);
 			const ids = await page.evaluate(() =>
 				[...document.querySelectorAll('[data-usd-el="passive-check"]')].filter((c) => !c.checked).slice(0, 4).map((c) => c.value));
@@ -9735,8 +9753,10 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 			}
 			await page.click('[data-usd-act="picker-close"]');
 			await page.waitForTimeout(500);
-			assert(await page.evaluate(() => !document.querySelector('#deck-template-panel [data-usd-el="passive-added"]').hidden),
+			await page.click(ENTRY_SEARCH_BTN);
+			assert(await page.evaluate(() => !document.querySelector('[data-usd-el="entry-search-list"] [data-usd-el="passive-added"]').hidden),
 				'横1行(バッジ有り): 緑スキルの件数バッジが出ている状態を作れた');
+			await page.keyboard.press('Escape');
 		}
 
 		const got = await sweep(SEL, WIDTHS);
@@ -9749,9 +9769,9 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 			got.map((g) => ({ 幅: g.幅, 段数: g.段数, 高さ: g.高さ })));
 		assert(new Set(got.map((g) => g.高さ)).size === 1,
 			'横1行(バッジ' + バッジ + '): 行の高さが幅によって変わらない', got.map((g) => ({ 幅: g.幅, 高さ: g.高さ })));
-		// **ボタンの大きさは幅で切り替えない**（境目の幅で揺れないように、どの幅でも同じ寸法）
+		// C-235: 入らない幅は文字を段階的に小さくする（ボタンの高さはどの幅でも同じ）
 		assert(new Set(got.map((g) => g.ボタンの高さ)).size === 1,
-			'横1行(バッジ' + バッジ + '): ボタンの大きさは幅で切り替えない（狭いときだけ詰める形にしない）',
+			'横1行(バッジ' + バッジ + '): ボタンの高さは幅で変わらない（入らない幅は文字だけ小さくする。C-235）',
 			got.map((g) => ({ 幅: g.幅, ボタンの高さ: g.ボタンの高さ })));
 
 		// (2) 空振り防止 ―― 収まる幅と収まらない幅が両方あること
@@ -9780,8 +9800,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 		assert(got.every((g) => g.バーを隠す指定 === 'none'),
 			'横1行(バッジ' + バッジ + '): スクロールバーを隠す指定（scrollbar-width: none）が効いている',
 			got.map((g) => ({ 幅: g.幅, 指定: g.バーを隠す指定, 厚み: g.バーの厚み })));
-		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 6),
-			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン6つだけ（矢印や「端へ移動」を足していない。C-100 で5→4、段5 で先頭に「オススメサポ」を足して5、2026-10-21 に「脚質オススメ」を足して6）',
+		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 2),
+			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン2つ（オススメサポ・脚質オススメ。C-235 で4つの入口は虫眼鏡の小窓へ）だけ。もとは6つ（矢印や「端へ移動」を足していない。C-100 で5→4、段5 で先頭に「オススメサポ」を足して5、2026-10-21 に「脚質オススメ」を足して6）',
 			got.map((g) => ({ 幅: g.幅, 子: g.子の顔ぶれ, 数: g.ボタン数 })));
 	}
 
@@ -9792,7 +9812,7 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	const MIN見え = 12;    // 切れているボタンが、これだけは見えていること
 	const MIN隠れ = 6;     // かつ、これだけは隠れていること（＝切れているとはっきり分かる）
 	const 細かい = [];
-	for (let w = 320; w <= 700; w += 7) {
+	for (let w = 270; w <= 330; w += 2) {   // C-235: 横に送るのは 320px 前後より狭い幅だけになった（◎が無いとき）
 		await page.setViewportSize({ width: w, height: 812 });
 		await settle();
 		細かい.push({ 幅: w, ...(await read(SEL)) });
@@ -9809,8 +9829,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 		'横1行: 切り詰めは必要な幅でだけ働く（いつも入っている／一度も入らない のどちらでもない）',
 		{ 働いた: あふれた.filter((g) => g.切り詰め > 0).length, 働かない: あふれた.filter((g) => g.切り詰め === 0).length });
 
-	// (7) フェードは「隠れている側だけ」。送るにつれて右→両側→左と変わる
-	await page.setViewportSize({ width: 375, height: 812 });
+	// (7) フェードは「隠れている側だけ」。送るにつれて右→両側→左と変わる（C-235: 横に送る幅で見る）
+	await page.setViewportSize({ width: 300, height: 812 });
 	await settle();
 	const フェードの動き = await page.evaluate(async (s) => {
 		const row = document.querySelector(s);
@@ -9849,8 +9869,9 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	const 並び = await page.evaluate((s) =>
 		[...document.querySelectorAll(s + ' button')].map((b) => b.dataset.usdAct), SEL);
 	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した。残りの順は変えていない
-	assert(並び.join(',') === 'outside-open,style-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot',
-		'横1行: 入口の並び順は変えていない', 並び);
+	// C-235: 行に残るのは2つ。4つの入口（条件で検索・緑スキル・テキストで検索・スクショで追加）は虫眼鏡の小窓の中で同じ順
+	assert(並び.join(',') === 'outside-open,style-open',
+		'横1行: 入口の並び順は変えていない（行はオススメサポ・脚質オススメ）', 並び);
 
 	assert(errors.length === 0, '横1行: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
@@ -13573,15 +13594,15 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	// 「理論値」の説明は「?」の小窓の1行目（factor-help-theory）に移ったので、そちらを見る（新しい仕様は blocks-8.mjs の段8(D)）
 	await sp.page.evaluate(() => selectStepTab(1));
 	await sp.page.click('#deck-template-panel [data-usd-act="pt-need-help"]');
-	const help = await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-act="pt-need-help"]'); const x = document.querySelector('[data-usd-el="factor-help-theory"]');
-		const u = document.querySelector('[data-usd-el="factor-help-unpriced"]');
-		return b ? { expanded: b.getAttribute('aria-expanded'), text: x ? x.textContent : null, unpriced: u ? u.textContent : null } : null; });
-	assert(help && help.expanded === 'true' && help.text && help.text.startsWith('理論値です。'),
-		'段5(8)→段8: 「?」を押すと、小窓に「理論値です。…」の説明が出る', help);
+	// C-235: 「?」の小窓は「継承固有 …」「共通スキル …」の2行だけ（理論値の説明・未収録の知らせは消した）
+	const help = await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-act="pt-need-help"]');
+		const lines = Array.from(document.querySelectorAll('[data-usd-el="info-body"] > *')).map((x) => x.getAttribute('data-usd-el'));
+		return b ? { expanded: b.getAttribute('aria-expanded'), lines, theory: !!document.querySelector('[data-usd-el="factor-help-theory"]'), unpriced: !!document.querySelector('[data-usd-el="factor-help-unpriced"]') } : null; });
+	assert(help && help.expanded === 'true' && help.lines.join() === 'pt-need-uniq,pt-need-common' && !help.theory,
+		'段5(8)→段8→C-235: 「?」を押すと、小窓に「継承固有」「共通スキル」の2行だけが出る（理論値の説明は消した）', help);
 	await sp.page.keyboard.press('Escape');
-	// 段8・D（C-120）: 未収録の知らせは②の「?」の小窓の1行（factor-help-unpriced）へ移った
-	assert(help.unpriced === 'Pt 未収録のスキル 1種は数えていません' && e.unpriced === 1,
-		'段5(6): Pt が未収録のスキル（Y4）は合計に入れず、「?」の小窓に「Pt 未収録のスキル 1種は数えていません」が出る（pt:0 の Y5 は未収録に数えない）', { unpriced: help.unpriced });
+	assert(!help.unpriced && e.unpriced === 1,
+		'段5(6)→C-235: Pt が未収録のスキル（Y4）は合計に入れない（pt:0 の Y5 は未収録に数えない）。「?」の小窓の未収録の1行は消した', { unpriced: help.unpriced });
 	assert(v.roster === null && e.roster > 0, '段5(1)→段7c(O): 「（うち本育成 X）」の行は削除した（表示だけ。X の計算は変えていない）', { got: v.roster, want: e.roster });
 	// 分類を変える（優先の Y1 を超優先へ）→ 超優先だけ・優先までが増え、通常までは変わらない
 	// 段9: 再分類のモードは無い。C-226（②因子周回 段4）: パレットのアイコンも無くしたので、special の②に分類（tiers）を変える手段は無い（tiers は保存の値のまま）
@@ -13617,7 +13638,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	await sp.page.evaluate(() => selectStepTab(1));
 	// 段7b の ⑫：名前の入力欄・保存ボタンは無い。「＋新規」のタブの ✎ → 入力 → Enter で保存する
 	// 段8（C-120）で②のタブの帯を無くしたので、✎ は共通の見出しの帯（#deck-set-bar）のもの
-	await sp.page.click('#deck-set-bar [data-usd-act="name-edit"]');
+	await openSetNameEdit(sp.page);
 	await sp.page.keyboard.type('段5の検査');
 	await sp.page.keyboard.press('Enter');
 	await sp.page.waitForTimeout(250);
@@ -13740,7 +13761,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 			return { hidden: el.hidden, page: document.documentElement.scrollWidth - window.innerWidth, box: el.scrollWidth - el.clientWidth,
 				tops: new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top))).size, chips: chips.length };
 		});
-		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.tops === 2 && g.chips === 2, '段5(11)→段7d の追加(A): ' + w + 'px の②タブで、必要スキルPt（継承固有と3つのチップは1行〔収まらないときはその行だけ横に送る〕・親由来のレベル）が、ページも箱も横にはみ出さない', g);
+		// C-235: 継承固有・共通スキルの2行は帯から消し、? の小窓の中だけ（帯に .usd-band-stat は無い）
+		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.chips === 0, '段5(11)→段7d の追加(A)→C-235: ' + w + 'px の②タブで、②の帯（合計・?・継承固有・共通スキルのヒントLv）が、ページも箱も横にはみ出さない（2行は帯に無い）', g);
 		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
 		assert(other.length === 0, '段5(11): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
 		await sp.ctx.close();
@@ -14018,9 +14040,10 @@ await block('前段の必要Pt（段4b）', async () => {
 	vn.prevError = await sp.page.evaluate(() => { const e = document.querySelector('[data-usd-el="factor-help-prev-error"]'); return e ? e.textContent : null; });
 	await sp.page.keyboard.press('Escape');
 	const eN = need(fA.sources, { ids: ids4, tiers: tiers4, F: 5, stepRows: [] });
+	// C-235: ②の「?」の小窓の「前段のデータを読み込めませんでした」の1行は消した（①の本育成パネルの知らせは今のまま）
 	assert(!v.hasPrevRow && !v.hasWithPrev && v.prevError === '前段のデータを読み込めませんでした' && v.total === eN.roster.own
-		&& vn.chips[0] === eN.A && vn.chips[1] === eN.B && vn.chips[2] === eN.C && vn.prevError === '前段のデータを読み込めませんでした',
-		'段4b(6): 前段データを読み込めないときは、前段を含めず（段5 までの動き）、本育成パネルと因子セットのパネルに「前段のデータを読み込めませんでした」が出る', { v, vn, want: [eN.A, eN.B, eN.C] });
+		&& vn.chips[0] === eN.A && vn.chips[1] === eN.B && vn.chips[2] === eN.C && vn.prevError === null,
+		'段4b(6): 前段データを読み込めないときは、前段を含めず（段5 までの動き）、本育成パネルに「前段のデータを読み込めませんでした」が出る（②の「?」の小窓の1行は C-235 で消した）', { v, vn, want: [eN.A, eN.B, eN.C] });
 	const stepErr = sp.errors.filter((m) => !/Failed to load resource|status of 500|404/.test(m));
 	assert(stepErr.length === 0, '段4b(6): 例外は出ない', stepErr.slice(0, 2));
 	await sp.ctx.close();
@@ -14739,7 +14762,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	assert(lk.scope.skillIds.join() === [W[8], W[2], W[3]].join() && Array.isArray(lowE) && lowE.length > 0 && lk.hidden2.slice().sort().join() === allSure.filter((id) => !lowE.includes(id)).sort().join() && lk.taken.slice().sort().join() === [W[2], W[3]].sort().join(),
 		'段7(E)→段8(D)→C-223: 同じセットの①で得るスキル（●）はセットから自動では外さず「①で取得」になり、追加の一覧で選べなくする対象になる（●の全件・絞り込みなし。Lv2 以下の白は除く）', { lk, low: lowE });
 	// 追加の一覧（条件で検索）: グレーアウト・理由・件数
-	await sp.page.click('[data-usd-act="editor-pick"]');
+	await pickEntry(sp.page, 'editor-pick');
 	await sp.page.waitForTimeout(400);
 	const pick = await sp.page.evaluate(() => {
 		const box = document.querySelector('[data-usd-el="results"]');
@@ -14759,7 +14782,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	assert(pick2.open && pick2.greyIds.every((id) => [W[6], W[7]].concat(hintsB).includes(id)) && !pick2.greyIds.includes(W[2]) && !pick2.greyIds.includes(W[3]), '段7(旧5): 選択モーダルを開いたまま、選んだ編成が変わると、グレーアウトが描き直される（外したカードのスキルは選べるようになる）', pick2);
 	// 旧4: 貼り付けで、本育成で得るスキルと一致した行は追加されない
 	await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
-	await sp.page.click('[data-usd-act="editor-pick-text"]');
+	await pickEntry(sp.page, 'editor-pick-text');
 	await sp.page.waitForTimeout(300);
 	// C-223: W7（①のイベント Lv1 の白）は②でも選べるようになったので、本育成で得るものはカード B の練習のヒント（Lv5）で見る
 	await sp.page.fill('[data-usd-el="paste-input"]', nameOf(hintsB[0]) + '\n' + nameOf(W[4]));
@@ -14775,7 +14798,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	// （段8（C-120）で、「なし」→ もう一度選ぶ・1種のときも外れる・「元に戻す」で戻る・「なし」で保存から消える、の検査は外した。理由は上の注記）
 	// 保存したセットには、①の下書きの編成の写しが baseRosterId で付く（段8: ✎ は共通の見出しの帯）
 	const draftRosterNow = await draft(sp.page);
-	await sp.page.click('#deck-set-bar [data-usd-act="name-edit"]');
+	await openSetNameEdit(sp.page);
 	await sp.page.keyboard.type('段7のセット');
 	await sp.page.keyboard.press('Enter');
 	await sp.page.waitForTimeout(250);
@@ -14956,11 +14979,14 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 				h1r: r(document.querySelector('header h1')), toolr: r(document.getElementById('tool-dropdown-btn')), helpr: r(document.getElementById('theme-cycle-btn')), hdr: r(hd),
 				labelShown: label ? getComputedStyle(label).display !== 'none' : null, toolAria: document.getElementById('tool-dropdown-btn').getAttribute('aria-label'),
 				helpAria: document.getElementById('theme-cycle-btn').getAttribute('aria-label'), helpTitle: document.getElementById('theme-cycle-btn').title, helpText: document.getElementById('theme-cycle-btn').textContent.trim(),
+				extras: !!document.querySelector('header .header-edition, header .header-edition-pill, header .header-tagline'),
 				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"], .help-open-btn').length };
 		});
-		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('β版') && !hd.h1.includes('α') && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
-			tag + '副題が無い・「β版」＋ピル「2nd Edition」（段7d の追加・B。h1 は「β版」で終わる）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
-		assert(hd.helpText === '' && hd.helpAria === '画面の色：自動' && hd.helpTitle === hd.helpAria && hd.helpr.w >= 44 && hd.helpBtns === 0, tag + '右端は画面の色の切り替え（文字なし・44px以上・aria-label と title が「画面の色：自動」）。使い方・注意の「？」は無い', { w: hd.helpr.w, aria: hd.helpAria, helpBtns: hd.helpBtns });
+		// C-235: 「β版」「2nd Edition」「チャンミ/LoH用ツール」はタイトルの行から消した（h1 は「UmaStar OCR」だけ。ページの題の「2nd Edition」は今のまま）
+		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1 === 'UmaStar OCR' && !hd.extras && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
+			tag + '副題が無い・「β版」「2nd Edition」は無い（C-235。h1 は「UmaStar OCR」）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
+		// C-235: 画面の色の切り替えはツール切り替えと同じ 34×38px（C-139 の 44px から）
+		assert(hd.helpText === '' && hd.helpAria === '画面の色：自動' && hd.helpTitle === hd.helpAria && hd.helpr.w === 34 && hd.helpr.h === 38 && hd.helpBtns === 0, tag + '右端は画面の色の切り替え（文字なし・ツール切り替えと同じ 34×38px・aria-label と title が「画面の色：自動」）。使い方・注意の「？」は無い', { w: hd.helpr.w, h: hd.helpr.h, aria: hd.helpAria, helpBtns: hd.helpBtns });
 		const oneRow = Math.abs(hd.h1r.t + hd.h1r.h / 2 - (hd.toolr.t + hd.toolr.h / 2)) < 12 && Math.abs(hd.toolr.t + hd.toolr.h / 2 - (hd.helpr.t + hd.helpr.h / 2)) < 12 && hd.h1r.h < 50;
 		assert(oneRow, tag + 'タイトル・ツール切替・画面の色が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });
 		assert(hd.toolAria === 'ツール切り替え' && hd.labelShown === null, tag + 'ツール切替はどの幅でもアイコンだけ（文字と ▾ は無い・aria-label「ツール切り替え」。2026-10-25 に UmaExam に合わせた）', { shown: hd.labelShown, aria: hd.toolAria });
@@ -15366,6 +15392,7 @@ await register61({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register62({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register63({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register64({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register65({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

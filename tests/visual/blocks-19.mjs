@@ -668,7 +668,8 @@ export async function register19(env) {
 					return { state: b.getAttribute('data-theme-state'), aria: b.getAttribute('aria-label'), title: b.title, shown, stored: localStorage.getItem('uma-tools-theme'), attr: document.documentElement.getAttribute('data-theme'), api: UmaTheme.get() };
 				});
 				const g = await page.evaluate(() => { const b = document.getElementById('theme-cycle-btn'); const q = b.getBoundingClientRect(); return { w: q.width, h: q.height, r: q.right, vw: document.documentElement.clientWidth, tag: b.tagName, type: b.type, disabled: b.disabled }; });
-				assert(g.w >= 44 && g.h >= 44 && g.r <= g.vw && g.tag === 'BUTTON' && g.type === 'button' && !g.disabled, '微調整1C3(' + tag + '): 44px以上のボタンで、画面の右に収まる', g);
+				// C-235: ツール切り替えと同じ 34×38px（C-139 の 44px から）
+				assert(g.w === 34 && g.h === 38 && g.r <= g.vw && g.tag === 'BUTTON' && g.type === 'button' && !g.disabled, '微調整1C3(' + tag + '): ツール切り替えと同じ 34×38px のボタンで、画面の右に収まる', g);
 				let s = await st();
 				assert(s.state === 'auto' && s.aria === '画面の色：自動' && s.title === s.aria && s.shown.join() === 'auto' && s.stored === null && s.api === 'auto',
 					'微調整1C3(' + tag + '): 初期は「自動」（アイコン1つ・読み上げの名前に状態・保存の鍵は無し）', s);
@@ -730,8 +731,8 @@ export async function register19(env) {
 			return { hd: R(document.querySelector('header')), h1: R(document.querySelector('header h1')), tool: R(document.getElementById('tool-dropdown-btn')), theme: R(document.getElementById('theme-cycle-btn')), vw: document.documentElement.clientWidth };
 		});
 		const rows = [r.h1, r.tool, r.theme].map((x) => x.y + x.h / 2);
-		assert(Math.abs(r.hd.h - 57) <= 1 && r.theme.r <= r.vw && r.tool.r <= r.theme.x && r.h1.r <= r.tool.x && Math.max.apply(null, rows) - Math.min.apply(null, rows) < 16 && r.theme.y >= r.hd.y && r.theme.b <= r.hd.b + 0.5,
-			'微調整1C4: special の375pxのヘッダーは高さ57px（微調整2・D で上下に6pxの余白を取った。旧47px）・3つが1行に収まり、44px のボタンが帯からはみ出さない', r);
+		assert(Math.abs(r.hd.h - 47) <= 1 && r.theme.r <= r.vw && r.tool.r <= r.theme.x && r.h1.r <= r.tool.x && Math.max.apply(null, rows) - Math.min.apply(null, rows) < 16 && r.theme.y >= r.hd.y && r.theme.b <= r.hd.b + 0.5,
+			'微調整1C4→C-235: special の375pxのヘッダーは高さ47px（C-235 で上下の余白 6→4px・ボタン 44→38px）・3つが1行に収まり、ボタンが帯からはみ出さない', r);
 		await sp.ctx.close();
 	});
 

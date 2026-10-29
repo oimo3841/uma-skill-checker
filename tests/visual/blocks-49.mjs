@@ -7,6 +7,7 @@
 // スキル名・id・件数は検査の側に書かない（恒久ルール1。画面とデータから読む）。
 
 import { noticeOf } from './lib/add-notice.mjs';
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register49(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -65,7 +66,7 @@ export async function register49(env) {
 		const checkAll = async (ids) => { for (const id of ids) await p.click('[data-usd-el="skill-check"][value="' + id + '"]'); };
 		const pickable = async () => p.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="skill-check"]:not(:disabled)')).slice(0, 12).map((i) => i.value));
 		// 条件で検索
-		await p.click(T + '[data-usd-act="editor-pick"]');
+		await pickEntry(p, 'editor-pick');
 		await sleep(p, 300);
 		const ids = await pickable();
 		assert(ids.length >= 8, '段F1(a) 前提: 条件で検索の一覧に選べるスキルがある', ids.length);
@@ -101,7 +102,7 @@ export async function register49(env) {
 		await sleep(p, 300);
 		// テキストで検索 → ×で消える
 		const names = await p.evaluate((list) => list.map((id) => UmaSkillDeckCore.getSkillName(id)), ids.slice(6, 8));
-		await p.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(p, 'editor-pick-text');
 		await p.fill('[data-usd-el="paste-input"]', names.join('\n'));
 		await p.click('[data-usd-act="paste-run"]');
 		await sleep(p, 300);

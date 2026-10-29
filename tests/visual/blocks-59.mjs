@@ -11,6 +11,7 @@
 //  ・②の◎の候補: ①で取得する○は候補にしない（(ア)。◎で数えるかは①の切り替えだけ）。
 //  ・脚質オススメ: 対象のスキルは灰色を外し、行の Pt は足したときの差。オススメサポ: 対象のスキルを母集団に含める（点数の付け方は今のまま）。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register59(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -89,7 +90,7 @@ export async function register59(env) {
 	const lowWhitesOf = (a) => a.sure.filter((x) => x.L <= 2 && rarity(x.id) === 'white').map((x) => x.id);
 	/** C-131 の組を読ませる（②の追加の入口を開くと読む）。読めたら選べないスキルが組み直る */
 	const loadPairs = async (page) => {
-		await page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(page, 'editor-pick-text');
 		await page.waitForTimeout(600);
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(300);

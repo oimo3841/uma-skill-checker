@@ -1,4 +1,5 @@
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
+import { openSetNameEdit } from './lib/set-name.mjs';
 // 本育成サポカ外スキル（段1・段2。2026-10-04・C-122）の検査。run-smoke.mjs の末尾から register10() で呼ばれる
 // （塊の見出しは「段10」を含む。`npm run test:visual -- --only=段10` で回せる）。
 //
@@ -552,8 +553,8 @@ export async function register10(env) {
 		const dr = await draftRoster(sp.page);
 		assert(ok2 && dr && JSON.stringify(dr.outsideCardExcluded) === JSON.stringify([OTHER]), '段10(D) 下書き（＋新規）の①にも書ける（下書きの roster に保存される）', dr);
 		// ＋新規に名前を付けて保存 → この項目だけを持つ下書きの①が写される
-		await sp.page.click(BAR + '[data-usd-act="name-edit"]');
-		await sp.page.fill(BAR + '[data-usd-el="name"]', '除外だけ');
+		await openSetNameEdit(sp.page);
+		await sp.page.fill('[data-usd-el="set-name-input"]', '除外だけ');
 		await sp.page.keyboard.press('Enter');
 		await sp.page.waitForTimeout(250);
 		d = await ud(sp.page);

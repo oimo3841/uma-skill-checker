@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-30a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-30b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -72,8 +72,9 @@
 		   ここに残るのは、このパネルの余白だけ。 */
 		/* ヘッダーの画面の色の切り替えボタン（C-139・微調整1・C(13)。44px。使い方・注意の「？」の位置）と、狭い幅でのツール切替（段7b の ⓪）。
 		   「新UI」「一部αテスト中」のバッジは外した（①のタブの中の赤い注意書きは残す）。 */
-		.theme-cycle-btn { width: 44px; height: 44px; padding: 0; flex: none; }
-		.theme-cycle-btn svg { display: none; width: 20px; height: 20px; flex: none; }
+		/* C-235: ツール切り替えと同じ 34×38px（アイコン 16px） */
+		.theme-cycle-btn { width: 34px; height: 38px; padding: 0; flex: none; }
+		.theme-cycle-btn svg { display: none; width: 16px; height: 16px; flex: none; }
 		.theme-cycle-btn[data-theme-state="auto"] svg[data-theme-icon="auto"],
 		.theme-cycle-btn[data-theme-state="light"] svg[data-theme-icon="light"],
 		.theme-cycle-btn[data-theme-state="dark"] svg[data-theme-icon="dark"] { display: block; }
@@ -86,22 +87,22 @@
 		/* 右下のメインボタン（FAB）の置き場（高さ）。ボタンの寸法の変数から計算する */
 		:root { --usd-fab-dock: calc(var(--uma-fab-size) + var(--uma-fab-edge) + var(--uma-sp-2) + env(safe-area-inset-bottom, 0px)); }
 		.page-wrap { padding-bottom: calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px)); }
-		/* ヘッダーの「β版」と、その右のピル「2nd Edition」（段7d の追加・B）。どちらも exam.html のヘッダーと同じ作り:
-		   「β版」は text-sm／md:text-base、ピルは exam の「新UI」と同じ部品（css/shell.css の .ui-mode-badge。色は --uma-accent 系＝このページの緑）・
-		   同じ大きさ（text-[10px] font-bold px-2 py-1 rounded-full）。ピルは押せない表示だけなので、押せそうな見た目（手のカーソル・hover）は消す */
-		.header-edition { white-space: nowrap; }
-		.header-edition-pill { cursor: default; }
-		/* 「2nd Edition」の脇の一言（C-140・微調整2・D。exam.html の見出しと同じ部品）。
-		   C-141（微調整3・A-2）: どの幅でもバッジの右隣（同じ行）に置き、下の行へ回さない。大きさ（11px→最小8px）・2行の折り返し・バッジを詰めるかは
-		   fitHeaderTagline() が幅を測って決める（data-lines／data-hdr-tight／data-break-any） */
-		.header-tagline { white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 600; }
-		.header-tagline[data-lines="2"] { white-space: normal; line-height: 1.05; }
-		.header-tagline[data-break-any] { overflow-wrap: anywhere; }
-		header[data-hdr-short] .header-edition-sub { display: none; }
+		/* C-235: タイトルの行（「β版」「2nd Edition」「チャンミ/LoH用ツール」は消した。すべての幅）。
+		   スクロールしても上に残す（地は不透明）。帯（.deck-set-bar）はその下に残る（top＝タイトルの高さ。syncStickyTop が --site-header-h に入れる）。
+		   z-index は帯（40）より上・右下の「＋」（70）と小窓（90〜）より下。ツール切り替えのメニューはこの中に開く */
+		.site-header { position: sticky; top: 0; z-index: 45; background-color: var(--uma-surface); }
 		.hdr-row > h1 { flex: none; white-space: nowrap; }
-		header[data-hdr-tight] .hdr-row, header[data-hdr-tight] .hdr-bar, header[data-hdr-tight] .hdr-acts { column-gap: 4px; }
-		header[data-hdr-tight] .header-edition-pill { padding-left: 4px; padding-right: 4px; letter-spacing: -0.3px; }
-		.header-edition-pill:hover { background: var(--uma-accent-soft); }
+		.site-header .hdr-bar > .hdr-title { flex: none; }
+		/* レース条件の部品の置き場（タイトルとボタンの間・ボタン寄せ）。中身は core が描く（opts.raceSlot）。入りきらなければ core が 11→10px、それでも入らなければ「…」 */
+		.hdr-race { flex: 1 1 auto; min-width: 0; display: flex; justify-content: flex-end; }
+		.hdr-race[hidden] { display: none; }
+		@media (min-width: 641px) {
+			/* PC: 上の余白 12px・タイトルの内側 上下8px／左右20px・角丸 16px・カードとの間 8px・文字 26px（タイトル 56px） */
+			.page-wrap { padding-top: 12px; }
+			.site-header { margin-bottom: 8px; padding: 8px 20px; border-radius: 16px; }
+			.site-header > [aria-hidden="true"] { border-radius: inherit; }
+			.site-header h1 { font-size: 1.625rem; line-height: 1.2; }
+		}
 		/* ①のタブ（デスクトップ）: 本文の最後は表。表の下の余白は FAB の置き場だけにして、下端までスクロールしたとき表が画面いっぱいに見える。
 		   FAB（右下）は表の下の置き場に収まるので、表の縦スクロールバーと最後の列を覆わない */
 		body[data-step-tab="0"] .page-wrap { padding-bottom: max(0px, calc(var(--usd-fab-dock) - var(--uma-card-pad))); }
@@ -121,12 +122,11 @@
 				margin: 0 -8px; padding: 0 8px 6px; background: var(--uma-group-bg); border-bottom: 1px solid var(--uma-group-line); }
 			/* 入口のボタンの位置と周りの地は、パレットの行があったときと同じ（塊は入口のボタンより低くして、行の高さを入口のボタンで決める。下の線はボタンの下 6px より外） */
 			#deck-template-panel .usd-skillgroup .usd-factor-tools { padding: 0; }
-			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と画面の色の切り替えだけ。上下の余白は最小（44px のボタンが入って帯が 47px のままになる値） */
-			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1-5) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
-			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、文字を一段大きくした（20→22px。exam.html のタイトルと同じ大きさ）。
-			   360px 以下は従来の20px（1行に収める最小の幅を保つ） */
+			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にレース条件・ツール切替・画面の色の切り替え。
+			   C-235: 上下の余白 6→4px（38px のボタンが入って帯が 47px になる値） */
+			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			/* C-140（微調整2・D）: 文字を一段大きくした（20→22px。exam.html のタイトルと同じ大きさ）。360px 以下は従来の20px */
 			.site-header h1 { font-size: 1.375rem; line-height: 1.2; }
-			.site-header .header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); }
 			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
 			.main-card .step-tabs { margin-bottom: var(--uma-sp-1); }
 			.main-card .step-tab { padding: var(--uma-sp-1) 2px; }
@@ -134,8 +134,7 @@
 			/* 旧UIの注記など、ヘッダーの下に出る箱も左右の余白は main-card と揃える */
 			.old-ui-end-note { margin-inline: var(--uma-sp-1); }
 		}
-		/* 狭い幅（360px 以下）: 画面の色のボタン（44px）は、以前の「？」（32px）より 12px 広い。そのぶんをヘッダーの左右の余白（12px→6px）と、右のボタンの間（8px→4px）から出して、
-		   タイトル・ピル「2nd Edition」・ボタンが以前と同じ幅（323px）まで1行に収まるようにする（C-139・微調整1・C(13)） */
+		/* 狭い幅（360px 以下）: ヘッダーの左右の余白（12px→6px）と、右のボタンの間（8px→4px）を詰めて、タイトル・レース条件・ボタンを1行に収める（C-139・微調整1・C(13)） */
 		@media (max-width: 360px) {
 			.site-header { padding-inline: var(--uma-sp-1-5); }
 			.site-header h1 { font-size: 1.25rem; }
@@ -158,9 +157,10 @@
 		}
 		:root[data-theme="dark"] .person-col-blue { --person-bg: #172a4a; --person-fg: #a9c9ff; --person-border-strong: #3b6fb8; --person-border-soft: #26426b; --person-tint: rgba(74, 158, 245, .10); }
 		:root[data-theme="dark"] .person-col-red  { --person-bg: #3a1a1d; --person-fg: #ffb3b3; --person-border-strong: #a3474d; --person-border-soft: #6b2d33; --person-tint: rgba(251, 44, 54, .10); }
-		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す（ヘッダーは残さない）。
+		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す。
+		   C-235: タイトルの行も上に残すので、帯はその直下（--site-header-h。syncStickyTop が入れる）。
 		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
-		.deck-set-bar { position: sticky; top: 0; z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);
+		.deck-set-bar { position: sticky; top: var(--site-header-h, 0px); z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);
 			padding: 1px var(--uma-card-pad); background: var(--uma-surface); border-bottom: 1px solid var(--uma-border);
 			border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
 		.deck-set-bar[hidden] { display: none; }
@@ -181,8 +181,6 @@
 		.fab-race-label { display: inline-flex; align-items: baseline; gap: var(--uma-sp-1-5); min-width: 0; }
 		.fab-race-text { font-size: var(--uma-fs-xs); font-weight: 600; color: var(--uma-text-muted); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 		.fab-race-text[hidden] { display: none; }
-		/* 狭い端末（322px 以下）でタイトルとピルがツール切替・？と並ばないときは、ピルの文字を「2nd」だけにする（323px 以上は全部入って1行に収まる。実測。それより狭いとピルが次の行へ回りヘッダーが高くなる） */
-		@media (max-width: 322px) { .header-edition-sub { display: none; } }
 		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
 		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
 		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
@@ -383,7 +381,7 @@
 		.glass-card .bg-slate-50\/50 { background-color: var(--uma-panel-bg); border-color: var(--uma-panel-border); }
 		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
 		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
-		.header-edition-pill.ui-mode-badge, .step-tab-badge--ready { background: var(--star-badge-green-bg); color: var(--star-badge-green-text); border-color: var(--star-badge-green-line); }
+		.step-tab-badge--ready { background: var(--star-badge-green-bg); color: var(--star-badge-green-text); border-color: var(--star-badge-green-line); }
 		.step-tab-badge--ready { box-shadow: inset 0 0 0 1px var(--star-badge-green-line); }
 		.step-tab-badge--alert { background: var(--star-badge-red-bg); color: var(--star-badge-red-text); border-color: var(--star-badge-red-line); }
 		/* ==== 段G(6) 操作できる部品の強調（UmaStar だけ。Exam・Deck は変えない）====
@@ -453,8 +451,6 @@
 		:root[data-theme="dark"] body .usd-ev-skill--gold.usd-ev-skill--maybe :is(.usd-ev-skill-name, .usd-ev-skill-pt, .usd-ev-skill-desc) { color: #cfc4a4; }
 		:root[data-theme="dark"] body .usd-roster-choice--on :is(.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none) { color: var(--uma-text-subtle); text-decoration-color: var(--uma-text-subtle); }
 		:root[data-theme="dark"] body .usd-roster-grow--unique :is(.usd-roster-skillname, .usd-roster-pt) { color: #ffffff; }
-		/* 見出しの脇の一言（3-3）: 2行に折り返すときは、行の長さをそろえる */
-		.header-tagline[data-lines="2"] { text-wrap: balance; }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -496,19 +492,17 @@
 			<!-- 段7b（⓪）: タイトル・ツール切替・？ を、375px でも1行に並べる（flex-row を常に）。 -->
 				<div class="hdr-bar relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
 					<!-- 左側：タイトルエリア -->
-					<div class="min-w-0">
-					<!-- タイトルの右に「2nd Edition」のバッジと一言を並べる（exam と同じ位置）。
-					     C-141（微調整3・A-2）: 折り返さない（flex-nowrap）。一言は狭い幅でもバッジの右隣のまま、fitHeaderTagline() が大きさを決める -->
+					<div class="hdr-title min-w-0">
+					<!-- C-235: 「β版」「2nd Edition」「チャンミ/LoH用ツール」は消した（すべての幅）。タイトルは縮めない -->
 					<div class="hdr-row flex items-center flex-nowrap gap-x-2">
-						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="header-edition ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
-						<!-- 「2nd Edition」。exam の「新UI」と同じピル（押せない表示）。322px 以下は「2nd」だけ -->
-						<span class="header-edition-pill ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full">2nd<span class="header-edition-sub"> Edition</span></span>
-						<!-- 「2nd Edition」の脇の一言（C-140・微調整2・D）。C-141（微調整3・A-2）: 下の行へは回さない。小さく（最小8px）→ 2行 → バッジを詰める、の順 -->
-						<span class="header-tagline text-slate-500">チャンミ/LoH用ツール</span>
+						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR</h1>
 					</div>
 					<!-- 3行の注意書き（OCR の精度・解像度・加工画像）は、段7（2026-10-03）に「使い方・注意」のポップアップの
 					     「注意」の欄へ移した（ヘッダーを短くするため。文言は変えていない）。 -->
 				</div>
+
+				<!-- C-235: レース条件の部品（帯から移した）。タイトルとボタンの間・ボタン寄せ。中身は core が描く（opts.raceSlot。新UIのときだけ） -->
+				<div id="hdr-race-slot" class="hdr-race" hidden></div>
 
 				<!-- 右側：アクションボタン群 -->
 				<div class="header-actions hdr-acts flex items-center gap-2 shrink-0">
@@ -1263,59 +1257,6 @@
 		}
 		window.addEventListener('storage', (e) => { if (e.key === 'uma-tools-theme' || e.key === null) syncThemeCycleBtn(); });
 		document.addEventListener('DOMContentLoaded', syncThemeCycleBtn);
-		/* 見出しの一言（「2nd Edition」のバッジの右隣）の大きさと折り返し（C-141・微調整3・A-2）。
-		   一言は、どの幅でもバッジの右隣（同じ行）に置き、下の行へは回さない。幅が足りないときは次の順で詰める:
-		     1. 一言の文字を小さくする（11px→最小8px）
-		     2. 一言を、自分の枠の中で2行に折り返す（行間を詰める。タイトルの行の高さを超えない大きさの中で、いちばん大きい文字）
-		     3. バッジの左右の余白と字間・バッジの前後の間・右のボタンとの間とボタンどうしの間（8→4px）を詰めて（header の data-hdr-tight）、1→2 をやり直す（バッジの文字は10pxのまま）
-		     4. それでも入らなければ、バッジを「2nd」だけにして（header の data-hdr-short。322px 以下でいつも使っている形）、1→2 をやり直す
-		   それでも入らない（端末の字形で数px足りない）ときだけ、語の途中でも2行に折り返す（data-break-any）。タイトルの文字の大きさは変えない。
-		   幅が変わるたびに（ResizeObserver）測り直す。 */
-		function fitHeaderTagline() {
-			const hd = document.querySelector('header'), tag = hd && hd.querySelector('.header-tagline');
-			if (!tag) return;
-			const row = tag.parentElement, left = row.parentElement, bar = left.parentElement, acts = left.nextElementSibling;
-			const h1 = row.querySelector('h1'), pill = row.querySelector('.header-edition-pill');
-			if (!h1 || !pill || !acts) return;
-			const px = (v) => parseFloat(v) || 0;
-			const set = (tight, lines, fs, any) => {
-				hd.toggleAttribute('data-hdr-tight', tight);
-				tag.setAttribute('data-lines', String(lines));
-				tag.toggleAttribute('data-break-any', !!any);
-				tag.style.fontSize = fs + 'px';
-				tag.style.maxWidth = '';
-			};
-			// 一言に使える幅 = 行の中身の幅 − 右のボタン群 − 行の間 − タイトル − バッジ − 行の中の間2つ
-			const room = () => {
-				const bs = getComputedStyle(bar), rs = getComputedStyle(row);
-				return bar.clientWidth - px(bs.paddingLeft) - px(bs.paddingRight) - acts.getBoundingClientRect().width - px(bs.columnGap)
-					- h1.getBoundingClientRect().width - pill.getBoundingClientRect().width - 2 * px(rs.columnGap);
-			};
-			const lineBox = h1.getBoundingClientRect().height;
-			const oneLine = () => tag.getBoundingClientRect().width <= room() + 0.5;
-			const twoLines = (fs) => {
-				const r = Math.floor(room());
-				if (r <= 0 || 2 * fs * 1.05 > lineBox + 0.5) return false;
-				tag.style.maxWidth = r + 'px';
-				return tag.scrollWidth <= tag.clientWidth + 0.5 && Math.round(tag.getBoundingClientRect().height / (fs * 1.05)) <= 2;
-			};
-			for (const [tight, short] of [[false, false], [true, false], [true, true]]) {
-				hd.toggleAttribute('data-hdr-short', short);
-				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 1, fs); if (oneLine()) return; }
-				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 2, fs); if (twoLines(fs)) return; }
-			}
-			for (let fs = 11; fs >= 8; fs -= 0.5) { set(true, 2, fs, true); if (twoLines(fs)) return; }
-			set(true, 2, 8, true);
-			tag.style.maxWidth = Math.max(0, Math.floor(room())) + 'px';
-		}
-		document.addEventListener('DOMContentLoaded', () => {
-			fitHeaderTagline();
-			const hd = document.querySelector('header');
-			let lastW = -1;
-			if (hd && window.ResizeObserver) new ResizeObserver(() => { if (hd.clientWidth !== lastW) { lastW = hd.clientWidth; fitHeaderTagline(); } }).observe(hd);
-			if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeaderTagline);
-		});
-
 		// kind … 'warn' で注意のアイコン（段13・A4）。それ以外は完了のアイコン
 		function showToast(msg, kind) {
 			const toast = document.getElementById('toast');
@@ -1619,16 +1560,23 @@
 
 		/* ---------- C-132: スマホでスクロールしても残す帯の高さ ----------
 		   帯（#deck-set-bar・sticky）の高さを --usd-sticky-top に入れる。①の表の列見出しと②の入口の行（どちらもスマホだけ sticky）は、
-		   この値を top にして帯の直下に残る。帯が隠れている（旧UI）ときは 0 */
+		   この値を top にして帯の直下に残る。帯が隠れている（旧UI）ときは 0。
+		   C-235: タイトルの行も上に残すので、--usd-sticky-top はタイトルの高さ＋帯の高さ。帯の top にはタイトルの高さ（--site-header-h）を入れる */
 		function syncStickyTop() {
+			const header = document.querySelector('header.site-header');
 			const bar = document.getElementById('deck-set-bar');
+			const hh = header ? Math.round(header.getBoundingClientRect().height) : 0;
 			const h = bar && !bar.hidden ? Math.round(bar.getBoundingClientRect().height) : 0;
-			const v = h + 'px';
-			if (document.documentElement.style.getPropertyValue('--usd-sticky-top') !== v) document.documentElement.style.setProperty('--usd-sticky-top', v);
+			const root = document.documentElement.style;
+			if (root.getPropertyValue('--site-header-h') !== hh + 'px') root.setProperty('--site-header-h', hh + 'px');
+			const v = (hh + h) + 'px';
+			if (root.getPropertyValue('--usd-sticky-top') !== v) root.setProperty('--usd-sticky-top', v);
 		}
 		(function watchStickyTop() {
 			const bar = document.getElementById('deck-set-bar');
+			const header = document.querySelector('header.site-header');
 			if (bar && typeof ResizeObserver === 'function') new ResizeObserver(syncStickyTop).observe(bar);
+			if (header && typeof ResizeObserver === 'function') new ResizeObserver(syncStickyTop).observe(header);
 			window.addEventListener('resize', syncStickyTop);
 			syncStickyTop();
 		})();
@@ -3996,6 +3944,7 @@
 			// ①本育成編成のタブは Deck連携モードだけ出す（C-51 の11節①）。丸数字は見えているタブの順に付け直す
 			document.getElementById('step-tab-0').hidden = false;
 			document.getElementById('deck-set-bar').hidden = false;   // 段8・B: 共通の見出しの帯
+			document.getElementById('hdr-race-slot').hidden = false;   // C-235: タイトルの行のレース条件
 			document.getElementById('deck-scopes-bar').hidden = false;   // 段8・E: ③の先頭のシナリオ因子／遺伝子
 			placeOcrDict(true);   // C-132: 誤認識の読み替え辞書は「スクショで追加」の小窓の中へ
 			renumberStepTabs();
@@ -4058,6 +4007,8 @@
 						setMode: true,
 						// 段8・B: 共通の見出しの帯（セット名・一覧・合計）の置き場。ステップのタブの上（sticky）
 						setBar: document.getElementById('deck-set-bar'),
+						// C-235: レース条件のボタンの置き場（タイトルの行・ボタン寄せ）
+						raceSlot: document.getElementById('hdr-race-slot'),
 						// 段8・D: ②のタブの脇の「N種」を、②の先頭の N に合わせる
 						onSetSummary: (sum) => updateSkillCountBadge(sum),
 						// 段8・E: シナリオ因子／遺伝子のチェックの置き場（③の先頭の1行）
@@ -4127,6 +4078,7 @@
 			document.getElementById('step1-title').textContent = 'スキルリストを入力';
 			document.getElementById('step-tab-0').hidden = true;
 			document.getElementById('deck-set-bar').hidden = true;
+			document.getElementById('hdr-race-slot').hidden = true;
 			document.getElementById('deck-scopes-bar').hidden = true;
 			placeOcrDict(false);
 			renumberStepTabs();
@@ -4745,9 +4697,10 @@
 
 		/* C-132: 「＋」の展開の「セット」「レース」。帯に同じボタンがあるときだけ出す（新UI・名前を編集していないとき）。
 		   レースが選ばれているときは、帯のボタンと同じ短い表記（例「京都 芝3000m」）を添える */
+		// C-235: 「セット」は帯のセット名（押すと編成セットの小窓）、「レース」はタイトルの行のレース条件のボタンを呼ぶ
 		function fabSetBarBtn(act) {
-			const bar = document.getElementById('deck-set-bar');
-			return bar && !bar.hidden ? bar.querySelector('[data-usd-act="' + act + '"]') : null;
+			const host = document.getElementById(act === 'set-race' ? 'hdr-race-slot' : 'deck-set-bar');
+			return host && !host.hidden ? host.querySelector('[data-usd-act="' + act + '"]') : null;
 		}
 		function fabSyncSetItems() {
 			const set = document.getElementById('fab-item-set'), race = document.getElementById('fab-item-race');

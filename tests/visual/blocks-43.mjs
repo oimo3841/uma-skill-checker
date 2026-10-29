@@ -4,6 +4,7 @@
 // 入口「脚質オススメ」（オススメサポの直後）から開く小窓: レースの選択・脚質の4つ・項目ごとのリスト（緑スキル〔レース条件〕・シナリオスキル・ためらい・サポカ外・斜行）・
 // 追加するスキル N種（合計 … Pt）［やめる］［追加する］。①のレース・脚質と共有する。①でレースを選んでも②へは自動で足さない。
 // スキル名・id・件数は検査の側に書かない（恒久ルール1。データから独立に数える。代表の編成Aの実測〔31種・既定ON 26〕だけは、Step 0 の実測との照合として数字で持つ）。
+import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register43(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -110,7 +111,8 @@ export async function register43(env) {
 				const e = await sp.page.evaluate(() => {
 					const row = document.querySelector('#deck-template-panel .usd-entry-row');
 					const kids = Array.from(row.children);
-					const s = row.querySelector('[data-usd-el="style-open"]'), o = row.querySelector('[data-usd-el="outside-open"]'), f = row.querySelector('[data-usd-act="editor-pick"]');
+					// C-235: 4つの入口は虫眼鏡の小窓へ移った。行の中のほかの入口は「オススメサポ」だけなので、高さはそれと比べる
+					const s = row.querySelector('[data-usd-el="style-open"]'), o = row.querySelector('[data-usd-el="outside-open"]'), f = o;
 					const cs = getComputedStyle(s), cso = getComputedStyle(o);
 					const tops = new Set(kids.map((c) => Math.round(c.getBoundingClientRect().top)));
 					return { order: kids.map((c) => c.getAttribute('data-usd-el') || c.getAttribute('data-usd-act')), text: s.textContent.trim(), tops: tops.size,
@@ -125,10 +127,15 @@ export async function register43(env) {
 				if (w === 1280) {
 					const box = await sp.page.evaluate(() => {
 						const r = (sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
-						return { s: r('#deck-template-panel [data-usd-el="style-open"]'), o: r('#deck-template-panel [data-usd-el="outside-open"]'), f: r('#deck-template-panel [data-usd-act="editor-pick"]'), p: r('#deck-template-panel .usd-skillgroup') };
+						return { s: r('#deck-template-panel [data-usd-el="style-open"]'), o: r('#deck-template-panel [data-usd-el="outside-open"]'), p: r('#deck-template-panel .usd-skillgroup') };
 					});
 					const px = async (x, y) => avgColor(await sp.page.screenshot({ clip: { x: Math.round(x), y: Math.round(y), width: 3, height: 3 } }));
-					const rimS = await px(box.s.x + box.s.w / 2, box.s.y + 0.5), rimF = await px(box.f.x + box.f.w / 2, box.f.y);
+					const rimS = await px(box.s.x + box.s.w / 2, box.s.y + 0.5);
+					// ほかの入口（条件で検索）の縁は、虫眼鏡の小窓の中で読む（C-235）
+					await sp.page.click('#deck-template-panel [data-usd-act="entry-search"]');
+					const fb = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick"]').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+					const rimF = await px(fb.x + fb.w / 2, fb.y);
+					await sp.page.keyboard.press('Escape');
 					const fillS = await px(box.s.x + 7, box.s.y + box.s.h / 2 - 1), fillO = await px(box.o.x + 4, box.o.y + box.o.h / 2 - 1);
 					const paper = await px(box.p.x + box.p.w - 6, box.p.y + 6);
 					assert(deltaE(rimS, rimF) > 8, tag + '縁の色は、ほかの入口の縁と違う（ΔE ' + deltaE(rimS, rimF).toFixed(1) + '）', { rimS, rimF });
@@ -149,7 +156,8 @@ export async function register43(env) {
 				word: /逃げオススメ|先差追オススメ/.test(document.querySelector('#deck-template-panel').textContent) };
 		});
 		// ②因子周回 段4（C-226）: パレットの行を無くし、入口の行の右端の固定の塊に「（◎）・表の切り替え・削除」。◎のボタンは②が空なので出ない
-		assert(p.els.join() === 'factor-view,palette-delete' && !p.recBtn && !p.outBtn && !p.word, 'C-184 右端の塊は「表の切り替え・削除」だけ（脚質のボタン・サポカ外は無い）', p);
+		// C-235: 塊は「削除・↺・虫眼鏡・表の切り替え」（◎は②が空なので出ない）
+		assert(p.els.join() === 'palette-delete,factor-reset,entry-search,factor-view' && !p.recBtn && !p.outBtn && !p.word, 'C-184 右端の塊は「削除・↺・虫眼鏡・表の切り替え」だけ（脚質のボタン・サポカ外は無い。C-235）', p);
 		assert(sp.reqs.length === 0, 'C-184 ②のタブを開いている間（脚質あり）はデータを取りに行かない', sp.reqs);
 		await sp.ctx.close();
 	});
@@ -283,7 +291,7 @@ export async function register43(env) {
 		const first = rowsOf(await readModal(sp2.page), 'green').find((r) => r.state === 'on');
 		await closeStyle(sp2.page);
 		// 追加は画面の経路（テキストで検索）
-		await sp2.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(sp2.page, 'editor-pick-text');
 		await sp2.page.fill('[data-usd-el="paste-input"]', nameOf(first.id));
 		await sp2.page.click('[data-usd-act="paste-run"]');
 		await sleep(sp2.page, 200);
@@ -370,7 +378,7 @@ export async function register43(env) {
 		const sp = await openSp({ roster: Object.assign({}, ROSTER_A, { raceAutoSkillIds: OLD }) });
 		const before = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
 		for (const race of RACES.filter((r) => r.selectable !== false)) {   // 選べるレースだけ（race-0001 は 2026-10-25b で選べなくなった）
-			await sp.page.click(BAR + '[data-usd-act="set-race"]');
+			await sp.page.click('#hdr-race-slot [data-usd-act="set-race"]');
 			await sp.page.waitForSelector('[data-usd-el="race-list"]');
 			await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + race.id + '"] input');
 			await sleep(sp.page, 350);
@@ -378,7 +386,7 @@ export async function register43(env) {
 			const t = await toastText(sp.page);
 			assert(ids.length === 0 && !/レースに合わせて/.test(t) && JSON.stringify((await rosterOf(sp.page)).raceAutoSkillIds) === JSON.stringify(OLD), 'C-184 ' + race.id + ': ②は空のまま・「レースに合わせて」の知らせは出ない・記録はそのまま', { ids, t });
 		}
-		await sp.page.click(BAR + '[data-usd-act="set-race"]');
+		await sp.page.click('#hdr-race-slot [data-usd-act="set-race"]');
 		await sp.page.waitForSelector('[data-usd-el="race-list"]');
 		await sp.page.click('[data-usd-el="race-opt"][data-race-id=""] input');
 		await sleep(sp.page, 350);

@@ -470,8 +470,9 @@ export async function registerDark(env) {
 					const R = (el) => { const q = el.getBoundingClientRect(); return { x: q.x, y: q.y, w: q.width, h: q.height, r: q.right, b: q.bottom }; };
 					return { btn: R(b), hd: R(hd), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth, h1: R(hd.querySelector('h1')), tool: R(document.getElementById('tool-dropdown-btn')) };
 				});
-				assert(g.btn.w >= 44 && g.btn.h >= 44 && g.btn.r <= g.vw && g.btn.x >= g.tool.r && g.sw <= g.vw && g.btn.y >= g.hd.y - 0.5 && g.btn.b <= g.hd.b + 0.5,
-					'ダーク13: ' + tag + 'ボタンは44px以上でヘッダーの右端に収まり、横にはみ出さない（ツール切替の右）', g);
+				// C-235: ツール切り替えと同じ 34×38px（C-139 の 44px から）
+				assert(g.btn.w === 34 && g.btn.h === 38 && g.btn.r <= g.vw && g.btn.x >= g.tool.r && g.sw <= g.vw && g.btn.y >= g.hd.y - 0.5 && g.btn.b <= g.hd.b + 0.5,
+					'ダーク13: ' + tag + 'ボタンはツール切り替えと同じ 34×38px でヘッダーの右端に収まり、横にはみ出さない（ツール切替の右）', g);
 				// 壊れた値（light／dark 以外）は「自動」として出し、書き換えない
 				await page.evaluate((k) => localStorage.setItem(k, 'purple'), KEY);
 				await page.reload({ waitUntil: 'networkidle' });

@@ -6,6 +6,8 @@
 // E: タッチで小窓・貼り付け欄を開いても、入力欄に focus を当てない（スマホのキーボードが出ないように）。
 //    描き直しでは、直前に入力欄に focus があったときだけ当て直す。マウスで開いたときは今までどおり当てる
 // スキル名・カード名は検査の側に書かない（恒久ルール1）。
+import { pickEntry } from './lib/entry-search.mjs';
+import { openSetNameEdit } from './lib/set-name.mjs';
 
 export async function register14(env) {
 	const { block, assert, browser, base, openPage } = env;
@@ -148,7 +150,7 @@ export async function register14(env) {
 		// オススメサポは①の距離・脚質・バ場が決まっていないと開かない（blocks-13 と同じ指定）
 		const sp = await openSp({ touch: true, tab: 1, roster: Object.assign({}, FULL, { skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' }, outsideOptions: { count: 4, exclude: {} } }) });
 		const page = sp.page;
-		await page.tap(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(page, 'editor-pick-text', 'tap');
 		await page.waitForSelector('[data-usd-el="paste-input"]', { state: 'visible' });
 		const a1 = await active(page);
 		assert(!a1.input, 'まとめ対応E タッチ: 「テキストで検索」を開いても、貼り付け欄に focus が移らない', a1);
@@ -167,10 +169,10 @@ export async function register14(env) {
 		await page.tap(OM + '[data-usd-act="outside-close"]');
 		await page.waitForTimeout(150);
 		// ✎（打つための操作）は今までどおり、開いたときに focus が入る
-		await page.tap(BAR + '[data-usd-act="name-edit"]');
+		await openSetNameEdit(page, 'tap');
 		await page.waitForTimeout(150);
 		const a3 = await active(page);
-		assert(a3.input && a3.el === 'name', 'まとめ対応E タッチ: ✎で開いた名前の欄には focus が入る（打つための操作）', a3);
+		assert(a3.input && a3.el === 'set-name-input', 'まとめ対応E タッチ: 名前の欄（C-235 で編成セットの小窓の中）を開くと focus が入る（打つための操作）', a3);
 		assert(jsErrors(sp.errors).length === 0, 'まとめ対応E タッチ(2): コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -196,7 +198,7 @@ export async function register14(env) {
 		await page.click(MODAL + '.uma-icon-btn[data-usd-act="cancel-pick"]');
 		await page.click('#step-tab-1');
 		await page.waitForTimeout(200);
-		await page.click(T + '[data-usd-act="editor-pick-text"]');
+		await pickEntry(page, 'editor-pick-text');
 		await page.waitForSelector('[data-usd-el="paste-input"]', { state: 'visible' });
 		const a4 = await active(page);
 		assert(a4.input && a4.el === 'paste-input', 'まとめ対応E マウス: 「テキストで検索」を開くと、貼り付け欄に focus が入る（今までどおり）', a4);
