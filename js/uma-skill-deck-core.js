@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-29b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30a';
 
 	/* ============================================================
 	 * 定数
@@ -13970,15 +13970,15 @@
 			});
 			return out.sort(compareGameOrder);
 		}
-		/** 無効の段の見出し（C-225）。カード一覧と星取表で同じ文言 */
-		function factorOffHeadText(n) { return '無効（オススメサポのカードで得られるスキル） ' + n + '件'; }
+		/** 無効の段の見出し（C-225）。カード一覧と星取表で同じ文言。画面の呼び名は「“オススメサポ”で除外されたスキル」（C-232。引用符も出す） */
+		function factorOffHeadText(n) { return '“オススメサポ”で除外されたスキル ' + n + '件'; }
 		/**
 		 * 無効の行（C-225）。押すと②に足して有効にする（factor-enable）。見た目は①の表で「取得しない」にした行と同じ（薄い地・薄い文字・取り消しの線）。
 		 * 行の識別は data-off-skill-id（②の行の data-skill-id は持たない＝削除・アイコン・Pt の対象にならない）。名前は横に送る（②の行と同じ）
 		 */
 		function factorOffTileHtml(id) {
 			const name = getSkillName(id);
-			const label = name + '（無効）。押すと②に足して有効にする';
+			const label = name + '（“オススメサポ”で除外されたスキル）。押すと因子周回に追加する';
 			return '<div class="usd-panel usd-panel--off" data-usd-el="factor-off-row" data-usd-act="factor-enable" data-off-skill-id="' + esc(id) + '">'
 				+ '<span class="usd-panel-offlead" aria-hidden="true"><i data-lucide="plus"></i></span>'
 				+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-no-trim="1">'
@@ -13997,8 +13997,8 @@
 			pushUndo({
 				scope: sink.scope,
 				baseline: baseline,
-				doneLabel: 'スキル「' + name + '」を有効にしました',
-				undoneLabel: '有効にしたスキル「' + name + '」を戻しました',
+				doneLabel: 'スキル「' + name + '」を因子周回に追加しました',
+				undoneLabel: '追加したスキル「' + name + '」を取り消しました',
 				probe: () => sink.probe(),
 				apply: () => sink.remove(added.slice())
 			});

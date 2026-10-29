@@ -343,7 +343,7 @@ export async function register60(env) {
 			const want = await ex.judge(sp.page);
 			const a = await read(sp.page);
 			assert(want.length >= 3 && JSON.stringify(a.off) === JSON.stringify(want), '②星取表(7) ' + c.k + ' 無効の段の顔ぶれと並び（因子画面の順）が独立の導出と一致（' + want.length + '件）', { got: a.off, want });
-			assert(a.offHead === '無効（オススメサポのカードで得られるスキル） ' + want.length + '件', '②星取表(7) ' + c.k + ' 見出しの文言と件数', a.offHead);
+			assert(a.offHead === '“オススメサポ”で除外されたスキル ' + want.length + '件', '②星取表(7) ' + c.k + ' 見出しの文言と件数', a.offHead);
 			await sp.ctx.close();
 			// 保存の無い同じセット（①・②は同じ）と、数が同じ
 			const plain = Object.assign({}, c.roster);
