@@ -94,6 +94,7 @@ import { register64 } from './blocks-64.mjs';
 import { register65 } from './blocks-65.mjs';
 import { register66 } from './blocks-66.mjs';
 import { register67 } from './blocks-67.mjs';
+import { register68 } from './blocks-68.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -13731,7 +13732,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	v = await readNeed(sp.page);
 	const takenText = await sp.page.evaluate((id) => { const p = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"]');
 		return p ? { taken: p.classList.contains('usd-panel--taken'), pt: (p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent || null } : null; }, x(6));
-	// C-223（ヒントLvの件・2026-10-28）: ①での合計のヒントLv が2以下の白は②でも数える。X6（Lv2）は L = min(5, 2 + F) で数え、②の行は差（②の額 − ①の額）と「①と重なり」
+	// C-223（ヒントLvの件・2026-10-28）: ①での合計のヒントLv が2以下の白は②でも数える。X6（Lv2）は L = min(5, 2 + F) で数え、②の行は差（②の額 − ①の額。C-242 から名前の脇の文言は無く、マイナスの Pt が押せる）
 	const e3 = (F) => expectedNeed({ on: [], status: 'none', F: F, ids: [x(6)], tiers: {} });
 	const diff3 = (F) => lvTotal(x(6), Math.min(5, 2 + F)) - lvTotal(x(6), 2);
 	assert(sameNeed(v, e3(5)) && v.chips[0].n === roster0.C && v.chips[2].n === roster0.C + diff3(5) && roster0.levels[x(6)] === 2 && takenText && !takenText.taken && takenText.pt === '−' + Math.abs(diff3(5)) + ' Pt',
@@ -15441,6 +15442,7 @@ await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register66({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register67({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register68({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

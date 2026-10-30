@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30e';
 
 	/* ============================================================
 	 * 定数
@@ -4289,7 +4289,9 @@
 		lastPrev.forEach(it => { prevPts.set(it.skillId, { pt: it.pt, base: it.base, hintLevel: it.hintLevel }); });
 		// 系列の根ごとの項目（ヒントLvの件・C-223・2026-10-28 に足した。既存の値は変えない）。①と②の両方にあるスキルの行の差（②の額 − ①の額）を、
 		// 系列の根でまとめて出すのに使う（①の◎に上げた行・前段の○は根が同じなので、親で安くなるぶんをまとめて引ける）
-		const rootRows = (items, prev) => items.concat(prev).map(it => ({ skillId: it.skillId, rootSkillId: it.rootSkillId, pt: it.pt }));
+		// 2026-10-30（C-242）: マイナスの行の小窓のために hintLevel と、前段の項目の印（prev・neededFor＝どのスキルのための前段か）を足した（並び・pt は不変）
+		const rootRows = (items, prev) => items.map(it => ({ skillId: it.skillId, rootSkillId: it.rootSkillId, pt: it.pt, hintLevel: it.hintLevel, prev: false }))
+			.concat(prev.map(it => ({ skillId: it.skillId, rootSkillId: it.rootSkillId, pt: it.pt, hintLevel: it.hintLevel, prev: true, neededFor: (it.neededFor || []).slice() })));
 		return { ok: true, parentHintLevel: F, inheritedUniquePt: uniqPt, skillPts: skillPts, prevPts: prevPts,
 			rosterRootRows: rootRows(base.items, base.prevItems), widestRootRows: rootRows(lastItems, lastPrev),
 			rosterPrevIds: base.prevItems.map(it => it.skillId),
@@ -4455,6 +4457,8 @@
 		return { status: status, sources: vp.visibleSources, enabledIds: [], sureIds: vp.takenIds, offIds: vp.offList,
 			// ヒントLvの件（C-223）: ①の取得のうち、②でも選べる白（①での合計のヒントLv が低いもの）
 			lowHintIds: Array.from(rosterLowHintWhiteIdsOf(copy, vp)),
+			// C-242: 由来（sources の memberKey）の名前を引くため（②のマイナスの行の小窓）
+			members: res.members,
 			settings: status === 'ok' ? resolveRosterPtSettings(copy, skillPtData.rules) : null };
 	}
 	/** 本育成編成が「なし」のときの材料（段7d の ⑥(b)）。編成の Pt は 0 として数える。①で選択中の編成には戻らない */
@@ -6818,8 +6822,22 @@
 		// 名前のボタンの押す範囲を上下に広げる（::after）と、送る箱の中では縦にはみ出してスクロールの種になるので、ここでは横だけ
 		'.usd-skillgroup .usd-panel-namebtn::after { inset: 0 -3px; }',
 		'.usd-skillgroup .usd-panel-pt { flex: none; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); white-space: nowrap; }',
-		// C-223: ①と重なる行の印「①と重なり」（名前の脇に小さく。名前と一緒に横に送る。押せない）
-		'.usd-panel-overlap { flex: none; margin-left: 4px; font-size: 10px; line-height: 1.2; font-weight: 400; color: var(--uma-text-subtle); white-space: nowrap; }',
+		// C-242（2026-10-30）: ①と重なる行（C-223）の名前の脇の文言はやめ、マイナスの Pt を押せるようにした（点線の下線・太さ 1.5px・文字の色。幅は増やさない）。
+		// 押せる範囲は ::after で縦 44px・横は最低 44px（見た目と行の高さは変えない）
+		'.usd-panel-ptbtn { position: relative; font: inherit; color: inherit; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; white-space: nowrap;',
+		'  text-decoration: underline dotted currentColor; text-decoration-thickness: 1.5px; text-underline-offset: 2px; }',
+		'.usd-panel-ptbtn::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(calc(100% + 8px), 44px); height: 44px; transform: translate(-50%, -50%); }',
+		// マイナスの行の小窓の中身（C-242）。カード名と見出しは同じ強調（13px・太字・見出しの色）。2つ目以降のカード名と本文は「①」の幅だけ下げる
+		'.usd-ovp { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 20px; color: var(--uma-text); }',
+		'.usd-ovp p { margin: 0; }',
+		'.usd-ovp-card, .usd-ovp-head { font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-ovp-card--next { margin-top: 4px; padding-left: 1em; }',
+		'.usd-ovp-head { margin-top: 8px; }',
+		'.usd-ovp-line { padding-left: 1em; }',
+		'.usd-ovp-sum { margin-left: 1em; padding-top: 2px; border-top: 1px dashed var(--uma-border-strong); font-weight: 700; }',
+		'.usd-ovp-calc { font-variant-numeric: tabular-nums; }',
+		'.usd-ovp-nowrap { white-space: nowrap; }',
+		'.usd-ovp-diff { font-weight: 700; color: var(--uma-text-heading); }',
 		// C-132: 削除の状態（パレットの「削除」を選んでいる）。タイルは破線の枠と、名前の取り消しの線（色だけに頼らない）。ボタンは選択中の輪と色
 		// 段G(4): 削除の状態でも、パネルの見た目（点線の枠・赤い取り消し線）は変えない。代わりにパネルの右に×印を出す（押せる範囲 44px。パネルを押しても削除できる）。
 		// ×は常に作ってあり、削除の状態（.usd-skillgroup--delete）のときだけ見える
@@ -12844,6 +12862,7 @@
 			else if (act === 'pt-need-help' && setBased) openPopover({ key: 'factor-help:' + draftScopeKey, title: '②の Pt', build: fillFactorHelp, btn: btn, opener: btn, refocus: '[data-usd-act="pt-need-help"]' });
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
+			else if (act === 'factor-overlap-info') openFactorOverlapPopover(btn);   // C-242: ②のマイナスの Pt
 			// 入口の行の右端の「削除」（段9 のパレットの名残。C-226 でアイコンは無くした）
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
@@ -13833,6 +13852,8 @@
 					rows.forEach(x => { if (x.rootSkillId !== g || other.has(x.skillId)) return; if (x.pt === null || x.pt === undefined) ok = false; else s += x.pt; });
 					return ok ? s : null;
 				};
+				// C-242: 行の値に入れた項目（①の側・②の側）をそのまま持たせる（マイナスの行の小窓が、行と同じ項目から文面を作る）
+				const partsOf = (rows, g) => rows.filter(x => x.rootSkillId === g && !other.has(x.skillId)).map(x => Object.assign({}, x));
 				const usedRoot = new Set();
 				overlap.forEach((kind, id) => {
 					const x = out.get(id);
@@ -13842,7 +13863,8 @@
 					const rosterPt = first ? sumOf(r.rosterRootRows || [], g) : 0, factorPt = first ? sumOf(r.widestRootRows || [], g) : 0;
 					const base = x ? x.base : null;
 					if (base === null || base === undefined || rosterPt === null || factorPt === null) { out.set(id, { pt: null, base: null, hintLevel: x ? x.hintLevel : null, overlap: kind }); return; }
-					out.set(id, { pt: factorPt - rosterPt, base: base, hintLevel: x.hintLevel, overlap: kind, rosterPt: rosterPt, factorPt: factorPt });
+					out.set(id, { pt: factorPt - rosterPt, base: base, hintLevel: x.hintLevel, overlap: kind, rosterPt: rosterPt, factorPt: factorPt,
+						rosterParts: first ? partsOf(r.rosterRootRows || [], g) : [], factorParts: first ? partsOf(r.widestRootRows || [], g) : [] });
 				});
 			}
 			return out;
@@ -13853,6 +13875,123 @@
 			if (x.base === null) return 'Pt 未収録';
 			if (x.base === 0) return 'Pt 不要';
 			return (x.pt < 0 ? '−' + Math.abs(x.pt) : String(x.pt)) + ' Pt';
+		}
+		/**
+		 * ②のマイナスの行の小窓の中身（C-242・2026-10-30・おいもさんの決定）。行の値に入れた項目（factorRowPts の rosterParts・factorParts）から作るので、
+		 * 小窓の「= −N Pt」は行の値と同じになる。作れない行は null（押せる見た目も付けない）。
+		 * 返り値: { skillId, kind: 'level'（①でそのスキルを取得）｜'prev'（①で取る上位のスキルの前段）｜'circle'（①で◎に上げた○。○と◎の合算）,
+		 *   lowerId, upperId, rosterLv, factorLv, upperLv, rosterPt, factorPt, diff,
+		 *   groups: [{ memberKey, label, lines: [{ lowerLv, upperLv }] }]（①の由来。メンバーごと・編成の並び）, routeCount, sumLv（由来が2つ以上のときの合計） }
+		 * 作れない例: Pt がマイナスでない（同じ系列の2つ目の行は 0）・①の側と②の側で項目の顔ぶれが違う・項目の Lv が揃わない・
+		 * 由来が見つからない・由来の Lv の合計が計算の Lv と合わない・上の3つの形のどれでもない
+		 */
+		function factorOverlapDetailOf(st, id) {
+			if (!st || !st.r || !st.r.ok || !st.rowPts || !st.inp) return null;
+			const x = st.rowPts.get(id);
+			if (!x || !x.overlap || typeof x.pt !== 'number' || !(x.pt < 0) || typeof x.rosterPt !== 'number' || typeof x.factorPt !== 'number') return null;
+			const rp = x.rosterParts || [], fp = x.factorParts || [];
+			if (rp.length === 0 || fp.length !== rp.length) return null;
+			const idsOf = (list) => list.map(p => p.skillId).sort().join('\n');
+			if (idsOf(rp) !== idsOf(fp)) return null;
+			const sameLv = (list) => list.every(p => isNonNegInt(p.hintLevel) && p.hintLevel === list[0].hintLevel) ? list[0].hintLevel : null;
+			const rosterLv = sameLv(rp), factorLv = sameLv(fp);
+			if (rosterLv === null || factorLv === null) return null;
+			const items = rp.filter(p => !p.prev), prevs = rp.filter(p => p.prev);
+			let kind, lowerId, upperId = null, routeId;
+			if (rp.length === 1 && items.length === 1) { kind = 'level'; lowerId = items[0].skillId; routeId = lowerId; }
+			else if (rp.length === 1 && prevs.length === 1 && (prevs[0].neededFor || []).length === 1) { kind = 'prev'; lowerId = prevs[0].skillId; upperId = prevs[0].neededFor[0]; routeId = upperId; }
+			else if (rp.length === 2 && items.length === 1 && prevs.length === 1 && (prevs[0].neededFor || []).indexOf(items[0].skillId) !== -1) {
+				kind = 'circle'; lowerId = prevs[0].skillId; upperId = items[0].skillId; routeId = upperId;
+			} else return null;
+			if (lowerId !== id) return null;
+			// ①の由来（計算に渡したもの＝①の表に出ている●）。Lv は computeRosterPt と同じ数え方（練習のヒント＝practiceHintLevel・育成ウマ娘＝umaHintLevel・イベント＝そのイベントの hintLevel。同じイベントは最大の1つ）
+			const rules = st.rules || skillPtData.rules;
+			const umaLv = st.inp.settings ? st.inp.settings.umaHintLevel : rules.umaHintLevelDefault;
+			const seen = new Map();
+			(st.inp.sources || []).forEach(s => {
+				if (!s || s.skillId !== routeId || !s.sure) return;
+				const lv = s.kind === 'hint' ? rules.practiceHintLevel : s.kind === 'uma' ? umaLv : (isNonNegInt(s.hintLevel) ? s.hintLevel : 0);
+				const k = s.kind === 'hint' || s.kind === 'uma' ? s.kind + '|' + s.memberKey : 'ev|' + String(s.eventKey);
+				const cur = seen.get(k);
+				if (!cur || lv > cur.lv) seen.set(k, { memberKey: s.memberKey, lv: lv });
+			});
+			const routes = Array.from(seen.values());
+			if (routes.length === 0) return null;
+			const capped = Math.min(rules.hintLevelMax, routes.reduce((s, r) => s + r.lv, 0));
+			let upperLv = null;
+			if (kind === 'prev') {
+				const up = (st.r.rosterRootRows || []).find(p => p.skillId === upperId && !p.prev);
+				if (!up || !isNonNegInt(up.hintLevel) || up.hintLevel !== capped) return null;
+				upperLv = up.hintLevel;
+			} else {
+				if (capped !== rosterLv) return null;
+				if (kind === 'circle') upperLv = rosterLv;
+			}
+			const members = st.inp.members || [];
+			const order = (k) => { const i = members.findIndex(m => m.key === k); return i === -1 ? members.length : i; };
+			const groups = [];
+			routes.slice().sort((a, b) => order(a.memberKey) - order(b.memberKey)).forEach(r => {
+				let g = groups.find(x => x.memberKey === r.memberKey);
+				if (!g) {
+					const m = members.find(mm => mm.key === r.memberKey);
+					if (!m || !m.label) return;
+					g = { memberKey: r.memberKey, label: m.label, lines: [] };
+					groups.push(g);
+				}
+				g.lines.push({ lowerLv: kind === 'prev' ? rosterLv : r.lv, upperLv: kind === 'prev' || kind === 'circle' ? r.lv : null });
+			});
+			const routeCount = groups.reduce((s, g) => s + g.lines.length, 0);
+			if (routeCount !== routes.length) return null;
+			return { skillId: id, kind: kind, lowerId: lowerId, upperId: upperId, rosterLv: rosterLv, factorLv: factorLv, upperLv: upperLv,
+				rosterPt: x.rosterPt, factorPt: x.factorPt, diff: x.pt, groups: groups, routeCount: routeCount, sumLv: kind === 'prev' ? rosterLv : capped };
+		}
+		/** ②のマイナスの行の小窓（C-242）。題はスキル名。①の由来（カード名の行＋スキルの行）と、②で因子化したときの差 */
+		function fillFactorOverlapInfo(body, id) {
+			const d = factorOverlapDetailOf(factorPtState(currentTarget()), id);
+			if (!d) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'Pt のデータを読み込めませんでした')); return; }
+			const fmt = formatPtNumber;
+			const box = infoEl('div', 'usd-ovp');
+			box.setAttribute('data-usd-el', 'overlap-info');
+			box.setAttribute('data-kind', d.kind);
+			const skillLine = (lowerLv, upperLv) => getSkillName(d.lowerId) + '　ヒントLv' + lowerLv + (d.upperId ? '（' + getSkillName(d.upperId) + '　ヒントLv' + upperLv + '）' : '');
+			d.groups.forEach((g, i) => {
+				const h = infoEl('p', 'usd-ovp-card' + (i > 0 ? ' usd-ovp-card--next' : ''), (i === 0 ? '①' : '') + g.label);
+				h.setAttribute('data-usd-el', 'overlap-card');
+				box.appendChild(h);
+				g.lines.forEach(l => {
+					const p = infoEl('p', 'usd-ovp-line', skillLine(l.lowerLv, l.upperLv));
+					p.setAttribute('data-usd-el', 'overlap-route');
+					box.appendChild(p);
+				});
+			});
+			if (d.routeCount > 1) {
+				const s = infoEl('p', 'usd-ovp-sum', '合計　ヒントLv' + d.sumLv + (d.upperId ? '（' + getSkillName(d.upperId) + '　ヒントLv' + d.upperLv + '）' : ''));
+				s.setAttribute('data-usd-el', 'overlap-sum');
+				box.appendChild(s);
+			}
+			const h2 = infoEl('p', 'usd-ovp-head', '②因子周回で因子化');
+			h2.setAttribute('data-usd-el', 'overlap-head2');
+			box.appendChild(h2);
+			// 折り返すなら矢印の前だけ（「= −N Pt」を途中で切らない）
+			const calc = infoEl('p', 'usd-ovp-line usd-ovp-calc');
+			calc.setAttribute('data-usd-el', 'overlap-calc');
+			calc.setAttribute('data-diff', String(d.diff));
+			calc.appendChild(infoEl('span', 'usd-ovp-nowrap', 'ヒントLv' + d.rosterLv + ' (' + fmt(d.rosterPt) + ' Pt)'));
+			calc.appendChild(global.document.createTextNode(' '));
+			const tail = infoEl('span', 'usd-ovp-nowrap', '→ ヒントLv' + d.factorLv + ' (' + fmt(d.factorPt) + ' Pt) = ');
+			const diff = infoEl('strong', 'usd-ovp-diff', '−' + fmt(Math.abs(d.diff)) + ' Pt');
+			diff.setAttribute('data-usd-el', 'overlap-diff');
+			tail.appendChild(diff);
+			calc.appendChild(tail);
+			box.appendChild(calc);
+			body.appendChild(box);
+		}
+		function openFactorOverlapPopover(btn) {
+			const id = btn.getAttribute('data-skill-id');
+			const key = 'factor-overlap:' + draftScopeKey + ':' + id;
+			if (skillInfoCur && skillInfoCur.key === key) { closeSkillInfo(); return; }
+			openPopover({ key: key, title: getSkillName(id), build: (body) => fillFactorOverlapInfo(body, id), btn: btn, opener: btn,
+				refocus: '[data-usd-act="factor-overlap-info"][data-skill-id="' + id + '"]' });
 		}
 		/**
 		 * セットの数字（段9・C-121。段8・B／D を置き換えた）。**ここ1か所**で数える（①の帯・②の帯・見出しの帯・「?」がすべてこの値を読む）。
@@ -13902,20 +14041,25 @@
 				if (panel) panel.classList.toggle('usd-panel--taken', taken.has(id));
 				// ②因子周回 段2: ◎として数える行は◎＋前段の○の合算（rowPts）
 				const x = !taken.has(id) && st && st.r && st.r.ok ? st.rowPts.get(id) : null;
-				// C-223: ①と重なる行は、名前の脇に小さく「①と重なり」（行の Pt は差）。印は名前の横送りの中・名前のボタンの後ろ
-				const scroll = panel ? panel.querySelector('[data-usd-el="panel-namescroll"]') : null;
-				const mark = scroll ? scroll.querySelector('[data-usd-el="panel-overlap"]') : null;
+				// C-223: ①と重なる行の Pt は差。C-242（2026-10-30）: 名前の脇の文言はやめ、マイナスの Pt を押すと小窓（factorOverlapDetailOf が文面を作れる行だけ）
 				const isOverlap = !!(x && x.overlap);
-				if (isOverlap && scroll && !mark) {
-					const m = global.document.createElement('span');
-					m.className = 'usd-panel-overlap';
-					m.setAttribute('data-usd-el', 'panel-overlap');
-					m.textContent = '①と重なり';
-					scroll.appendChild(m);
-				} else if (!isOverlap && mark) mark.remove();
 				if (panel) { if (isOverlap) panel.setAttribute('data-usd-overlap', x.overlap); else panel.removeAttribute('data-usd-overlap'); }
 				if (taken.has(id)) { sp.textContent = '①で取得'; return; }
-				sp.textContent = factorRowPtText(x);
+				const text = factorRowPtText(x);
+				if (isOverlap && factorOverlapDetailOf(st, id)) {
+					sp.textContent = '';
+					const b = global.document.createElement('button');
+					b.type = 'button';
+					b.className = 'usd-panel-ptbtn';
+					b.setAttribute('data-usd-act', 'factor-overlap-info');
+					b.setAttribute('data-usd-el', 'panel-ptbtn');
+					b.setAttribute('data-skill-id', id);
+					b.setAttribute('aria-haspopup', 'dialog');
+					b.setAttribute('aria-expanded', skillInfoCur && skillInfoCur.key === 'factor-overlap:' + draftScopeKey + ':' + id ? 'true' : 'false');
+					b.setAttribute('aria-label', getSkillName(id) + ' ' + text + 'の内訳を開く');
+					b.textContent = text;
+					sp.appendChild(b);
+				} else sp.textContent = text;
 			});
 			scanEntryRows();
 		}
@@ -14175,9 +14319,9 @@
 				+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"><span class="usd-circle-mark" aria-hidden="true">' + (on ? '◎' : '○') + '</span></button>';
 		}
 		/**
-		 * ②の1行（setBased）。カード一覧のタイルと、星取表の行の名前セル（②因子周回 段3）が同じものを使う（名前・Pt・◎／○・①と重なりの印・マーカー・削除が同じ決まりになる）。
+		 * ②の1行（setBased）。カード一覧のタイルと、星取表の行の名前セル（②因子周回 段3）が同じものを使う（名前・Pt〔①と重なる行のマイナスの Pt は押せるボタン。C-242〕・◎／○・マーカー・削除が同じ決まりになる）。
 		 * ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にする。◎／○の切り替えは「◎を○に変えるモード」のときだけ Pt の位置に出す。
-		 * 行の識別（data-skill-id）・マーカー・並び・削除は○の id のまま。Pt と「①と重なり」は renderPanelPts が入れる。
+		 * 行の識別（data-skill-id）・マーカー・並び・削除は○の id のまま。Pt（①と重なる行のマイナスの Pt のボタンを含む。C-242）は renderPanelPts が入れる。
 		 * ②因子周回 段4（C-226）: 左端はパレットのアイコンのボタンに代えて、自動のマーカー（kinds＝factorMarkerKindsOf。ボタンではなく画像）
 		 */
 		function factorPanelHtml(id, kinds, cands, circ) {
@@ -14234,7 +14378,7 @@
 		 *          保存のカードが無いセットは0（D1）。
 		 *   star ＝ data/non-support-skills.json（脚質オススメの見出し「サポカ外」と同じ一覧）にある。読めていないときは無い扱い（読み終えたら描き直す）。
 		 *   other ＝ それ以外（親から継承）。
-		 * 「①と重なり」の行も同じ規則（②のスキルなので）。無効の段・星取表の表示だけの金の行は②のスキルではないので、ここに入らない（D11）。
+		 * ①と重なる行（C-223）も同じ規則（②のスキルなので）。無効の段・星取表の表示だけの金の行は②のスキルではないので、ここに入らない（D11）。
 		 * 計算・保存には関わらない（表示だけ）
 		 */
 		function factorMarkerKindsOf(target, src) {

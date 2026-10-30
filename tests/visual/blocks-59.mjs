@@ -5,7 +5,8 @@
 //  ・①（本育成）での合計のヒントLv（computeRosterPt の items の hintLevel。◎に上げた行は根の○の Lv）が 0〜2 の白スキルは、②で選べる。
 //    金・Lv3 以上（練習のヒント Lv5・初期／覚醒 Lv3 を含む）は今のまま選べない。閾値は core の定数。C-131 の組の相手も①のスキルと同じ扱い。
 //  ・数え方は案A: ①の帯はそのまま。②の帯に、親で安くなったぶんをマイナスの差で出す。見出しの合計は computeFactorSetPt の今の式。
-//  ・②の行: 差の Pt（例 −60 Pt）と、名前の脇の小さな「①と重なり」。C-178 の前段の重なりの行も同じ出し方（行の Pt の和＝②の帯）。
+//  ・②の行: 差の Pt（例 −60 Pt）。C-178 の前段の重なりの行も同じ出し方（行の Pt の和＝②の帯）。
+//    C-242（2026-10-30）: 名前の脇の「①と重なり」はやめ、マイナスの Pt を押せる見た目（点線の下線のボタン）にした（小窓の検査は blocks-68）。
 //  ・種数: ②の帯の N種には数え、見出しの合計では重なりを引いて1種。countCrossPairedKinds の二重引きを起こさない。
 //  ・見出しの（?）: 重なりの行の文（●にも広げる）と、種の式の「− N（①と②の両方にあるため1種に数える）」。
 //  ・②の◎の候補: ①で取得する○は候補にしない（(ア)。◎で数えるかは①の切り替えだけ）。
@@ -74,9 +75,10 @@ export async function register59(env) {
 		const circ = new Map(vp.circleOf);
 		const lv = new Map(d.items.map((x) => [x.skillId, x.hintLevel]));
 		const rows = Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((p) => {
-			const mk = p.querySelector('[data-usd-el="panel-overlap"]');
+			const mk = p.querySelector('[data-usd-el="panel-overlap"]');   // C-242 で無くした名前の脇の文言（無いことを見る）
+			const pb = p.querySelector('[data-usd-el="panel-ptbtn"]');
 			return { id: p.dataset.skillId, pt: (p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent || '', mark: mk ? mk.textContent : null,
-				markInName: !!(mk && mk.closest('[data-usd-el="panel-namescroll"]')), overlap: p.getAttribute('data-usd-overlap'), taken: p.classList.contains('usd-panel--taken'), h: Math.round(p.getBoundingClientRect().height) };
+				markInName: !!(mk && mk.closest('[data-usd-el="panel-namescroll"]')), btn: !!pb && pb.textContent === ((p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent || ''), overlap: p.getAttribute('data-usd-overlap'), taken: p.classList.contains('usd-panel--taken'), h: Math.round(p.getBoundingClientRect().height) };
 		});
 		const n = (sel) => { const e = document.querySelector(sel); return e ? Number(e.textContent.replace(/[^0-9]/g, '')) : null; };
 		return { total: s.total, totalKinds: s.totalKinds, rosterPt: s.rosterPt, rosterKinds: s.rosterKinds, factorPt: s.factorPt, factorKinds: s.factorKinds, commonPt: s.commonPt,
@@ -97,7 +99,7 @@ export async function register59(env) {
 		await page.waitForTimeout(300);
 	};
 
-	await block('ヒントLv(1) アオハル点火・賢（M＝uma-0001＋card-0565）: ①は Lv1・180 Pt／②で選べる／②に入れると行は差（F=1〜5 で −20・−40・−50・−60・−60 Pt＝独立に出した式）・「①と重なり」／①の帯は不変・見出しは ①だけ＋差', async () => {
+	await block('ヒントLv(1) アオハル点火・賢（M＝uma-0001＋card-0565）: ①は Lv1・180 Pt／②で選べる／②に入れると行は差（F=1〜5 で −20・−40・−50・−60・−60 Pt＝独立に出した式）・Pt は押せるボタン（C-242）／①の帯は不変・見出しは ①だけ＋差', async () => {
 		let sp = await openSp({ roster: M });
 		const a = await read(sp.page, M);
 		await sp.ctx.close();
@@ -113,7 +115,7 @@ export async function register59(env) {
 			const want = ptOf(base, Math.min(5, 1 + F), 'none') - ptOf(base, 1, 'none');
 			const row = b.rows.find((r) => r.id === AOHARU);
 			assert(!!row && signedPt(row.pt) === want && row.pt === '−' + Math.abs(want) + ' Pt', 'ヒントLv(1) F=' + F + ': 行は「−' + Math.abs(want) + ' Pt」', row);
-			assert(row.mark === '①と重なり' && row.markInName && row.overlap === 'sure' && !row.taken, 'ヒントLv(1) F=' + F + ': 名前の脇に「①と重なり」・薄くしない（①で取得 ではない）', row);
+			assert(row.mark === null && row.btn && row.overlap === 'sure' && !row.taken, 'ヒントLv(1) F=' + F + ': 名前の脇の文言は無く（C-242）、マイナスの Pt が押せるボタン・薄くしない（①で取得 ではない）', row);
 			assert(b.rosterPt === FIX.M.roster && b.headTotal === FIX.M.empty + want && b.total === b.rosterPt + b.factorPt, 'ヒントLv(1) F=' + F + ': ①の帯は不変・見出し ＝ ' + FIX.M.empty + ' − ' + Math.abs(want), { head: b.headTotal, r: b.rosterPt, f: b.factorPt });
 			assert(b.commonPt === want && b.bandPt === b.factorPt, 'ヒントLv(1) F=' + F + ': 共通スキルの Pt ＝ 行の差（帯も同じ）', { common: b.commonPt, band: b.bandPt });
 			assert(b.factorKinds === a.factorKinds + 1 && b.totalKinds === a.totalKinds && b.overlapKinds === 1, 'ヒントLv(1) F=' + F + ': ②の帯の種は +1・見出しの種は変わらない（重なりを1種に数える）', { f: [a.factorKinds, b.factorKinds], t: [a.totalKinds, b.totalKinds], o: b.overlapKinds });
@@ -140,7 +142,7 @@ export async function register59(env) {
 			assert(b.totalKinds === a.totalKinds && b.overlapKinds === low.length && b.factorKinds === a.factorKinds + low.length, 'ヒントLv(2) ' + k + ' 見出しの種は②が空のときと同じ（②の帯は +' + low.length + '・重なり ' + low.length + '）', { t: [a.totalKinds, b.totalKinds], f: [a.factorKinds, b.factorKinds], o: b.overlapKinds, x: b.crossPaired });
 			const sum = b.rows.reduce((s, r) => s + signedPt(r.pt), 0);
 			assert(sum === b.commonPt && b.commonPt === fx.low - fx.empty, 'ヒントLv(2) ' + k + ' 共通スキルの Pt ＝ 行の Pt の和 ＝ 見出しの差（' + (fx.low - fx.empty) + '）', { sum, common: b.commonPt });
-			assert(b.rows.every((r) => r.mark === '①と重なり' && r.overlap === 'sure' && signedPt(r.pt) < 0), 'ヒントLv(2) ' + k + ' すべての行に「①と重なり」・Pt はマイナス', b.rows.filter((r) => r.mark !== '①と重なり' || signedPt(r.pt) >= 0).slice(0, 3));
+			assert(b.rows.every((r) => r.mark === null && r.btn && r.overlap === 'sure' && signedPt(r.pt) < 0), 'ヒントLv(2) ' + k + ' すべての行の Pt はマイナスで押せるボタン（名前の脇の文言は無い。C-242）', b.rows.filter((r) => r.mark !== null || !r.btn || signedPt(r.pt) >= 0).slice(0, 3));
 			const st = (roster.pt && roster.pt.status) || 'none';
 			const bad = [];
 			low.forEach((id) => {
@@ -223,7 +225,7 @@ export async function register59(env) {
 		const l2 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap"]')).map((p) => ({ id: p.dataset.skillId, kind: p.dataset.overlap, text: p.textContent })));
 		await sp.ctx.close();
 		const row = b.rows.find((r) => r.id === '230');
-		assert(!!row && row.pt === '−72 Pt' && row.mark === '①と重なり' && row.overlap === 'prev' && b.commonPt === -72, 'ヒントLv(5) C-178: 前段の重なりの行は「−72 Pt」・「①と重なり」・共通スキルの Pt と一致', { row, common: b.commonPt });
+		assert(!!row && row.pt === '−72 Pt' && row.mark === null && row.btn && row.overlap === 'prev' && b.commonPt === -72, 'ヒントLv(5) C-178: 前段の重なりの行は「−72 Pt」（押せるボタン・名前の脇の文言は無い。C-242）・共通スキルの Pt と一致', { row, common: b.commonPt });
 		assert(l2.length === 1 && l2[0].kind === 'prev' && /^①の前段として数えている「.+」162 Pt は、因子で得るため 90 Pt に置き換えて数えています（差 −72 Pt）$/.test(l2[0].text), 'ヒントLv(5) C-178 の（?）の文は今までの形（162 → 90・差 −72）', l2);
 		assert(b.overlapKinds === 0 && b.totalKinds === b.rosterKinds + b.factorKinds - b.crossPaired, 'ヒントLv(5) 前段の重なりは見出しの種から引かない（①の種に入っていない）', { o: b.overlapKinds, t: b.totalKinds });
 	});
@@ -248,13 +250,13 @@ export async function register59(env) {
 		await sp.ctx.close();
 	});
 
-	await block('ヒントLv(7) 見た目: 390・360・1280px で「①と重なり」の行の高さは他の行と同じ・横スクロールなし／狭い幅でも印は名前の横送りの中', async () => {
+	await block('ヒントLv(7) 見た目: 390・360・1280px でマイナスの行（押せる Pt）の高さは他の行と同じ・横スクロールなし／名前の脇の文言は無い（C-242）', async () => {
 		for (const w of [1280, 390, 360]) {
 			const sp = await openSp({ roster: M, ids: [AOHARU, '1', '3'], w, h: w === 1280 ? 900 : 844 });
 			const b = await read(sp.page, M);
 			const hs = Array.from(new Set(b.rows.map((r) => r.h)));
 			const row = b.rows.find((r) => r.id === AOHARU);
-			assert(hs.length === 1 && !b.overflowX && row && row.markInName, 'ヒントLv(7) ' + w + 'px: 行の高さはそろう（' + hs.join(',') + 'px）・横スクロールなし・印は名前の横送りの中', { hs, ov: b.overflowX, row });
+			assert(hs.length === 1 && !b.overflowX && row && row.btn && row.mark === null, 'ヒントLv(7) ' + w + 'px: 行の高さはそろう（' + hs.join(',') + 'px）・横スクロールなし・Pt は押せるボタン・名前の脇の文言は無い', { hs, ov: b.overflowX, row });
 			await sp.ctx.close();
 		}
 	});

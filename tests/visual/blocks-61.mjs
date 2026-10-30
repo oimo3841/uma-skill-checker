@@ -6,7 +6,7 @@
 //    周回サポカ＝段3b で保存したオススメサポの提案のカード（roster.outsideOptions.cards）から得られるもの（星取表の列の●／○と同じ判定＝D3）。
 //    カードが金を出すなら、その前段の白もカード（D2）。カードが白しか出さないとき、②の金はカードにしない。保存のカードが無いセットはカードの印0（D1）。
 //    サポカ外＝data/non-support-skills.json。その他＝それ以外。
-//  ・「①と重なり」の行も同じ規則。無効の段・星取表の表示だけの金の行には付けない（D11）。
+//  ・①と重なる行（C-223。C-242 から名前の脇の文言は無く、マイナスの Pt が押せる）も同じ規則。無効の段・星取表の表示だけの金の行には付けない（D11）。
 //  ・置き場所: カード一覧のパネルの左端（アイコンのボタンを置き換え。ボタンではなく画像・読み上げは種類の名前）。星取表の名前セルにも同じ部品。
 //  ・パレットの行（◎○△◇★× の印）を無くし、入口の行を「横に送る部分｜右端の固定の塊（◎・表の切り替え・削除。削除が一番右）」に（D5）。
 //  ・skillIcons は special の②では読まず・書かない。保存値は消さない。tiers は触らない。リセットの小窓は「スキル○種をすべて消す」「やめる」の2つ（D6）。
@@ -71,7 +71,7 @@ export async function register61(env) {
 			const ms = p.querySelectorAll('[data-usd-el="factor-marker"]');
 			const m = ms[0];
 			return { id: p.dataset.skillId, n: ms.length, kind: m ? m.dataset.marker : null, role: m ? m.getAttribute('role') : null, label: m ? m.getAttribute('aria-label') : null,
-				button: !!(m && m.closest('button')), overlap: !!p.querySelector('[data-usd-el="panel-overlap"]'), taken: p.classList.contains('usd-panel--taken') };
+				button: !!(m && m.closest('button')), overlap: p.hasAttribute('data-usd-overlap'), taken: p.classList.contains('usd-panel--taken') };
 		});
 		const offMarks = Array.from(list.querySelectorAll('[data-usd-el="factor-off-row"]')).reduce((s, r) => s + r.querySelectorAll('[data-usd-el="factor-marker"]').length, 0);
 		const goldRows = Array.from(list.querySelectorAll('[data-usd-el="factor-table-row"][data-usd-goldref="1"]'));
@@ -173,7 +173,7 @@ export async function register61(env) {
 		await sp.ctx.close();
 	});
 
-	await block('②マーカー(4) 「①と重なり」・「①で取得」の行も同じ規則で付く／無効の段・星取表の表示だけの金の行には付かない', async () => {
+	await block('②マーカー(4) ①と重なる行・「①で取得」の行も同じ規則で付く／無効の段・星取表の表示だけの金の行には付かない', async () => {
 		// C-223 の重なり（①での合計のヒントLv が低い白を②に入れる）が出る編成: ①の6枚と同じカードを列にも保存する
 		const R = { umaId: 'uma-0001', cardIds: CARDS6, outsideOptions: { cards: CARDS6 } };
 		const ids = GIDS;
@@ -181,7 +181,7 @@ export async function register61(env) {
 		const sp = await openSp({ w: 1280, roster: R, ids });
 		const m = await readMarkers(sp.page);
 		const special = m.panels.filter((p) => p.overlap || p.taken);
-		assert(special.length > 0 && special.every((p) => p.n === 1 && p.kind === ex.kinds[p.id]), '②マーカー(4) 「①と重なり」「①で取得」の行もマーカー1つ・同じ規則', special.map((p) => p.id + ':' + p.kind + (p.overlap ? '(重)' : '') + (p.taken ? '(取)' : '')).slice(0, 6));
+		assert(special.length > 0 && special.every((p) => p.n === 1 && p.kind === ex.kinds[p.id]), '②マーカー(4) ①と重なる行・「①で取得」の行もマーカー1つ・同じ規則', special.map((p) => p.id + ':' + p.kind + (p.overlap ? '(重)' : '') + (p.taken ? '(取)' : '')).slice(0, 6));
 		assert(m.offRows > 0 && m.offMarks === 0, '②マーカー(4) カード一覧: 無効の段の行にはマーカーが無い', { offRows: m.offRows, offMarks: m.offMarks });
 		await sp.ctx.close();
 		const sp2 = await openSp({ w: 1280, roster: RG, ids: GIDS });

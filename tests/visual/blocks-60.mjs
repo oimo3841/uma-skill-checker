@@ -75,7 +75,7 @@ export async function register60(env) {
 			const t = p.querySelector('[data-usd-el="factor-circle-toggle"]');
 			return { id: p.dataset.skillId, name: nb ? nb.textContent : null, info: nb ? nb.getAttribute('data-usd-info') : null, pt: pt ? pt.textContent : '',
 				ptShown: !!pt && getComputedStyle(pt).display !== 'none' && pt.textContent !== '', circle: p.dataset.usdCircle || null,
-				overlap: !!p.querySelector('[data-usd-el="panel-overlap"]'), taken: p.classList.contains('usd-panel--taken'), toggle: t ? t.getAttribute('aria-pressed') : null };
+				overlap: !!p.querySelector('[data-usd-el="panel-ptbtn"]'), taken: p.classList.contains('usd-panel--taken'), toggle: t ? t.getAttribute('aria-pressed') : null };
 		});
 		const n = (sel) => { const e = document.querySelector(sel); return e ? Number(e.textContent.replace(/[^0-9]/g, '')) : null; };
 		const head = document.querySelector('#deck-template-panel [data-usd-el="factor-off-head"]');
@@ -174,7 +174,7 @@ export async function register60(env) {
 		}
 	});
 
-	await block('②星取表(2) 行: カード一覧と星取表で、有効の行の顔ぶれ・名前・ⓘ・Pt・◎・「①と重なり」・「①で取得」が一致し、無効の行の顔ぶれと並びも一致する／金の行・無効の行は Pt を持たず②の id に入らない', async () => {
+	await block('②星取表(2) 行: カード一覧と星取表で、有効の行の顔ぶれ・名前・ⓘ・Pt・◎・押せるマイナスの Pt（C-242）・「①で取得」が一致し、無効の行の顔ぶれと並びも一致する／金の行・無効の行は Pt を持たず②の id に入らない', async () => {
 		const cases = [{ k: 'R1S', roster: R1S, ids: GIDS }, { k: 'R2S', roster: R2S, ids: ONE12 }, { k: 'RG（金）', roster: RG, ids: GIDS }, { k: '①なし', roster: null, ids: ONE12 }];
 		for (const c of cases) {
 			const sp = await openSp({ w: 1280, roster: c.roster, ids: c.ids });
@@ -186,7 +186,7 @@ export async function register60(env) {
 			assert(a.panels.length === c.ids.length && b.panels.length === c.ids.length, '②星取表(2) ' + c.k + ' 有効の行の数は②のスキルの数（' + c.ids.length + '）', { a: a.panels.length, b: b.panels.length });
 			const diff = [];
 			ma.forEach((v, id) => { if (JSON.stringify(v) !== JSON.stringify(mb.get(id))) diff.push({ id, a: v, b: mb.get(id) || null }); });
-			assert(diff.length === 0 && ma.size === mb.size, '②星取表(2) ' + c.k + ' 各行の名前・ⓘ・Pt・◎・①と重なり・①で取得がカード一覧と同じ', diff.slice(0, 3));
+			assert(diff.length === 0 && ma.size === mb.size, '②星取表(2) ' + c.k + ' 各行の名前・ⓘ・Pt・◎・押せるマイナスの Pt・①で取得がカード一覧と同じ', diff.slice(0, 3));
 			assert(JSON.stringify(a.off) === JSON.stringify(b.off) && JSON.stringify(t.rows.filter((r) => r.off).map((r) => r.id)) === JSON.stringify(b.off) && a.offHead === b.offHead,
 				'②星取表(2) ' + c.k + ' 無効の行の顔ぶれ・並び・見出しがカード一覧と同じ', { a: a.off, b: b.off });
 			const valid = t.rows.filter((r) => !r.gold && !r.off);
