@@ -85,7 +85,7 @@ export async function register72(env) {
 		const h = await openHelp(sp.page);
 		const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 		assert(h.pt === '合計 ＝ ① ' + fmt(s.rosterPt) + ' ＋ ② ' + fmt(s.factorPt), '合計の小窓(1) 「合計 ＝ ① X ＋ ② Y」は今のまま', h.pt);
-		const c = s.crossPaired > 0 ? ' − ' + s.crossPaired + '（金と下位の白を両方取るため1種に数える）' : '';
+		const c = s.crossPaired > 0 ? ' − ' + s.crossPaired + '（金+白で1種）' : '';
 		const want = '種 ＝ ① ' + s.rosterKinds + ' ＋ ② ' + s.factorKinds + c + ' − ' + s.overlapKinds + '（①と②の両方にあるスキル：' + s.overlapKinds + '種）';
 		assert(h.kinds === want, '合計の小窓(1) 種の式「' + want + '」', h.kinds);
 		assert(h.names === 1 && h.namesText.startsWith(LIST), '合計の小窓(1) 式の下に名前の行が1行', h);
@@ -118,7 +118,7 @@ export async function register72(env) {
 		assert(s.overlapKinds === 0, '合計の小窓(3) 前提: K＝0', s.overlapKinds);
 		const h = await openHelp(sp.page);
 		assert(!/両方にある/.test(h.kinds || '') && h.names === 0 && h.old === 0, '合計の小窓(3) 括弧・名前の行・削除した文は出ない', h);
-		const c = s.crossPaired > 0 ? ' − ' + s.crossPaired + '（金と下位の白を両方取るため1種に数える）' : '';
+		const c = s.crossPaired > 0 ? ' − ' + s.crossPaired + '（金+白で1種）' : '';
 		assert(h.kinds === '種 ＝ ① ' + s.rosterKinds + ' ＋ ② ' + s.factorKinds + c, '合計の小窓(3) 種の式は「種 ＝ ① N ＋ ② M」（C の括弧は今のまま）', h.kinds);
 		await sp.ctx.close();
 	});

@@ -83,7 +83,7 @@ export async function register40(env) {
 		assert(h.rPt === 4720 && h.rKinds === 39 && h.fPt === 648 && h.fKinds === 7, 'C-178(1) ①の帯 4,720 Pt／39種・②の帯 648 Pt／7種は変わらない（種数は金と白を別々に数えたまま）', h);
 		assert(h.total === h.rPt + h.fPt && h.kinds === h.rKinds + h.fKinds - 1, 'C-178(1) 見出しの種 ＝ ① ＋ ② − 1（Pt は ①＋② のまま）', h);
 		const help = await openHelp(sp.page);
-		assert(help.kindsFormula === '種 ＝ ① 39 ＋ ② 7 − 1（金と下位の白を両方取るため1種に数える）', 'C-178(1) ?の中の種の式に、引いた1種を出す', help.kindsFormula);
+		assert(help.kindsFormula === '種 ＝ ① 39 ＋ ② 7 − 1（金+白で1種）', 'C-178(1) ?の中の種の式に、引いた1種を出す', help.kindsFormula);
 		await sp.ctx.close();
 	});
 
@@ -156,7 +156,7 @@ export async function register40(env) {
 			// C-246（2026-10-30）: 「置き換えて数えています」の文は削除。前段の重なりは K に入らないので名前の行も出ない
 			assert(help.overlap.length === 0 && help.more.length === 0 && help.names.length === 0 && !/置き換えて|両方にある/.test(help.text || ''),
 				'C-178(4) F=' + F + ' 置き換えの文・「ほか」・名前の行は出ない', help);
-			assert(help.kindsFormula === '種 ＝ ① 39 ＋ ② 7 − 1（金と下位の白を両方取るため1種に数える）', 'C-178(4) F=' + F + ' 種の式は金と下位の白の括弧のまま', help.kindsFormula);
+			assert(help.kindsFormula === '種 ＝ ① 39 ＋ ② 7 − 1（金+白で1種）', 'C-178(4) F=' + F + ' 種の式は金と下位の白の括弧のまま', help.kindsFormula);
 			assert(!/ヒント|必ず合う|合うことがある|合わない/.test(help.text || ''), 'C-178(4) F=' + F + ' 小窓に「ヒント」「必ず合う／合うことがある／合わない」の語を使わない', help.text);
 			// 閉じる→もう一度開く（開閉）
 			await sp.page.keyboard.press('Escape');

@@ -227,7 +227,7 @@ export async function register9(env) {
 			assert(num(hdr.num) === n.total && hdr.kinds === '／' + n.totalKinds + '種', tag + '見出しの帯は「N Pt／M種」（' + hdr.num + ' ' + hdr.kinds + '）', hdr);
 			await sp.page.click(BAR + '[data-usd-act="set-total-help"]');
 			const forms = await sp.page.evaluate(() => ({ pt: (document.querySelector('[data-usd-el="set-total-formula"]') || {}).textContent, kinds: (document.querySelector('[data-usd-el="set-total-kinds-formula"]') || {}).textContent }));
-			assert(forms.pt === '合計 ＝ ① ' + n.rPt.toLocaleString('en-US') + ' ＋ ② ' + n.fPt.toLocaleString('en-US') && forms.kinds === '種 ＝ ① ' + n.rKinds + ' ＋ ② ' + n.fKinds + (cross > 0 ? ' − ' + cross + '（金と下位の白を両方取るため1種に数える）' : ''), tag + '?の中：合計 ＝ ① X ＋ ② Y、種 ＝ ① N ＋ ② M', forms);
+			assert(forms.pt === '合計 ＝ ① ' + n.rPt.toLocaleString('en-US') + ' ＋ ② ' + n.fPt.toLocaleString('en-US') && forms.kinds === '種 ＝ ① ' + n.rKinds + ' ＋ ② ' + n.fKinds + (cross > 0 ? ' − ' + cross + '（金+白で1種）' : ''), tag + '?の中：合計 ＝ ① X ＋ ② Y、種 ＝ ① N ＋ ② M', forms);
 			await sp.page.keyboard.press('Escape');
 			// ②の ? の中
 			await sp.page.click(T + '[data-usd-act="pt-need-help"]');

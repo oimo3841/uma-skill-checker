@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30k';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31a';
 
 	/* ============================================================
 	 * 定数
@@ -2841,7 +2841,16 @@
 		// 段13・C2: 「除外」（exclude）。保存値が無いセットは初期値（C-185 から 低効果・デバフ・視野・持久力回復の4つ）で読む。保存値が {} なら「何も除外しない」。4つ以外の保存値は読まない（消さない）。
 		// 段12 の「絞り込み」（filter）は push 前に置き換えたので読まない（消しもしない。ルール28）
 		const exclude = outsideExcludeOf(o.exclude && typeof o.exclude === 'object' && !Array.isArray(o.exclude) ? o.exclude : OUTSIDE_EXCLUDE_DEFAULT);
-		return { count: count, typeMin: typeMin, exclude: exclude, pinned: outsidePinnedOf(o.pinned, count), cards: outsideSavedCardsOf(o.cards) };
+		return { count: count, typeMin: typeMin, exclude: exclude, pinned: outsidePinnedOf(o.pinned, count), cards: outsideSavedCardsOf(o.cards), skillPins: outsideSkillPinsOf(o.skillPins) };
+	}
+	/**
+	 * ピン止めしたスキル（C-247 の画面と保存・T18。roster.outsideOptions.skillPins。スキルID の配列・押した順）を、決めた形に読む。
+	 * 文字列・収録データで引ける・重複なしだけを使う（保存値は書き換えない・読み込み時に補わない。ルール28）。outsideOptions.pinned（残りの枠のカード）とは別のもの
+	 */
+	function outsideSkillPinsOf(stored) {
+		const out = [];
+		(Array.isArray(stored) ? stored : []).forEach(id => { if (typeof id === 'string' && id && findSkill(id) && out.indexOf(id) === -1) out.push(id); });
+		return out;
 	}
 	/**
 	 * オススメサポで「追加」を押したときの提案のカード（②因子周回 段3 の作り直し・C-225。roster.outsideOptions.cards）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
@@ -6084,6 +6093,18 @@
 		// 「条件で検索」の行のスキル名（C-222）。オススメサポの行の名前と同じ（行の高さは変えない）
 		'.usd-pick-row .usd-out-namebtn { min-height: 0; text-align: left; font-weight: 400; font-size: inherit; line-height: inherit; }',
 		'.usd-out-pt { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); white-space: nowrap; }',
+		// T18: ピン止めのボタン（チェックボックスの右）。見た目は 20×16px（行の中身の高さ）・押せる範囲は 44px（::before。行の高さは変えない）。色は無彩色（ベースの文字色と選択の印の色だけ）。
+		// 未＝細い線のピンを斜め45度／済＝塗りのピンをまっすぐ。追加済みの行は同じ幅の空き（usd-out-pin-sp）。済の行は名前を太字（行の地の色は付けない）
+		'.usd-out-pin, .usd-out-pin-sp { flex: none; width: 20px; height: 16px; }',
+		'.usd-out-pin { position: relative; display: inline-flex; align-items: center; justify-content: center; padding: 0; margin: 0; border: 0; border-radius: var(--uma-r-sm); background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
+		'.usd-out-pin::before { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }',
+		'.usd-out-pin:hover { color: var(--uma-text-heading); }',
+		'.usd-out-pin-ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transform: rotate(45deg); }',
+		'.usd-out-pin[aria-pressed="true"] { color: var(--uma-control-mark); }',
+		'.usd-out-pin[aria-pressed="true"] .usd-out-pin-ico { fill: currentColor; transform: none; }',
+		'.usd-out-row--pinned .usd-out-namebtn { font-weight: 700; }',
+		'.usd-out-row[data-usd-pin-reason] { cursor: default; }',
+		'.usd-out-row[data-usd-pin-reason] input { cursor: default; }',
 		'.usd-out-foot { flex-direction: column; align-items: stretch; gap: var(--uma-sp-1); }',
 		'.usd-out-foot[data-state="busy"] { visibility: hidden; }',
 		'.usd-out-partial, .usd-out-total { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
@@ -12996,6 +13017,11 @@
 				const c = outsideSavedCardsOf(patch.cards);
 				if (c.length === 0) delete next.cards; else next.cards = c;
 			}
+			// T18: ピン止めしたスキル（押した順）。引けないID・重複は入れない。空なら項目を消す。書くのはピンのボタンだけ（押した時点）
+			if ('skillPins' in patch) {
+				const s = outsideSkillPinsOf(patch.skillPins);
+				if (s.length === 0) delete next.skillPins; else next.skillPins = s;
+			}
 			const before = roster.outsideOptions === undefined ? undefined : JSON.stringify(roster.outsideOptions);
 			const empty = Object.keys(next).length === 0;
 			if (empty ? before === undefined : before === JSON.stringify(next)) return true;
@@ -13818,7 +13844,7 @@
 			const p = infoEl('p', '', '合計 ＝ ① ' + formatPtNumber(sum.rosterPt) + ' ＋ ② ' + formatPtNumber(sum.factorPt));
 			p.setAttribute('data-usd-el', 'set-total-formula');
 			body.appendChild(p);
-			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds + (sum.crossPaired > 0 ? ' − ' + sum.crossPaired + '（金と下位の白を両方取るため1種に数える）' : '')
+			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds + (sum.crossPaired > 0 ? ' − ' + sum.crossPaired + '（金+白で1種）' : '')
 				+ (sum.overlapKinds > 0 ? ' − ' + sum.overlapKinds + '（①と②の両方にあるスキル：' + sum.overlapKinds + '種）' : ''));
 			k.setAttribute('data-usd-el', 'set-total-kinds-formula');
 			body.appendChild(k);
@@ -15348,7 +15374,11 @@
 		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。追加済みのスキルも数えます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
 		// 種類の指定を満たせないとき（段13・A2）: 種類ごとには足りているのに、組み合わせとして満たせないときの1行
 		const OUTSIDE_MSG_COMBO = 'この組み合わせでは指定を満たせません';
-		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedKey: RECOMMEND_NONE_KEY, appliedDist: [], appliedLegacy: [] };
+		// T18: ピン止め。今のピンを全部入れられる組み合わせが無くなるとき（ピンを押した・小窓の中の操作）のトースト
+		const OUTSIDE_MSG_PIN_NG = '条件を満たすサポートカードの組み合わせがありません';
+		// 入れ直せなかったピンの行の Pt の代わりの文字（理由ごと。added は普通の追加済みの行・gold／unknown は行を出さない）
+		const OUTSIDE_PIN_REASON_TEXT = { none: '組み合わせなし', taken: '本育成で取得', off: '本育成で不要', distance: '①の絞り込み不一致', style: '①の絞り込み不一致', surface: '①の絞り込み不一致', race: 'レース条件不一致' };
+		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedKey: RECOMMEND_NONE_KEY, appliedDist: [], appliedLegacy: [], pinNone: [], focusPin: null };
 
 		/** いまの除外スキル（段F1）: 距離の区分（key）の除外（recommendExcluded）と、このセットだけの除外（以前の保存値 roster.outsideSkillExcluded）。引けるIDだけ */
 		function outsideSkillState() {
@@ -15423,7 +15453,8 @@
 				else if (act === 'outside-count-open') openOutsideCountPopover(b);
 				else if (act === 'outside-types-open') openOutsideTypesPopover(b);
 				else if (act === 'outside-exclude-open') openOutsideExcludePopover(b);
-				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
+				else if (act === 'outside-exclude') { if (!outsidePinsSurviveOrToast({ excludeCardId: b.dataset.cardId })) return; if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
+				else if (act === 'outside-skill-pin') outsideTogglePin(b.dataset.skillId);
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
 				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
 				// 区分の除外は、戻すと反映の通知（recommendExcludedListeners）で計算し直す。このセットだけの除外（以前の保存値）は保存値を消して計算し直す
@@ -15437,7 +15468,9 @@
 				else if (act === 'outside-pin-pick') outsidePickPinned(b);
 				else if (act === 'outside-unpin') {
 					const cur = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}).pinned;
-					if (rosterOutsideSink && rosterOutsideSink.setOptions({ pinned: cur.filter(id => id !== b.dataset.cardId) })) outsideRun();
+					const nextPinned = cur.filter(id => id !== b.dataset.cardId);
+					if (!outsidePinsSurviveOrToast({ pinned: nextPinned })) return;
+					if (rosterOutsideSink && rosterOutsideSink.setOptions({ pinned: nextPinned })) outsideRun();
 				}
 			});
 			// チェックの付け外しでは再計算しない（フッターの数字だけを更新する）
@@ -15476,6 +15509,8 @@
 			outsideUi.excludedOpen = false;
 			outsideUi.result = null;
 			outsideUi.checked = new Set();
+			outsideUi.pinNone = [];
+			outsideUi.focusPin = null;
 			outsideUi.opener = btn || null;
 			el.hidden = false;
 			toastLiftFn = outsideSyncToastLift;
@@ -15513,7 +15548,8 @@
 		}
 
 		/** 計算して描き直す。小窓を開いたとき・「外す」「戻す」・「再計算」・枚数の切り替えのときだけ呼ぶ。結果が出るまで「計算中…」。毎回、探索を最初から全部やり直す（前の順位の次点を足すのではない）。記録されている除外カード・除外スキルを反映する */
-		async function outsideRun() {
+		async function outsideRun(runOpts) {
+			const ro = runOpts || {};
 			const tok = ++outsideUi.token;
 			// この計算に効かせる除外スキル（記録されているもの）。「除外中」の行はこれを出す（チェックを外しただけで、まだ反映していないものは、チェックリストの中の外れた行として見える）
 			const applied = outsideSkillState();
@@ -15536,14 +15572,114 @@
 			if (tok !== outsideUi.token || !outsideUi.open) return;
 			// 枚数・種類・絞り込みは、セットの指定（roster.outsideOptions）を計算の側が読む（④・段10〜12）
 			let prepared = null;
-			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [], onPrepared: (p) => { prepared = p; } }); }
+			// T18: 保存したピン（skillPins）を渡す。組み合わせが無いピン（理由 none）は、押したばかりのピンなら外して保存を戻し（トースト）、
+			// それ以外（小窓の外の変更のあとに開いたときなど）は、そのピンを除いて計算し直し、行は最上段に「組み合わせなし」で残す（保存は残す）
+			let pins = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null).skillPins;
+			const none = [];
+			try {
+				for (;;) {
+					prepared = null;
+					r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [], pinSkillIds: pins, onPrepared: (p) => { prepared = p; } });
+					if (tok !== outsideUi.token || !outsideUi.open) return;
+					if (!(r && r.ok && r.pinInfeasible)) break;
+					if (ro.pressedPin && rosterOutsideSink) {
+						rosterOutsideSink.setOptions({ skillPins: ro.prevPins || [] });
+						toast(OUTSIDE_MSG_PIN_NG, 'warn');
+						return outsideRun();
+					}
+					const ng = (r.pins ? r.pins.rejected : []).filter(x => x.reason === OUTSIDE_PIN_REASON.none).map(x => x.skillId);
+					const rest = pins.filter(id => ng.indexOf(id) === -1);
+					ng.forEach(id => { if (none.indexOf(id) === -1) none.push(id); });
+					if (ng.length === 0 || rest.length === pins.length) break;
+					pins = rest;
+				}
+			}
 			catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] オススメサポの計算で例外', e); r = { ok: false, reason: 'error' }; }
 			if (tok !== outsideUi.token || !outsideUi.open) return;
 			if (prepared && r && r.ok) outsideSetHeld({ prob: prepared.prob, K: prepared.K, result: r });
 			outsideUi.computing = false;
 			outsideUi.result = r;
-			outsideUi.checked = new Set(r && r.ok ? r.skills.filter(s => !s.added).map(s => s.skillId) : []);
+			outsideUi.pinNone = none;
+			outsideUi.checked = new Set(r && r.ok ? r.skills.filter(s => !s.added && none.indexOf(s.skillId) === -1).map(s => s.skillId) : []);
 			renderOutside();
+		}
+
+		/* ---- T18: ピン止めの画面（C-247 の口を使う。保存は roster.outsideOptions.skillPins・押した時点）---- */
+		/** 今効いているピン（保存したピンから、組み合わせが無いとして外して計算しているもの〔pinNone〕を除いたもの。押した順） */
+		function outsideActivePins() {
+			const saved = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null).skillPins;
+			return saved.filter(id => outsideUi.pinNone.indexOf(id) === -1);
+		}
+		/**
+		 * 場面A: 小窓の中の操作（over … { count, typeMin, pinned〔残りの枠のカード〕, excludeCardId〔外すカード〕}）のあとも、今のピンを全部入れられる組み合わせが残るか。
+		 * 変えたあとの条件で問題を組み立て（outsideBuild）、判定（outsidePinFeasible）だけを回す。残らない（ng）ときだけ false。
+		 * 種類の指定そのものが満たせないとき・打ち切り・問題が作れないときは true（今までどおり計算に任せる）
+		 */
+		function outsidePinsSurvive(over) {
+			const roster = rosterOutsideSink ? rosterOutsideSink.getRoster() : null;
+			const pins = outsideActivePins();
+			if (!roster || pins.length === 0) return true;
+			const o = over || {};
+			const opt = outsideOptionsOf(roster);
+			const K = OUTSIDE_COUNT_CHOICES.indexOf(o.count) !== -1 ? o.count : opt.count;
+			let prob;
+			try {
+				prob = outsideBuild({ roster: roster, addedSkillIds: skillIdsOf(currentTarget()) || [], typeMin: o.typeMin || opt.typeMin,
+					pinnedCardIds: outsidePinnedOf(o.pinned || opt.pinned, K), excludedCardIds: o.excludeCardId ? [o.excludeCardId] : [], pinSkillIds: pins });
+			} catch (e) { return true; }
+			if (!prob || !prob.ok || !prob.reqBits || prob.reqBits.length === 0) return true;
+			if (outsidePinFeasible(prob, K, { pins: [], deadlineMs: OUTSIDE_PIN_JUDGE_MS }).result !== 'ok') return true;
+			return outsidePinFeasible(prob, K, { deadlineMs: OUTSIDE_PIN_JUDGE_MS }).result !== 'ng';
+		}
+		function outsidePinsSurviveOrToast(over) {
+			if (outsidePinsSurvive(over)) return true;
+			toast(OUTSIDE_MSG_PIN_NG, 'warn');
+			return false;
+		}
+		/**
+		 * ピンのボタン（行の［チェックボックス］の右）。付けるときは押したあとのピン全部（今効いているピン＋押したもの）で判定する（outsidePinCheck）。
+		 *   ok … 付けて保存し、計算し直す／ng … 付けない（保存も変えない）・トースト／unknown・timeout … 付けて保存し、計算に任せる（結果が組み合わせなしなら、外して保存を戻し・トースト）
+		 * 外すときは保存から消して計算し直す。どちらも「元に戻す」には積まない
+		 */
+		function outsideTogglePin(skillId) {
+			if (!rosterOutsideSink || typeof skillId !== 'string' || !skillId || outsideUi.computing) return;
+			const saved = outsideOptionsOf(rosterOutsideSink.getRoster()).skillPins;
+			outsideUi.focusPin = skillId;
+			if (saved.indexOf(skillId) !== -1) {
+				if (rosterOutsideSink.setOptions({ skillPins: saved.filter(id => id !== skillId) })) outsideRun();
+				return;
+			}
+			const j = outsidePinCheck(outsideActivePins().concat([skillId]));
+			if (j.result === 'ng') { outsideUi.focusPin = null; toast(OUTSIDE_MSG_PIN_NG, 'warn'); return; }
+			if (!rosterOutsideSink.setOptions({ skillPins: saved.concat([skillId]) })) return;
+			if (j.result === 'ok') outsideRun(); else outsideRun({ pressedPin: skillId, prevPins: saved });
+		}
+		/**
+		 * 最上段に出すピンの行（保存の順）: [{ skillId, skill: { skillId, name }, reason }]。reason … null（結果に入ったピン）／none・taken・off・distance・style・surface・race（入れ直せなかったピン）。
+		 * added（②に追加済み）は普通の追加済みの行のまま（ここには出さない）。gold・unknown は画面からは起きない想定なので、行を出さない（保存は残す）
+		 */
+		function outsidePinRowsOf(r) {
+			if (!r || !r.ok || !rosterOutsideSink) return [];
+			const saved = outsideOptionsOf(rosterOutsideSink.getRoster()).skillPins;
+			if (saved.length === 0) return [];
+			const rej = new Map(((r.pins && r.pins.rejected) || []).map(x => [x.skillId, x.reason]));
+			const out = [];
+			saved.forEach(id => {
+				const s = (r.skills || []).find(x => x.skillId === id);
+				if (s && s.pinned && !s.added) { out.push({ skillId: id, skill: s, reason: null }); return; }
+				if (s && s.added) return;
+				// none のピンは、外して計算した結果にたまたま入っていても「組み合わせなし」の行にする（チェックの対象から外してある。outsideRun）
+				const reason = outsideUi.pinNone.indexOf(id) !== -1 ? OUTSIDE_PIN_REASON.none : rej.get(id);
+				if (reason && OUTSIDE_PIN_REASON_TEXT[reason]) out.push({ skillId: id, skill: { skillId: id, name: s ? s.name : getSkillName(id) }, reason: reason });
+			});
+			return out;
+		}
+		/** ピンのアイコン（線の形は lucide の pin）。未＝細い線・斜め45度／済＝塗り・まっすぐ（向きと塗りは CSS） */
+		const OUTSIDE_PIN_SVG = '<svg class="usd-out-pin-ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M12 17v5"/>'
+			+ '<path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>';
+		function outsidePinBtnHtml(skillId, name, on) {
+			return '<button type="button" class="usd-out-pin" data-usd-act="outside-skill-pin" data-usd-el="outside-pin" data-skill-id="' + esc(skillId) + '" aria-pressed="' + (on ? 'true' : 'false') + '"'
+				+ ' aria-label="' + esc(name + (on ? '：ピン止め中。押すとピン止めを外します' : '：ピン止めしていません。押すとピン止めします')) + '">' + OUTSIDE_PIN_SVG + '</button>';
 		}
 
 		/**
@@ -15631,6 +15767,7 @@
 			rosterOutsideSink.pickCard({ used: cur, charas: charas, onPick: (id) => {
 				const now = outsideOptionsOf(rosterOutsideSink.getRoster());
 				if (now.pinned.indexOf(id) !== -1 || now.pinned.length >= ROSTER_CARD_SLOTS - now.count) return;
+				if (!outsidePinsSurviveOrToast({ pinned: now.pinned.concat([id]) })) return;
 				if (rosterOutsideSink.setOptions({ pinned: now.pinned.concat([id]) })) outsideRun();
 				const again = outsideUi.el ? outsideUi.el.querySelector('[data-usd-el="outside-unpin"][data-card-id="' + id + '"]') : null;
 				if (again) focusNoScroll(again); else if (btn && btn.isConnected) focusNoScroll(btn);
@@ -15658,7 +15795,8 @@
 						b.disabled = n < sum || n > ROSTER_CARD_SLOTS - opt.pinned.length;
 						b.addEventListener('click', () => {
 							closeSkillInfo();
-							if (n !== opt.count && rosterOutsideSink && rosterOutsideSink.setOptions({ count: n })) outsideRun();
+							if (n === opt.count || !outsidePinsSurviveOrToast({ count: n })) return;
+							if (rosterOutsideSink && rosterOutsideSink.setOptions({ count: n })) outsideRun();
 						});
 						row.appendChild(b);
 					});
@@ -15692,6 +15830,8 @@
 								const n = (next[t] || 0) + delta;
 								if (n < 0 || (delta > 0 && (outsideTypeMinSum(opt.typeMin) >= opt.count || (t === OUTSIDE_FRIEND_TYPE && n > OUTSIDE_FRIEND_MAX)))) return;
 								if (n === 0) delete next[t]; else next[t] = n;
+								// T18 場面A: 今のピンを全部入れられる組み合わせが無くなるなら、反映しない（数は元の値のまま）
+								if (!outsidePinsSurviveOrToast({ typeMin: next })) { update(); return; }
 								if (rosterOutsideSink.setOptions({ typeMin: next })) { update(); outsideRun(); }
 							});
 							return b;
@@ -15876,22 +16016,34 @@
 					+ '</p>';
 			}
 			else if (!ok || r.cards.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-empty">提案できるサポカがありません</p>';
-			else if (r.skills.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-none">得られるスキルがありません</p>';
+			else if (r.skills.length === 0 && outsidePinRowsOf(r).length === 0) h += '<p class="usd-out-note" data-usd-el="outside-none">得られるスキルがありません</p>';
 			else {
-				r.skills.forEach(s => {
+				// T18: ピンを付けた行は最上段（押した順）。入れ直せなかったピン（場面B）も最上段に残し、Pt の代わりに理由・チェックは押せない
+				const top = outsidePinRowsOf(r);
+				const topIds = new Set(top.map(x => x.skillId));
+				const row = (s, pin) => {
 					if (s.added) {
-						h += '<label class="usd-row usd-row--excluded usd-out-row" data-usd-el="outside-row" data-usd-excluded="1" data-skill-id="' + esc(s.skillId) + '">'
+						return '<label class="usd-row usd-row--excluded usd-out-row" data-usd-el="outside-row" data-usd-excluded="1" data-skill-id="' + esc(s.skillId) + '">'
 							+ '<input type="checkbox" data-usd-el="outside-check-added" value="' + esc(s.skillId) + '" disabled/>'
+							// 追加済みの行にはピンを置かない（同じ幅の空き）
+							+ '<span class="usd-out-pin-sp" aria-hidden="true"></span>'
 							+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
 							+ '<span class="usd-row-reason" data-usd-el="outside-added-mark">追加済み</span></label>';
-					} else {
-						h += '<label class="usd-row usd-out-row" data-usd-el="outside-row" data-skill-id="' + esc(s.skillId) + '">'
-							+ '<input type="checkbox" data-usd-el="outside-check" value="' + esc(s.skillId) + '"' + (outsideUi.checked.has(s.skillId) ? ' checked' : '') + '/>'
-							// C-238: 名前の文字に①の表と同じ分類の色（追加済みの灰色の行は灰色のまま）
-							+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn' + pickerNameToneClass(s.skillId) + '" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
-							+ '<span class="usd-out-pt" data-usd-el="outside-row-pt">' + esc(outsideRowPtText(s.skillId)) + '</span></label>';
 					}
-				});
+					const reason = pin && pin.reason ? OUTSIDE_PIN_REASON_TEXT[pin.reason] : '';
+					return '<label class="usd-row usd-out-row' + (pin ? ' usd-out-row--pinned' : '') + '" data-usd-el="outside-row" data-skill-id="' + esc(s.skillId) + '"' + (pin ? ' data-usd-pinned="1"' : '') + (reason ? ' data-usd-pin-reason="' + esc(pin.reason) + '"' : '') + '>'
+						+ (reason
+							? '<input type="checkbox" data-usd-el="outside-check-pinned" value="' + esc(s.skillId) + '" disabled/>'
+							: '<input type="checkbox" data-usd-el="outside-check" value="' + esc(s.skillId) + '"' + (outsideUi.checked.has(s.skillId) ? ' checked' : '') + '/>')
+						+ outsidePinBtnHtml(s.skillId, s.name, !!pin)
+						// C-238: 名前の文字に①の表と同じ分類の色（追加済みの灰色の行は灰色のまま）
+						+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn' + pickerNameToneClass(s.skillId) + '" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
+						+ (reason
+							? '<span class="usd-out-pt usd-out-pinreason" data-usd-el="outside-pin-reason">' + esc(reason) + '</span></label>'
+							: '<span class="usd-out-pt" data-usd-el="outside-row-pt">' + esc(outsideRowPtText(s.skillId)) + '</span></label>');
+				};
+				top.forEach(x => { h += row(x.skill, x); });
+				r.skills.forEach(s => { if (!topIds.has(s.skillId)) h += row(s, null); });
 			}
 			h += '</div>';
 			main.innerHTML = h;
@@ -15901,6 +16053,12 @@
 			if (inc) inc.hidden = outsideRosterReady(roster);
 			syncOutsideRosterSel(roster);
 			outsideFitNicks(main);
+			// T18: ピンを押したあとの描き直しでは、同じスキルのピンのボタンへ戻す（計算が終わってから）
+			if (!outsideUi.computing && outsideUi.focusPin) {
+				const pb = main.querySelector('[data-usd-el="outside-pin"][data-skill-id="' + outsideUi.focusPin + '"]');
+				outsideUi.focusPin = null;
+				if (pb) focusNoScroll(pb);
+			}
 			updateOutsideFoot();
 			// 小窓の高さが変わったら、出ている知らせの位置も合わせる（段13。計算のあとで小窓が短くなる場合）
 			if (outsideUi.open && toastLiftFn === outsideSyncToastLift) outsideSyncToastLift();
