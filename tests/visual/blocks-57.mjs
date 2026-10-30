@@ -11,6 +11,7 @@
 //    下書き・保存・セットへの写し・複製に乗る。切り替えは「元に戻す」に積む。「すべて消す」で消える（元に戻せる）。「アイコンだけ外す」は触らない。
 //  ・脚質オススメの行の Pt（stylePtCalc）も◎で数える。オススメサポの Pt（outsidePtOf）は変えない。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { openSetNameEdit } from './lib/set-name.mjs';
 
 export async function register57(env) {
@@ -64,7 +65,7 @@ export async function register57(env) {
 			} else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: o.roster || null, ids: o.ids || null, F: o.F === undefined ? 5 : o.F, keep: o.keep });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); try { await UmaSkillDeckCore.loadSkillEvolutions(); } catch (e) {} });
@@ -374,7 +375,7 @@ export async function register57(env) {
 			assert(n1.modeBtn === 'false' && n1.rows.every((r) => r.toggle === null) && n1.rows.filter((r) => r.pt !== '').every((r) => r.ptShown), tag + 'もう一度押すと通常の表示に戻る', n1.rows.slice(0, 2));
 			// 入ったまま開き直すと通常の表示（保存しない）
 			await setMode(sp.page, true);
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });
 			await sp.page.waitForTimeout(800);

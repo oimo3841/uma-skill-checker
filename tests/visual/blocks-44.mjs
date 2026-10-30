@@ -7,6 +7,7 @@
 // B4 距離ごとの除外（userData の recommendExcluded）。区分の決め方・保存・効かせ方。説明の小窓の切り替えと「個別に除外」は段F1 で廃止（blocks-49 が新しい動きを見る）
 // スキル名・id・件数は検査の側に書かない（恒久ルール1。データから独立に数える。Step 0 の実測〔母集団の件数〕だけは照合として数字で持つ）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register44(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -38,7 +39,7 @@ export async function register44(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: o.roster === undefined ? null : o.roster, tab: o.tab === undefined ? 1 : o.tab, theme: o.theme || 'light' });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector('#deck-set-bar [data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sleep(sp.page, 300);
@@ -420,7 +421,7 @@ export async function register44(env) {
 		const rr = await rosterOf(sp.page);
 		rr.skillFilter.distance = 'short';
 		await sp.page.evaluate((r) => localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(r)), rr);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sleep(sp.page, 400);
 		await sp.page.click(T + '[data-usd-el="style-open"]');

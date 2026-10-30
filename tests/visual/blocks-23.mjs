@@ -5,6 +5,7 @@
 // 段3（小窓・列見出し）: ボタン（！／◇）・イベント名・条件文・「選択肢N」・保存と再読み込み・リセット・見た目（375・320・1280px／ライト・ダーク）・サポカ側が変わらない
 // スキル名・イベント名・衣装名は検査の側に書かない（恒久ルール1）。実データ（data/training-event-skills.json）から読む。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { decodePng, contrastRatio, hexOf } from './lib/pixels.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 
@@ -53,7 +54,7 @@ export async function register23(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? null : o.roster, tab: o.tab === undefined ? 1 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(400);
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false));
@@ -271,7 +272,7 @@ export async function register23(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 			if (theme) localStorage.setItem('uma-tools-theme', theme);
 		}, { id: umaId, theme: o.theme || null, ch: o.choices || null, seen: !o.unseen });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		return sp;
@@ -353,7 +354,7 @@ export async function register23(env) {
 		assert(saved && saved[key] === 1 && Object.keys(saved).length === 1, '育成イベント段3C 選ぶと eventChoices に { ' + key + ': 1 } だけが保存される（保存の形は今までと同じ）', saved);
 		const unsel = await sp.page.evaluate((sel) => document.querySelector(sel).getAttribute('data-unselected'), EVBTN);
 		assert(unsel === String(pendingEvents(U).length - 1), '育成イベント段3C 未選択の件数が1つ減る', unsel);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		await openPop(sp.page);
@@ -413,7 +414,7 @@ export async function register23(env) {
 		const cards = readJson('data/support-cards.json').entries.filter((c) => evCards.has(c.id)).slice(0, 2).map((c) => c.id);
 		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
 		await sp.page.evaluate((cs) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ cardIds: cs })); localStorage.setItem('umaSkillDeck:stepTab', '0'); }, cards);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		// C-187: サポカの列見出しは種別アイコンのボタン（イベントのあるカードは data-has-events。押すとメニュー）。◇のボタンにはならない
@@ -572,7 +573,7 @@ export async function register23(env) {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined, acquireSeen: id }));
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { id: umaId, ch: o.choices || null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		return sp;
@@ -654,7 +655,7 @@ export async function register23(env) {
 		await press(sp.page, 0);
 		st = await state(sp.page);
 		assert(st.on.filter(Boolean).length === 0 && st.saved && st.saved[key] === -1, '育成イベントC 外すと既定に戻らず、外した状態（保存は -1）', st);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		await openPop(sp.page);

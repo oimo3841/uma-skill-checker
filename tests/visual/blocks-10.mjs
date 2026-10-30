@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { openSetNameEdit } from './lib/set-name.mjs';
 // 本育成サポカ外スキル（段1・段2。2026-10-04・C-122）の検査。run-smoke.mjs の末尾から register10() で呼ばれる
@@ -91,7 +92,7 @@ export async function register10(env) {
 		await sp.page.route('**/data/support-cards.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'supportCard', nextSerial: 'card-9999', note: 'x', entries: CARDS })));
 		await sp.page.route('**/data/support-card-event-skills.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'supportCardEventSkill', note: 'x', entries: EVENTS })));
 		await sp.page.route('**/data/character-event-skills.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'characterEventSkill', note: 'x', entries: CHARA_EVENTS })));
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(true); await UmaSkillDeckCore.loadSkillPtData(true); });
 		return sp;
@@ -105,7 +106,7 @@ export async function register10(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? REAL : o.roster, tab: o.tab === undefined ? 0 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);

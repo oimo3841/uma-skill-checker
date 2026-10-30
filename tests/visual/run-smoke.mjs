@@ -12,6 +12,7 @@
 // 見た目の統一作業で最も壊れやすいのがここで、目視では気付きにくい。
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
 // 件数は data/ の実ファイルから数える（行・種を足すたびに手で付け替えない。受け入れの標準手順）
@@ -99,6 +100,8 @@ import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // 排他ロック（同時に走らせてよい test:visual は1本だけ）と、塊ごとの時間の記録（計器）
 import { acquireOrExit, isAlive } from './lib/lock.mjs';
 import { timeStamp, timesFilePath, readRecords, formatSummary } from './lib/block-times.mjs';
+import { onlyMatches, loadWeights, buildPlan, listBlocks } from './lib/shard-plan.mjs';
+import { installReadyProbe, setReadyHook, reloadReady } from './lib/page-ready.mjs';
 
 let fails = 0;
 let okCount = 0;   // 計器: OK の件数（塊ごとの差分を記録する）
@@ -129,15 +132,20 @@ function assert(cond, label, extra) {
  *   これで、1番目の塊のクリックが30秒待って投げ、39番目にある本命の項目まで届かなかった。
  * ------------------------------------------------------------ */
 const ARGV = process.argv.slice(2);
-const LIST_ONLY = ARGV.includes('--list');
+// --list-json: 一覧を1行の JSON（BLOCK_LIST [{no,title}]）で出す。シャードの割り振り（lib/shard-plan.mjs）が読む
+const LIST_JSON = ARGV.includes('--list-json');
+const LIST_ONLY = ARGV.includes('--list') || LIST_JSON;
 const ONLY = ARGV.filter((a) => a.startsWith('--only='))
 	.flatMap((a) => a.slice('--only='.length).split(','))
 	.map((s) => s.trim())
 	.filter(Boolean);
 
-/* ■ --shard=k/N（並列の1本分。2026-10-25）
- *   塊を通し番号 no（1始まり）で割り振る: (no − 1) mod N === k − 1 の塊だけを、このプロセスが回す。
- *   N本（k = 1..N）をそろえて回すと、全塊がちょうど1回ずつ回る。--only と併せたときは両方に当たる塊だけ。
+/* ■ --shard=k/N（並列の1本分。2026-10-25。2026-10-30 に時間で均す割り振りへ）
+ *   塊の割り振りは lib/shard-plan.mjs が決める。重みのファイル（tests/visual/block-weights.json）が読めれば
+ *   **塊ごとの時間で均し**（重い塊から、いちばん軽いシャードへ）、読めなければ今までの剰余（(no − 1) mod N === k − 1）。
+ *   並列の起動側は割り振りを1回だけ決めて --shard-plan=<ファイル> で各シャードへ渡す。--shard 単独の実行は自分で同じ割り振りを作る
+ *   （--list-json の子プロセスで一覧を取る。取れなければ剰余）。
+ *   N本（k = 1..N）をそろえて回すと、全塊がちょうど1回ずつ回る。--only と併せたときは両方に当たる塊だけ（当たる塊だけで均す）。
  *   **--shard 単独の実行は「N塊中M塊のみ・シャード k/N」と名乗り、全体とは名乗らない。**
  *   全体と名乗れるのは、N本が全部完走したときの並列の起動側（run-parallel.mjs。npm run test:visual:parallel）だけ。
  *   塊は互いに独立（上の注記）なので、割り振りは番号だけで決まる。ディスクを共有する3か所（output/scratch/smoke-*）は、
@@ -153,6 +161,29 @@ if (SHARD_ARG) {
 	SHARD = { k: Number(m[1]), n: Number(m[2]) };
 }
 const SHARD_SUFFIX = SHARD ? '-s' + SHARD.k + 'of' + SHARD.n : '';
+// 割り振り（番号 → シャード）。null は剰余。plan.titles と実際の見出しが食い違ったら、その塊は剰余で決め、最後に [異常] を出す
+let SHARD_PLAN = null;
+const planMismatch = [];
+if (SHARD && !LIST_ONLY) {
+	const PLAN_ARG = ARGV.find((a) => a.startsWith('--shard-plan='));
+	if (PLAN_ARG) {
+		try { SHARD_PLAN = JSON.parse(fs.readFileSync(PLAN_ARG.slice('--shard-plan='.length), 'utf8')); } catch (e) { SHARD_PLAN = null; }
+		if (SHARD_PLAN && (SHARD_PLAN.n !== SHARD.n || SHARD_PLAN.mode !== 'time')) SHARD_PLAN = null;
+	} else {
+		const weights = loadWeights(REPO_ROOT);
+		const list = weights ? listBlocks(fileURLToPath(import.meta.url), process.cwd()) : null;
+		if (weights && list) { const p = buildPlan(list, SHARD.n, ONLY, weights); if (p.mode === 'time') SHARD_PLAN = p; }
+	}
+}
+function inThisShard(no, title) {
+	if (!SHARD) return true;
+	if (SHARD_PLAN) {
+		const k = SHARD_PLAN.assign[no];
+		if (k != null && SHARD_PLAN.titles[no] === title) return k === SHARD.k;
+		if (k != null || onlyMatches(ONLY, no, title)) planMismatch.push(no + ' ' + title);
+	}
+	return (no - 1) % SHARD.n === SHARD.k - 1;
+}
 const STAMP_ARG = ARGV.find((a) => a.startsWith('--times-stamp='));
 const TIMES_STAMP = STAMP_ARG ? STAMP_ARG.slice('--times-stamp='.length) : timeStamp();
 const RUN_STARTED = performance.now();
@@ -177,7 +208,7 @@ const listed = [];
  *   待ち（page.waitForTimeout）・読み込み（page.goto／page.reload／openPage）は包んで数えるだけで、挙動（待ち時間）は変えない。 */
 const TIMES_FILE = timesFilePath(REPO_ROOT, TIMES_STAMP, SHARD);
 let curStats = null;   // いま回している塊の集計（塊の外の呼び出しは数えない）
-function newStats() { return { waitN: 0, waitMs: 0, openN: 0, openMs: 0, reloadN: 0, gotoN: 0 }; }
+function newStats() { return { waitN: 0, waitMs: 0, openN: 0, openMs: 0, reloadN: 0, reloadMs: 0, gotoN: 0 }; }
 const doneRecords = [];
 function instrumentPage(page) {
 	const wait = page.waitForTimeout.bind(page);
@@ -185,9 +216,15 @@ function instrumentPage(page) {
 	const goto = page.goto.bind(page);
 	page.goto = (...a) => { if (curStats) curStats.gotoN++; return goto(...a); };
 	const reload = page.reload.bind(page);
-	page.reload = (...a) => { if (curStats) curStats.reloadN++; return reload(...a); };
+	// reloadMs（2026-10-30）: page.reload そのものの時間。reloadReady（lib/page-ready.mjs）のあとの待ちは setReadyHook で足す
+	page.reload = async (...a) => {
+		const st = curStats, t0 = performance.now();
+		if (st) st.reloadN++;
+		try { return await reload(...a); } finally { if (st) st.reloadMs += performance.now() - t0; }
+	};
 	return page;
 }
+setReadyHook((e) => { if (curStats && e.kind === 'reload') curStats.reloadMs += e.waitMs; });
 /** lib/fixtures.mjs の openPage に回数と時間の計測だけを足したもの（引数・戻り値はそのまま）。 */
 async function openPage(...args) {
 	const t0 = performance.now();
@@ -202,10 +239,10 @@ async function openPage(...args) {
 async function block(title, fn) {
 	blockCount++;
 	const no = blockCount;
-	if (LIST_ONLY) { listed.push(no + '\t' + title); return; }
-	if (SHARD && (no - 1) % SHARD.n !== SHARD.k - 1) return;
+	if (LIST_ONLY) { listed.push(LIST_JSON ? { no, title } : no + '\t' + title); return; }
+	if (!inThisShard(no, title)) return;
 	// 数字だけの指定は番号としてだけ当てる（2026-10-29。以前は見出しの部分一致にも当たり、--only=5 が「段5」などの塊まで回していた）
-	if (ONLY.length > 0 && !ONLY.some((t) => t === String(no) || (!/^\d+$/.test(t) && title.includes(t)))) return;
+	if (!onlyMatches(ONLY, no, title)) return;
 	ranCount++;
 	const t0 = performance.now();
 	const ok0 = okCount, ng0 = ngCount;
@@ -224,7 +261,7 @@ async function block(title, fn) {
 		const s = curStats;
 		curStats = null;
 		const rec = { no: no, title: title, sec: Math.round((performance.now() - t0)) / 1000, ok: okCount - ok0, ng: ngCount - ng0,
-			waitN: s.waitN, waitMs: s.waitMs, openN: s.openN, openMs: Math.round(s.openMs), reloadN: s.reloadN, gotoN: s.gotoN };
+			waitN: s.waitN, waitMs: s.waitMs, openN: s.openN, openMs: Math.round(s.openMs), reloadN: s.reloadN, reloadMs: Math.round(s.reloadMs), gotoN: s.gotoN };
 		if (threw) rec.exception = true;
 		if (SHARD) rec.shard = SHARD.k + '/' + SHARD.n;
 		doneRecords.push(rec);
@@ -238,7 +275,9 @@ async function block(title, fn) {
 }
 
 if (ONLY.length > 0) console.log('--only=' + ONLY.join(',') + ' に当たる塊だけを回す\n');
-if (SHARD) console.log('--shard=' + SHARD.k + '/' + SHARD.n + ': 通し番号 (番号−1) mod ' + SHARD.n + ' = ' + (SHARD.k - 1) + ' の塊だけを回す\n');
+if (SHARD) console.log('--shard=' + SHARD.k + '/' + SHARD.n + ': ' + (SHARD_PLAN
+	? '時間で均した割り振り（重み ' + (SHARD_PLAN.source || '—') + '）のうちシャード' + SHARD.k + 'の ' + Object.values(SHARD_PLAN.assign).filter((k) => k === SHARD.k).length + '塊・重みの合計 ' + SHARD_PLAN.loads[SHARD.k - 1] + '秒'
+	: '通し番号 (番号−1) mod ' + SHARD.n + ' = ' + (SHARD.k - 1) + ' の塊だけを回す（重みのファイルが無い・読めない）') + '\n');
 
 const { base, close } = await startServer();
 const browser = await chromium.launch();
@@ -258,6 +297,8 @@ const browser = await chromium.launch();
 				}
 			} catch (e) {}
 		});
+		// 読み込みの「整った」の待ち（lib/page-ready.mjs。2026-10-30）: どの context でも、fetch／XHR の数えと DOM の変化の時刻を仕込む
+		await installReadyProbe(ctx);
 		// 計器（段1）: この context で開くページの waitForTimeout／goto／reload を数える（計測だけ。挙動は変えない）
 		const newPage = ctx.newPage.bind(ctx);
 		ctx.newPage = async (...a) => instrumentPage(await newPage(...a));
@@ -5282,7 +5323,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	// ドラフトに12種を仕込んで読み直す（実機の再現手順「条件で検索→94種追加」の代わり）
 	await page.evaluate((ids) => localStorage.setItem('umaSkillDeck:draftScope:special',
 		JSON.stringify({ skillIds: ids, updatedAt: '' })), PICK.map((s) => s.id));
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(2500);
 	// 段8（C-120）で②のタブの帯を無くしたので、ドラフトは deckTemplateManager.setSelectedId で選ぶ
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));
@@ -5355,7 +5396,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 		'undo: 戻したときのトーストは undoneLabel', restored.toast);
 
 	// 2) 永続化。リロードしても戻した状態のまま
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(2500);
 	// 段8（C-120）で②のタブ（「＋ 新規（ドラフト）12種」）を無くしたので、分類のタブの数の合計で見る
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));
@@ -5447,7 +5488,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	   できない、という非対称をなくすために足した。1種だけの追加はチップの×で消せるので積まない。 */
 	// 下ごしらえ: ドラフトを空にしてから、条件で絞らずに一覧から選ぶ
 	await page.evaluate(() => { localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: [], updatedAt: '' })); });
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(2500);
 	// 段8（C-120）で②のタブの帯を無くしたので、ドラフトは deckTemplateManager.setSelectedId で選ぶ
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));
@@ -5923,7 +5964,7 @@ await block('結合画像を保存するときのファイル名（special / exa
 	assert(typed.saved === '先行／差し', 'ファイル名(special): 入力した名前はツールごとのキーに覚える', typed.saved);
 
 	// 開き直しても名前が戻る
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(1200);
 	const restored = await page.evaluate(() => document.getElementById('stitch-save-name').value);
 	assert(restored === '先行／差し', 'ファイル名(special): 開き直しても名前が戻る', restored);
@@ -6136,7 +6177,7 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
 	assert(hot.on.every((v) => v) && hot.off.every((v) => !v), '結合画像の表示: チェックに触れている間だけ模式図の帯が強調される', hot);
 
 	// 開き直しても戻る（印 ON・バナー OFF・凡例 OFF・集計条件 OFF）
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(1500);
 	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 	await page.evaluate(() => selectStepTab(2));
@@ -6148,7 +6189,7 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
 
 	// 保存キーの移行: uma-exam-stitch-banner が '0' で uma-exam-stitch-scenario が無ければ、シナリオ因子も OFF で開く
 	await page.evaluate(() => { localStorage.setItem('uma-exam-stitch-banner', '0'); localStorage.removeItem('uma-exam-stitch-scenario'); });
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(1500);
 	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 	await page.evaluate(() => selectStepTab(2));
@@ -6156,7 +6197,7 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
 	s = await stateOf();
 	assert(!s.banner && !s.scenario && s.stored[4] === null, '結合画像の表示: 保存の移行＝バナー OFF・シナリオ因子の保存無しで開くと、シナリオ因子も OFF（保存は書かない）', s);
 	await page.evaluate(() => { localStorage.setItem('uma-exam-stitch-banner', '1'); localStorage.removeItem('uma-exam-stitch-scenario'); });
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(1500);
 	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 	await page.evaluate(() => selectStepTab(2));
@@ -8015,7 +8056,7 @@ await block('段K ―― ②の画面構成（スキルセット／シナリオ�
 			d.templates.forEach(t => { t.skillIds = ids.slice(); });
 			UmaSkillDeckCore.saveUserData();
 		});
-		await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+		await reloadReady(page, { timeout: 60000 });
 		await page.waitForTimeout(1500);
 		if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 		await page.waitForTimeout(300);
@@ -9085,7 +9126,7 @@ await block('C-62 の (11): 改修中の告知', async () => {
 	assert(key === '2026-09-18-alpha-rework', 'C-62 (11): 閉じると既読の印が付く', key);
 	// 2nd Edition の告知（C-140・微調整2・E）はこの検査の対象ではないので、見たことにしておく（次の読み込みで出てしまうため）
 	await page.evaluate(() => markEditionNoticeSeen());
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(2000);
 	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
 		'C-62 (11): 一度閉じれば次からは出ない');
@@ -9506,7 +9547,7 @@ await block('段10（⑦）― 「条件で検索」のチェックを、モー�
 	const beforeReload = await filterState();
 	assert(beforeReload.checked.length === 1 && beforeReload.open === 'false',
 		'段10: リロードの前は、チェックが入っていて選択肢パネルは畳んである', beforeReload);
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(2000);
 	await page.evaluate((id) => templateManager.openEditor(id), TEMPLATE_ID);
 	await page.waitForTimeout(400);
@@ -10224,7 +10265,7 @@ await block('収録の告知 ―― special のお知らせのモーダルにだ
 		};
 	}, TEXT);
 	const reopen = async (page) => {
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		await page.waitForTimeout(1200);
 	};
 
@@ -10332,7 +10373,7 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 	// チェックボックスは②（画像の入力）のタブにある
 	await page.evaluate(() => selectStepTab(2));
 	await page.check('#opt-melop');
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForTimeout(600);
 	await page.evaluate(() => selectStepTab(2));
 	const kept = await page.evaluate(() => ({ checked: document.getElementById('opt-melop').checked, stored: localStorage.getItem('uma-exam-melop-mode'), mode: melopModeEnabled }));
@@ -10832,7 +10873,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 
 	// (6) 保存値の復元: 段の値に最も近い値へ直し、区間がどれも1種以上を含む形に直して使う。保存値は書き換えない（恒久ルール28）。何度通しても同じ
 	await page.evaluate(() => { localStorage.setItem('uma-exam-eff-bounds', '[9,1,"x"]'); localStorage.setItem('uma-exam-eff-tiers', '[false,false,false,false]'); });
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForFunction(() => !!effData);
 	await page.waitForTimeout(300);
 	const r1 = await page.evaluate(() => ({ b: effBounds.slice(), t: effTiers.slice(), mode: targetScopeMode,
@@ -10842,7 +10883,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(6): 読めない境目・全部外した区間は初期値で使い、保存値は書き換えない', r1);
 	const offStep = (steps[1] + steps[2]) / 2000 + 0.0004;
 	await page.evaluate((v) => { localStorage.setItem('uma-exam-eff-bounds', JSON.stringify([v, 99, 0])); }, offStep);
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForFunction(() => !!effData);
 	await page.waitForTimeout(300);
 	const r1b = await page.evaluate(() => ({ b: effBounds.slice(), stored: localStorage.getItem('uma-exam-eff-bounds') }));
@@ -12004,7 +12045,7 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 		}
 
 		// 開き直しても同じ出力（入力中のカードは「未確認・入力中だけ」でも一覧に残る）
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		await page.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
 		assert(JSON.stringify((await outOf(page)).entries) === JSON.stringify(out.entries),
 			'入力(10): 開き直しても途中経過から同じ出力になる');
@@ -12377,7 +12418,7 @@ await block('card-event-input.html ―― 下書きの読み込み（C-104）', 
 
 	/* --- 8 公開データに入ったあとの起動で当てはめる。後片付けで下書きが消えない --- */
 	withU = true;
-	await page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(page);
 	await page.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
 	const afterReload = { U: await stateOf(U), P2: await stateOf(P2), P1: await stateOf(P1), P7: await stateOf(P7), rowP7: await rowA(P7) };
 	assert(afterReload.U === 'imported' && afterReload.P2 === 'imported' && afterReload.P1 === 'done',
@@ -12479,7 +12520,7 @@ await block('グループのサポートカードの名前（2026-09-30）', asy
 		const altered = JSON.parse(JSON.stringify(cardsDoc));
 		delete altered.entries.find((c) => c.id === G2.id).groupName;
 		await page.route('**/data/support-cards.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(altered) }));
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice')) { await page.click('[data-act="notice-ok"]'); await page.waitForTimeout(300); }
 		await page.evaluate(() => selectStepTab(0));
 		await page.waitForTimeout(400);
@@ -13380,7 +13421,7 @@ await block('編成パネル ―― スキルPt（段3）', async () => {
 		const sp = await openPage(browser, base, 'special.html', { width: w, height: h });
 		await sp.page.evaluate(({ cardIds, umaId }) => localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: umaId, cardIds: cardIds })), { cardIds: fx.cardIds, umaId: facts.u7 });
 		await sp.page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.doc) }));
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"]');
@@ -13556,7 +13597,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
 		}, { roster: rosterObj, scope: scopeObj ? Object.assign({ baseRosterId: 'r5' }, scopeObj) : scopeObj });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
@@ -13628,7 +13669,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	assert(sameNeed(v, exK) && exK.A < ex3.A, '段5(4): 状態（切れ者）を本育成パネルで替えると、因子セットだけのスキルを含めて合計が変わる（10%引きが加わる）', { got: v.chips.map((c) => c.n), want: [exK.A, exK.B, exK.C] });
 	await sp.page.click('#deck-roster-panel button[data-usd-act="pt-status"][data-value="kire"]');   // もう一度押すと「なし」
 	// 開き直し（未保存）
-	await sp.page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(sp.page);
 	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 	await sp.page.evaluate(() => selectStepTab(1));   // 段7d の ③：再読み込みすると前回のタブ（①）が開くので、②へ移ってから待つ
 	await sp.page.waitForSelector('[data-usd-el="pt-need"]:not([hidden])');
@@ -13665,7 +13706,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	assert(!('parentHintLevel' in rawScope), '段5(2): F を1度も触っていない因子セットのドラフトに parentHintLevel を足さない（読み込み時に補わない）', rawScope);
 	// 知らない値は 5 として計算し、保存データは書き換えない
 	await noF.page.evaluate((ids) => localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', parentHintLevel: 9, baseRosterId: 'r5', updatedAt: '' })), SCOPE_IDS);
-	await noF.page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(noF.page);
 	for (let i = 0; i < 2; i++) if (await noF.page.isVisible('#ui-notice')) await noF.page.click('[data-act="notice-ok"]');
 	await noF.page.evaluate(() => selectStepTab(1));   // 段7d の ③（同上）
 	await noF.page.waitForSelector('[data-usd-el="pt-need"]:not([hidden])');
@@ -13742,7 +13783,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	await dk.ctx.close();
 	const dk2 = await openPage(browser, base, 'uma-skill-deck.html');
 	const dk2Reqs = []; dk2.page.on('request', (r) => { if (/skill-pt|skill-step-up/.test(r.url())) dk2Reqs.push(r.url()); });
-	await dk2.page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(dk2.page);
 	assert(dk2Reqs.length === 0, '段5(7): Deck 単体ページの読み込みでは skill-pt.json を取りに行かない', dk2Reqs);
 	await dk2.ctx.close();
 
@@ -13931,7 +13972,7 @@ await block('前段の必要Pt（段4b）', async () => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
 		}, { roster: Object.assign({ umaId: '', cardIds: cardIds4 }, keepPart), scope: Object.assign({ baseRosterId: 'r4b' }, o.scope || { skillIds: [], name: '', updatedAt: '' }) });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
@@ -14168,7 +14209,7 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
 		}, { roster: { umaId: '', cardIds: [o.card || cA.id, null, null, null, null, null] }, scope: { skillIds: [X[7], X[3]], name: '', tiers: {}, updatedAt: '' } });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => { selectStepTab(0); document.body.style.paddingBottom = '2400px'; });
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"]', { timeout: 10000 });
@@ -14475,7 +14516,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 		}, { roster: o.roster === undefined ? { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null] } : o.roster, scope: o.scope === undefined ? { skillIds: [W[8]], name: '', tiers: {}, updatedAt: '' } : o.scope });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
@@ -14619,7 +14660,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	const d3 = await draft(sp.page);
 	assert(d3.eventChoices && d3.eventChoices['card:' + cA.id + '#1'] === 0, '段7(19): 自動で選ばれていた選択肢を押すと、その選択が保存される', d3.eventChoices);
 	await esc(sp.page);
-	await sp.page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(sp.page);
 	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 	await sp.page.evaluate(() => selectStepTab(0));
 	await sp.page.waitForSelector(P + '[data-usd-el="pt-sum"]');
@@ -14629,7 +14670,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await esc(sp.page);
 	// 指す先が無い値は無効として扱い、保存値は書き換えない
 	await sp.page.evaluate((cardId) => { const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')); r.eventChoices = { ['card:' + cardId + '#0']: 7, 'card:nope#0': 1 }; localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(r)); }, cA.id);
-	await sp.page.reload({ waitUntil: 'networkidle' });
+	await reloadReady(sp.page);
 	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 	await sp.page.evaluate(() => selectStepTab(0));
 	await sp.page.waitForSelector(P + '[data-usd-el="pt-sum"]');
@@ -14906,7 +14947,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 		}, { roster: o.roster === undefined ? { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null] } : o.roster, scope: o.scope === undefined ? { skillIds: [W[8]], name: '', tiers: {}, updatedAt: '' } : o.scope });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
@@ -15400,6 +15441,14 @@ await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT
 await browser.close();
 await close();
 
+if (LIST_JSON) {
+	console.log('BLOCK_LIST ' + JSON.stringify(listed));
+	process.exit(0);
+}
+if (planMismatch.length > 0) {
+	fails++;
+	console.log('[NG] シャードの割り振りと塊の一覧が食い違う（剰余で回した）: ' + planMismatch.slice(0, 5).join(' / ') + (planMismatch.length > 5 ? ' ほか' + (planMismatch.length - 5) + '件' : ''));
+}
 if (LIST_ONLY) {
 	console.log('塊は ' + blockCount + '個。--only=<番号> か --only=<見出しの一部> で選ぶ（カンマ区切りで複数可）。\n');
 	console.log(listed.join('\n'));

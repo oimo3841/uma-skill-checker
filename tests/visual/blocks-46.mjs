@@ -5,6 +5,7 @@
 // (d) 表の列見出し（サポカの6列。アイコンのメニュー）／(e) 育成ウマ娘の列の見出しは変わらない／(f) 横スクロールなし・ライト・ダーク／(g) ①のカード選択の窓の SSR・SR の印。
 // カード名・種別・レアリティは検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register46(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -38,7 +39,7 @@ export async function register46(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', tab);
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: o.roster || { umaId: 'uma-0179', cardIds: SAME_IDS, skillFilter: FILTER }, theme: o.theme || 'light', tab: o.tab || '0' });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(o.tab === '1' ? '#deck-template-panel .usd-entry-row' : '#deck-roster-panel .usd-roster-grid', { timeout: 15000 });
 		await sleep(sp.page, 400);

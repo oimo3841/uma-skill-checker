@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { removeFromSet } from './lib/fixtures.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 // 小回り・直線コースのレース条件（C-155・2026-10-14）の画面の検査。run-smoke.mjs の末尾から register26() で呼ばれる
@@ -36,7 +37,7 @@ export async function register26(env) {
 			if (ids) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids })); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: Object.assign({ rosterId: 'r_c', name: '', umaId: 'uma-0001', star: 3, awakeningLevel: 5, cardIds: CARDS6 }, o.race ? { race: o.race } : {}), ids: o.ids || null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(400);
 		return sp;
@@ -146,7 +147,7 @@ export async function register26(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: { rosterId: 'r_c', name: '', umaId: 'uma-0001', star: 3, awakeningLevel: 5, cardIds: CARDS6 } });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector('#deck-set-bar [data-usd-el="setbar"]', { timeout: 10000 });
 		await sp.page.waitForTimeout(300);

@@ -6,6 +6,7 @@
 // D: オススメサポは、②で追加済みのスキルを、除外の設定に関わらず数える
 // E: 「オススメサポαテスト」→「オススメサポ」
 // スキル名・グループの文字・レース名は検査の側に書かない（恒久ルール1。データか画面から読む）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register16(env) {
@@ -44,7 +45,7 @@ export async function register16(env) {
 		}, { roster: o.roster === undefined ? FULL : o.roster, tab: o.tab === undefined ? 1 : o.tab });
 		sp.recReqs = [];
 		sp.effReqs = [];
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sleep(sp.page, 300);

@@ -8,6 +8,7 @@
 // E: 告知
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register20(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -22,7 +23,7 @@ export async function register20(env) {
 				Object.keys(store || {}).forEach((k) => localStorage.setItem(k, store[k]));
 			} catch (e) {}
 		}, { theme: o.theme || 'light', store: o.store || null });
-		if (o.theme || o.store) await page.reload({ waitUntil: 'networkidle' });
+		if (o.theme || o.store) await reloadReady(page);
 		await page.waitForTimeout(400);
 		if (!o.keepNotice && await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 		await page.evaluate(() => selectStepTab(1));

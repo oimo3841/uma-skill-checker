@@ -6,6 +6,7 @@
 //  3. 色はトークン（--exam-eff-seg-n / --exam-eff-seg-n-edge）で、ライト・ダークとも同じ値。OFF の区間も同じ指定。
 //  4. 「狭ければ非表示」（区間の幅 < 数字の幅＋8px）の判定は変えない。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register42(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -14,7 +15,7 @@ export async function register42(env) {
 		const r = await openPage(browser, base, 'exam.html', { width: o.w || 1280, height: o.h || 900 });
 		const page = r.page;
 		await page.evaluate((theme) => { try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {} }, o.theme || 'light');
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		await page.waitForTimeout(400);
 		if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 		await page.evaluate(() => selectStepTab(1));

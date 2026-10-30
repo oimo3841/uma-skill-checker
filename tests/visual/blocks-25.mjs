@@ -7,6 +7,7 @@
 //   (3) 区切り線のすぐ下（24px 以内）に、幅の半分を超える別の横線が無い（①の空の上位層の下線が並んでいたのが二重線の正体）
 // 衣装・カードは id で書く（恒久ルール1）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register25(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
@@ -50,7 +51,7 @@ export async function register25(env) {
 						else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 						localStorage.setItem('umaSkillDeck:stepTab', '0');
 					}, { roster: state === 'picked' ? PICKED : null });
-					await sp.page.reload({ waitUntil: 'networkidle' });
+					await reloadReady(sp.page);
 					for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 					await sp.page.waitForTimeout(400);
 					for (const k of [0, 1, 2]) {
@@ -79,7 +80,7 @@ export async function register25(env) {
 		if (r.none) {
 			const sp2 = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, EMPTY);
 			await sp2.page.evaluate(() => localStorage.setItem('umaSkillDeck:stepTab', '0'));
-			await sp2.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp2.page);
 			const r2 = await sp2.page.evaluate(() => {
 				const t = document.querySelector('.usd-roster-top');
 				const hidden = getComputedStyle(t).display === 'none';

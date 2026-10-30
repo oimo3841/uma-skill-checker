@@ -35,6 +35,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { loadWeights, weightLookup, planShards } from '../tests/visual/lib/shard-plan.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VISUAL = 'tests/visual';
@@ -559,22 +560,34 @@ function loadTimes(blocks) {
 	const secs = best.recs.map((r) => r.sec).sort((a, b) => a - b);
 	return { stamp: best.stamp, recs: best.recs, byTitle: new Map(best.recs.map((r) => [r.title, r.sec])), median: secs[Math.floor(secs.length / 2)] };
 }
+/* 割り振りは並列の検査と同じ（tests/visual/lib/shard-plan.mjs。2026-10-30）: 重みのファイル tests/visual/block-weights.json が読めれば
+ * 選んだ塊だけで時間で均し、読めなければ番号の剰余。各シャードの時間は計器のログの塊ごとの時間（無ければ重みのファイルの時間）で足す。 */
+let weightsCache;
 function estimateWith(times, blocks, nos) {
-	if (!times) return { source: null, note: '計器のログ（全体の3シャード）が見つからない' };
-	const best = times, byTitle = times.byTitle, median = times.median;
+	if (weightsCache === undefined) weightsCache = loadWeights(REPO_ROOT);
+	const weights = weightsCache;
+	if (!times && !weights) return { source: null, note: '計器のログ（全体の3シャード）も重みのファイル（tests/visual/block-weights.json）も見つからない' };
+	const byTitle = times ? times.byTitle : null;
+	const median = times ? times.median : Math.round(weights.mean * 10) / 10;
+	const look = weightLookup(weights);
 	let unknown = 0;
-	const secOf = (no) => {
+	const secOf = (no, w) => {
 		const b = blocks[no - 1];
-		if (byTitle.has(b.title)) return byTitle.get(b.title);
-		if (b.dynamic) { const r = best.recs.find((x) => x.title.startsWith(b.title)); if (r) return r.sec; }
+		if (byTitle) {
+			if (byTitle.has(b.title)) return byTitle.get(b.title);
+			if (b.dynamic) { const r = times.recs.find((x) => x.title.startsWith(b.title)); if (r) return r.sec; }
+		} else if (typeof w === 'number') return w;
 		unknown++;
 		return median;
 	};
+	const items = nos.map((no) => ({ no, w: look(blocks[no - 1].title, blocks[no - 1].dynamic) }));
+	const plan = planShards(items, 3, weights);
 	const shard = [0, 0, 0];
 	let serial = 0;
-	for (const no of nos) { const s = secOf(no); serial += s; shard[(no - 1) % 3] += s; }
+	for (const it of items) { const s = secOf(it.no, it.w); serial += s; shard[plan.shardOf.get(it.no) - 1] += s; }
 	const startup = 12;   // ブラウザとサーバの起動・まとめ（秒。おおよそ）
-	return { source: 'block-times-' + best.stamp, serialSec: Math.round(serial + startup), parallelSec: Math.round(Math.max(...shard) + startup), shardSec: shard.map(Math.round), unknownBlocks: unknown, medianSec: median };
+	return { source: (times ? 'block-times-' + times.stamp : '重みのファイル ' + weights.source) + '・割り振り ' + (plan.mode === 'time' ? '時間で均す' : '番号の剰余'),
+		serialSec: Math.round(serial + startup), parallelSec: Math.round(Math.max(...shard) + startup), shardSec: shard.map(Math.round), unknownBlocks: unknown, medianSec: median, shardMode: plan.mode };
 }
 
 const mmss = (s) => Math.floor(s / 60) + '分' + String(Math.round(s % 60)).padStart(2, '0') + '秒';
@@ -598,7 +611,7 @@ function printResult(r) {
 	}
 	out.push('');
 	const e = r.estimate;
-	out.push('選んだ塊: ' + r.selected.length + '個' + (e.source ? '・見込み 並列 N=3 で約 ' + mmss(e.parallelSec) + '（直列なら約 ' + mmss(e.serialSec) + '。' + e.source + ' の塊ごとの時間から' + (e.unknownBlocks ? '・記録の無い ' + e.unknownBlocks + '塊は中央値 ' + e.medianSec + '秒で仮置き' : '') + '）' : '・' + e.note));
+	out.push('選んだ塊: ' + r.selected.length + '個' + (e.source ? '・見込み 並列 N=3 で約 ' + mmss(e.parallelSec) + '（直列なら約 ' + mmss(e.serialSec) + '。塊ごとの時間は ' + e.source + (e.unknownBlocks ? '・記録の無い ' + e.unknownBlocks + '塊は中央値 ' + e.medianSec + '秒で仮置き' : '') + '）' : '・' + e.note));
 	if (r.selected.length > 0) out.push('コマンド: npm run test:visual:parallel -- --only=' + r.only);
 	if (r.budget != null) out.push('--budget=' + r.budget + '分: 当たりの弱い ' + r.dropped.length + '塊を外した（夜間の全体で拾う）' + (r.dropped.length ? ': ' + r.dropped.map((d) => '#' + d.no).join(' ') : ''));
 	else if (e.source && e.parallelSec > 900) out.push('見込みが15分を超える。--budget=15 で当たりの弱い塊から外してよい（恒久ルール22。外した塊は夜間の全体で拾う）');

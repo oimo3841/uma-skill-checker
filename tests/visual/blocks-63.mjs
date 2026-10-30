@@ -11,6 +11,7 @@
 //  ・画像に描く文字列に「①」「②」「③」を使わない（②は「因子周回スキル」）。OCR を押した時点の写しから描く。
 // test-images（Git の外。worktree ではメインから写す）の実画像も使う。無ければ NG（空振りにしない）。スキル名は検査の側に書かない（恒久ルール1）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register63(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -31,7 +32,7 @@ export async function register63(env) {
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: o.roster || null, scope: o.ids ? { skillIds: o.ids, name: '', updatedAt: '', skillIcons: {}, parentHintLevel: 5 } : null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });
@@ -249,7 +250,7 @@ export async function register63(env) {
 			templates: [{ templateId: 't1', name: '名前のあるセット', skillIds: IDS.slice(), skillIcons: {}, parentHintLevel: 5, baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' }] };
 		const { ctx, page, errors } = await openSp({ userData: ud, roster: Object.assign({ skillFilter: { distance: 'medium', style: 'sashi' } }, R1S) });
 		await page.evaluate(() => localStorage.setItem('umaSkillDeck:lastSet:special', 't1'));
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 		await page.waitForSelector('#deck-set-bar [data-usd-el="set-total"]', { timeout: 20000 });
 		await page.waitForTimeout(500);

@@ -11,6 +11,7 @@
 // ダーク1〜12 は window.UmaTheme.set() と localStorage で選ぶ（切り替えの部品そのものはダーク13 が見る）。
 // Playwright の既定の OS の設定はライトなので、「自動」は data-theme="light" になる。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
 import { deltaE } from './lib/pixels.mjs';
 
@@ -34,17 +35,17 @@ export async function registerDark(env) {
 
 		await page.evaluate(() => window.UmaTheme.set('dark'));
 		assert(await attr(page) === 'dark' && await stored(page) === 'dark', 'ダーク1: ダークを選ぶと属性 dark・鍵 dark');
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		assert(await attr(page) === 'dark', 'ダーク1: 読み込み直してもダークのまま');
 		await page.evaluate(() => window.UmaTheme.set('light'));
 		assert(await attr(page) === 'light' && await stored(page) === 'light', 'ダーク1: ライトを選ぶと属性 light・鍵 light');
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		assert(await attr(page) === 'light' && await page.evaluate(() => window.UmaTheme.get()) === 'light', 'ダーク1: 読み込み直してもライトのまま');
 		await page.evaluate(() => window.UmaTheme.set('auto'));
 		assert(await attr(page) === 'light' && await stored(page) === null, 'ダーク1: 自動を選ぶと鍵を消し、OS の設定（ライト）に戻る');
 
 		await page.evaluate((k) => localStorage.setItem(k, 'purple'), KEY);
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		assert(await attr(page) === 'light' && await stored(page) === 'purple' && await page.evaluate(() => window.UmaTheme.get()) === 'auto',
 			'ダーク1: 壊れた値は自動として扱い、書き換えない', { attr: await attr(page), stored: await stored(page) });
 		await page.evaluate((k) => localStorage.removeItem(k), KEY);
@@ -116,7 +117,7 @@ export async function registerDark(env) {
 			assert(await attr(page) === 'light', 'ダーク3: ' + file + ' はライトに固定すると、OS がダークでもライトのまま');
 			await page.evaluate(() => window.UmaTheme.set('auto'));
 			assert(await attr(page) === 'dark', 'ダーク3: ' + file + ' は自動に戻すと、すぐ OS の設定（ダーク）になる');
-			await page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(page);
 			assert(await page.evaluate(() => document.documentElement.hasAttribute('data-theme')), 'ダーク3: ' + file + ' は属性が無い状態を作らない（常に light か dark）');
 			await ctx.close();
 		}
@@ -233,7 +234,7 @@ export async function registerDark(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 			if (theme === 'dark') localStorage.setItem(KEY, 'dark'); else localStorage.removeItem(KEY);
 		}, { tab: o.tab === undefined ? 1 : o.tab, ids: o.ids || IDS, theme: o.theme || 'light', KEY });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await closeNotice(sp.page);
 		await sp.page.waitForTimeout(500);
 		return sp;
@@ -475,7 +476,7 @@ export async function registerDark(env) {
 					'ダーク13: ' + tag + 'ボタンはツール切り替えと同じ 34×38px でヘッダーの右端に収まり、横にはみ出さない（ツール切替の右）', g);
 				// 壊れた値（light／dark 以外）は「自動」として出し、書き換えない
 				await page.evaluate((k) => localStorage.setItem(k, 'purple'), KEY);
-				await page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(page);
 				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
 				const bad = await page.evaluate(() => ({ state: document.getElementById('theme-cycle-btn').getAttribute('data-theme-state'), aria: document.getElementById('theme-cycle-btn').getAttribute('aria-label') }));
 				assert(bad.state === 'auto' && bad.aria === '画面の色：自動' && await stored(page) === 'purple' && await attr(page) === 'light',

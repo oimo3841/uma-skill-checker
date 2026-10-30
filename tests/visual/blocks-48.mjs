@@ -7,6 +7,7 @@
 // (b) 脚質オススメは同じクラス・同じ計算された見た目（違いはアイコンと文字だけ）。内側の3色は黒く見えない・文字とのコントラストは 4.5:1 以上
 // (c) 虹色の縁の定義（usd-rainbow-*）は残っていない
 
+import { reloadReady } from './lib/page-ready.mjs';
 import crypto from 'node:crypto';
 import { decodePng } from './lib/pixels.mjs';
 
@@ -32,7 +33,7 @@ export async function register48(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: { umaId: 'uma-0179', cardIds: SAME_IDS, skillFilter: FILTER }, theme });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector('#deck-template-panel .usd-entry-row', { timeout: 15000 });
 		await sp.page.waitForTimeout(600);

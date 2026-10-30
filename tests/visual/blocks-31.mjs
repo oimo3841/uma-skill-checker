@@ -12,6 +12,7 @@
 // (4) オススメサポ（候補・探索の母集団・残りの枠の選択）
 // 破壊確認は手で行う（規則を空にして (1)(2)(4) が落ちることを確かめ、報告に書く）
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register31(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -36,7 +37,7 @@ export async function register31(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { key: KEY, roster, tab: o.tab || 0 });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		return sp;
@@ -142,7 +143,7 @@ export async function register31(env) {
 		const seed = rosterOf('uma-0001', CARDS6);
 		const sp = await openSp(seed);
 		const raw0 = await sp.page.evaluate((key) => localStorage.getItem(key), KEY);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await sp.page.waitForTimeout(500);
 		const r = await sp.page.evaluate(async (key) => {
 			await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData();

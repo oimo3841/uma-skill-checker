@@ -7,6 +7,7 @@
 // 見た目: 390・1280 で横スクロールなし・コンソールのエラー0
 // 作業4（見出しは「J作業4」）: キャラクター共通のイベントの固定の印（fixed・when）で、見出しが「固定イベント（時期）」になる（合成のデータ）
 
+import { reloadReady } from './lib/page-ready.mjs';
 import crypto from 'node:crypto';
 
 export async function register56(env) {
@@ -27,7 +28,7 @@ export async function register56(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, roster);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(RP + '.usd-roster-grid', { timeout: 15000 });
 		await sleep(sp.page, 600);
@@ -126,7 +127,7 @@ export async function register56(env) {
 		const sp = await openPage(browser, base, 'special.html', { width: w, height: w === 1280 ? 900 : 844 }, EMPTY);
 		if (doc) await sp.page.route('**/data/character-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(doc) }));
 		await sp.page.evaluate((c) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: 'uma-0179', cardIds: [c, null, null, null, null, null], skillFilter: {} })); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); }, LH_CARD.id);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(RP + '.usd-roster-grid', { timeout: 15000 });
 		await sleep(sp.page, 900);
@@ -183,7 +184,7 @@ export async function register56(env) {
 		const sp = await openPage(browser, base, 'special.html', { width: 1280, height: 900 }, EMPTY);
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(SCEN_DOC) }));
 		await sp.page.evaluate((c) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: 'uma-0179', cardIds: c, skillFilter: {} })); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); }, cards);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(RP + '.usd-roster-grid', { timeout: 15000 });
 		await sleep(sp.page, 1500);

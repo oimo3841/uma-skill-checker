@@ -6,6 +6,7 @@
 // (2)〜(8) 脚質オススメの小窓の「サポカ外」の項目: 押すまで取りに行かない／固定のシナリオ（候補）／Pt 未収録／パッシブも①の距離で絞る／②の「N種」。
 //   確認の小窓・追加・元に戻す・0件の知らせ・データを読めないときは blocks-43.mjs の C-184 と blocks-17.mjs の C131D
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register28(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -103,7 +104,7 @@ export async function register28(env) {
 			if (ids) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids })); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster, ids: o.ids || null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		return sp;

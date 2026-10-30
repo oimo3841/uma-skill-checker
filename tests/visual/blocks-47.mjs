@@ -5,6 +5,7 @@
 // (b) 375px の「①の表より上」の高さ／(c) 同じ種別が2枚でも番号の丸は出ない（読み上げだけに「N枚目」）／(d) 全カードで種別が決まる・種別不明の分岐は壊したデータでだけ働く／
 // (e) ②のオススメサポの小窓のタイルは変わらない。カード名・種別は検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register47(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -37,7 +38,7 @@ export async function register47(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', tab);
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: o.roster || { umaId: 'uma-0179', cardIds: SAME_IDS, skillFilter: FILTER }, theme: o.theme || 'light', tab: o.tab || '0' });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(o.tab === '1' ? '#deck-template-panel .usd-entry-row' : '#deck-roster-panel .usd-roster-grid', { timeout: 15000 });
 		await sleep(sp.page, 500);

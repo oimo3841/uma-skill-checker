@@ -11,6 +11,7 @@
 //  ・②の◎の候補: ①で取得する○は候補にしない（(ア)。◎で数えるかは①の切り替えだけ）。
 //  ・脚質オススメ: 対象のスキルは灰色を外し、行の Pt は足したときの差。オススメサポ: 対象のスキルを母集団に含める（点数の付け方は今のまま）。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register59(env) {
@@ -57,7 +58,7 @@ export async function register59(env) {
 			else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: o.roster, ids: o.ids || null, F: o.F === undefined ? 5 : o.F });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); try { await UmaSkillDeckCore.loadSkillEvolutions(); } catch (e) {} });

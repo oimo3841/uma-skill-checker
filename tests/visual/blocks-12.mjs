@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 import { openSetNameEdit } from './lib/set-name.mjs';
@@ -46,7 +47,7 @@ export async function register12(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? FULL : o.roster, tab: o.tab === undefined ? 1 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);

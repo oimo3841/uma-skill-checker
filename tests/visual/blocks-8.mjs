@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段8（2026-10-03・C-120）の検査。run-smoke.mjs の末尾から register8() で呼ばれる（塊の見出しは「段8」を含む。
 // `npm run test:visual -- --only=段8` で回せる）。
@@ -37,7 +38,7 @@ export async function register8(env) {
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? REAL : o.roster, scope: o.scope || null, tab: o.tab === undefined ? 0 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);

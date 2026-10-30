@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段7e（2026-10-03・C-118）の検査。run-smoke.mjs の末尾から register7e() で呼ばれる（塊の見出しはすべて「段7e」を含む。
 // `npm run test:visual -- --only=段7e` で全部、`--only=段7e(1)` のように括弧つきの見出しで1つずつ回せる）。
@@ -52,7 +53,7 @@ export async function register7e(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster: o.roster || REAL });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(P + '.usd-roster-grow[data-skill-id]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(250);
@@ -110,7 +111,7 @@ export async function register7e(env) {
 				localStorage.removeItem('umaSkillDeck:draftScope:special');
 				localStorage.setItem('umaSkillDeck:stepTab', '0');
 			}, { cards: [cA.id, cB.id, null, null, null, null] });
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.waitForSelector(P + '.usd-roster-grow[data-skill-id]', { timeout: 10000 }).catch(() => {});
 			await sp.page.waitForTimeout(250);

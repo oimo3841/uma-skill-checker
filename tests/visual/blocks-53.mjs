@@ -8,6 +8,7 @@
 // 見た目は 390・1280 × ライト・ダーク で、横スクロールなし・コンソールのエラー0・文字のコントラスト 4.5:1 以上。
 // シナリオの固定イベントは実データのまま読む（openPage の既定は空のファイルなので、実データに差し替える）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
 
 export async function register53(env) {
@@ -39,7 +40,7 @@ export async function register53(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster || ROSTER, tab: o.tab === undefined ? 0 : o.tab, theme: o.theme || 'light' });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		if ((o.tab || 0) === 0) await sp.page.waitForSelector(RP + '.usd-roster-grid', { timeout: 15000 });
 		await sp.page.waitForTimeout(500);
@@ -143,7 +144,7 @@ export async function register53(env) {
 			const tag = '駿大祭(5) ' + w + '・' + theme + ': ';
 			const r0 = await openPage(browser, base, 'exam.html', { width: w, height: w === 1280 ? 900 : 844 });
 			await r0.page.evaluate((t) => { localStorage.setItem('uma-tools-theme', t); }, theme);
-			await r0.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(r0.page);
 			await r0.page.waitForTimeout(800);
 			for (let i = 0; i < 3; i++) if (await r0.page.isVisible('#ui-notice')) { await r0.page.click('#ui-notice-ok'); await r0.page.waitForTimeout(300); }
 			const r = await r0.page.evaluate(() => ({ note: !!document.getElementById('melop-scenario-note'), text: document.getElementById('step-panel-1').innerText.includes('新シナリオへの対応が未完了'),

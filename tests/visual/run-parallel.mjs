@@ -7,7 +7,9 @@
 // ■ 動き
 //   ・排他ロックを取る（lib/lock.mjs）。取れなければ何もせず非ゼロで終わる。**ロックは親（このプロセス）が持ち**、
 //     子（run-smoke.mjs --shard=k/N）は環境変数 UMA_TEST_LOCK_PARENT を見て取らない。親が死んだら子も自分で終わる。
-//   ・子は run-smoke.mjs --shard=k/N（k = 1..N）。塊は通し番号で割り振られる（(番号−1) mod N = k−1）。
+//   ・子は run-smoke.mjs --shard=k/N（k = 1..N）。塊の割り振りは lib/shard-plan.mjs（2026-10-30）: 重みのファイル
+//     tests/visual/block-weights.json が読めれば塊ごとの時間で均し（ここで1回だけ決めて --shard-plan=<ファイル> で渡す）、
+//     読めなければ通し番号の剰余（(番号−1) mod N = k−1）。
 //   ・各シャードの出力は output/scratch/parallel-<日時>-s<k>of<N>.log に全文を残す。画面には、60秒ごとの進み具合と、
 //     最後に [NG] の行（シャード名つき）・シャードごとの結果・塊の時間のまとめを出す。
 //   ・1つでも NG か異常終了（終了コードが0でも SHARD_SUMMARY が無い・シグナルで終了・塊の数が食い違う）があれば非ゼロで終わる。
@@ -19,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { REPO_ROOT } from './lib/serve.mjs';
 import { acquireOrExit } from './lib/lock.mjs';
 import { timeStamp, timesFilePath, readRecords, formatSummary } from './lib/block-times.mjs';
+import { loadWeights, listBlocks, buildPlan, WEIGHTS_REL } from './lib/shard-plan.mjs';
 
 const SMOKE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'run-smoke.mjs');
 const argv = process.argv.slice(2);
@@ -30,8 +33,8 @@ for (const a of argv) {
 	else pass.push(a);
 }
 if (!(N >= 1 && N <= 8)) { console.error('--shards は 1〜8 で指定してください'); process.exit(2); }
-if (pass.some((a) => a === '--list' || a.startsWith('--shard=') || a.startsWith('--times-stamp='))) {
-	console.error('--list／--shard／--times-stamp は並列の起動側には渡せません（run-smoke.mjs を直接使ってください）');
+if (pass.some((a) => a === '--list' || a === '--list-json' || a.startsWith('--shard=') || a.startsWith('--shard-plan=') || a.startsWith('--times-stamp='))) {
+	console.error('--list／--shard／--shard-plan／--times-stamp は並列の起動側には渡せません（run-smoke.mjs を直接使ってください）');
 	process.exit(2);
 }
 const hasOnly = pass.some((a) => a.startsWith('--only='));
@@ -43,11 +46,29 @@ const startedAt = Date.now();
 fs.mkdirSync(path.join(REPO_ROOT, 'output', 'scratch'), { recursive: true });
 console.log('並列スモークテスト: N=' + N + (hasOnly ? '（' + pass.filter((a) => a.startsWith('--only=')).join(' ') + '）' : '（全塊）') + '・開始 ' + stamp);
 
+// 割り振り（2026-10-30・lib/shard-plan.mjs）: 重みのファイルが読めれば時間で均し、1回だけ決めて各シャードへファイルで渡す。
+// 重みのファイルが無い・読めない・塊の一覧が取れないときは、各シャードは今までの剰余で回る（--shard-plan を渡さない）。
+const planArgs = [];
+{
+	const only = pass.filter((a) => a.startsWith('--only=')).flatMap((a) => a.slice('--only='.length).split(',')).map((s) => s.trim()).filter(Boolean);
+	const weights = loadWeights(REPO_ROOT);
+	const list = weights ? listBlocks(SMOKE, REPO_ROOT) : null;
+	const plan = weights && list ? buildPlan(list, N, only, weights) : null;
+	if (plan && plan.mode === 'time') {
+		const planPath = path.join(REPO_ROOT, 'output', 'scratch', 'shard-plan-' + stamp + '.json');
+		fs.writeFileSync(planPath, JSON.stringify(plan));
+		planArgs.push('--shard-plan=' + planPath);
+		console.log('割り振り: 時間で均す（重み ' + plan.source + '・' + plan.ran + '塊のうち重みの無い塊 ' + plan.unknown + '個は平均で仮置き）。重みの合計 ' + plan.loads.map((x, i) => 's' + (i + 1) + ' ' + Math.round(x) + '秒').join('・'));
+	} else {
+		console.log('割り振り: 番号の剰余（' + (!weights ? '重みのファイル ' + WEIGHTS_REL + ' が無い・読めない' : '塊の一覧が取れない') + '）');
+	}
+}
+
 const shards = [];
 for (let k = 1; k <= N; k++) {
 	const logPath = path.join(REPO_ROOT, 'output', 'scratch', 'parallel-' + stamp + '-s' + k + 'of' + N + '.log');
 	const sh = { k, logPath, log: fs.createWriteStream(logPath), buf: '', ng: [], done: 0, summary: null, finalLine: '', code: null, signal: null, exited: false };
-	sh.child = spawn(process.execPath, [SMOKE, '--shard=' + k + '/' + N, '--times-stamp=' + stamp, ...pass], {
+	sh.child = spawn(process.execPath, [SMOKE, '--shard=' + k + '/' + N, '--times-stamp=' + stamp, ...planArgs, ...pass], {
 		cwd: REPO_ROOT,
 		env: { ...process.env, UMA_TEST_LOCK_PARENT: String(process.pid) },
 		stdio: ['ignore', 'pipe', 'pipe'],

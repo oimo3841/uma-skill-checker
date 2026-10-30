@@ -7,6 +7,7 @@
 //   オススメサポの除外（既存の「低効果」）には影響しない。
 // スキル名は検査の側に書かない（恒久ルール1）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register37(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -20,7 +21,7 @@ export async function register37(env) {
 	const openSp = async (w = 390) => {
 		const sp = await openPage(browser, base, 'special.html', { width: w, height: 900 }, EMPTY);
 		await sp.page.evaluate(() => { localStorage.setItem('umaSkillDeck:stepTab', '1'); });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(400);
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadSkillPtData(false));
@@ -111,7 +112,7 @@ export async function register37(env) {
 		const sp2 = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, EMPTY);
 		await sp2.page.route('**/data/skill-effect-levels.json*', (r) => r.fulfill({ status: 500, body: 'x' }));
 		await sp2.page.evaluate(() => { localStorage.setItem('umaSkillDeck:stepTab', '1'); });
-		await sp2.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp2.page);
 		for (let i = 0; i < 2; i++) if (await sp2.page.isVisible('#ui-notice')) await sp2.page.click('[data-act="notice-ok"]');
 		await sp2.page.evaluate(() => UmaSkillDeckCore.loadSkillPtData(false));
 		await open(sp2.page);

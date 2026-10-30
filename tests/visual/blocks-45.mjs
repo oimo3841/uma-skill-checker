@@ -6,6 +6,7 @@
 // 編成に入れ済みのカード（番号つき）は外枠が少し太い無彩色の線。「外す」「解除」は×印（押せる範囲は44px）。
 // カード名・二つ名・種別・レアリティは検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register45(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -35,7 +36,7 @@ export async function register45(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: o.roster || ROSTER(), theme: o.theme || 'light' });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sleep(sp.page, 400);
 		return sp;

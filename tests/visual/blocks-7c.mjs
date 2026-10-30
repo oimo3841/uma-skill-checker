@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
@@ -82,7 +83,7 @@ export async function register7c(env) {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 		}, { roster: o.roster === undefined ? { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null] } : o.roster, scope: o.scope === undefined ? { skillIds: [W[8]], name: '', tiers: {}, updatedAt: '' } : o.scope });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate((t) => selectStepTab(t), o.tab || 0);
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
@@ -210,7 +211,7 @@ export async function register7c(env) {
 				tag + 'W7 をオフにすると、W6 のための前段として W7 を数える（イベントは起きるので、W7 の L=1 は変わらない）', { prev: [v.prevCount, v.prevTotal, v.prevList], total: v.total });
 			// 保存と開き直し
 			const savedOff = (await draft(sp.page)).offSkillIds;
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.evaluate(() => selectStepTab(0));
 			await sp.page.waitForSelector(P + '[data-usd-el="pt-sum"]');
@@ -241,7 +242,7 @@ export async function register7c(env) {
 			await esc(sp.page);
 			// 指す先が無い id は無視し、保存値は書き換えない
 			await sp.page.evaluate(() => { const d = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')); d.offSkillIds = ['zz-none']; localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(d)); });
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.evaluate(() => selectStepTab(0));
 			await sp.page.waitForSelector(P + '[data-usd-el="pt-sum"]');
@@ -499,7 +500,7 @@ export async function register7c(env) {
 					for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 					await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
 					reqs.length = 0;
-					await page.reload({ waitUntil: 'networkidle' });
+					await reloadReady(page);
 					await page.waitForTimeout(800);
 				}
 				await ctx.close();

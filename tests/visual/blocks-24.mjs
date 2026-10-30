@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 進化スキル 段4（①の画面。2026-10-13・14）の検査。run-smoke.mjs の末尾から register24() で呼ばれる
 // （塊の見出しはすべて「進化段4」で始まる。`npm run test:visual -- --only=進化段4` で回せる）。
@@ -41,7 +42,7 @@ export async function register24(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster: o.roster === undefined ? null : o.roster });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false));
@@ -622,7 +623,7 @@ export async function register24(env) {
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(SCENARIO_DOC)));
 		await sp.page.route('**/data/skill-descriptions.json*', (r) => (fail ? r.fulfill({ status: 500, body: 'x' }) : r.continue()));
 		await sp.page.evaluate((ro) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(ro)); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); }, orfeRoster());
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector('[data-usd-el="evo-btn"]');
 		await sp.page.waitForTimeout(800);

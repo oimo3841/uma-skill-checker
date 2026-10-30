@@ -10,6 +10,7 @@
 // (2) 行の表示（実画面）
 // (3) 説明の小窓（Lv の行が無い・合算の1行は◎の行にだけ・基礎／いまの設定が合算）
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register32(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -40,7 +41,7 @@ export async function register32(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(700);
 		return sp;

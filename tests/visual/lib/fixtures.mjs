@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPO_ROOT } from './serve.mjs';
-import { waitNoticeSettled } from './notice.mjs';
+import { installReadyProbe, waitPageReady } from './page-ready.mjs';
 
 const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
 
@@ -141,8 +141,8 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 		body: JSON.stringify({ dataVersion: '2026-10-03a', category: 'scenarioEventSkills', note: 'テスト用の空のファイル', entries: [] }) }));
 	if (scenarioPendingOff) await routeScenarioPendingOff(page);
 	if (scenarioPendingOn) await routeScenarioPendingOn(page);
-	await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
-	/* **時間ではなく「整ったこと」で待つ。**（73セッション目）
+	await installReadyProbe(page);
+	/* **時間ではなく「整ったこと」で待つ。**（73セッション目。2026-10-30 に networkidle をやめた）
 	 *
 	 * ここは長く 1.5秒の固定待ちだった。51回開くので**それだけで76.5秒**、スモーク全体の14%。
 	 * 何を待っているのかを実測したところ、**networkidle の時点ですでに整っていた** ――
@@ -150,18 +150,16 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 	 * **networkidle のあと3秒間、DOM の変化は0回**（4ページ×3回とも）。
 	 * そこで、待つ理由を条件として書き、落ち着くぶんだけを短く取る形にした。
 	 *
+	 * 2026-10-30（検査の速度 ②a・②b）: networkidle（通信が 500ms 途切れるまで）は load のあと 0.4〜0.7秒の尾を持つので、
+	 * load で進み、lib/page-ready.mjs の waitPageReady（fetch／XHR が0・画像・Tailwind の印・ページごとの条件・お知らせ）で待つ。
+	 * 最後の固定の 200ms は無くした。
+	 *
 	 * lucide は合図に使えない（生成した <svg> にも data-lucide が残るので、
 	 * 「data-lucide が消える」では永久に待つことになる）。 */
-	await page.waitForFunction(() => {
-		if (document.readyState !== 'complete') return false;
-		// Tailwind を読むページだけ、生成が済んだ印を待つ（card-event-input.html は読まない）
-		const needsTw = !!document.querySelector('script[src*="tailwindcss-browser"]');
-		return !needsTw || document.documentElement.classList.contains('uma-tw-ready');
-	}, null, { timeout: 15000 });
-	// お知らせは非同期の初期化の最後に出る。負荷が高いと networkidle の1秒前後あとになり、
-	// 検査の「いま見えていれば閉じる」を素通りして、あとで次のクリックを遮る（C-179）。出るはずなら出るまで待つ
-	await waitNoticeSettled(page);
-	await page.waitForTimeout(200);
+	await page.goto(base + '/' + file, { waitUntil: 'load', timeout: 60000 });
+	// お知らせは非同期の初期化の最後に出る。負荷が高いと読み込みの1秒前後あとになり、
+	// 検査の「いま見えていれば閉じる」を素通りして、あとで次のクリックを遮る（C-179）。出るはずなら出るまで待つ（waitPageReady の中）
+	await waitPageReady(page);
 	return { ctx, page, errors };
 }
 

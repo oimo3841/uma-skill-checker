@@ -13,6 +13,7 @@
 //  ・③の結果の表の◎○▲ を自動のマーカーの小さい形（16px）に（D12）。シナリオ因子◆・遺伝子◇は残す。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register61(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -51,7 +52,7 @@ export async function register61(env) {
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: o.roster || null, scope: o.scope || (o.ids ? { skillIds: o.ids, name: '', updatedAt: '', skillIcons: {}, parentHintLevel: 5 } : null) });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); try { await UmaSkillDeckCore.loadSkillEvolutions(); } catch (e) {} });
@@ -271,7 +272,7 @@ export async function register61(env) {
 		// セット t1 を開いた状態（直前に開いていたセットの保存キー）で開き直す
 		const sp2 = await openPage(browser, base, 'special.html', { width: 1280, height: 900 }, ud);
 		await sp2.page.evaluate(() => { localStorage.setItem('umaSkillDeck:lastSet:special', 't1'); localStorage.setItem('umaSkillDeck:stepTab', '1'); localStorage.removeItem('umaSkillDeck:draftScope:special'); });
-		await sp2.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp2.page);
 		for (let i = 0; i < 2; i++) if (await sp2.page.isVisible('#ui-notice')) await sp2.page.click('[data-act="notice-ok"]');
 		await sp2.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });
 		await sp2.page.waitForSelector(BAR + '[data-usd-el="set-total"]', { timeout: 20000 });

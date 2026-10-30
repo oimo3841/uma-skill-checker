@@ -7,6 +7,7 @@
 // C1 「効率を指定（βテスト）」の「？」の本文（3行・はみ出さない）
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。ただし B1 の「右回り〇」だけは、おいもさんの指示の例として名前で引く（評価点はデータから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register21(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -88,7 +89,7 @@ export async function register21(env) {
 	const openTool = async (which, w, theme) => {
 		const r = await openPage(browser, base, which + '.html', { width: w, height: 800 });
 		const page = r.page;
-		if (theme) { await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} }, theme); await page.reload({ waitUntil: 'networkidle' }); }
+		if (theme) { await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} }, theme); await reloadReady(page); }
 		await page.waitForTimeout(500);
 		return r;
 	};

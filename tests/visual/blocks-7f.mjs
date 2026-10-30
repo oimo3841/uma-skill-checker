@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段7f（2026-10-03・C-119）の検査。run-smoke.mjs の末尾から register7f() で呼ばれる（塊の見出しは「段7f」を含む。
 // `npm run test:visual -- --only=段7f` で回せる）。
@@ -56,7 +57,7 @@ export async function register7f(env) {
 				localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: '', cardIds: [card, null, null, null, null, null] }));
 				localStorage.removeItem('umaSkillDeck:draftScope:special');
 			}, { card: cs.card.id });
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
 			await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"]', { timeout: 10000 }).catch(() => {});

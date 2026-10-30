@@ -5,6 +5,7 @@
 // (4) 合計・進化の判定が変更前と同じ（保存済みのセットで。selectable の項目だけを外した一覧と比べる）／(5) 行は消えていない（getUpcomingRaces は7行・race-0001 は selectable: false のまま）
 // レース名・id はデータから引く（恒久ルール1。race-0001 が「終わったレース」であることだけが、この検査の前提）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register52(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -29,7 +30,7 @@ export async function register52(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? FULL : o.roster, tab: o.tab === undefined ? 1 : o.tab, theme: o.theme });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(400);

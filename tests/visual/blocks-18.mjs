@@ -8,6 +8,7 @@
 // E: 誤認識の読み替え辞書は「スクショで追加」の小窓の中
 // F: 右下の「＋」の展開に「セット」「レース」
 // スキル名・レース名は検査の側に書かない（恒久ルール1。データか画面から読む）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register18(env) {
@@ -40,7 +41,7 @@ export async function register18(env) {
 			else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster || FULL, tab: o.tab === undefined ? 1 : o.tab, ids: o.ids || null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		return sp;
@@ -294,7 +295,7 @@ export async function register18(env) {
 		const sp = await openSp({ ids: LONG.slice(0, 2) });
 		const p = sp.page;
 		await p.evaluate(() => localStorage.setItem('uma-special-ocr-dict', 'あいう = テスト'));
-		await p.reload({ waitUntil: 'networkidle' });
+		await reloadReady(p);
 		await p.waitForTimeout(500);
 		const where = await p.evaluate(() => ({ inGuide: !!document.querySelector('#skillset-guide-box #ocr-dict-box'), inPanel: !!document.querySelector('#step-panel-1 #ocr-dict-box'), value: document.getElementById('ocr-dict').value }));
 		assert(where.inGuide && !where.inPanel, 'C132E 新UIでは「スクショで追加」の小窓の中にあり、②の下には無い', where);
@@ -313,7 +314,7 @@ export async function register18(env) {
 		// 告知を閉じて既読にしたあとなら、保存値 'old' が効く（恒久ルール20）
 		for (let i = 0; i < 2; i++) if (await old.page.isVisible('#ui-notice')) await old.page.click('[data-act="notice-ok"]');
 		await old.page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
-		await old.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(old.page);
 		await old.page.waitForTimeout(400);
 		const o = await old.page.evaluate(() => ({ inHome: !!document.querySelector('#ocr-dict-home #ocr-dict-box') }));
 		assert(o.inHome, 'C132E 旧UIでは元の場所（②の下）にある', o);

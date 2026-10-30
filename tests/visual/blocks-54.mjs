@@ -7,6 +7,7 @@
 // UmaStar: (3) ①の表の「ウマ娘」の列は、見出し・セルとも、ほかの列と同じ色
 // 見た目は 360・390・1280 × ライト・ダーク で、横スクロールなし・コンソールのエラー0・文字のコントラスト 4.5:1 以上。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
 
 export async function register54(env) {
@@ -20,7 +21,7 @@ export async function register54(env) {
 	const openExam = async (w, theme) => {
 		const r = await openPage(browser, base, 'exam.html', { width: w, height: w === 1280 ? 900 : 844 });
 		await r.page.evaluate((t) => localStorage.setItem('uma-tools-theme', t), theme);
-		await r.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(r.page);
 		await r.page.waitForTimeout(600);
 		for (let i = 0; i < 3; i++) if (await r.page.isVisible('#ui-notice')) { await r.page.click('#ui-notice-ok'); await r.page.waitForTimeout(250); }
 		// 効率を指定の種数を出すため、データを読ませてから既定に戻す
@@ -127,7 +128,7 @@ export async function register54(env) {
 				localStorage.removeItem('umaSkillDeck:draftScope:special');
 				localStorage.setItem('umaSkillDeck:stepTab', '0');
 			}, { roster: ROSTER, theme });
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.waitForSelector('#deck-roster-panel .usd-roster-grid', { timeout: 15000 });
 			await sp.page.waitForTimeout(500);

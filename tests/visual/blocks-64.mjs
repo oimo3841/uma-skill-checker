@@ -12,6 +12,7 @@
 // 「確定」の札の色は、変更前の commit ce28f00 で測った値。シナリオは実データ（駿大祭）を配る（検査の仕込みのシナリオではない）。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register64(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -44,7 +45,7 @@ export async function register64(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 			if (th && window.UmaTheme) window.UmaTheme.set(th);
 		}, [roster, o.theme || 'light']);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });
 		await sp.page.waitForSelector(RP + '.usd-roster-grid', { timeout: 15000 });

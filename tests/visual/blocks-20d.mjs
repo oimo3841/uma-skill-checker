@@ -4,6 +4,7 @@
 // D1 タイトルの文字サイズ（両ツールで同じ・セット名より大きい・幅ごとの規則）／D2 バッジと一言の置き方（折り返しで崩れない）／D3 見出しの高さ／D4 「？」が無く、画面の色のボタンがある
 // 数値は special.html を実際に開いて読む（セット名の文字サイズなど）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register20d(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -11,7 +12,7 @@ export async function register20d(env) {
 		const r = await openPage(browser, base, which + '.html', { width: w, height: 800 });
 		const page = r.page;
 		if (theme) await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} }, theme);
-		if (theme) await page.reload({ waitUntil: 'networkidle' });
+		if (theme) await reloadReady(page);
 		await page.waitForTimeout(700);
 		if (which === 'special') { if (await page.isVisible('#ui-notice')) { try { await page.click('[data-act="notice-ok"]'); } catch (e) {} } }
 		else if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');

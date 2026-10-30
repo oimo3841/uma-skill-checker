@@ -10,6 +10,7 @@
 // (2) ①の表の表示: 名前と Pt が◎のものになる／行の識別・種数は○のまま／前段の1行に○が出る
 // (3) 切り替え・保存・リセット・Undo（A-2 で足す）
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register29(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -45,7 +46,7 @@ export async function register29(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(700);
 		return sp;
@@ -231,7 +232,7 @@ export async function register29(env) {
 		const open2 = async (userData) => {
 			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
 			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 			await sp.page.click(BAR + '[data-usd-act="set-list"]');

@@ -7,6 +7,7 @@
 // D: exam の①②の左右スワイプ
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register19(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -22,7 +23,7 @@ export async function register19(env) {
 				Object.keys(store || {}).forEach((k) => localStorage.setItem(k, store[k]));
 			} catch (e) {}
 		}, { theme: o.theme || 'light', store: o.store || null });
-		if (o.theme || o.store) await page.reload({ waitUntil: 'networkidle' });
+		if (o.theme || o.store) await reloadReady(page);
 		await page.waitForTimeout(400);
 		if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 		await page.evaluate(() => selectStepTab(1));
@@ -101,7 +102,7 @@ export async function register19(env) {
 			assert(hadStored && cleared[0] === null && cleared[1] === null,
 				'微調整1A1(' + w + 'px): 保存値が初期値と同じ形で残っていても、押すと消える', { hadStored, cleared });
 			// 開き直しても初期値のまま
-			await page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(page);
 			await page.waitForFunction(() => !!effData, null, { timeout: 15000 });
 			const reopened = await page.evaluate(() => ({ b: effBounds.slice(), def: defaultEffBounds(effData), tiers: effTiers.slice() }));
 			assert(JSON.stringify(reopened.b) === JSON.stringify(reopened.def) && reopened.tiers.every(Boolean), '微調整1A1(' + w + 'px): 開き直しても初期値のまま', reopened);
@@ -388,7 +389,7 @@ export async function register19(env) {
 		await page.evaluate(() => { window.__effSaved.forEach(([id, v]) => effValueById.set(String(id), v)); renderSkillRegistryList(); renderSkillCopyTextarea(); });
 		// 保存しない: 保存の鍵は増えず、開き直すと OFF
 		const lsAfter = await page.evaluate(() => JSON.stringify(Object.keys(localStorage).sort()));
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		await page.waitForFunction(() => !!effValueById, null, { timeout: 15000 });
 		const reopened = await page.evaluate(() => ({ pressed: document.getElementById('registry-sort-btn').getAttribute('aria-pressed'), on: registrySortByEff }));
 		assert(lsAfter === lsBefore && reopened.pressed === 'false' && reopened.on === false, '微調整1A6: 並べ替えの状態は保存しない（鍵は増えず、開き直すと OFF）', { lsBefore, lsAfter, reopened });
@@ -658,7 +659,7 @@ export async function register19(env) {
 				const { ctx, page, errors } = r0;
 				for (let i = 0; i < 2; i++) { if (await page.isVisible('#ui-notice')) await page.click(file === 'special.html' ? '[data-act="notice-ok"]' : '#ui-notice-ok'); }
 				await page.evaluate(() => { try { localStorage.removeItem('uma-tools-theme'); } catch (e) {} });
-				await page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(page);
 				for (let i = 0; i < 2; i++) { if (await page.isVisible('#ui-notice')) await page.click(file === 'special.html' ? '[data-act="notice-ok"]' : '#ui-notice-ok'); }
 				await page.emulateMedia({ colorScheme: 'light' });
 				const tag = file + '・' + w + 'px';
@@ -697,7 +698,7 @@ export async function register19(env) {
 				assert(f1.state === 'light' && f1.attr === 'light', '微調整1C3(' + tag + '): 「ライト」にしたら OS がダークでもライトのまま', f1);
 				// 開き直しても続く
 				await page.click('#theme-cycle-btn');
-				await page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(page);
 				for (let i = 0; i < 2; i++) { if (await page.isVisible('#ui-notice')) await page.click(file === 'special.html' ? '[data-act="notice-ok"]' : '#ui-notice-ok'); }
 				const re = await st();
 				assert(re.state === 'dark' && re.stored === 'dark' && re.attr === 'dark' && re.aria === '画面の色：ダーク' && re.shown.join() === 'dark', '微調整1C3(' + tag + '): 開き直しても選んだ色（ダーク）が続き、ボタンの状態も合っている', re);

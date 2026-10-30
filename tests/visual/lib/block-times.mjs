@@ -7,6 +7,7 @@
 //     waitN/Ms … page.waitForTimeout の回数と、頼んだ待ちの合計ms（実際の待ちではなく指定値の合計）
 //     openN/Ms … openPage（lib/fixtures.mjs）の回数と、その合計実時間ms
 //     reloadN / gotoN … page.reload と page.goto の回数（goto は openPage の中のものも含む）
+//     reloadMs … page.reload の合計実時間ms（reloadReady のあとの待ちも含む。2026-10-30 から。それより前の記録には無い）
 //   計測だけで、挙動（待ち時間）は変えない。
 import fs from 'node:fs';
 import path from 'node:path';
@@ -52,7 +53,9 @@ export function formatSummary(records, { wallSec, label = '' } = {}) {
 	const waitSec = sum('waitMs') / 1000, openSec = sum('openMs') / 1000;
 	const share = (x) => (totalSec > 0 ? f1((x / totalSec) * 100) + '%' : '—');
 	lines.push('固定の待ち（waitForTimeout の指定値の合計）: ' + sum('waitN') + '回・' + f1(waitSec) + '秒（塊の時間の合計の ' + share(waitSec) + '）');
-	lines.push('ページの読み込み（openPage）: ' + sum('openN') + '回・' + f1(openSec) + '秒（' + share(openSec) + '）／ reload ' + sum('reloadN') + '回・goto ' + sum('gotoN') + '回');
+	const avgMs = (ms, n) => (n > 0 ? Math.round(ms / n) + 'ms' : '—');
+	lines.push('ページの読み込み（openPage）: ' + sum('openN') + '回・' + f1(openSec) + '秒（' + share(openSec) + '・平均 ' + avgMs(sum('openMs'), sum('openN')) + '）／ reload ' + sum('reloadN') + '回'
+		+ (records.some((r) => r.reloadMs != null) ? '・' + f1(sum('reloadMs') / 1000) + '秒（平均 ' + avgMs(sum('reloadMs'), sum('reloadN')) + '）' : '') + '・goto ' + sum('gotoN') + '回');
 	const top = records.slice().sort((a, b) => b.sec - a.sec).slice(0, 20);
 	const topSec = top.reduce((s, r) => s + r.sec, 0);
 	lines.push('時間のかかる塊 上位' + top.length + '（合計 ' + f1(topSec) + '秒＝塊の時間の合計の ' + share(topSec) + '）:');

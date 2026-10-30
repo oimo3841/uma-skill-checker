@@ -9,6 +9,7 @@
 // (5) 条件を満たしていないスキル: 灰色の文字＋スキル名に灰色の取り消し線・地の色と縦バーなし（右の一覧と左の選択肢）
 // 見た目は 1280・390・360 × ライト・ダーク で、横スクロールなし・コンソールのエラー0・文字のコントラスト 4.5:1 以上。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 
@@ -32,7 +33,7 @@ export async function register55(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: ROSTER, theme, tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(400);
 		return sp;

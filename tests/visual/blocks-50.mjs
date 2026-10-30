@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段G（2026-10-22・C-191）の検査。run-smoke.mjs の末尾から register50() で呼ばれる（塊の見出しはすべて「段G」で始まる。`npm run test:visual -- --only=段G` で回せる）。
 //
@@ -41,7 +42,7 @@ export async function register50(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 			try { localStorage.setItem('uma-tools-theme', theme || 'light'); } catch (e) {}
 		}, { roster: o.roster || ORFE, tab: o.tab === undefined ? 0 : o.tab, draft: o.draft || null, theme: o.theme });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sleep(sp.page, 600);
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false)).catch(() => {});
@@ -354,7 +355,7 @@ export async function register50(env) {
 			assert(r1.soft.bw === '1px' && r1.danger.bw === '1px' && r1.ghost.bw === '1px' && [r1.soft, r1.danger, r1.ghost].every((x) => x.h >= 44), tag + '①のリセットのシートの3つのボタンは細い枠（1px）・高さ44px以上のまま', r1);
 			assert(JSON.stringify(rgb(r1.soft.bc)) === JSON.stringify(rgb(await probe('--evo-edge'))) && JSON.stringify(rgb(r1.danger.bc)) === JSON.stringify(rgb(await probe('--evo-danger-edge'))) && JSON.stringify(rgb(r1.ghost.bc)) === JSON.stringify(rgb(tk.line)), tag + '枠の色は今のまま（淡いピンク・赤み）・やめるは細い枠の色', r1);
 			await p.keyboard.press('Escape'); await sleep(p, 300);
-			await p.evaluate(() => localStorage.setItem('umaSkillDeck:stepTab', '1')); await p.reload({ waitUntil: 'networkidle' }); await sleep(p, 900);
+			await p.evaluate(() => localStorage.setItem('umaSkillDeck:stepTab', '1')); await reloadReady(p); await sleep(p, 900);
 			if (await p.$('[data-usd-el="factor-reset"]')) {
 				await p.click('[data-usd-el="factor-reset"]'); await sleep(p, 500);
 				const r2 = await look(p, '[data-usd-el="factor-reset-cancel"]');

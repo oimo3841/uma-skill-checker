@@ -5,6 +5,7 @@
 // E4 ?notice=force（既読でも出る・何も書かない）／E5 ツール切替のメニューの「お知らせ」から読み直せる／E6 画像（読み込める・alt・日付つきの名前・容量）／
 // E7 文面と画像のパスは js/announce.js の1か所だけ／E8 見た目（ライト・ダーク・375・393・1280px。小窓の中でスクロール）
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register20e(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -26,7 +27,7 @@ export async function register20e(env) {
 		if (Object.keys(store).length) {
 			// 最初の読み込みで、初めての人として保存されたものを消してから、仕込む（初めての人は告知を「見たこと」にするため）
 			await page.evaluate((s) => { try { localStorage.clear(); Object.keys(s).forEach((k) => localStorage.setItem(k, s[k])); } catch (e) {} }, store);
-			await page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(page);
 		}
 		await page.waitForTimeout(o.wait || 1500);
 		return r;
@@ -63,7 +64,7 @@ export async function register20e(env) {
 				await page.waitForTimeout(150);
 				const stored = await page.evaluate((k) => localStorage.getItem(k), t.key);
 				assert(!(await noticeOpen(page)) && stored === id, '微調整2E1(' + t.name + '・' + how + '): 閉じると既読（保存した値は告知のID）', { stored, id });
-				await page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(page);
 				await page.waitForTimeout(1500);
 				assert(!(await noticeOpen(page)), '微調整2E1(' + t.name + '・' + how + '): 開き直すと出ない', null);
 				assert(jsErrors(errors).length === 0, '微調整2E1(' + t.name + '・' + how + '): コンソールエラーなし', errors.slice(0, 3));
@@ -84,7 +85,7 @@ export async function register20e(env) {
 				assert((await page.evaluate((k) => localStorage.getItem(k), t.key)) === null, '微調整2E2(' + t.name + '・初めて): 開いただけでは既読にしない（閉じたときに履歴の3件とも既読にする）', null);
 				await page.click(t.ok);
 				assert((await page.evaluate((k) => localStorage.getItem(k), t.key)) === id, '微調整2E2(' + t.name + '・初めて): 閉じると2nd Edition の告知も既読になる', null);
-				await page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(page);
 				await page.waitForTimeout(1500);
 				assert(!(await noticeOpen(page)), '微調整2E2(' + t.name + '・初めて): 次に開いても2nd Edition の告知は出ない', null);
 				await ctx.close();
@@ -102,7 +103,7 @@ export async function register20e(env) {
 				assert(k1b === (t.name === 'exam' ? 'target' : 'alpha'), '微調整2E2(' + t.name + '・先の告知が未読): › で先の告知（' + k1b + '）に移れる', k1b);
 				await page.click(t.ok);
 				const firstSeen = await page.evaluate((k) => localStorage.getItem(k), firstKey);
-				await page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(page);
 				await page.waitForTimeout(1500);
 				const open2 = await noticeOpen(page);
 				assert(firstSeen !== null && !open2, '微調整2E2(' + t.name + '・先の告知が未読): 閉じると先の告知も既読になり、次の読み込みでは出ない', { firstSeen, open2 });

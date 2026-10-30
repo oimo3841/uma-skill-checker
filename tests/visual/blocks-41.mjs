@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 // ①の「既定と違う選択」の点（2026-10-21・C-179）の検査。run-smoke.mjs の末尾から register41() で呼ばれる
@@ -35,7 +36,7 @@ export async function register41(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster, DRAFT });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(P + '[data-usd-el="col-menu-btn"][data-member-key="0"]', { timeout: 15000 });   // 2026-10-26: 育成ウマ娘の列もメニューのボタン
 		await sp.page.waitForTimeout(700);
@@ -216,7 +217,7 @@ export async function register41(env) {
 		assert(JSON.stringify(restored.resultPicks) === JSON.stringify(r0.resultPicks) && JSON.stringify(restored.acquirePicks) === JSON.stringify(r0.acquirePicks) && restored.umaId === U, 'C-179(f) 「元に戻す」で、元の保存値（知らない鍵も）に戻る', { r0, restored });
 		assert((await members(sp.page)).filter((m) => m.dot).length === 2, 'C-179(f) 元に戻すと点も戻る', await members(sp.page));
 		// 開き直し（再読み込み）でも保存値は変わらず、点は同じ
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(800);
 		const again = await draftR(sp.page);

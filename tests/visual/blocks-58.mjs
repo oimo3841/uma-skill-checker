@@ -9,6 +9,7 @@
 //     先頭の件数に「①の絞り込み N件」を足す。理由が重なる行は1つだけ（本育成編成 → レース条件 → ①の絞り込み〔距離 → 脚質 → バ場〕）。
 //  4. スキル名の文字に、①の表と同じ色（回復・デバフ・パッシブ）。灰色の行は灰色のまま。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register58(env) {
@@ -43,7 +44,7 @@ export async function register58(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? null : o.roster, tab: o.tab === undefined ? 1 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);

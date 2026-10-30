@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // オススメサポ 段13（段7〜12 の確認で出た修正と、追加の改善。2026-10-04・C-127）の検査。run-smoke.mjs の末尾から register13() で呼ばれる
@@ -48,7 +49,7 @@ export async function register13(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 			Object.keys(extra || {}).forEach((k) => localStorage.setItem(k, extra[k]));
 		}, { roster: o.roster === undefined ? FULL : o.roster, tab: o.tab === undefined ? 1 : o.tab, extra: o.storage || null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);
@@ -288,7 +289,7 @@ export async function register13(env) {
 			{ rosterId: 'r2', name: 'S2', umaId: 'uma-0002', star: 3, awakeningLevel: 5, cardIds: CARDS6.slice(), skillFilter: FILTER, createdAt: 'x', updatedAt: 'x' }] };
 	const setName = (page) => page.evaluate(() => document.querySelector('#deck-set-bar [data-usd-el="set-name"]').textContent);
 	const reloadSp = async (page) => {
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 		await page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 });
 		await page.waitForTimeout(300);

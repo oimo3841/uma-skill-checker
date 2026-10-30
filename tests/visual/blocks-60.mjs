@@ -12,6 +12,7 @@
 //  ・保存: 「追加」を押したときだけ書く（計算しただけでは書かない）・①を替えても消さない・次の「追加」で置き換える・保存の無いセットは開いただけでは書かない。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register60(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -53,7 +54,7 @@ export async function register60(env) {
 			else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: o.roster || null, ids: o.ids || null, F: o.F === undefined ? 5 : o.F });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); try { await UmaSkillDeckCore.loadSkillEvolutions(); } catch (e) {} });
@@ -163,7 +164,7 @@ export async function register60(env) {
 			const a2 = await read(sp.page);
 			assert(!a2.table && strip(a2) === strip(a), '②星取表(1) ' + c.k + ' もう一度押すとカード一覧に戻る（数・保存データは同じ）', null);
 			await setView(sp.page, true);
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			await sp.page.waitForSelector(BAR + '[data-usd-el="set-total"]', { timeout: 20000 });
 			await sp.page.waitForTimeout(800);
 			const r = await read(sp.page);
@@ -411,7 +412,7 @@ export async function register60(env) {
 		const s2 = await read(sp.page);
 		assert(JSON.stringify(s2.roster.outsideOptions && s2.roster.outsideOptions.cards) === JSON.stringify(shown), '②星取表(9) 「追加」で提案のカードを小窓の並びのまま outsideOptions.cards に保存', { saved: s2.roster.outsideOptions, shown });
 		assert(s2.sel.indexOf(unchecked) === -1 && s2.off.indexOf(unchecked) !== -1, '②星取表(9) チェックを外したスキルは②に入らず、無効の段に出る', { unchecked, off: s2.off });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await sp.page.waitForSelector(BAR + '[data-usd-el="set-total"]', { timeout: 20000 });
 		await sp.page.waitForTimeout(800);
 		await setView(sp.page, true);
@@ -431,7 +432,7 @@ export async function register60(env) {
 		// 別の提案（枚数4）を追加すると置き換わる
 		await sp.page.click("#step-tab-1");
 		await sp.page.waitForTimeout(500);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await sp.page.waitForSelector(BAR + '[data-usd-el="set-total"]', { timeout: 20000 });
 		await sp.page.waitForTimeout(800);
 		await openOutside();

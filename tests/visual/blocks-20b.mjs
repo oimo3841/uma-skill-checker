@@ -5,6 +5,7 @@
 // B5 蹄鉄の配置（重ならない・虹を押し出さない・リセットが下）／B6 目印は触れない・touch-action／B7 区間のエリアは最低24px／B8 キー操作と読み上げの名前
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register20b(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -18,7 +19,7 @@ export async function register20b(env) {
 				Object.keys(store || {}).forEach((k) => localStorage.setItem(k, store[k]));
 			} catch (e) {}
 		}, { theme: o.theme || 'light', store: o.store || null });
-		if (o.theme || o.store) await page.reload({ waitUntil: 'networkidle' });
+		if (o.theme || o.store) await reloadReady(page);
 		await page.waitForTimeout(400);
 		if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 		await page.evaluate(() => selectStepTab(1));
@@ -306,7 +307,7 @@ export async function register20b(env) {
 				'微調整2B4(' + w + 'px): 蹄鉄のタップで、その境目の吹き出しが常時表示／非表示に切り替わる（ほかの蹄鉄とは独立）', { t1, t2, t3 });
 			// 常時表示の状態は保存しない: 開き直すと規定（出ていない）に戻る
 			const stored = await page.evaluate(() => Object.keys(localStorage).filter((k) => /eff/i.test(k)).map((k) => k + '=' + localStorage.getItem(k)));
-			await page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(page);
 			await page.waitForFunction(() => !!effData, null, { timeout: 15000 });
 			await page.waitForTimeout(300);
 			const reopened = await vis();

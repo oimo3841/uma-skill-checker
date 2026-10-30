@@ -5,6 +5,7 @@
 // C: 「低効果を除外」（①の列見出し。②のパレットのボタンは C-130 で脚質のボタンに置き換えて削除した＝その塊は下で外した）
 // D: オススメサポ（当時は「オススメサポαテスト」）の除外の既定（デバフ・持久力回復・視野・緑スキル・低効果）と、新しい2つのチップ
 // スキル名・レース名・段階の名前は検査の側に書かない（恒久ルール1。データか画面から読む）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register15(env) {
@@ -42,7 +43,7 @@ export async function register15(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? FULL : o.roster, tab: o.tab === undefined ? 1 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);
@@ -196,7 +197,7 @@ export async function register15(env) {
 		await closePicker(sp.page);
 		const before = await draftIds(sp.page);
 		await sp.page.evaluate((race) => { const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')); r.race = race; localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(r)); }, RACE);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await sp.page.waitForTimeout(600);
 		const after = await draftIds(sp.page);
 		assert(before.length >= 20 && JSON.stringify(before) === JSON.stringify(after), 'C129B 追加済みの ' + before.length + '種は、レースを選んだあとも同じ（消さない）', { before: before.length, after: after.length });
@@ -277,7 +278,7 @@ export async function register15(env) {
 		await sp.page.waitForTimeout(300);
 		const s2 = await savedOpts(sp.page);
 		assert(s2 && JSON.stringify(s2.exclude) === JSON.stringify({ effect: ['stamina', 'vision'] }), 'C129D 「デバフ」も外すと、残りの2つで保存される', s2);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await sp.page.waitForTimeout(600);
 		const s3 = await savedOpts(sp.page);
 		await sp.page.click(T + '[data-usd-el="outside-open"]');

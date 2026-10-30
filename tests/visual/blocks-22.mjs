@@ -7,13 +7,14 @@
 // E1 告知の文面（見出し無し・UmaExam OCR・本文・箇条書き3つ・UmaStar の節が無い）／exam だけに出す（special には自動表示もメニューの項目も無い）
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register22(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const openExam = async (o = {}) => {
 		const r = await openPage(browser, base, 'exam.html', { width: o.w || 1280, height: o.h || 900 });
 		const page = r.page;
-		if (o.theme) { await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} }, o.theme); await page.reload({ waitUntil: 'networkidle' }); }
+		if (o.theme) { await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} }, o.theme); await reloadReady(page); }
 		await page.waitForTimeout(500);
 		if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
 		await page.evaluate(() => selectStepTab(1));
@@ -194,7 +195,7 @@ export async function register22(env) {
 			const r = await openPage(browser, base, 'special.html' + query, { width: 375, height: 800 });
 			if (store) {
 				await r.page.evaluate(() => { localStorage.clear(); localStorage.setItem('uma-special-ui-notice', UI_NOTICE_ID); localStorage.setItem('uma-special-alpha-notice', ALPHA_NOTICE_ID); localStorage.setItem('uma-special-catalog-notice', CATALOG_NOTICE_ID); });
-				await r.page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(r.page);
 			}
 			await r.page.waitForTimeout(1500);
 			const s = await r.page.evaluate(() => ({ open: !document.getElementById('ui-notice').hidden, kind: uiNoticeKind, menuBtn: !!document.getElementById('announce-menu-btn'), ed: localStorage.getItem('uma-special-edition-notice') }));

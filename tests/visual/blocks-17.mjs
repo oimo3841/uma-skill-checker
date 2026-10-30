@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { removeFromSet } from './lib/fixtures.mjs';
 import { noticeText } from './lib/add-notice.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
@@ -38,7 +39,7 @@ export async function register17(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster || FULL, tab: o.tab === undefined ? 1 : o.tab });
 		sp.recReqs = [];
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(400);
 		return sp;
@@ -118,7 +119,7 @@ export async function register17(env) {
 			d.skillIds = d.skillIds.concat(extra.filter((id) => d.skillIds.indexOf(id) === -1));
 			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(d));
 		}, extra);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		const added = await draftIds(sp.page);

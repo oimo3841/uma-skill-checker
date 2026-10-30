@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // グループのカードを①で選べるようにする（C-160・2026-10-15）の検査。run-smoke.mjs の末尾から register27() で呼ばれる
 // （塊の見出しはすべて「グループのカード」で始まる。`npm run test:visual -- --only=グループのカード` で回せる）。
@@ -26,7 +27,7 @@ export async function register27(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { key: KEY, roster: { rosterId: 'r_g', name: '', umaId: o.umaId === undefined ? 'uma-0001' : o.umaId, star: 3, awakeningLevel: 5, cardIds } });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		return sp;

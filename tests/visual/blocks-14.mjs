@@ -6,6 +6,7 @@
 // E: タッチで小窓・貼り付け欄を開いても、入力欄に focus を当てない（スマホのキーボードが出ないように）。
 //    描き直しでは、直前に入力欄に focus があったときだけ当て直す。マウスで開いたときは今までどおり当てる
 // スキル名・カード名は検査の側に書かない（恒久ルール1）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 import { openSetNameEdit } from './lib/set-name.mjs';
 
@@ -43,7 +44,7 @@ export async function register14(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster || FULL, tab: o.tab === undefined ? 0 : o.tab });
-		await page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(page);
 		for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 		await page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await page.waitForTimeout(300);

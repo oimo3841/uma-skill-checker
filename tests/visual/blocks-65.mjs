@@ -14,6 +14,7 @@
 //  ・UmaExam: ライト／ダーク 34×38。PC のタイトルは UmaStar と同じ値。スマホ 47px。「2nd Edition」「技能試験用ツール」は残す。スクロールで残さない。
 // 寸法はモックの実測（変更前の commit に当てたモック）を固定値にした。スキル名は検査の側に書かない（恒久ルール1）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry, ENTRY_SEARCH_BTN, entryItem } from './lib/entry-search.mjs';
 
 export async function register65(env) {
@@ -35,7 +36,7 @@ export async function register65(env) {
 			else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster || null, ids: o.ids || null, tab: o.tab === undefined ? 1 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 3; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });

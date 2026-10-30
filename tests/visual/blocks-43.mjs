@@ -4,6 +4,7 @@
 // 入口「脚質オススメ」（オススメサポの直後）から開く小窓: レースの選択・脚質の4つ・項目ごとのリスト（緑スキル〔レース条件〕・シナリオスキル・ためらい・サポカ外・斜行）・
 // 追加するスキル N種（合計 … Pt）［やめる］［追加する］。①のレース・脚質と共有する。①でレースを選んでも②へは自動で足さない。
 // スキル名・id・件数は検査の側に書かない（恒久ルール1。データから独立に数える。代表の編成Aの実測〔31種・既定ON 26〕だけは、Step 0 の実測との照合として数字で持つ）。
+import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
 export async function register43(env) {
@@ -48,7 +49,7 @@ export async function register43(env) {
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: o.roster === undefined ? ROSTER_A : o.roster, tab: o.tab === undefined ? 1 : o.tab, theme: o.theme || 'light' });
 		sp.reqs = [];
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sleep(sp.page, 300);

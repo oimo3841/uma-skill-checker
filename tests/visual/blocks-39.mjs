@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // ①の本育成編成の表（2026-10-18・作業4。Step 0 main-roster-step0.md の案 (B)＋(C)）の検査。run-smoke.mjs の末尾から register39() で呼ばれる
 // （塊の見出しはすべて「本育成表」で始まる。`npm run test:visual -- --only=本育成表` で回せる）。
@@ -43,7 +44,7 @@ export async function register39(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster, tab: o.tab === undefined ? 0 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(800);
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); try { await UmaSkillDeckCore.loadSkillEvolutions(); } catch (e) {} });

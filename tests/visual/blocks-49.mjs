@@ -6,6 +6,7 @@
 // (c) 脚質オススメへの効き方（区分の除外だけが効く。以前の保存値は効かない）・廃止した部品が無いこと
 // スキル名・id・件数は検査の側に書かない（恒久ルール1。画面とデータから読む）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 import { noticeOf } from './lib/add-notice.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
 
@@ -34,7 +35,7 @@ export async function register49(env) {
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 			try { localStorage.setItem('uma-tools-theme', theme); } catch (e) {}
 		}, { roster: o.roster === undefined ? null : o.roster, tab: o.tab === undefined ? 1 : o.tab, theme: o.theme || 'light' });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector('#deck-set-bar [data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sleep(sp.page, 300);

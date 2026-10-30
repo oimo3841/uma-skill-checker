@@ -8,6 +8,7 @@
 // 文面は、依頼文の「そのまま使う」文面を検査の側に直書きして比べる（実装から読んで作らない）。
 // 2026-10-26（新シナリオの仕上げ）: 実データの on を false にした（知らせを外した）。(1)〜(6)・(8) は、on を true にした合成の状態
 // （fixtures の setScenarioPendingOn）で知らせの仕組みを見る。(7) は実データのまま（on が false）で、新シナリオの知らせが履歴に無いことを見る。
+import { reloadReady } from './lib/page-ready.mjs';
 import { setScenarioPendingOn } from './lib/fixtures.mjs';
 
 export async function register51(env) {
@@ -42,7 +43,7 @@ async function register51Body(env) {
 		if (o.theme) store['uma-tools-theme'] = o.theme;
 		if (o.store || o.theme) {
 			await page.evaluate((s) => { try { localStorage.clear(); Object.keys(s).forEach((k) => localStorage.setItem(k, s[k])); } catch (e) {} }, store);
-			await page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(page);
 		}
 		await page.waitForTimeout(o.wait || 1500);
 		return r;
@@ -160,7 +161,7 @@ async function register51Body(env) {
 				const want = await seenStore(t);
 				const ok = Object.keys(want).filter((k) => !/ui-mode/.test(k)).every((k) => keys[k] === want[k]);
 				assert(ok, `履歴(4) ${t.name}/${how}: 閉じると、このツールの告知がすべて既読になる（履歴の3件と古い告知の印）`, JSON.stringify(keys));
-				await r.page.reload({ waitUntil: 'networkidle' });
+				await reloadReady(r.page);
 				await r.page.waitForTimeout(1500);
 				assert(!(await noticeOpen(r.page)), `履歴(4) ${t.name}/${how}: 開き直すと自動では出ない`, '');
 				await r.ctx.close();

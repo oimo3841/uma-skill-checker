@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 本育成サポカ外スキル「オススメサポ」（段3 入口と小窓・段4 追加の動き。2026-10-04・C-123）の検査。run-smoke.mjs の末尾から register11() で呼ばれる
 // （塊の見出しはすべて「オススメサポ」で始まる。`npm run test:visual -- --only=オススメサポ` で回せる。
@@ -55,7 +56,7 @@ export async function register11(env) {
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
 		}, { roster: o.roster === undefined ? FULL : o.roster, scope: o.scope || null });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 		await sp.page.waitForSelector(T + OPEN, { timeout: 10000 }).catch(() => {});

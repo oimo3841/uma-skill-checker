@@ -8,6 +8,7 @@
 // (b) レース距離: レースの距離（m）が決まっているレースを固定したとき、距離の数値の限定を実際の距離で判定する／距離が無いレース・レース未指定は区分で判定
 // スキル名・衣装名・レース名は検査の側に書かない（恒久ルール1。id で書く）。
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register35(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -47,7 +48,7 @@ export async function register35(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster === undefined ? null : o.roster, tab: o.tab === undefined ? 0 : o.tab });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false));

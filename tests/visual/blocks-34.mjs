@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 // ①の育成ウマ娘のイベントの取得の切り替え（2026-10-17。データの acquireMode が "user"＝ユーザー選択次第のイベント）の検査。
@@ -38,7 +39,7 @@ export async function register34(env) {
 			transform(doc.entries);
 			await sp.page.route('**/data/training-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(doc) }));
 		}
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		await sp.page.waitForTimeout(400);
 		return sp;
 	};
@@ -253,7 +254,7 @@ export async function register34(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(700);
 		return sp;
@@ -504,7 +505,7 @@ export async function register34(env) {
 			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
 			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(withEventScenarioFirst(readJson('data/scenario-event-skills.json'))) }));
 			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 			await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
 			await sp.page.click(BAR + '[data-usd-act="set-list"]');

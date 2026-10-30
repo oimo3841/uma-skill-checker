@@ -11,6 +11,7 @@
 // (3) 保存: 切り替えの保存が従来どおり・インポート→元に戻すで保存データが書き換わらない（ルール28）
 // （切り替えの保存・元に戻す・リセットの細部は blocks-29.mjs「◎切替」。ここから「入」にして回す）
 
+import { reloadReady } from './lib/page-ready.mjs';
 export async function register33(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -31,7 +32,7 @@ export async function register33(env) {
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { roster });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(700);
 		return sp;
@@ -133,7 +134,7 @@ export async function register33(env) {
 		assert(JSON.stringify(off.map((r) => r.id)) === JSON.stringify(idsBefore) && off.every((r) => !r.tog) && await pressed(sp.page, CIRCLE) === 'false', '◎ボタン(2) もう一度押すと元の並びに戻り、切り替えのボタンも消える', null);
 		// 開き直すと切れている（保存しない）
 		await sp.page.click(CIRCLE);
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
 		assert(await pressed(sp.page, CIRCLE) === 'false' && (await rowsOf(sp.page)).every((r) => !r.tog), '◎ボタン(2) 開き直すと切れている（画面の中だけの状態）', null);

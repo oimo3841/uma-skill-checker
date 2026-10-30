@@ -1,3 +1,4 @@
+import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // 段7d（2026-10-03・C-116）の検査。run-smoke.mjs の末尾から register7d() で呼ばれる（塊の見出しはすべて「段7d」を含むので、
@@ -76,7 +77,7 @@ export async function register7d(env) {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 		}, { roster: o.roster === undefined ? { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null] } : o.roster, scope: o.scope === undefined ? { skillIds: [W[8]], name: '', tiers: {}, updatedAt: '' } : o.scope });
-		await sp.page.reload({ waitUntil: 'networkidle' });
+		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate((t) => selectStepTab(t, { noSave: true }), o.tab || 0);
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
@@ -148,19 +149,19 @@ export async function register7d(env) {
 			const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
 			const active = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('.step-tab')).findIndex((t) => t.getAttribute('aria-selected') === 'true'));
 			await sp.page.evaluate(() => localStorage.removeItem('umaSkillDeck:stepTab'));
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			assert((await active()) === 0, '段7d(A)③: 初めての訪問（保存値なし）は①「本育成編成」を開く');
 			await sp.page.evaluate(() => selectStepTab(2));
 			assert((await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:stepTab'))) === '2', 'タブを選ぶと umaSkillDeck:stepTab に保存する');
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			assert((await active()) === 2, '③を開いて再読み込みすると③を開く');
 			await sp.page.evaluate(() => selectStepTab(1));
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			assert((await active()) === 1, '②を開いて再読み込みすると②を開く');
 			const exported = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData') || '');
 			assert(!exported.includes('stepTab'), '前回のタブは書き出しの対象（umaSkillDeck:userData）に入らない');
 			await sp.page.evaluate(() => localStorage.setItem('umaSkillDeck:stepTab', 'x'));
-			await sp.page.reload({ waitUntil: 'networkidle' });
+			await reloadReady(sp.page);
 			assert((await active()) === 0, '壊れた保存値のときは①を開く');
 			assert(jsErrors(sp.errors).length === 0, 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 2));
 			await sp.ctx.close();
