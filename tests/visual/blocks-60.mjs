@@ -359,17 +359,31 @@ export async function register60(env) {
 		}
 	});
 
-	await block('②星取表(8) 無効の行を押すと②に足して有効にする（合計が増え・無効の段から消える）／有効の行を外すと、カードで得られるものは無効の段に戻る／カード一覧・星取表の両方', async () => {
+	// C-238: 追加は無効の行の左の＋（factor-enable）だけ。名前を押すと説明の小窓（追加しない）・パネルのほかの部分を押しても追加しない
+	await block('②星取表(8) 無効の行の左の＋を押すと②に足して有効にする（合計が増え・無効の段から消える。名前・パネルのほかの部分では足さない）／有効の行を外すと、カードで得られるものは無効の段に戻る／カード一覧・星取表の両方', async () => {
 		for (const view of ['cards', 'table']) {
 			const sp = await openSp({ w: 390, roster: R1S, ids: ONE12 });
 			if (view === 'table') await setView(sp.page, true);
 			const a = await read(sp.page);
 			const id = a.off[0];
+			const ROW = T + '[data-usd-el="factor-off-row"][data-off-skill-id="' + id + '"]';
+			await sp.page.click(ROW + ' .usd-panel-namebtn');
+			await sp.page.waitForTimeout(300);
+			const pop = await sp.page.evaluate(() => { const p = document.querySelector('[data-usd-el="info-pop"]'); return p && !p.hidden ? p.querySelector('.uma-popover-title').textContent : null; });
+			const n1 = await read(sp.page);
+			assert(pop !== null && pop.length > 0 && n1.sel.length === a.sel.length && n1.off.indexOf(id) !== -1, '②星取表(8) ' + view + ': 無効の行の名前を押すと説明の小窓が開き、②には足さない（C-238）', { pop, sel: n1.sel.length });
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(200);
+			const box = await sp.page.locator(ROW).boundingBox();
+			await sp.page.mouse.click(box.x + box.width - 3, box.y + box.height / 2);
+			await sp.page.waitForTimeout(300);
+			const n2 = await read(sp.page);
+			assert(n2.sel.length === a.sel.length && n2.off.indexOf(id) !== -1, '②星取表(8) ' + view + ': パネルの右端（＋と名前の外）を押しても②には足さない（C-238）', { sel: n2.sel.length });
 			await sp.page.click(T + '[data-usd-el="factor-enable"][data-off-skill-id="' + id + '"]');
 			await sp.page.waitForTimeout(400);
 			const b = await read(sp.page);
 			assert(b.sel.indexOf(id) !== -1 && b.sel.length === a.sel.length + 1 && b.off.indexOf(id) === -1 && b.off.length === a.off.length - 1,
-				'②星取表(8) ' + view + ': 無効の行を押すと②に入り、無効の段から消える', { id, sel: b.sel.length, off: b.off.length });
+				'②星取表(8) ' + view + ': 無効の行の＋を押すと②に入り、無効の段から消える', { id, sel: b.sel.length, off: b.off.length });
 			assert(b.sum.factorPt > a.sum.factorPt && b.sum.total > a.sum.total && b.panels.some((p) => p.id === id), '②星取表(8) ' + view + ': 合計が増え、有効の行に出る', { a: a.sum.factorPt, b: b.sum.factorPt });
 			assert((await viewBtn(sp.page)) === (view === 'table' ? 'true' : 'false'), '②星取表(8) ' + view + ': 表示は切り替わらない', null);
 			// 外すと無効の段に戻る（「削除」で行を押す）

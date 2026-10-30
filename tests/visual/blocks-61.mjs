@@ -242,8 +242,8 @@ export async function register61(env) {
 		const ex = await expectKinds(R1S, ONE12);
 		const m = await readMarkers(sp.page);
 		assert(m.panels.every((p) => p.kind === ex.kinds[p.id]), '②マーカー(7) 保存のアイコン（◎★✕）があっても、マーカーは判定のとおり', m.panels.map((p) => p.id + ':' + p.kind).slice(0, 4));
-		// 足す（無効の行を押す）→ 外す（削除のブラシ）→ リセット → 元に戻す
-		await sp.page.click(T + '[data-usd-el="factor-off-row"]');
+		// 足す（無効の行の＋を押す。C-238 から追加は＋だけ）→ 外す（削除のブラシ）→ リセット → 元に戻す
+		await sp.page.click(T + '[data-usd-el="factor-off-row"] [data-usd-el="factor-enable"]');
 		await sp.page.waitForTimeout(300);
 		await sp.page.click(T + '[data-usd-el="palette-delete"]');
 		await sp.page.click(T + '.usd-panel[data-skill-id="1"]');

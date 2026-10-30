@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-30b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-30c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -224,6 +224,12 @@
 			font-size: var(--uma-fs-md); line-height: var(--uma-lh-md);
 		}
 		.result-table tr:hover td { background-color: var(--uma-surface-sunken); }
+		/* C-238: スキル名は説明の小窓を開くボタン（②のパネルの名前と同じ下線）。回復・デバフ・パッシブの文字の色は core のクラス（usd-roster-skillname--*）。
+		   因子（◆♡）はスキルではないので文字のまま */
+		.result-skillname { font: inherit; background: transparent; border: 0; padding: 0; cursor: pointer; text-align: left;
+			text-decoration: underline; text-decoration-color: var(--uma-border-strong); text-underline-offset: 2px; }
+		.result-skillname:not([class*="usd-roster-skillname--"]) { color: inherit; }
+		.result-skillname:hover { text-decoration-color: currentColor; }
 
 		/* ===== 結果表の人物列 =====
 		   親Aセット＝青系統／親Bセット＝赤系統。値は Tailwind v4 のパレット実測値。
@@ -2079,6 +2085,7 @@
 			const showTotal = shouldShowTotalColumn(used);
 			let tableHtml = '';
 			const markerKindByName = deckMarkerKindByName();
+			const skillIdByName = deckSkillIdByName();
 
 			skillList.forEach(skill => {
 				const vals = used.map(p => starsFor(p, skill));
@@ -2112,8 +2119,13 @@
 				const tierMark = factorMark
 					? CATALOG_MARK_HTML[factorMark] + ' '
 					: (markerKind ? UmaSkillDeckCore.markers.html(markerKind, 16) + ' ' : '');
+				// C-238: ②のスキル（因子でないもの）の名前は説明の小窓のボタン・回復・デバフ・パッシブの文字の色（①の表と同じ）
+				const skillId = factorMark ? null : skillIdByName[skill];
+				const nameHtml = skillId
+					? `<button type="button" class="result-skillname ${UmaSkillDeckCore.skillNameToneClass(skillId)}" data-result-skill-id="${escapeHtml(skillId)}">${escapeHtml(skill)}</button>`
+					: escapeHtml(skill);
 				tableHtml += `<tr class="transition-colors">
-					<td class="font-medium text-slate-800">${tierMark}${escapeHtml(skill)}</td>
+					<td class="font-medium text-slate-800">${tierMark}${nameHtml}</td>
 					${cells}
 					${totalCell}
 				</tr>`;
@@ -2125,6 +2137,8 @@
 			}
 
 			tbody.innerHTML = tableHtml;
+			// C-238: 名前を押すと説明の小窓（①の表・②のパネルと同じ部品）
+			tbody.querySelectorAll('button[data-result-skill-id]').forEach(b => UmaSkillDeckCore.attachSkillInfo(b, { skillId: b.getAttribute('data-result-skill-id'), trigger: 'self' }));
 			if (window.lucide) lucide.createIcons();
 		}
 
@@ -3535,6 +3549,13 @@
 			if (!deckMode || !deckScope || !deckTemplateManager || typeof deckTemplateManager.getMarkerKinds !== 'function') return out;
 			const kinds = deckTemplateManager.getMarkerKinds();
 			UmaSkillDeckCore.getSkillEntries(deckScope.skillIds).forEach(e => { if (kinds[e.id]) out[e.name] = kinds[e.id]; });
+			return out;
+		}
+		/** ③の表の名前 → ②のスキルの id（C-238。説明の小窓と文字の色に使う）。Deck連携が無ければ空 */
+		function deckSkillIdByName() {
+			const out = {};
+			if (!deckMode || !deckScope) return out;
+			UmaSkillDeckCore.getSkillEntries(deckScope.skillIds).forEach(e => { if (!(e.name in out)) out[e.name] = e.id; });
 			return out;
 		}
 		let deckMasterLoaded = false;

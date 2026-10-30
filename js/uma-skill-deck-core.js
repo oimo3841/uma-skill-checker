@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30c';
 
 	/* ============================================================
 	 * 定数
@@ -5621,6 +5621,9 @@
 		'.usd-out-exlist { max-height: 132px; overflow-y: auto; margin-top: var(--uma-sp-1-5); }',
 		'.usd-out-exskill { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 32px; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-2); border-bottom: 1px solid var(--uma-surface-muted); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
 		'.usd-out-exskill-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		// C-238: 名前のボタン（説明の小窓）。長い名前は今までどおり「…」で切る
+		'.usd-out-exskill-namebtn { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		'.usd-out-exskill-namebtn::after { inset: -4px -3px; }',
 		'.usd-out-recalc { flex: none; padding: var(--uma-sp-1-5) var(--uma-sp-2-5); gap: var(--uma-sp-1); font-size: var(--uma-fs-xs); }',
 		'.usd-out-exbtn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; min-height: 28px; padding: 0 var(--uma-sp-2); border: 0; background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
 		'.usd-out-excl { margin-bottom: var(--uma-sp-2); }',
@@ -5658,7 +5661,8 @@
 		'.usd-paste-error { border-color: var(--uma-danger-border); background: var(--uma-danger-bg); }',
 		'.usd-paste-raw { font-family: var(--uma-font-mono); color: var(--uma-text-heading); word-break: break-all; }',
 		'.usd-paste-arrow { color: var(--uma-text-faint); margin: 0 var(--uma-sp-1-5); }',
-		'.usd-paste-picked { font-weight: 600; color: var(--uma-accent-soft-text); }',
+		'.usd-paste-picked { font: inherit; font-weight: 600; color: var(--uma-accent-soft-text); background: transparent; border: 0; padding: 0; cursor: pointer; text-align: left;',
+		'  text-decoration: underline; text-decoration-color: var(--uma-border-strong); text-underline-offset: 2px; }',
 		'.usd-paste-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
 		'.usd-paste-cands { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); align-items: center; margin-top: var(--uma-sp-1); }',
 		'.usd-paste-hint { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint); }',
@@ -6504,12 +6508,16 @@
 		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
 		// 固有スキルの行の色（--usd-skill-unique-*）は、入口の「オススメサポ」のボタンも読むので :root に置いてある（段7・2026-10-04）
 		// 2026-10-27（夜間のまとめ・作業4）: イベントの小窓の一覧（.usd-ev-panes）も同じ変数で、回復・デバフ・緑の文字の色を①と同じにする
-		'.usd-roster-grid, .usd-ev-panes, .usd-results[data-usd-el="results"] { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
+		// C-238: スキル名の共通様式（回復・デバフ・パッシブの文字の色を②のパネル・オススメサポ・緑スキル・③の表などにも付ける）ため、文字の色の変数は :root に置く（値は変えない）
+		':root { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
 		// スキル名の列見出しの種類のアイコンと漏斗（段13・B3）。アイコンの色は変数（ダークモードで差し替える）
 		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); --usd-tone-icon-circle: var(--uma-text-heading); }',
 		// ダーク（C-134 段4）: 種類の色は色相を保って明るい側へ（回復＝青・パッシブ＝緑・デバフ＝赤。Pt は淡い灰）。アイコンの地は中間の濃さで、記号は暗い色
-		':root[data-theme="dark"] .usd-roster-grid, :root[data-theme="dark"] .usd-ev-panes, :root[data-theme="dark"] .usd-results[data-usd-el="results"] { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
-		'  --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
+		':root[data-theme="dark"] { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4; }',
+		// C-238: ②のパネルの地（右端 #dcdeee のグラデーション）の上では、緑（パッシブ）だけ 4.5 に届かない（4.04）ので、同じ色相で少し濃くする（4.67）。ダークはそのまま（4.5 以上）
+		'.usd-panel { --usd-skill-passive-text: #196f35; }',
+		':root[data-theme="dark"] .usd-panel { --usd-skill-passive-text: #6fdc95; }',
+		':root[data-theme="dark"] .usd-roster-grid { --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
 		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 2px; }',
 		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// 漏斗の押せる範囲はメンバーの列と同じ 24px 以上（段7c）。3つを名前の右に収めるため、隣どうしを少し重ねて並べる（間隔 22px。320px は 18px）
@@ -6838,10 +6846,15 @@
 		'.usd-panel--taken .usd-icon { opacity: .4; }',
 		// C-225: 無効の段（オススメサポのカードで得られるのに②に無いスキル）。見出しは一覧の幅いっぱい。行は①の表の「取得しない」の行と同じ見た目（薄い地・薄い文字・取り消しの線）で、押すと②に足す
 		'.usd-factor-offhead { grid-column: 1 / -1; margin: var(--uma-sp-2) 0 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-muted); }',
-		'.usd-panel--off { background: var(--uma-surface-sunken); cursor: pointer; }',
-		'.usd-panel-offlead { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; padding-left: 2px; color: var(--uma-text-faint); }',
-		'.usd-panel-offlead svg { width: 14px; height: 14px; }',
-		'.usd-panel-namebtn--off { color: var(--uma-text-faint); text-decoration: line-through; text-decoration-color: var(--uma-text-faint); }',
+		// C-238: 追加できるのは左の＋のボタンだけ（パネルのほかの部分を押しても追加しない）。＋の押せる範囲は ×・◎ と同じ 44px（見た目は 22px の丸）。
+		// 名前は説明の小窓のボタン（下線・取り消し線なし）。文字の色は今の薄い色のまま（分類の色は付けない）
+		'.usd-panel--off { background: var(--uma-surface-sunken); }',
+		'.usd-panel-offadd { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -4px 0; padding: 0; border: 0; border-radius: var(--uma-r-sm); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
+		'.usd-panel-offadd-mark { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 11px; box-sizing: border-box; border: 1px solid var(--uma-border-strong); background: var(--uma-surface); }',
+		'.usd-panel-offadd svg { width: 14px; height: 14px; }',
+		'.usd-panel-offadd:hover .usd-panel-offadd-mark { border-color: currentColor; color: var(--uma-text-heading); }',
+		'.usd-panel-offadd:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
+		'.usd-panel-namebtn.usd-panel-namebtn--off { color: var(--uma-text-faint); }',
 		'.usd-fstar-offhead { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2); font-weight: 700; color: var(--uma-text-muted); background: var(--uma-surface-muted); }',
 		'.usd-link-opt--off { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); }',
 		'.usd-link-opt--off .usd-link-name { color: var(--uma-text-faint); }',
@@ -8149,13 +8162,15 @@
 		const hiddenRows = list.filter(s => !chosen.has(s.id) && isPickerExcluded(s.id)).length;
 		const raceRows = list.filter(s => !chosen.has(s.id) && !isPickerExcluded(s.id) && isPickerRaceBlocked(s.id)).length;
 		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), hiddenRows, '種', raceRows);
+		// C-238: スキル名は説明の小窓を開くボタン（「条件で検索」の行と同じ部品・灰色の行も開く）・名前の文字は①の表と同じ色分け（灰色の行は灰色のまま）
 		el.innerHTML = list.map(s => isExcludedRow(s)
-			? excludedRowHtml(s, 'passive-check-excluded')
-			: '<label class="usd-row">' +
+			? excludedRowHtml(s, 'passive-check-excluded', { nameBtn: true })
+			: '<label class="usd-row usd-pick-row">' +
 				'<input type="checkbox" data-usd-el="passive-check" value="' + esc(s.id) + '"' + (chosen.has(s.id) ? ' checked' : '') + '/>' +
-				'<span>' + esc(s.name) + '</span>' +
+				pickerNameBtnHtml(s, pickerNameToneClass(s.id)) +
 			'</label>'
 		).join('');
+		attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
 		el.scrollTop = keep;
 	}
 
@@ -8597,7 +8612,8 @@
 					'<div class="usd-paste-head">' +
 						'<span><span class="usd-paste-raw">' + esc(r.raw) + '</span>' +
 						'<span class="usd-paste-arrow">→</span>' +
-						'<span class="usd-paste-picked">' + esc(getSkillName(r.chosenId)) + '</span></span>' +
+						// C-238: 選んだスキルの名前は説明の小窓のボタン（下線）。文字は「選んだもの」の色のまま（分類の色は付けない。要確認の黄色の地の上に載るため）
+						'<button type="button" class="usd-paste-picked" data-usd-info="' + esc(r.chosenId) + '">' + esc(getSkillName(r.chosenId)) + '</button></span>' +
 						'<span class="usd-paste-acts">' + findBtn(r, i) +
 							'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">取り消す</button>' +
 						'</span>' +
@@ -8649,6 +8665,7 @@
 
 		html += '</div>';
 		el.innerHTML = html;
+		attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
 		restoreScroll();
 	}
 
@@ -12806,7 +12823,7 @@
 				openFactorColMenu(btn, key);
 			}
 			else if (act === 'factor-enable') {
-				// 無効の行（C-225）: 押すと②に足して有効にする（行の中の名前のボタンと、行そのものの両方が同じ動き）
+				// 無効の行（C-225）: 左の＋のボタンを押すと②に足して有効にする（C-238 から＋のボタンだけ。名前は説明の小窓）
 				enableFactorOffSkill(btn.getAttribute('data-off-skill-id'));
 			}
 			else if (act === 'factor-circle-toggle') {
@@ -14127,7 +14144,8 @@
 			return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + ' data-marker="' + esc(kinds.get(id) || 'other') + '">'
 				+ '<span class="usd-panel-marker">' + factorMarkerHtml(kinds.get(id) || 'other', 20) + '</span>'
 				+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
-				+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
+				// C-238: 名前の文字に①の表と同じ分類の色（回復・デバフ・パッシブ。◎で数えるときは◎の id で決める）
+				+ '<button type="button" class="usd-panel-namebtn' + pickerNameToneClass(shownId) + '" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
 				+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
 				// ◎を○に変えるモードのときだけ、Pt の位置（Pt は CSS で隠す）に◎／○の切り替え（◎の候補の行だけ）
 				+ (up && factorCircleMode ? factorCircleToggleHtml(id, up, on) : '')
@@ -14224,16 +14242,18 @@
 		/** 無効の段の見出し（C-225）。カード一覧と星取表で同じ文言。画面の呼び名は「“オススメサポ”で除外されたスキル」（C-232。引用符も出す） */
 		function factorOffHeadText(n) { return '“オススメサポ”で除外されたスキル ' + n + '件'; }
 		/**
-		 * 無効の行（C-225）。押すと②に足して有効にする（factor-enable）。見た目は①の表で「取得しない」にした行と同じ（薄い地・薄い文字・取り消しの線）。
+		 * 無効の行（C-225）。左の＋のボタン（factor-enable）を押すと②に足して有効にする（C-238: 追加はこのボタンだけ。パネルのほかの部分・名前では追加しない）。
+		 * 地は①の表で「取得しない」にした行と同じ薄い地・名前は薄い文字のまま。名前は説明の小窓のボタン（下線。C-238 で取り消しの線をやめた）。
 		 * 行の識別は data-off-skill-id（②の行の data-skill-id は持たない＝削除・アイコン・Pt の対象にならない）。名前は横に送る（②の行と同じ）
 		 */
 		function factorOffTileHtml(id) {
 			const name = getSkillName(id);
-			const label = name + '（“オススメサポ”で除外されたスキル）。押すと因子周回に追加する';
-			return '<div class="usd-panel usd-panel--off" data-usd-el="factor-off-row" data-usd-act="factor-enable" data-off-skill-id="' + esc(id) + '">'
-				+ '<span class="usd-panel-offlead" aria-hidden="true"><i data-lucide="plus"></i></span>'
+			const label = name + '（“オススメサポ”で除外されたスキル）を因子周回に追加する';
+			return '<div class="usd-panel usd-panel--off" data-usd-el="factor-off-row" data-off-skill-id="' + esc(id) + '">'
+				+ '<button type="button" class="usd-panel-offadd" data-usd-act="factor-enable" data-usd-el="factor-enable" data-off-skill-id="' + esc(id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">'
+				+ '<span class="usd-panel-offadd-mark" aria-hidden="true"><i data-lucide="plus"></i></span></button>'
 				+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-no-trim="1">'
-				+ '<button type="button" class="usd-panel-namebtn usd-panel-namebtn--off" data-usd-act="factor-enable" data-usd-el="factor-enable" data-off-skill-id="' + esc(id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + esc(name) + '</button></span>'
+				+ '<button type="button" class="usd-panel-namebtn usd-panel-namebtn--off" data-usd-info="' + esc(id) + '" title="' + esc(name) + '">' + esc(name) + '</button></span>'
 				+ '</div>';
 		}
 		/** 無効の行を押したとき（C-225）: そのスキルを②に足す（追加の一覧で1つ足すのと同じ受け皿）。「元に戻す」に積む */
@@ -14338,7 +14358,7 @@
 				const gold = rarityOf(id) === 'gold';
 				const nameCell = it.goldRef
 					// 表示専用の金の行: 名前（説明の小窓）だけ。Pt・アイコン・削除は無い
-					? '<span class="usd-panel-namescroll usd-hscroll usd-fstar-goldname" data-usd-no-trim="1"><button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '"'
+					? '<span class="usd-panel-namescroll usd-hscroll usd-fstar-goldname" data-usd-no-trim="1"><button type="button" class="usd-panel-namebtn' + pickerNameToneClass(id) + '" data-usd-info="' + esc(id) + '"'
 						+ ' title="' + esc(getSkillName(id) + '（オススメサポのサポートカードが持つ金スキル。②の Pt と種数には数えません）') + '">' + esc(getSkillName(id)) + '</button></span>'
 					: panelOf(id);
 				h += '<div class="usd-roster-grow' + (gold ? ' usd-roster-grow--gold' : '') + (prev ? ' usd-roster-grow--prev' : '') + '" role="row" data-usd-el="factor-table-row" data-fstar-id="' + esc(id) + '"' + (it.goldRef ? ' data-usd-goldref="1"' : '') + '>'
@@ -15042,7 +15062,9 @@
 						h += '</div>';
 					}
 					// scope: dist＝距離の区分の除外（recommendExcluded）／set＝このセットだけの除外（以前の保存値 roster.outsideSkillExcluded。これまでどおり効かせ続け、「戻す」で外したときだけ保存値を消す）
-					const exRow = (id, scope) => '<div class="usd-out-exskill" data-usd-el="outside-excl-skill" data-scope="' + scope + '" data-skill-id="' + esc(id) + '"><span class="usd-out-exskill-name">' + esc(getSkillName(id)) + '</span>'
+					const exRow = (id, scope) => '<div class="usd-out-exskill" data-usd-el="outside-excl-skill" data-scope="' + scope + '" data-skill-id="' + esc(id) + '">'
+						// C-238: 名前を押すと説明の小窓（下の attachSkillInfoIn。下線は②のパネルの名前と同じ）。除外中なので分類の色は付けない
+						+ '<span class="usd-out-exskill-name"><button type="button" class="usd-panel-namebtn usd-out-exskill-namebtn" data-usd-info="' + esc(id) + '">' + esc(getSkillName(id)) + '</button></span>'
 						+ (scope === 'set' ? '<span class="usd-out-exscope" data-usd-el="outside-excl-scope">このセットのみ</span>' : '')
 						+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-restore-skill" data-usd-el="outside-restore-skill" data-scope="' + scope + '" data-skill-id="' + esc(id) + '" aria-label="' + esc(getSkillName(id) + 'を戻す') + '">戻す</button></div>';
 					exDist.forEach(id => { h += exRow(id, 'dist'); });
@@ -15076,7 +15098,8 @@
 					} else {
 						h += '<label class="usd-row usd-out-row" data-usd-el="outside-row" data-skill-id="' + esc(s.skillId) + '">'
 							+ '<input type="checkbox" data-usd-el="outside-check" value="' + esc(s.skillId) + '"' + (outsideUi.checked.has(s.skillId) ? ' checked' : '') + '/>'
-							+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
+							// C-238: 名前の文字に①の表と同じ分類の色（追加済みの灰色の行は灰色のまま）
+							+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn' + pickerNameToneClass(s.skillId) + '" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
 							+ '<span class="usd-out-pt" data-usd-el="outside-row-pt">' + esc(outsideRowPtText(s.skillId)) + '</span></label>';
 					}
 				});
@@ -15559,7 +15582,8 @@
 						h += '<div class="usd-sty-row' + (r.gray ? ' usd-sty-row--gray' : '') + '" data-usd-el="style-row" data-skill-id="' + esc(r.id) + '" data-state="' + (r.gray ? 'gray' : (on ? 'on' : 'off')) + '"'
 							+ (r.gray ? ' data-reason="' + r.reason + '"' : '') + ' data-checked="' + (on ? '1' : '0') + '">'
 							+ '<label class="usd-sty-check"><input type="checkbox" data-usd-el="style-check" value="' + esc(r.id) + '"' + (on ? ' checked' : '') + (r.gray ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(r.name + 'を追加する') + '"/></label>'
-							+ '<button type="button" class="usd-sty-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(r.id) + '">' + esc(r.name) + '</button>'
+							// C-238: 名前の文字に①の表と同じ分類の色（灰色の行は灰色のまま）
+							+ '<button type="button" class="usd-sty-name usd-roster-skillname--btn usd-out-namebtn' + (r.gray ? '' : pickerNameToneClass(r.id)) + '" data-usd-info="' + esc(r.id) + '">' + esc(r.name) + '</button>'
 							+ (r.reason === 'excluded' ? '<span class="usd-sty-pt usd-sty-tag" data-usd-el="style-row-pt">除外中（' + esc(m.distLabel) + '）</span>' : '<span class="usd-sty-pt" data-usd-el="style-row-pt">' + esc(styleRowPtText(r)) + '</span>') + '</div>';
 					});
 					h += '</div>';
@@ -16744,6 +16768,8 @@
 		buildStepUpIndex: buildStepUpIndex,
 		// スキルの説明（段6）。名前の要素に ⓘ と長押しを付ける部品と、説明文の読み込み
 		attachSkillInfo: attachSkillInfo,
+		// C-238: スキル名の文字の色のクラス（①の表と同じ回復・デバフ・パッシブの見分け。どれでもなければ空文字）。special の③の表が使う
+		skillNameToneClass: function (skillId) { return pickerNameToneClass(skillId).trim(); },
 		closeSkillInfo: closeSkillInfo,
 		openPopover: openPopover,   // 共有の小窓（段7）
 		ROSTER_LIMIT: ROSTER_LIMIT,
