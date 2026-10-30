@@ -1723,7 +1723,11 @@
 				if (wantPreview) previewCanvases.push({ name: labelPrefix + ': ' + file.name, canvas: target });
 				devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
 
-				const variants = usePre ? preprocessVariants(target, multi) : [target];
+				// preprocessVariants（common.js）は multi のとき [二値化, 二値化の反転, 元の画像] を返す。
+				// 反転は認識にかけない（C-240。14ケース＋劣化させた28ケースで、反転だけが当てた行・★は0。認識が約3分の1減る）。
+				// common.js（凍結）は変えずに、ここで2番目を落とす。スキルセット画面・めろっぷのいちばん上の段は3つのまま。
+				const pre = usePre ? preprocessVariants(target, multi) : [target];
+				const variants = pre.length === 3 ? [pre[0], pre[2]] : pre;
 				for (let v = 0; v < variants.length; v++) {
 					try {
 						const res = await worker.recognize(variants[v]);
