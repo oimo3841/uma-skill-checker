@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30f';
 
 	/* ============================================================
 	 * 定数
@@ -6829,12 +6829,12 @@
 		'.usd-panel-ptbtn::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(calc(100% + 8px), 44px); height: 44px; transform: translate(-50%, -50%); }',
 		// マイナスの行の小窓の中身（C-242）。カード名と見出しは同じ強調（13px・太字・見出しの色）。2つ目以降のカード名と本文は「①」の幅だけ下げる
 		'.usd-ovp { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 20px; color: var(--uma-text); }',
-		'.usd-ovp p { margin: 0; }',
 		'.usd-ovp-card, .usd-ovp-head { font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-ovp-card--next { margin-top: 4px; padding-left: 1em; }',
-		'.usd-ovp-head { margin-top: 8px; }',
+		// 段落の余白は共有の .usd-info-body p（margin: 0）が消すので、行ごとの余白は .usd-ovp の下で書く（詳細度を合わせる）
+		'.usd-ovp .usd-ovp-card--next { margin-top: 4px; padding-left: 1em; }',
+		'.usd-ovp .usd-ovp-head { margin-top: 8px; }',
 		'.usd-ovp-line { padding-left: 1em; }',
-		'.usd-ovp-sum { margin-left: 1em; padding-top: 2px; border-top: 1px dashed var(--uma-border-strong); font-weight: 700; }',
+		'.usd-ovp .usd-ovp-sum { margin-left: 1em; padding-top: 2px; border-top: 1px dashed var(--uma-border-strong); font-weight: 700; }',
 		'.usd-ovp-calc { font-variant-numeric: tabular-nums; }',
 		'.usd-ovp-nowrap { white-space: nowrap; }',
 		'.usd-ovp-diff { font-weight: 700; color: var(--uma-text-heading); }',

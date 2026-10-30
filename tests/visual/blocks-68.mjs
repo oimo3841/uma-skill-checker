@@ -232,8 +232,12 @@ export async function register68(env) {
 				const box = document.querySelector('[data-usd-el="info-pop"]:not([hidden]) [data-usd-el="overlap-info"]');
 				const pick = (el) => { const s = getComputedStyle(el); return { size: s.fontSize, weight: s.fontWeight, color: s.color }; };
 				return { cards: Array.from(box.querySelectorAll('[data-usd-el="overlap-card"]')).map(pick), head: pick(box.querySelector('[data-usd-el="overlap-head2"]')),
-					line: pick(box.querySelector('[data-usd-el="overlap-route"]')) };
+					line: pick(box.querySelector('[data-usd-el="overlap-route"]')),
+					// 共有の小窓の段落の余白（margin: 0）に消されないこと: 「②」の見出しの上・合計の行の字下げ・2つ目のカード名の上
+					gap: { head2: getComputedStyle(box.querySelector('[data-usd-el="overlap-head2"]')).marginTop, sum: getComputedStyle(box.querySelector('[data-usd-el="overlap-sum"]')).marginLeft,
+						next: getComputedStyle(box.querySelectorAll('[data-usd-el="overlap-card"]')[1]).marginTop } };
 			});
+			assert(st.gap.head2 === '8px' && st.gap.sum === '13px' && st.gap.next === '4px', 'マイナスの小窓(6) ' + theme + ': 「②」の見出しの上 8px・合計の行の字下げ 13px（1字）・2つ目のカード名の上 4px', st.gap);
 			await closePop(sp.page);
 			assert(c.checked >= 6 && c.bad.length === 0 && c.undecided.length === 0, 'マイナスの小窓(6) ' + theme + ': 小窓の文字のコントラスト 4.5 以上（' + c.checked + '要素）', formatContrast(c.bad).slice(0, 4));
 			assert(st.cards.length === 2 && st.cards.every((x) => JSON.stringify(x) === JSON.stringify(st.head)) && st.head.weight === '700',
