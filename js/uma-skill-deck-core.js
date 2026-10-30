@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30i';
 
 	/* ============================================================
 	 * 定数
@@ -4519,12 +4519,14 @@
 			lowHintIds: Array.from(rosterLowHintWhiteIdsOf(copy, vp)),
 			// C-242: 由来（sources の memberKey）の名前を引くため（②のマイナスの行の小窓）
 			members: res.members,
+			// C-245: ①の◎の候補（○ → ◎）と◎で数える行（○ → ◎）。②の行のうち①に関わる○は、名前・◎／○の切り替えを①の状態で出す
+			circleCandidates: vp.circleCandidates, circleOf: vp.circleOf,
 			settings: status === 'ok' ? resolveRosterPtSettings(copy, skillPtData.rules) : null };
 	}
 	/** 本育成編成が「なし」のときの材料（段7d の ⑥(b)）。編成の Pt は 0 として数える。①で選択中の編成には戻らない */
 	function emptyRosterPtInputs() {
 		const status = skillPtDataStatus();
-		return { status: status, sources: [], enabledIds: [], sureIds: [], offIds: [], lowHintIds: [],
+		return { status: status, sources: [], enabledIds: [], sureIds: [], offIds: [], lowHintIds: [], circleCandidates: new Map(), circleOf: new Map(),
 			settings: status === 'ok' ? resolveRosterPtSettings({}, skillPtData.rules) : null };
 	}
 	/**
@@ -11376,6 +11378,7 @@
 				scope: 'list',
 				doneLabel: keep ? '○のまま数えます：' + getSkillName(skillId) : '◎に上げて数えます：' + getSkillName(skillId),
 				undoneLabel: '◎／○の切り替えを戻しました',
+				quiet: true,   // C-245: 切り替えのトーストは出さない（元に戻したときのトーストは残す）
 				probe: () => roster.rosterId === rid ? probeOf(roster.keepCircleIds === undefined ? null : roster.keepCircleIds) : '',
 				apply: () => {
 					if (roster.rosterId !== rid) return false;
@@ -12597,6 +12600,17 @@
 			return true;
 		};
 		/**
+		 * ◎／○の切り替え（C-245。②因子周回の「◎を○に変えるモード」で、①に関わる○の行を押したとき）。①の circle-toggle と同じ保存・元に戻す・描き直し
+		 * （setCircleKept → render。①の render が②へ知らせるので、②の名前・Pt も描き直る）。keep＝true で○のまま数える。
+		 * ①の◎の候補（①の表で◎／○の切り替えが出る行）でない id は書かない（false）。変わらない値は何もしない（false）
+		 */
+		rosterOutsideSink.setCircleKept = function (skillId, keep) {
+			if (typeof skillId !== 'string' || !skillId || !computed().circleCandidates.has(skillId)) return false;
+			if (!setCircleKept(skillId, !!keep)) return false;
+			render();
+			return true;
+		};
+		/**
 		 * 「種類」「除外」「枚数」と残りの枠の指定（④・段10・段13。roster.outsideOptions）。patch に入れた項目だけを置き換える
 		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／exclude: { 軸: [値…] }／pinned: [カードID…]）。既定と同じ（5枚・空・除外は初期値）なら、その項目を消し、全部消えたら項目ごと消す。
 		 * 中身が変わらなければ書かない。①の表には効かないので、①は描き直さない。
@@ -13090,7 +13104,10 @@
 			else if (act === 'factor-circle-toggle') {
 				// ②の◎／○の切り替え（②因子周回 段2）。押したボタンにフォーカスを戻す（位置は上の captureAnchor で保つ）
 				const id = btn.getAttribute('data-skill-id');
-				if (setFactorCircleKept(id, btn.getAttribute('aria-pressed') === 'true')) render();
+				const keep = btn.getAttribute('aria-pressed') === 'true';
+				// C-245: ①に関わる○の行は①の roster.keepCircleIds を書く（①の切り替えと同じ処理。①が描き直り、②へ知らせる）。②の keepCircleIds は書かない
+				if (btn.getAttribute('data-usd-scope') === 'roster') { if (rosterOutsideSink && typeof rosterOutsideSink.setCircleKept === 'function' && rosterOutsideSink.setCircleKept(id, keep)) render(); }
+				else if (setFactorCircleKept(id, keep)) render();
 				focusNoScroll(container.querySelector('button[data-usd-act="factor-circle-toggle"][data-skill-id="' + id + '"]'));
 			}
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
@@ -13967,7 +13984,26 @@
 			});
 			const overlap = factorOverlapOf(r, inp, ids);
 			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r,
-				circleCandidates: plan.candidates, circleOf: plan.circleOf, rowPts: factorRowPts(r, plan.circleOf, overlap, ids), plan: plan, overlap: overlap };
+				circleCandidates: plan.candidates, circleOf: plan.circleOf, rowPts: factorRowPts(r, plan.circleOf, overlap, ids), plan: plan, overlap: overlap,
+				rosterCircle: factorRosterCircleOf(inp, allIds, plan) };
+		}
+		/**
+		 * ②の行のうち、①に関わる○（C-245・2026-10-30・おいもさんの決定）。①の◎の候補（①の表で◎／○の切り替えが出る行。①で取得する○で、Lv を問わない。
+		 * ②では差の行・「①で取得」の行になる）は、②の名前・説明の小窓・◎を○に変えるモードの切り替えを①の状態（roster.keepCircleIds）で出し、切り替えると①に書く。
+		 * ②独自の候補（plan.candidates。②の keepCircleIds で決まる）とは決まりの上で重ならないが、重なったときは②独自の側を優先する（今のまま）。
+		 * 計算（Pt・種数）は変えない（①の◎の状態は、もともと①の由来として②の計算に入っている）。返り値は { candidates: Map(○ → ◎), circleOf: Map(○ → ◎) }
+		 */
+		function factorRosterCircleOf(inp, allIds, plan) {
+			const candidates = new Map(), circleOf = new Map();
+			const rc = inp && inp.circleCandidates instanceof Map ? inp.circleCandidates : null;
+			if (!setBased || !rc || rc.size === 0) return { candidates: candidates, circleOf: circleOf };
+			const on = inp.circleOf instanceof Map ? inp.circleOf : new Map();
+			allIds.forEach(id => {
+				if (!rc.has(id) || (plan && plan.candidates.has(id))) return;
+				candidates.set(id, rc.get(id));
+				if (on.has(id)) circleOf.set(id, on.get(id));
+			});
+			return { candidates: candidates, circleOf: circleOf };
 		}
 		/**
 		 * ①と②の両方にあるスキル（C-223・C-178）。Map(②の id → 'sure'〔①で取得する・ヒントLv が低い白〕／'prev'〔①の前段として数えている〕)。並びは②の並び。
@@ -14540,9 +14576,11 @@
 		/**
 		 * ②の◎／○の切り替え（②因子周回 段2）。「◎を○に変えるモード」のときだけ、候補の行の Pt の位置に出す。①の circle-toggle と同じ見た目（.usd-circle-btn・.usd-circle-mark）。押せる範囲は幅44px・行の高さいっぱい
 		 */
-		function factorCircleToggleHtml(id, upId, on) {
+		function factorCircleToggleHtml(id, upId, on, roster) {
 			const label = on ? getSkillName(upId) + '：◎で数えています。○に戻す' : getSkillName(id) + '：○で数えています。◎に上げる';
+			// C-245: roster＝①に関わる○の行（押すと①の roster.keepCircleIds を書く。data-usd-scope="roster"）
 			return '<button type="button" class="usd-circle-btn usd-panel-circle" data-usd-act="factor-circle-toggle" data-usd-el="factor-circle-toggle" data-skill-id="' + esc(id) + '"'
+				+ (roster ? ' data-usd-scope="roster"' : '')
 				+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"><span class="usd-circle-mark" aria-hidden="true">' + (on ? '◎' : '○') + '</span></button>';
 		}
 		/**
@@ -14551,9 +14589,11 @@
 		 * 行の識別（data-skill-id）・マーカー・並び・削除は○の id のまま。Pt（①と重なる行のマイナスの Pt のボタンを含む。C-242）は renderPanelPts が入れる。
 		 * ②因子周回 段4（C-226）: 左端はパレットのアイコンのボタンに代えて、自動のマーカー（kinds＝factorMarkerKindsOf。ボタンではなく画像）
 		 */
-		function factorPanelHtml(id, kinds, cands, circ) {
+		function factorPanelHtml(id, kinds, cands, circ, link) {
 			const name = getSkillName(id);
-			const up = cands.get(id) || null, on = circ.has(id);
+			// C-245: ①に関わる○の行（link＝factorRosterCircleOf）は、名前・説明の小窓・切り替えを①の状態で出す
+			const linked = !cands.has(id) && !!link && link.candidates.has(id);
+			const up = linked ? link.candidates.get(id) : (cands.get(id) || null), on = linked ? link.circleOf.has(id) : circ.has(id);
 			const shownId = on ? up : id, shownName = on ? getSkillName(up) : name;
 			return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + ' data-marker="' + esc(kinds.get(id) || 'other') + '">'
 				+ '<span class="usd-panel-marker">' + factorMarkerHtml(kinds.get(id) || 'other', 20) + '</span>'
@@ -14562,7 +14602,7 @@
 				+ '<button type="button" class="usd-panel-namebtn' + pickerNameToneClass(shownId) + '" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
 				+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
 				// ◎を○に変えるモードのときだけ、Pt の位置（Pt は CSS で隠す）に◎／○の切り替え（◎の候補の行だけ）
-				+ (up && factorCircleMode ? factorCircleToggleHtml(id, up, on) : '')
+				+ (up && factorCircleMode ? factorCircleToggleHtml(id, up, on, linked) : '')
 				// 段G(4): 削除の状態のときだけ見える×（押せる範囲 44px）。押すとそのスキルを②から外す（パネルを押したときと同じ処理）
 				+ '<button type="button" class="usd-panel-xbtn" data-usd-act="template-skill-remove" data-usd-el="panel-x" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を削除') + '"><i data-lucide="x" aria-hidden="true"></i></button>'
 				+ '</div>';
@@ -14879,8 +14919,9 @@
 				const cst = factorPtState(target);
 				const cands = cst && cst.circleCandidates ? cst.circleCandidates : new Map();
 				const circ = cst && cst.circleOf ? cst.circleOf : new Map();
+				const link = cst && cst.rosterCircle ? cst.rosterCircle : null;   // C-245: ①に関わる○の行
 				const sorted = ids.slice().sort(compareGameOrder);
-				const panelOf = (id) => factorPanelHtml(id, kinds, cands, circ);
+				const panelOf = (id) => factorPanelHtml(id, kinds, cands, circ, link);
 				// ②因子周回 段3: 星取表の表示（factorView。保存しない）。行の名前セルはカード一覧と同じパネルの部品（名前・Pt・◎／○・マーカー・削除）
 				el.classList.toggle('usd-panels--table', factorView === 'table');
 				// C-225: 有効（②のスキル）の下に無効の段（見出しと件数・無効の行）。カード一覧と星取表の両方
@@ -15637,7 +15678,8 @@
 			const del = paletteSel === PALETTE_DELETE;
 			// ②因子周回 段2: ◎のボタン（①の◎の漏斗のボタンから漏斗を無くし、◎そのものを押せるようにした形）。◎の候補が無いときは出さず、モードも切る
 			const cst = factorPtState(currentTarget());
-			const hasCircle = !!(cst && cst.circleCandidates && cst.circleCandidates.size > 0);
+			// C-245: ②独自の候補が無くても、①に関わる○の行（①の◎の候補）があれば出す
+			const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
 			if (!hasCircle) factorCircleMode = false;
 			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
 			// C-235: 並びは［削除（ゴミ箱のアイコンだけ・28px の丸）］［↺（合計の行から移した）］［虫眼鏡（4つの入口の小窓）］［◎］［表］
@@ -16544,6 +16586,7 @@
 				scope: 'list',
 				doneLabel: keep ? '○のまま数えます：' + getSkillName(skillId) : '◎に上げて数えます：' + getSkillName(skillId),
 				undoneLabel: '◎／○の切り替えを戻しました',
+				quiet: true,   // C-245: 切り替えのトーストは出さない（元に戻したときのトーストは残す）
 				probe: () => probeOf(factorKeepProbeOf(target)),
 				apply: () => {
 					if (!writeFactorKeepCircleIds(target, prev)) return false;

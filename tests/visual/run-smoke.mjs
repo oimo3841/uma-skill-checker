@@ -97,6 +97,7 @@ import { register67 } from './blocks-67.mjs';
 import { register68 } from './blocks-68.mjs';
 import { register69 } from './blocks-69.mjs';
 import { register70 } from './blocks-70.mjs';
+import { register71 } from './blocks-71.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15449,6 +15450,8 @@ await register68({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register69({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // ②因子周回の絞り込みの選択欄・小窓の題名の右の値・件数の文の値（C-244。塊の見出しはすべて「②絞り込み欄」で始まる）
 await register70({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// ①と②の◎⇔○ の連動・切り替えのトーストの削除（C-245。塊の見出しはすべて「◎連動」で始まる）
+await register71({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
