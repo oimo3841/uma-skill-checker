@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30g';
 
 	/* ============================================================
 	 * 定数
@@ -2990,6 +2990,66 @@
 	/** 読み上げ用の「スピード・SSR」（種別が決まらなければ種別を、SSR・SR でなければレアリティを出さない） */
 	function cardKindText(typeOrder, rarity, where) {
 		return [CARD_TYPE_ICON_KEYS[typeOrder] ? cardTypeLabelOf(typeOrder) : '', cardRarityShown(rarity, where) ? rarity : ''].filter(Boolean).join('・');
+	}
+	/* ------------------------------------------------------------
+	 * スキル → そのスキルが得られるサポートカードの逆引き（C-243。オススメサポの小窓の中のスキル名の小窓の「このスキルが得られるサポートカード」）
+	 * データ（support-cards の hintSkills・support-card-event-skills・character-event-skills）から1回だけ作って持つ（今の core はカード → スキルの向きだけ）。
+	 *   - カードは SSR・SR だけ（R は載せない）。グループのカードも含む（共通イベントは groupMembers の全員ぶん。charactersOfCard と同じ決まり）。
+	 *   - ヒント: dataStatus.hint が done のときの hintSkills（①・オススメサポの点数と同じ）。
+	 *   - イベント: 行が done ならすべてのイベントのすべての選択肢（結果・段階も全部。編成の選択には左右されない）、seeded なら unplaced。
+	 * 返り値は [{ card, hint, event }]。並びは SSR → SR、種別の順（typeOrder。無いものは後ろ）、カードの題の順（日本語の順）、id。
+	 * 読み込んだデータの入れ物が変わったら作り直す（検査でデータを差し替えたとき）。
+	 * ------------------------------------------------------------ */
+	let skillCardIndexMemo = { key: null, map: null };
+	function eventRowAllSkillIds(row, eventsKey, add) {
+		if (!row) return;
+		const put = (ref) => { if (ref && typeof ref.skillId === 'string' && ref.skillId) add(ref.skillId); };
+		if (row.status === 'seeded') { (row.unplaced || []).forEach(put); return; }
+		if (row.status !== 'done') return;
+		(row[eventsKey] || []).forEach(ev => {
+			if (!ev) return;
+			(ev.choices || []).forEach(ch => {
+				if (!ch) return;
+				if (Array.isArray(ch.skills)) ch.skills.forEach(put);
+				if (Array.isArray(ch.results)) ch.results.forEach(r => { if (Array.isArray(r)) r.forEach(put); });
+			});
+			if (Array.isArray(ev.acquireOptions)) ev.acquireOptions.forEach(o => ((o && o.skills) || []).forEach(put));
+		});
+	}
+	function skillCardIndex() {
+		const key = [trainingSources.supportCard, trainingSources.supportCardEventSkill, trainingSources.characterEventSkill];
+		const memo = skillCardIndexMemo;
+		if (memo.map && memo.key && memo.key.every((x, i) => x === key[i])) return memo.map;
+		const map = new Map();   // skillId → Map(cardId → { card, hint, event })
+		const mark = (skillId, card, kind) => {
+			let byCard = map.get(skillId);
+			if (!byCard) { byCard = new Map(); map.set(skillId, byCard); }
+			let cur = byCard.get(card.id);
+			if (!cur) { cur = { card: card, hint: false, event: false }; byCard.set(card.id, cur); }
+			cur[kind] = true;
+		};
+		listCards().forEach(card => {
+			if (!card || !card.id || (card.rarity !== 'SSR' && card.rarity !== 'SR')) return;
+			if (card.dataStatus && card.dataStatus.hint === 'done') (card.hintSkills || []).forEach(s => { if (s && s.skillId) mark(s.skillId, card, 'hint'); });
+			eventRowAllSkillIds(findEventRow(card.id), 'chain', id => mark(id, card, 'event'));
+			charactersOfCard(card).forEach(name => eventRowAllSkillIds(findCharacterEventRow(name), 'events', id => mark(id, card, 'event')));
+		});
+		const rarityRank = (c) => (c.rarity === 'SSR' ? 0 : 1);
+		const typeRank = (c) => { const t = cardTypeOrderOf(c); return t === null ? Infinity : t; };
+		const out = new Map();
+		map.forEach((byCard, skillId) => {
+			out.set(skillId, Array.from(byCard.values()).sort((a, b) => (rarityRank(a.card) - rarityRank(b.card))
+				|| (typeRank(a.card) === typeRank(b.card) ? 0 : (typeRank(a.card) < typeRank(b.card) ? -1 : 1))
+				|| String(a.card.title || '').localeCompare(String(b.card.title || ''), 'ja')
+				|| (a.card.id < b.card.id ? -1 : a.card.id > b.card.id ? 1 : 0)));
+		});
+		skillCardIndexMemo = { key: key, map: out };
+		return out;
+	}
+	/** そのスキルが得られるサポートカード（SSR・SR）。[{ card, hint, event }]（並びは skillCardIndex）。データが読めていなければ [] */
+	function cardsWithSkill(skillId) {
+		if (!trainingSources.supportCard) return [];
+		return (skillCardIndex().get(String(skillId)) || []).slice();
 	}
 	const OUTSIDE_DEADLINE_MS = 1500;
 	// 検査用: 締め切りの既定を差し替える（null で元に戻す）。画面の探索が途中の結果になる場合を作るためだけに使う
@@ -6838,6 +6898,24 @@
 		'.usd-ovp-calc { font-variant-numeric: tabular-nums; }',
 		'.usd-ovp-nowrap { white-space: nowrap; }',
 		'.usd-ovp-diff { font-weight: 700; color: var(--uma-text-heading); }',
+		// C-243: オススメサポの小窓の中のスキル名の小窓の下部「このスキルが得られるサポートカード」（C-239 のモックB）。開閉の行は高さ 44px・行全体が押せる。
+		// 長い一覧も上限なし（案B）: 小窓の本文（.uma-popover-body・上の余白 --uma-sp-3）がスクロールし、開閉の行は本文の上端に残る
+		'.usd-sc { margin-top: 10px; border-top: 1px solid var(--uma-border); }',
+		'.usd-sc-toggle { position: sticky; top: calc(-1 * var(--uma-sp-3)); z-index: 1; display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 2px; border: 0;',
+		'  background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }',
+		'.usd-sc-label { flex: 1 1 auto; min-width: 0; }',
+		'.usd-sc-n { flex: none; font-weight: 400; font-size: 12px; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }',
+		'.usd-sc-chev { flex: none; width: 16px; height: 16px; color: var(--uma-text-subtle); transition: transform .15s; }',
+		'.usd-sc-toggle[aria-expanded="true"] .usd-sc-chev { transform: rotate(180deg); }',
+		'.usd-sc-list { display: flex; flex-direction: column; border-top: 1px solid var(--uma-surface-muted); }',
+		'.usd-sc-list[hidden] { display: none; }',
+		'.usd-sc-row { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 3px 2px; border-bottom: 1px solid var(--uma-surface-muted); }',
+		'.usd-sc-rar { flex: none; width: 26px; height: 20px; object-fit: contain; }',
+		'.usd-sc-type { flex: none; width: 20px; height: 20px; }',
+		'.usd-sc-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }',
+		'.usd-sc-title { font-size: 10px; line-height: 14px; color: var(--uma-text-subtle); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }',
+		'.usd-sc-chara { font-size: 13px; line-height: 18px; color: var(--uma-text); font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }',
+		'.usd-sc-how { flex: none; padding: 0 6px; border: 1px solid var(--uma-border); border-radius: 999px; font-size: 11px; line-height: 18px; color: var(--uma-text-subtle); white-space: nowrap; }',
 		// C-132: 削除の状態（パレットの「削除」を選んでいる）。タイルは破線の枠と、名前の取り消しの線（色だけに頼らない）。ボタンは選択中の輪と色
 		// 段G(4): 削除の状態でも、パネルの見た目（点線の枠・赤い取り消し線）は変えない。代わりにパネルの右に×印を出す（押せる範囲 44px。パネルを押しても削除できる）。
 		// ×は常に作ってあり、削除の状態（.usd-skillgroup--delete）のときだけ見える
@@ -9923,10 +10001,13 @@
 		return token;
 	}
 
-	function openSkillInfo(skillId, line, btn, opener, note, combo) {
+	/**
+	 * foot … 説明の本文の下部に足すもの（C-243）。foot(body) が body の末尾に要素を足す。渡したところ（オススメサポの小窓の中のスキル名）だけに出る。無ければ今までどおり
+	 */
+	function openSkillInfo(skillId, line, btn, opener, note, combo, foot) {
 		const ui = ensureSkillInfoUi();
 		const token = openPopover({ key: 'skill:' + skillId, skillId: skillId, btn: btn, opener: opener || btn,
-			build: () => fillSkillInfo(skillId, line, note, combo) });
+			build: (body) => { fillSkillInfo(skillId, line, note, combo); if (typeof foot === 'function') foot(body); } });
 		// 説明文は、最初に開いたときに1回だけ読む。読み終わったとき、まだ同じ説明が開いていれば欄を整える
 		if (skillDescState.status !== 'ok') {
 			loadSkillDescriptions().then(() => {
@@ -9938,12 +10019,60 @@
 	}
 
 	/**
+	 * 「このスキルが得られるサポートカード」の開閉パネル（C-243・C-239 のモックB）。オススメサポの小窓の中のスキル名の小窓の下部だけに足す（openSkillInfo の foot）。
+	 * 閉じた行（高さ 44px・行全体がボタン）「このスキルが得られるサポートカード　N枚 ▾」。初期は閉じる。開くと一覧（▴）。
+	 * 一覧の行: レアリティのアイコン・種別アイコン（①・オススメサポのカードと同じ画像）・上に小さくカードの題・下に太字でキャラクター名（グループのカードはグループ名）・
+	 * 右端に「ヒント」「イベント」「ヒント・イベント」の札。並び・範囲は cardsWithSkill。長い一覧も上限なし（案B）: 小窓の本文がスクロールし、開閉の行は小窓の上に残る。
+	 * 得られるカードが1枚も無いスキルには出さない
+	 */
+	const SKILL_CARDS_CHEVRON = '<svg class="usd-sc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+	function skillCardsRowHtml(r) {
+		const c = r.card;
+		const t = cardTypeOrderOf(c);
+		const rar = CARD_RARITY_ICON_KEYS[c.rarity];
+		const how = r.hint && r.event ? 'ヒント・イベント' : (r.hint ? 'ヒント' : 'イベント');
+		return '<div class="usd-sc-row" data-usd-el="skill-cards-row" data-card-id="' + esc(c.id) + '" data-rarity="' + esc(c.rarity) + '"' + (t !== null ? ' data-type-order="' + t + '"' : '') + '>'
+			+ (rar ? '<img class="usd-sc-rar" src="' + cardIconUrl('rarity', rar) + '" alt="' + esc(c.rarity) + '" width="26" height="20" decoding="async" draggable="false" />' : '<span class="usd-sc-rar" aria-hidden="true"></span>')
+			+ (cardTypeKnown(t) ? '<img class="usd-sc-type" src="' + cardIconUrl('type', CARD_TYPE_ICON_KEYS[t]) + '" alt="' + esc(cardTypeLabelOf(t)) + '" width="20" height="20" decoding="async" draggable="false" />' : '<span class="usd-sc-type" aria-hidden="true"></span>')
+			+ '<span class="usd-sc-name"><span class="usd-sc-title" data-usd-el="skill-cards-title">' + (c.title ? esc('[' + c.title + ']') : '') + '</span>'
+			+ '<span class="usd-sc-chara" data-usd-el="skill-cards-chara">' + esc(formatEntryShortLabel(c)) + '</span></span>'
+			+ '<span class="usd-sc-how" data-usd-el="skill-cards-how">' + how + '</span></div>';
+	}
+	function appendSkillCardsPanel(body, skillId) {
+		const rows = cardsWithSkill(skillId);
+		if (rows.length === 0) return;
+		const wrap = infoEl('div', 'usd-sc');
+		wrap.setAttribute('data-usd-el', 'skill-cards');
+		const listId = uid('usdsc');
+		const btn = infoEl('button', 'usd-sc-toggle');
+		btn.type = 'button';
+		btn.setAttribute('data-usd-el', 'skill-cards-toggle');
+		btn.setAttribute('aria-expanded', 'false');
+		btn.setAttribute('aria-controls', listId);
+		btn.innerHTML = '<span class="usd-sc-label">このスキルが得られるサポートカード</span><span class="usd-sc-n" data-usd-el="skill-cards-count">' + rows.length + '枚</span>' + SKILL_CARDS_CHEVRON;
+		const list = infoEl('div', 'usd-sc-list');
+		list.id = listId;
+		list.hidden = true;
+		list.setAttribute('data-usd-el', 'skill-cards-list');
+		btn.addEventListener('click', () => {
+			const open = list.hidden;
+			if (open && !list.firstChild) list.innerHTML = rows.map(skillCardsRowHtml).join('');
+			list.hidden = !open;
+			btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+		});
+		wrap.appendChild(btn);
+		wrap.appendChild(list);
+		body.appendChild(wrap);
+	}
+
+	/**
 	 * 名前の要素 el に、ⓘ ボタン（el の直後）と長押しを付ける。戻り値は { button, detach }。
 	 *   opts.skillId … 必須。
 	 *   opts.getLine … 開く直前に呼ぶ。「いまの設定」の1行（例：「いまの設定：108 Pt（Lv5）」）か null。
 	 *   opts.getNote … 開く直前に呼ぶ。系列の注記（「◎と共有」「○のレベル」）か null（段7の (14)）。
 	 *   opts.getCombo … 開く直前に呼ぶ。◎として数えている行だけ { baseText, text }（基礎Ptを○と◎の合算にし、合算の1行を足す。C-168）か null。
 	 *   opts.trigger … 'info'（既定。ⓘ と長押し）か 'self'（段7の (14)。el 自身（button）を押すと開く。ⓘ も長押しも付けない）
+	 *   opts.foot … 説明の本文の下部に足すもの（foot(body)。C-243。オススメサポの小窓の中のスキル名だけ。無ければ足さない）
 	 * 長押し：約0.5秒押し続けると開く。10px 以上動いたら・スクロールが始まったら取り消す。端末標準の長押し
 	 * （文字の選択・コンテキストメニュー・iOS の呼び出し）は、-webkit-touch-callout／user-select と contextmenu の抑止で避ける。
 	 */
@@ -9956,13 +10085,15 @@
 		const lineOf = () => { try { return typeof o.getLine === 'function' ? (o.getLine() || null) : null; } catch (e) { return null; } };
 		const noteOf = () => { try { return typeof o.getNote === 'function' ? (o.getNote() || null) : null; } catch (e) { return null; } };
 		const comboOf = () => { try { return typeof o.getCombo === 'function' ? (o.getCombo() || null) : null; } catch (e) { return null; } };
+		// C-243: 下部に足すもの（opts.foot。オススメサポの小窓の中のスキル名だけが渡す）
+		const footOf = () => (typeof o.foot === 'function' ? o.foot : null);
 		if (o.trigger === 'self') {
 			// 名前そのものがボタン（段7の (14)）。Enter／Space は button の既定の click で届く
 			el.setAttribute('data-usd-el', 'skill-info-btn');
 			el.setAttribute('data-skill-id', skillId);
 			el.setAttribute('aria-label', getSkillName(skillId) + 'の説明を開く');
 			el.setAttribute('aria-expanded', 'false');
-			const onClick = () => { if (skillInfoCur && skillInfoCur.btn === el) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), el, el, noteOf(), comboOf()); };
+			const onClick = () => { if (skillInfoCur && skillInfoCur.btn === el) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), el, el, noteOf(), comboOf(), footOf()); };
 			el.addEventListener('click', onClick);
 			return { button: el, detach: function () { el.removeEventListener('click', onClick); } };
 		}
@@ -9976,7 +10107,7 @@
 		el.parentNode.insertBefore(btn, el.nextSibling);
 		el.classList.add('usd-info-target');
 		btn.addEventListener('click', () => {
-			if (skillInfoCur && skillInfoCur.btn === btn) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), btn, btn, noteOf(), comboOf());
+			if (skillInfoCur && skillInfoCur.btn === btn) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), btn, btn, noteOf(), comboOf(), footOf());
 		});
 
 		let timer = 0, sx = 0, sy = 0, active = false;
@@ -9995,7 +10126,7 @@
 				timer = 0;
 				if (!active) return;
 				cancel();
-				openSkillInfo(skillId, lineOf(), btn, el, noteOf(), comboOf());
+				openSkillInfo(skillId, lineOf(), btn, el, noteOf(), comboOf(), footOf());
 			}, SKILL_INFO_LONG_PRESS_MS);
 		};
 		const onMove = (e) => {
@@ -15173,6 +15304,10 @@
 		function recommendInfoOpts(id) {
 			return { skillId: id, trigger: 'self' };
 		}
+		/** オススメサポの小窓の中のスキル名だけ: 説明の小窓の下部に「このスキルが得られるサポートカード」（C-243）。脚質オススメは recommendInfoOpts のまま */
+		function outsideInfoOpts(id) {
+			return { skillId: id, trigger: 'self', foot: (body) => appendSkillCardsPanel(body, id) };
+		}
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
 		function outsideRowPtText(skillId) {
 			const row = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(skillId) : null;
@@ -15294,7 +15429,7 @@
 			h += '</div>';
 			main.innerHTML = h;
 			// スキル名を押すと、①の表のスキル名と同じスキルの詳細（既存の部品）。チェックは変えない（ボタンはラベルの切り替えの対象外）
-			attachSkillInfoIn(main, recommendInfoOpts);
+			attachSkillInfoIn(main, outsideInfoOpts);
 			const inc = q(el, 'outside-incomplete');
 			if (inc) inc.hidden = outsideRosterReady(roster);
 			outsideFitNicks(main);
@@ -16957,6 +17092,11 @@
 		attachSkillInfo: attachSkillInfo,
 		// C-238: スキル名の文字の色のクラス（①の表と同じ回復・デバフ・パッシブの見分け。どれでもなければ空文字）。special の③の表が使う
 		skillNameToneClass: function (skillId) { return pickerNameToneClass(skillId).trim(); },
+		// C-243: そのスキルが得られるサポートカード（SSR・SR。[{ cardId, rarity, typeOrder, title, name, how }]。並びは画面と同じ）。検査が数と並びを確かめる
+		cardsWithSkill: function (skillId) {
+			return cardsWithSkill(skillId).map(r => ({ cardId: r.card.id, rarity: r.card.rarity, typeOrder: cardTypeOrderOf(r.card), title: r.card.title || '', name: formatEntryShortLabel(r.card), isGroup: r.card.isGroup === true,
+				how: r.hint && r.event ? 'ヒント・イベント' : (r.hint ? 'ヒント' : 'イベント') }));
+		},
 		closeSkillInfo: closeSkillInfo,
 		openPopover: openPopover,   // 共有の小窓（段7）
 		ROSTER_LIMIT: ROSTER_LIMIT,
