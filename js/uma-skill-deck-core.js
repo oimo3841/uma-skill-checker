@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30j';
 
 	/* ============================================================
 	 * 定数
@@ -13477,46 +13477,19 @@
 			p.setAttribute('data-usd-el', 'set-total-formula');
 			body.appendChild(p);
 			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds + (sum.crossPaired > 0 ? ' − ' + sum.crossPaired + '（金と下位の白を両方取るため1種に数える）' : '')
-				+ (sum.overlapKinds > 0 ? ' − ' + sum.overlapKinds + '（①と②の両方にあるため1種に数える）' : ''));
+				+ (sum.overlapKinds > 0 ? ' − ' + sum.overlapKinds + '（①と②の両方にあるスキル：' + sum.overlapKinds + '種）' : ''));
 			k.setAttribute('data-usd-el', 'set-total-kinds-formula');
 			body.appendChild(k);
-			// C-178: ①の前段として数えているスキルが②の因子セットにもあるときは、②の額で数えていることを知らせる（表示だけ。数は変えない）
-			// C-223: ①で取得する（ヒントLv が低い）白が②にもあるときも同じ形で知らせる
-			const rows = prevOverlapRows(sum.st);
-			rows.slice(0, 5).forEach(o => {
-				const diff = o.factorPt - o.prevPt;
-				const head = o.kind === 'sure' ? '①で ' + formatPtNumber(o.prevPt) + ' Pt で数えている「' + getSkillName(o.skillId) + '」は'
-					: '①の前段として数えている「' + getSkillName(o.skillId) + '」' + formatPtNumber(o.prevPt) + ' Pt は';
-				const p = infoEl('p', '', head + '、因子で得るため '
-					+ formatPtNumber(o.factorPt) + ' Pt に置き換えて数えています（差 ' + (diff < 0 ? '−' : '') + formatPtNumber(Math.abs(diff)) + ' Pt）');
-				p.setAttribute('data-usd-el', 'set-total-overlap');
-				p.setAttribute('data-skill-id', o.skillId);
-				p.setAttribute('data-overlap', o.kind);
+			// C-246: K の中身（①で取得する低い Lv の白＝重なりが 'sure'）の名前を、②の並びで読点で並べる（文字だけ・押せない）。
+			// 名前は①の状態（①で◎なら◎の名前。C-245 の rosterCircle）。①の前段との重なり（'prev'）は K に入らないので出さない
+			if (sum.overlapKinds > 0) {
+				const link = sum.st && sum.st.rosterCircle ? sum.st.rosterCircle : null;
+				const names = sum.overlapSureIds.slice().sort(compareGameOrder)
+					.map(id => getSkillName(link && link.circleOf.has(id) ? link.circleOf.get(id) : id));
+				const p = infoEl('p', '', '①と②の両方にあるスキル：' + names.join('、'));
+				p.setAttribute('data-usd-el', 'set-total-overlap-names');
 				body.appendChild(p);
-			});
-			if (rows.length > 5) {
-				const more = infoEl('p', '', 'ほか ' + (rows.length - 5) + ' 種');
-				more.setAttribute('data-usd-el', 'set-total-overlap-more');
-				body.appendChild(more);
 			}
-		}
-		/**
-		 * ①の「前段として必要」（取得していない白。ヒントLv0 などで数えているもの）のうち、②の因子セットにも入っているスキル（C-178）。
-		 * ①のPt は前段の項目の pt、②のPt は②の行の Pt（どちらも画面と同じ計算の値）。Pt が出ていない（未収録）ものは除く。表示用で、合計は変えない。
-		 */
-		// C-223: ①で取得する（ヒントLv が低い）白が②にもあるもの（kind 'sure'）も返す。額は系列の根でまとめた値（factorRowPts。行の差 ＝ factorPt − prevPt）。
-		// 並びは①の前段の並び（'prev'）→ ②の並び（'sure'）
-		function prevOverlapRows(st) {
-			if (!st || !st.r || !st.r.ok || !st.overlap || st.overlap.size === 0 || !st.rowPts) return [];
-			const out = [];
-			const push = (id, kind) => {
-				const x = st.rowPts.get(id);
-				if (!x || !x.overlap || x.base === null || x.base === undefined || typeof x.rosterPt !== 'number' || typeof x.factorPt !== 'number') return;
-				out.push({ skillId: id, kind: kind, prevPt: x.rosterPt, factorPt: x.factorPt });
-			};
-			(st.r.rosterPrevIds || []).forEach(id => { if (st.overlap.get(id) === 'prev') push(id, 'prev'); });
-			st.overlap.forEach((kind, id) => { if (kind === 'sure') push(id, kind); });
-			return out;
 		}
 		/**
 		 * レース条件の選択欄（④・段9）。先頭に「指定なし」、続けて一覧の行（1行目＝日付＋レース名、2行目＝公開された条件だけ）。
@@ -14265,7 +14238,7 @@
 			const crossPaired = countCrossPairedKinds((st.inp && st.inp.sureIds) || [], overlapKinds > 0 ? st.ids.filter(id => overlapSure.indexOf(id) === -1) : st.ids);
 			return { rosterPt: rosterPt, rosterKinds: rosterKinds, statusLabel: rs ? rs.statusLabel : '',
 				uniqPt: uniqPt, uniqKinds: uniqKinds, commonPt: commonPt, commonKinds: commonKinds,
-				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired, overlapKinds: overlapKinds,
+				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired, overlapKinds: overlapKinds, overlapSureIds: overlapSure,
 				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds - crossPaired - overlapKinds,
 				takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
 		}

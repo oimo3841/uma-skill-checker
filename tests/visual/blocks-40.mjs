@@ -6,6 +6,7 @@
 //        親由来のレベルで安くなった額で数える。見出しの合計は、その白を1回だけ②の額で数えている（二重ではない）。
 //  (ア) 見出しの（?）の小窓に、重なりがあるときだけ1行（重なりのあるスキルごと。5行を超えるときは「ほか N 種」）:
 //       「①の前段として数えている「名前」X Pt は、因子で得るため Y Pt に置き換えて数えています（差 Z Pt）」。数は変えない。
+//       → C-246（2026-10-30）でこの文は削除（情報はマイナスの小窓 C-242 にある）。前段の重なりは「①と②の両方にあるスキル」の名前の行にも入らない（K に入らない）。
 //  (イ) 金が①・その下位の白が②のとき、**見出しの合計の種数だけ**1種に数える（pairedWhiteIds を①と②をまたぐ場合にも広げる）。
 //       ①の帯の「X Pt／N種」・②の帯の「N種」の数え方は変えない。見出しの Pt は変えない。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
@@ -66,7 +67,7 @@ export async function register40(env) {
 			const pop = document.querySelector('.usd-info-pop');
 			const lines = (sel) => Array.from(document.querySelectorAll(sel)).map((p) => p.textContent);
 			return { open: !!pop && !pop.hidden, text: pop && !pop.hidden ? pop.textContent.replace(/\s+/g, ' ') : null,
-				overlap: lines('[data-usd-el="set-total-overlap"]'), more: lines('[data-usd-el="set-total-overlap-more"]'),
+				overlap: lines('[data-usd-el="set-total-overlap"]'), more: lines('[data-usd-el="set-total-overlap-more"]'), names: lines('[data-usd-el="set-total-overlap-names"]'),
 				kindsFormula: (document.querySelector('[data-usd-el="set-total-kinds-formula"]') || {}).textContent || null,
 				ptFormula: (document.querySelector('[data-usd-el="set-total-formula"]') || {}).textContent || null };
 		});
@@ -140,22 +141,22 @@ export async function register40(env) {
 		}
 	});
 
-	await block('C-178(4) ?の小窓の1行: 重なりがあるときだけ出る・文面の数は①の前段の項目と②の行の値に一致する（F=5・3・1）', async () => {
+	await block('C-178(4) ?の小窓: 前段の重なりは置き換えの文も名前の行も出ない（C-246）・種の式は金と下位の白の括弧のまま・②の行は差（F=5・3・1）', async () => {
 		const basePt = PT.get(NEVER_LOW).pt;
 		for (const F of [5, 3, 1]) {
 			const sp = await openSp({ roster: A, ids: [NEVER_LOW], F });
 			const d = await detail(sp.page, A);
 			const prev = d.prev.find((x) => x.skillId === NEVER_LOW);
 			const r2 = await row2Pt(sp.page, NEVER_LOW);
-			// C-223（2026-10-28）: ②の行は差（②の額 − ①の前段の額。例 −72 Pt）を出すようにそろえた。（?）の文は②の額（全額）で今までの形のまま
+			// C-223（2026-10-28）: ②の行は差（②の額 − ①の前段の額。例 −72 Pt）
 			const rowDiff = (String(r2 || '').trim().startsWith('−') ? -1 : 1) * Number((r2 || '').replace(/[^0-9]/g, ''));
-			const pt2 = (prev ? prev.pt : 0) + rowDiff;
-			const nm = await nameOf(sp.page, NEVER_LOW);
 			const help = await openHelp(sp.page);
 			assert(help.open, 'C-178(4) F=' + F + ' ?の小窓が開く', help);
 			assert(!!prev && prev.pt === ptOf(basePt, 0, 'kire') && rowDiff === ptOf(basePt, F, 'kire') - ptOf(basePt, 0, 'kire') && r2 === signed(rowDiff) + ' Pt', 'C-178(4)→C-223 F=' + F + ' 前提: ①の前段の項目 ' + (prev && prev.pt) + ' Pt・②の行は差 ' + r2 + '（独立の式と一致）', { prev, r2 });
-			assert(help.overlap.length === 1 && help.overlap[0] === '①の前段として数えている「' + nm + '」' + fmt(prev.pt) + ' Pt は、因子で得るため ' + fmt(pt2) + ' Pt に置き換えて数えています（差 ' + signed(pt2 - prev.pt) + ' Pt）',
-				'C-178(4) F=' + F + ' 1行の文面: 「…' + prev.pt + ' Pt は、因子で得るため ' + pt2 + ' Pt に置き換えて…（差 ' + signed(pt2 - prev.pt) + ' Pt）」', help.overlap);
+			// C-246（2026-10-30）: 「置き換えて数えています」の文は削除。前段の重なりは K に入らないので名前の行も出ない
+			assert(help.overlap.length === 0 && help.more.length === 0 && help.names.length === 0 && !/置き換えて|両方にある/.test(help.text || ''),
+				'C-178(4) F=' + F + ' 置き換えの文・「ほか」・名前の行は出ない', help);
+			assert(help.kindsFormula === '種 ＝ ① 39 ＋ ② 7 − 1（金と下位の白を両方取るため1種に数える）', 'C-178(4) F=' + F + ' 種の式は金と下位の白の括弧のまま', help.kindsFormula);
 			assert(!/ヒント|必ず合う|合うことがある|合わない/.test(help.text || ''), 'C-178(4) F=' + F + ' 小窓に「ヒント」「必ず合う／合うことがある／合わない」の語を使わない', help.text);
 			// 閉じる→もう一度開く（開閉）
 			await sp.page.keyboard.press('Escape');
@@ -163,7 +164,7 @@ export async function register40(env) {
 			const closed = await sp.page.evaluate(() => { const p = document.querySelector('.usd-info-pop'); return !p || p.hidden; });
 			assert(closed === true, 'C-178(4) F=' + F + ' Escape で小窓が閉じる', closed);
 			const again = await openHelp(sp.page);
-			assert(again.open && again.overlap.length === 1, 'C-178(4) F=' + F + ' もう一度開くと同じ1行が出る', again);
+			assert(again.open && again.kindsFormula === help.kindsFormula && again.names.length === 0, 'C-178(4) F=' + F + ' もう一度開くと同じ式が出る', again);
 			await sp.ctx.close();
 		}
 	});
@@ -178,7 +179,7 @@ export async function register40(env) {
 		}
 	});
 
-	await block('C-178(6) ?の小窓の行: 重なりが複数なら1行ずつ・5行を超えると「ほか N 種」', async () => {
+	await block('C-178(6) ?の小窓: 前段の重なりが複数（3つ・6つ以上）でも置き換えの文・「ほか N 種」・名前の行は出ない（C-246）', async () => {
 		// 金の下位の白のうち、①で取っているもの（4つ）を「取得しない」にすると、前段として数える項目になり、②に入れられる（取っている白は②に入れても数えない）
 		const R6 = Object.assign({}, A, { offSkillIds: ['319', '180', '278', '45'] });
 		const sp0 = await openSp({ roster: R6, ids: null });
@@ -187,25 +188,14 @@ export async function register40(env) {
 		await sp0.ctx.close();
 		const priced = d0.prev.filter((x) => x.pt !== null && x.pt !== undefined && !t0.includes(x.skillId));
 		assert(priced.length >= 6, 'C-178(6) 前提: ①で取っていない前段の項目（②に入れられるもの）は6つ以上ある', priced.length);
-		// 3つ: 3行（「ほか」なし）
-		const three = priced.slice(0, 3).map((x) => x.skillId);
-		let sp = await openSp({ roster: R6, ids: three, F: 5 });
-		let help = await openHelp(sp.page);
-		assert(help.overlap.length === 3 && help.more.length === 0, 'C-178(6) 重なり3つ: 1行ずつ3行', help);
-		await sp.ctx.close();
-		// 全部（priced の数）: 5行＋「ほか N 種」
-		const all = priced.map((x) => x.skillId);
-		sp = await openSp({ roster: R6, ids: all, F: 5 });
-		help = await openHelp(sp.page);
-		assert(help.overlap.length === 5 && help.more.length === 1 && help.more[0] === 'ほか ' + (all.length - 5) + ' 種', 'C-178(6) 重なり' + all.length + 'つ: 5行＋「ほか ' + (all.length - 5) + ' 種」', help);
-		// 各行の数は ①の前段の項目と②の行の値に一致する
-		const rows = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap"]')).map((p) => ({ id: p.getAttribute('data-skill-id'), t: p.textContent })));
-		for (const r of rows) {
-			const p = priced.find((x) => x.skillId === r.id);
-			const m = /」([\d,]+) Pt は、因子で得るため ([\d,]+) Pt に置き換えて数えています（差 (−?[\d,]+) Pt）/.exec(r.t);
-			assert(!!p && !!m && Number(m[1].replace(/,/g, '')) === p.pt && m[3] === signed(Number(m[2].replace(/,/g, '')) - p.pt), 'C-178(6) ' + r.id + ' の行の数は①の前段の項目（' + (p && p.pt) + ' Pt）と整合する', r);
+		// C-246（2026-10-30）: 前段の重なりの文（最大5行＋「ほか N 種」）は削除。前段は K に入らないので名前の行も出ない
+		for (const ids of [priced.slice(0, 3).map((x) => x.skillId), priced.map((x) => x.skillId)]) {
+			const sp = await openSp({ roster: R6, ids, F: 5 });
+			const help = await openHelp(sp.page);
+			assert(help.open && help.overlap.length === 0 && help.more.length === 0 && help.names.length === 0 && !/置き換えて|ほか \d+ 種|両方にある/.test(help.text || ''),
+				'C-178(6) 前段の重なり' + ids.length + 'つ: 置き換えの文・「ほか」・名前の行は出ない', help);
+			await sp.ctx.close();
 		}
-		await sp.ctx.close();
 	});
 
 	await block('C-178(7) 数は変えない: 見出しの Pt・①の帯・②の帯・取得の集合（takenIds）は、行を足しても同じ／横スクロールなし・エラー0', async () => {

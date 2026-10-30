@@ -9,6 +9,7 @@
 //    C-242（2026-10-30）: 名前の脇の「①と重なり」はやめ、マイナスの Pt を押せる見た目（点線の下線のボタン）にした（小窓の検査は blocks-68）。
 //  ・種数: ②の帯の N種には数え、見出しの合計では重なりを引いて1種。countCrossPairedKinds の二重引きを起こさない。
 //  ・見出しの（?）: 重なりの行の文（●にも広げる）と、種の式の「− N（①と②の両方にあるため1種に数える）」。
+//    C-246（2026-10-30）: 括弧は「− N（①と②の両方にあるスキル：N種）」・重なりの文は削除し、名前の行「①と②の両方にあるスキル：…」（検査は blocks-72）。
 //  ・②の◎の候補: ①で取得する○は候補にしない（(ア)。◎で数えるかは①の切り替えだけ）。
 //  ・脚質オススメ: 対象のスキルは灰色を外し、行の Pt は足したときの差。オススメサポ: 対象のスキルを母集団に含める（点数の付け方は今のまま）。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
@@ -199,34 +200,34 @@ export async function register59(env) {
 		sp = await openSp({ roster: A40, ids: [W] });
 		const b = await read(sp.page, A40);
 		assert(b.crossPaired === 0 && b.overlapKinds === 1 && b.factorKinds === a.factorKinds + 1 && b.totalKinds === a.totalKinds, 'ヒントLv(4) ②の帯は +1 種・見出しの種は変わらない（金と前段の白の組を二重に引かない）', { cross: b.crossPaired, o: b.overlapKinds, f: [a.factorKinds, b.factorKinds], t: [a.totalKinds, b.totalKinds] });
-		// 見出しの（?）: 種の式に「− 1（①と②の両方にあるため1種に数える）」・「金と下位の白」の項は無い
+		// 見出しの（?）: 種の式に「− 1（①と②の両方にあるスキル：1種）」（C-246）・「金と下位の白」の項は無い
 		await sp.page.click(BAR + '[data-usd-act="set-total-help"]');
 		await sp.page.waitForTimeout(300);
 		const kf = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="set-total-kinds-formula"]') || {}).textContent || '');
-		assert(kf === '種 ＝ ① ' + b.rosterKinds + ' ＋ ② ' + b.factorKinds + ' − 1（①と②の両方にあるため1種に数える）', 'ヒントLv(4) 種の式「種 ＝ ① ' + b.rosterKinds + ' ＋ ② ' + b.factorKinds + ' − 1（①と②の両方にあるため1種に数える）」', kf);
+		assert(kf === '種 ＝ ① ' + b.rosterKinds + ' ＋ ② ' + b.factorKinds + ' − 1（①と②の両方にあるスキル：1種）', 'ヒントLv(4) 種の式「種 ＝ ① ' + b.rosterKinds + ' ＋ ② ' + b.factorKinds + ' − 1（①と②の両方にあるスキル：1種）」', kf);
 		await sp.ctx.close();
 	});
 
-	await block('ヒントLv(5) 見出しの（?）: ●の重なりの文「①で X Pt で数えている「名前」は、因子で得るため Y Pt に置き換えて数えています（差 −Z Pt）」／C-178 の前段の重なり（A40＋230）も行は差・「①と重なり」・帯＝行の和', async () => {
+	await block('ヒントLv(5) 見出しの（?）: ●の重なりは名前の行「①と②の両方にあるスキル：名前」（置き換えの文は無い。C-246）／C-178 の前段の重なり（A40＋230）は行は差・帯＝行の和・名前の行に入らない', async () => {
 		let sp = await openSp({ roster: M, ids: [AOHARU] });
 		await sp.page.click(BAR + '[data-usd-act="set-total-help"]');
 		await sp.page.waitForTimeout(300);
-		const info = await sp.page.evaluate((id) => ({ name: UmaSkillDeckCore.getSkillName(id), lines: Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap"]')).map((p) => ({ id: p.dataset.skillId, kind: p.dataset.overlap, text: p.textContent })),
+		const info = await sp.page.evaluate((id) => ({ name: UmaSkillDeckCore.getSkillName(id), lines: Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap"]')).map((p) => p.textContent),
+			names: Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap-names"]')).map((p) => p.textContent),
 			kinds: (document.querySelector('[data-usd-el="set-total-kinds-formula"]') || {}).textContent }), AOHARU);
 		await sp.ctx.close();
-		assert(info.lines.length === 1 && info.lines[0].id === AOHARU && info.lines[0].kind === 'sure'
-			&& info.lines[0].text === '①で 180 Pt で数えている「' + info.name + '」は、因子で得るため 120 Pt に置き換えて数えています（差 −60 Pt）', 'ヒントLv(5) ●の重なりの文（180 → 120・差 −60）', info.lines);
-		assert(/ − 1（①と②の両方にあるため1種に数える）$/.test(info.kinds), 'ヒントLv(5) 種の式に「− 1（①と②の両方にあるため1種に数える）」', info.kinds);
+		assert(info.lines.length === 0 && info.names.length === 1 && info.names[0] === '①と②の両方にあるスキル：' + info.name, 'ヒントLv(5) ●の重なりは名前の行だけ（置き換えの文は出ない）', info);
+		assert(/ − 1（①と②の両方にあるスキル：1種）$/.test(info.kinds), 'ヒントLv(5) 種の式に「− 1（①と②の両方にあるスキル：1種）」', info.kinds);
 		// C-178: A40 ＋ ②「230」（①の前段 Lv0 の白）。変更前は行 90・帯 −72 で合っていなかった → 行も −72
 		sp = await openSp({ roster: A40, ids: ['230'] });
 		const b = await read(sp.page, A40);
 		await sp.page.click(BAR + '[data-usd-act="set-total-help"]');
 		await sp.page.waitForTimeout(300);
-		const l2 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap"]')).map((p) => ({ id: p.dataset.skillId, kind: p.dataset.overlap, text: p.textContent })));
+		const l2 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="set-total-overlap"], [data-usd-el="set-total-overlap-names"]')).map((p) => p.textContent));
 		await sp.ctx.close();
 		const row = b.rows.find((r) => r.id === '230');
 		assert(!!row && row.pt === '−72 Pt' && row.mark === null && row.btn && row.overlap === 'prev' && b.commonPt === -72, 'ヒントLv(5) C-178: 前段の重なりの行は「−72 Pt」（押せるボタン・名前の脇の文言は無い。C-242）・共通スキルの Pt と一致', { row, common: b.commonPt });
-		assert(l2.length === 1 && l2[0].kind === 'prev' && /^①の前段として数えている「.+」162 Pt は、因子で得るため 90 Pt に置き換えて数えています（差 −72 Pt）$/.test(l2[0].text), 'ヒントLv(5) C-178 の（?）の文は今までの形（162 → 90・差 −72）', l2);
+		assert(l2.length === 0, 'ヒントLv(5) C-178 の前段の重なり: 置き換えの文も名前の行も出ない（C-246）', l2);
 		assert(b.overlapKinds === 0 && b.totalKinds === b.rosterKinds + b.factorKinds - b.crossPaired, 'ヒントLv(5) 前段の重なりは見出しの種から引かない（①の種に入っていない）', { o: b.overlapKinds, t: b.totalKinds });
 	});
 
