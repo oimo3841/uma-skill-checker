@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30h';
 
 	/* ============================================================
 	 * 定数
@@ -4777,6 +4777,37 @@
 			return !s || matchesFilters(s, filters, target);
 		};
 	}
+	/**
+	 * 絞り込みの選択欄の行（距離・脚質・バ場の3つのセレクト。段7の (17)・段7b の ④）。①のパネルと、②因子周回の選択欄（C-244）が同じものを描く。
+	 * 値は resolvedFilterOf（レースで固定した軸は選べない状態にして、レースの値を選んだ形で出す。小さな錠の印）。
+	 * o.el … 行の data-usd-el（既定 'filter-row'）／o.act … セレクトの data-usd-act（既定 'filter'）。②は①と別の印で描く（①の検査が文書全体から①の行を探すため）
+	 */
+	function rosterFilterRowHtml(r, o) {
+		const x = o || {};
+		const sel = resolvedFilterOf(r);
+		const locked = raceLockedFilterOf(raceOfRoster(r));
+		let h = '<div class="usd-roster-filterrow" data-usd-el="' + esc(x.el || 'filter-row') + '">';
+		ROSTER_FILTER_AXIS_KEYS.map(k => TAG_AXES.find(a => a.key === k)).filter(Boolean).forEach(axis => {
+			const lk = locked[axis.key] !== undefined;
+			// 段7b の ④：ラベルの行は無し。「指定なし」は「距離指定なし」のように軸の名前を含める
+			h += '<label class="usd-roster-filter' + (lk ? ' usd-roster-filter--locked' : '') + '"' + (lk ? ' data-usd-locked="1"' : '') + '>'
+				+ (lk ? '<svg class="usd-roster-filterlock" data-usd-el="filter-lock" viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false"><rect x="3" y="7" width="10" height="7.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' : '')
+				+ '<select class="uma-input usd-roster-filtersel' + (sel[axis.key] ? ' usd-roster-filtersel--on' : '') + '" data-usd-act="' + esc(x.act || 'filter') + '" data-axis="' + esc(axis.key) + '"' + (lk ? ' disabled' : '') + ' aria-label="' + esc(axis.label + 'で絞り込む' + (lk ? '（レースで固定）' : '')) + '">'
+				+ '<option value=""' + (sel[axis.key] ? '' : ' selected') + '>' + esc(axis.label + '指定なし') + '</option>'
+				+ pickableOptions(axis).map(o => '<option value="' + esc(o.v) + '"' + (sel[axis.key] === o.v ? ' selected' : '') + '>' + esc(o.t) + '</option>').join('')
+				+ '</select></label>';
+		});
+		return h + '</div>';
+	}
+	/** いまの絞り込みの値の並び（C-244。例「中距離・先行・芝」）。軸の順は距離 → 脚質 → バ場。指定の無い軸は出さない（すべて未指定なら ''） */
+	function rosterFilterSummaryOf(sel) {
+		const s = sel || {};
+		return ROSTER_FILTER_AXIS_KEYS.map(k => {
+			const axis = TAG_AXES.find(a => a.key === k);
+			const o = axis && s[k] ? pickableOptions(axis).find(x => x.v === s[k]) : null;
+			return o ? o.t : '';
+		}).filter(Boolean).join('・');
+	}
 	/** 編成で得られるスキル（イベントの選択と、絞り込みから決まる既定の選択を効かせる。①のパネルの computed() の元） */
 	function rosterSkillResultOf(r) {
 		return computeRosterSkills(r, { eventChoices: r.eventChoices, resultPicks: r.resultPicks, acquirePicks: r.acquirePicks, acquireSeen: acquireSeenOf(r), autoChoose: true, isWanted: filterPredicateOf(r) });
@@ -5487,6 +5518,13 @@
 		'.usd-row--excluded input { cursor: default; }',
 		'.usd-row-reason { margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
+		// C-244: ①の絞り込みの値が入った件数の文は、入らない幅では折り返す（値は省略しない）。値「（中距離・先行・芝）」と「N件」は途中で分けない
+		'.usd-excluded-count[data-usd-wrap] { white-space: normal; }',
+		'.usd-excluded-count .usd-nowrap { white-space: nowrap; }',
+		// C-244: 「条件で検索」・オススメサポの題名の右の、①の絞り込みの値（表示だけ。押せない）
+		'.usd-head-filter { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-subtle); }',
+		'.usd-head-filter[hidden] { display: none; }',
+		'.usd-picker-headfilter { margin-left: var(--uma-sp-2); margin-right: auto; }',
 		'.usd-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// ②への追加の知らせ（段F1・C-190）。自動では消えない。×を押す／次に別の操作（知らせ以外を押す・キー入力）で消える。置き場所はページの知らせ（#toast）の上
 		'.usd-addnotice { position: fixed; z-index: 130; display: flex; align-items: center; gap: var(--uma-sp-1); max-width: min(32rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-4);',
@@ -6796,6 +6834,8 @@
 		// ライトもダークもあちらが持つ。C-134 で special.html から移したので、ここに書いていた既定の値（フォールバック）は外した）
 		'.usd-setbody > .uma-section-body { gap: var(--uma-sp-2); }',
 		'.usd-setbody .usd-ptneed { padding: 0; background: transparent; border: 0; border-radius: 0; }',
+		// C-244: 合計の行と入口の行の間の絞り込みの選択欄（中身は①の .usd-roster-filterrow と同じ部品・同じ見た目）
+		'.usd-factor-filter { min-width: 0; }',
 		'.usd-bandbox { background: var(--uma-band); border-radius: 10px; padding: 8px 10px; }',
 		'.usd-band-sum { display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--uma-text-heading); }',
 		'.usd-band-pt { font-size: 22px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }',
@@ -7344,6 +7384,8 @@
 			'<div class="usd-modal-panel usd-picker-panel" data-usd-el="picker-panel">' +
 				'<div class="usd-picker-head flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
 					'<p class="text-sm font-semibold text-slate-700" data-usd-el="picker-title">条件で検索</p>' +
+					// C-244: 題名の右に①の絞り込みの値（例「中距離・先行・芝」。表示だけ。「条件で検索」で①の絞り込みがあるときだけ。syncPickerRosterSel）
+					'<span class="usd-head-filter usd-picker-headfilter" data-usd-el="picker-roster-filter" hidden></span>' +
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				// ヘッダー／スクロール領域／フッターの3段。真ん中だけが伸び縮みするので、
@@ -8121,19 +8163,25 @@
 	 * 単位は**その一覧の数え方に合わせる**: 「条件で検索」は「絞り込み結果（N件）」なので「件」、
 	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」。
 	 */
-	function setExcludedCountLabel(el, count, unit, raceCount, filterCount) {
+	function setExcludedCountLabel(el, count, unit, raceCount, filterCount, filterText) {
 		if (!el) return;
 		// 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数。
 		// C-129: レース条件だけで選べない行は別に数える（本育成の理由が先）
 		// 2つ以上あるときは短い形「選べない：本育成編成 N件・レース条件 M件」（375px・320px で実測）。
 		// C-222: ①の絞り込みだけで選べない行（「条件で検索」だけ）も別に数え、同じ形で「①の絞り込み L件」を足す
+		// C-244: ①の絞り込みの値を出す「①の絞り込み（中距離・先行・芝）に合わないため選べない N件」／短い形「①の絞り込み（中距離・先行・芝）L件」。
+		// 値の入った文は、入らない幅では折り返す（data-usd-wrap。値と「N件」は途中で分けない）
 		const parts = [];
-		if (count > 0) parts.push(['本育成編成 ' + count + '件', '本育成編成のため選べない ' + count + '件']);
-		if (raceCount > 0) parts.push(['レース条件 ' + raceCount + '件', 'レース条件に合わないため選べない ' + raceCount + '件']);
-		if (filterCount > 0) parts.push(['①の絞り込み ' + filterCount + '件', '①の絞り込みに合わないため選べない ' + filterCount + '件']);
-		const text = parts.length === 0 ? '' : parts.length === 1 ? parts[0][1] : '選べない：' + parts.map(p => p[0]).join('・');
-		el.hidden = !text;
-		el.textContent = text;
+		const nw = (s) => '<span class="usd-nowrap">' + esc(s) + '</span>';
+		const fv = filterText ? nw('（' + filterText + '）') : ' ';
+		if (count > 0) parts.push([esc('本育成編成 ' + count + '件'), esc('本育成編成のため選べない ' + count + '件')]);
+		if (raceCount > 0) parts.push([esc('レース条件 ' + raceCount + '件'), esc('レース条件に合わないため選べない ' + raceCount + '件')]);
+		if (filterCount > 0) parts.push(filterText ? ['①の絞り込み' + fv + nw(filterCount + '件'), '①の絞り込み' + fv + 'に合わないため選べない ' + nw(filterCount + '件')]
+			: [esc('①の絞り込み ' + filterCount + '件'), esc('①の絞り込みに合わないため選べない ' + filterCount + '件')]);
+		const html = parts.length === 0 ? '' : parts.length === 1 ? parts[0][1] : esc('選べない：') + parts.map(p => p[0]).join('・');
+		el.hidden = !html;
+		el.innerHTML = html;
+		if (filterCount > 0 && filterText) el.setAttribute('data-usd-wrap', ''); else el.removeAttribute('data-usd-wrap');
 	}
 
 	/**
@@ -8210,6 +8258,15 @@
 		if (box) box.checked = pickerLowOff;
 	}
 
+	/** 「条件で検索」の題名の右の①の絞り込みの値（C-244。表示だけ）。「条件で検索」で①の絞り込みがあるときだけ（special の②。すべて未指定なら出さない） */
+	function syncPickerRosterSel() {
+		const el = pickerEl ? q(pickerEl, 'picker-roster-filter') : null;
+		if (!el) return;
+		const text = picker && picker.mode === 'filter' && pickerRosterFilter ? rosterFilterSummaryOf(pickerRosterFilter.sel) : '';
+		el.textContent = text;
+		el.hidden = !text;
+	}
+
 	function renderPickerResults() {
 		if (!pickerEl) return;
 		// 緑スキルの一覧も同じ合図で作り直す（72セッション目・段9）。
@@ -8228,7 +8285,8 @@
 		const excludedCount = rows.length - filtered.length - raceCount - filterCount;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
 		renderPickerLowEffect();
-		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount, filterCount);
+		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount, filterCount, pickerRosterFilter ? rosterFilterSummaryOf(pickerRosterFilter.sel) : '');
+		syncPickerRosterSel();
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
 		updatePickerCommitState();
@@ -8844,6 +8902,7 @@
 
 		const spec = PICKER_MODES[picker.mode];
 		q(pickerEl, 'picker-title').textContent = spec.title;
+		syncPickerRosterSel();
 		// ocr モードは paste の枠を借りる（貼り付け欄だけ隠す）。要約は openSkillRowsPicker が入れる
 		const isOcr = picker.mode === 'ocr';
 		q(pickerEl, 'picker-panel').setAttribute('data-usd-mode', picker.mode);
@@ -11848,22 +11907,9 @@
 				const members = res.members;
 				// 前段の1行（「ヒントLv0：…」。段8・C でパネルの下へ）
 				if (ptView) h += ptSubHtml(ptView);
-				// 絞り込み（段7の (17)）: 距離・脚質・バ場。選択肢は TAG_AXES から
-				const sel = resolvedFilter();
-				// レースで固定している軸（④・段8）: 選べない状態にして、レースの値を選んだ形で出す。小さな錠の印（説明の文は足さない）
-				const locked = raceLockedFilterOf(raceOfRoster(roster));
-				h += '<div class="usd-roster-filterrow" data-usd-el="filter-row">';
-				filterAxes().forEach(axis => {
-					const lk = locked[axis.key] !== undefined;
-					// 段7b の ④：ラベルの行は無し。「指定なし」は「距離指定なし」のように軸の名前を含める
-					h += '<label class="usd-roster-filter' + (lk ? ' usd-roster-filter--locked' : '') + '"' + (lk ? ' data-usd-locked="1"' : '') + '>'
-						+ (lk ? '<svg class="usd-roster-filterlock" data-usd-el="filter-lock" viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false"><rect x="3" y="7" width="10" height="7.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' : '')
-						+ '<select class="uma-input usd-roster-filtersel' + (sel[axis.key] ? ' usd-roster-filtersel--on' : '') + '" data-usd-act="filter" data-axis="' + esc(axis.key) + '"' + (lk ? ' disabled' : '') + ' aria-label="' + esc(axis.label + 'で絞り込む' + (lk ? '（レースで固定）' : '')) + '">'
-						+ '<option value=""' + (sel[axis.key] ? '' : ' selected') + '>' + esc(axis.label + '指定なし') + '</option>'
-						+ pickableOptions(axis).map(o => '<option value="' + esc(o.v) + '"' + (sel[axis.key] === o.v ? ' selected' : '') + '>' + esc(o.t) + '</option>').join('')
-						+ '</select></label>';
-				});
-				h += '</div>';
+				// 絞り込み（段7の (17)）: 距離・脚質・バ場。選択肢は TAG_AXES から。レースで固定している軸（④・段8）は選べない状態で、レースの値を選んだ形（小さな錠の印）。
+				// 行は②因子周回の選択欄（C-244）と同じ部品（rosterFilterRowHtml）
+				h += rosterFilterRowHtml(roster);
 				// 「絞り込み中」の印は段7c（L）で削除した（条件は（?）の小窓に残る）。セレクトの行の高さは絞り込みで変わらない
 				// 並べ替え（段7の (16)）: 押した列のメンバーが得るスキルを上へ（安定ソート）
 				// 並び（段7e の (1)）: 金スキルと、その直前の白スキルが同じ表にあるときは、金スキルの直下に前段の白を置く（単位として動かす）。
@@ -12535,6 +12581,22 @@
 			return true;
 		};
 		/**
+		 * 絞り込み（距離・脚質・バ場）の1軸（C-244。②因子周回の選択欄から書く）。①のセレクトを変えたときと同じ保存・描き直し（setFilter → render）。
+		 * 知らない軸・知らない値・レースで固定している軸は書かない（false）。変わらない値は何もしない
+		 */
+		rosterOutsideSink.setFilter = function (axisKey, value) {
+			const axis = filterAxes().find(a => a.key === axisKey);
+			const v = typeof value === 'string' ? value : '';
+			if (!axis || (v && !pickableOptions(axis).some(o => o.v === v))) return false;
+			if (raceLockedFilterOf(raceOfRoster(roster))[axisKey] !== undefined) return false;
+			const now = roster.skillFilter && typeof roster.skillFilter === 'object' && typeof roster.skillFilter[axisKey] === 'string' ? roster.skillFilter[axisKey] : '';
+			if (now === v) return true;
+			gridScrollReset = true;
+			setFilter(axisKey, v);
+			render();
+			return true;
+		};
+		/**
 		 * 「種類」「除外」「枚数」と残りの枠の指定（④・段10・段13。roster.outsideOptions）。patch に入れた項目だけを置き換える
 		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／exclude: { 軸: [値…] }／pinned: [カードID…]）。既定と同じ（5枚・空・除外は初期値）なら、その項目を消し、全部消えたら項目ごと消す。
 		 * 中身が変わらなければ書かない。①の表には効かないので、①は描き直さない。
@@ -12923,6 +12985,12 @@
 			group.appendChild(head);
 			group.appendChild(q(container, 'selected-list'));
 			body.appendChild(group);
+			// C-244: 合計の行と入口の行の間に、①と同じ絞り込みの選択欄（距離・脚質・バ場）。中身は renderFactorFilter()
+			const filterEl = global.document.createElement('div');
+			filterEl.className = 'usd-factor-filter';
+			filterEl.setAttribute('data-usd-el', 'factor-filter');
+			filterEl.hidden = true;
+			body.insertBefore(filterEl, group);
 			// C-235: 合計の行と入口の行の文字の段（入らない幅だけ小さくする）。描き直しと幅の変化（タブを開いて見えたときを含む）で測り直す
 			if (typeof ResizeObserver === 'function') {
 				new ResizeObserver(() => fitSetHead()).observe(q(container, 'pt-need'));
@@ -13077,6 +13145,14 @@
 			if (act === 'pt-parent-level') { setParentHintLevel(Number(box.value)); return; }
 			if (act === 'uniq-count') { setInheritedUnique('count', Number(box.value)); return; }
 			if (act === 'uniq-level') { setInheritedUnique('hintLevel', Number(box.value)); return; }
+			// C-244: ②の絞り込みの選択欄。同じセットの①の skillFilter に書く（①のパネルの受け口。脚質オススメの脚質と同じ作り）
+			if (act === 'factor-filter') {
+				if (rosterOutsideSink && typeof rosterOutsideSink.setFilter === 'function') rosterOutsideSink.setFilter(box.getAttribute('data-axis'), box.value || '');
+				// 書かなかったとき（レースで固定した軸など）も、選択欄を保存値の形に描き直す（①の選択欄と同じ）
+				factorFilterHtml = '';
+				renderFactorFilter();
+				return;
+			}
 			if (act !== 'scope-check') return;
 			setScope(box.dataset.scope, box.checked);
 		});
@@ -14213,7 +14289,27 @@
 		function openPtTotalPopover(btn) {
 			openPopover({ key: 'pt-total:' + draftScopeKey, title: '必要スキルPtの合計', build: fillPtTotalInfo, btn: btn, opener: btn, refocus: '[data-usd-act="pt-total-help"]' });
 		}
+		/**
+		 * ②因子周回の絞り込みの選択欄（C-244）。①と同じ部品（rosterFilterRowHtml）で、値は同じセットの①（linkedRosterOf。applyRosterHidden と同じ）。
+		 * ①が空のセットでも出す（選ぶと①の編成ができる）。描く中身が変わらなければ描き直さない（開いたセレクトを閉じない）。描き直したら、押していたセレクトにフォーカスを戻す
+		 */
+		let factorFilterHtml = '';
+		function renderFactorFilter() {
+			const el = q(container, 'factor-filter');
+			if (!el) return;
+			if (!rosterOutsideSink || typeof rosterOutsideSink.setFilter !== 'function') { el.hidden = true; el.innerHTML = ''; factorFilterHtml = ''; return; }
+			const html = rosterFilterRowHtml(linkedRosterOf(currentTarget()) || {}, { el: 'factor-filter-row', act: 'factor-filter' });
+			if (html === factorFilterHtml && !el.hidden) return;
+			const active = global.document.activeElement;
+			const axis = active && el.contains(active) ? active.getAttribute('data-axis') : null;
+			factorFilterHtml = html;
+			el.innerHTML = html;
+			el.hidden = false;
+			if (axis) focusNoScroll(el.querySelector('select[data-axis="' + axis + '"]'));
+		}
 		function renderPtNeed() {
+			// C-244: 選択欄は Pt のデータの読み込みに関係なく出す
+			if (setBased) renderFactorFilter();
 			const el = q(container, 'pt-need');
 			if (!el) return;
 			// 段8: 帯の合計も同じ数字から出すので、ここで描き直す（継承固有・ヒントLv・ランクの ON/OFF の変更でも追随する）
@@ -14932,6 +15028,8 @@
 				+ '<div class="usd-out-head">'
 				+ '<div class="usd-out-headl"><p class="usd-out-title"><span data-usd-el="outside-title">オススメサポ</span>'
 				+ '<button type="button" class="uma-help-btn" data-usd-act="outside-help" data-usd-el="outside-help" aria-haspopup="dialog" aria-expanded="false" aria-label="オススメサポの説明" title="オススメサポの説明">?</button></p>'
+				// C-244: 題名の右に①の絞り込みの値（例「中距離・先行・芝」。表示だけ。すべて未指定なら出さない。syncOutsideRosterSel）
+				+ '<span class="usd-head-filter" data-usd-el="outside-roster-filter" hidden></span>'
 				+ '<span class="usd-out-incomplete" data-usd-el="outside-incomplete" role="status" hidden>本育成編成が完了していません</span></div>'
 				+ '<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="outside-close" data-usd-el="outside-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>'
 				+ '</div>'
@@ -15006,9 +15104,18 @@
 			return el;
 		}
 
+		/** オススメサポの題名の右の①の絞り込みの値（C-244。表示だけ。値は計算と同じ①の編成の resolvedFilterOf。すべて未指定なら出さない） */
+		function syncOutsideRosterSel(roster) {
+			const sel = outsideUi.el ? q(outsideUi.el, 'outside-roster-filter') : null;
+			if (!sel) return;
+			const text = rosterFilterSummaryOf(resolvedFilterOf(roster || {}));
+			sel.textContent = text;
+			sel.hidden = !text;
+		}
 		function openOutsideAdvisor(btn) {
 			const roster = rosterOutsideSink ? rosterOutsideSink.getRoster() : null;
 			const el = ensureOutsideUi();
+			syncOutsideRosterSel(roster);
 			outsideUi.open = true;
 			outsideUi.excludedOpen = false;
 			outsideUi.result = null;
@@ -15432,6 +15539,7 @@
 			attachSkillInfoIn(main, outsideInfoOpts);
 			const inc = q(el, 'outside-incomplete');
 			if (inc) inc.hidden = outsideRosterReady(roster);
+			syncOutsideRosterSel(roster);
 			outsideFitNicks(main);
 			updateOutsideFoot();
 			// 小窓の高さが変わったら、出ている知らせの位置も合わせる（段13。計算のあとで小窓が短くなる場合）

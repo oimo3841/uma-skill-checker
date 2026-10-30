@@ -78,6 +78,10 @@ export async function register48(env) {
 			assert(bad.length === 0 && (fit || m.w === want.w) && m.h === want.h && (!fit || /^(9|10)px$/.test(m.fontSize)), tag + '計算された見た目が 0530272 と同一（枠 ' + (m && m.border[0]) + '・高さ ' + (m && m.h) + '・角丸 ' + (m && m.radius) + (fit ? '。C-235 の段 ' + fit + ' で文字 ' + m.fontSize + '・余白だけ小さい' : '') + '）', bad.map((f) => [f, m[f], want[f]]));
 			// C-235: 390・360px は入口の行に残るボタンが減って行が横に送られなくなった（端のフェードの重ね描きが無い）ため、周りの画素が 0530272 と同じにならない。画素の一致は 1280px で見る
 			if (fit || w !== 1280) { await sp.ctx.close(); continue; }
+			// C-244: 合計の行と入口の行の間に②の絞り込みの選択欄が入った。選択欄が見えていると、Chromium がボタンの文字を描く画素が変わる
+			// （ボタンの位置・計算された見た目は同じ。選択欄を visibility: hidden にして同じ位置で撮ると、変更前と全画素が一致することを確かめた）。
+			// ボタン自身の画素を 0530272 と比べるため、切り出す間だけ選択欄を見えなくする（場所は取ったまま）
+			await sp.page.addStyleTag({ content: '#deck-template-panel [data-usd-el="factor-filter"] { visibility: hidden; }' });
 			const ph = await cropHash(sp.page, SEL.outside);
 			// ②因子周回 段1（2026-10-27）: ボタンの上端が整数の位置にあるときは、0530272 で上端を整数の位置にそろえて測った値（pixelSha256IntY）と比べる
 			// （0530272 の 390・360px は上端が小数の位置で、にじみの分だけ画素が違う。値の出どころは f0-baseline-0530272.json の _noteIntY）

@@ -72,9 +72,23 @@ export async function register58(env) {
 			}),
 			count: document.querySelector('[data-usd-el="result-count"]').textContent,
 			label: (() => { const e = document.querySelector('[data-usd-el="result-excluded"]'); return e.hidden ? '' : e.textContent; })(),
-			labelFits: (() => { const e = document.querySelector('[data-usd-el="result-excluded"]'); return e.hidden || e.getBoundingClientRect().right <= e.parentElement.getBoundingClientRect().right + 0.5; })()
+			// C-244: 件数の段落は flex の子で、文が折り返さないと段落ごと広がる（親の右端と比べても捕まらない）。小窓の本文の内側の右端と、本文の横スクロールで見る
+			labelFits: (() => {
+				const e = document.querySelector('[data-usd-el="result-excluded"]');
+				const body = document.querySelector('[data-usd-el="picker-body"]');
+				const br = body.getBoundingClientRect().right - parseFloat(getComputedStyle(body).paddingRight);
+				return body.scrollWidth <= body.clientWidth + 1 && (e.hidden || (e.getBoundingClientRect().right <= br + 0.5 && e.parentElement.getBoundingClientRect().right <= br + 0.5));
+			})(),
+			// C-244: 件数の文の行数（値が入ると入らない幅では折り返す。2行まで）
+			labelLines: (() => { const e = document.querySelector('[data-usd-el="result-excluded"]'); if (e.hidden) return 0; const tops = new Set(Array.from(e.getClientRects()).filter((r) => r.width > 0).map((r) => Math.round(r.top))); return tops.size; })()
 		};
 	});
+	/** C-244: ①の絞り込みの値の並び（距離 → 脚質 → バ場。選択肢の表示名は TAG_AXES から。検査の側で組む） */
+	const filterValueText = (page, sel) => page.evaluate((sel) => {
+		const C = UmaSkillDeckCore;
+		return ['distance', 'style', 'surface'].map((k) => { const ax = C.TAG_AXES.find((a) => a.key === k); const o = sel[k] ? C.pickableOptions(ax).find((x) => x.v === sel[k]) : null; return o ? o.t : ''; }).filter(Boolean).join('・');
+	}, sel);
+	const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
 	await block('検索小窓(1) 「その他」の軸の「サポカ外」: non-support-skills.json からシナリオスキルを除いたものだけが出る（パッシブも出る）／「シナリオスキル」と OR／シナリオスキルを一覧に混ぜると外れる（破壊確認）', async () => {
@@ -199,8 +213,10 @@ export async function register58(env) {
 		assert(blocked.length > 0 && kinds.length >= 2, '検索小窓(3) 空振りしていない（合わない行 ' + blocked.length + '件・理由 ' + kinds.length + '種）', kinds);
 		// 育成ウマ娘自身のスキル（本育成編成）の分もあるので、①の分は短い形「…・①の絞り込み N件」。N は①の理由の行の数（本育成の理由が先なので、期待値の合わない行より少ないことがある）
 		const filtRows = a.rows.filter((r) => /が合わないため/.test(r.reason)).length;
-		const mA = /①の絞り込み(?:に合わないため選べない)? (\d+)件/.exec(a.label);
-		assert(a.count === a.rows.filter((r) => !r.gray).length + '件' && mA && Number(mA[1]) === filtRows && filtRows > 0 && a.labelFits, '検索小窓(3) 件数: 「N件」は追加できる行・先頭の行に「①の絞り込み N件」（N は①の理由の行の数・1行に収まる）', { count: a.count, label: a.label, filtRows });
+		// C-244: 値を出す「①の絞り込み（長距離・逃げ・ダート）L件」（短い形）／「①の絞り込み（…）に合わないため選べない N件」
+		const fvA = await filterValueText(sp.page, FILTER);
+		const mA = new RegExp('①の絞り込み（' + escRe(fvA) + '）(?:に合わないため選べない )?(\\d+)件').exec(a.label);
+		assert(a.count === a.rows.filter((r) => !r.gray).length + '件' && fvA.split('・').length === 3 && mA && Number(mA[1]) === filtRows && filtRows > 0 && a.labelFits && a.labelLines >= 1 && a.labelLines <= 2, '検索小窓(3) 件数: 「N件」は追加できる行・先頭の行に「①の絞り込み（' + fvA + '）N件」（N は①の理由の行の数・横にはみ出さず2行まで）', { count: a.count, label: a.label, filtRows, lines: a.labelLines });
 		// ①の表の絞り込み（filterPredicateOf）と同じ結果か: 下書きの①の可視の判定と、灰色かどうかが一致
 		const same = await sp.page.evaluate(({ ids, roster }) => {
 			const C = UmaSkillDeckCore;
@@ -247,8 +263,12 @@ export async function register58(env) {
 		const hasAll = /本育成/.test(c.label) && /レース条件/.test(c.label) && /①の絞り込み/.test(c.label);
 		const order = c.label.indexOf('本育成') < c.label.indexOf('レース条件') && c.label.indexOf('レース条件') < c.label.indexOf('①の絞り込み');
 		const filt = c.rows.filter((r) => /が合わないため/.test(r.reason)).length;
-		const m = /①の絞り込み (\d+)件/.exec(c.label);
-		assert(hasAll && order && /^選べない：/.test(c.label) && m && Number(m[1]) === filt && reasonsPer, '検索小窓(3) 3つ重なるとき: 「選べない：本育成編成 N件・レース条件 N件・①の絞り込み N件」の順・①の数は①の理由の行の数・行の理由は1つ', { label: c.label, filt });
+		// C-244: ①の値はレースで固定した距離・バ場を含む（resolvedFilterOf と同じ。脚質は①の値）
+		const fvC = await filterValueText(sp3.page, { distance: RACE.distanceCategory, style: 'nige', surface: RACE.surface });
+		const m = new RegExp('①の絞り込み（' + escRe(fvC) + '）(\\d+)件$').exec(c.label);
+		// 理由が3つのときは、値を省略しない限り 320px の2行に入らない（「絞り込み結果（N件）」の後ろから始まるので3行）。横にはみ出さないことを見る
+		// （C-244 より前は、折り返さずに小窓の本文の中で横にはみ出していた）
+		assert(hasAll && order && /^選べない：/.test(c.label) && m && Number(m[1]) === filt && reasonsPer && c.labelFits && c.labelLines <= 3, '検索小窓(3) 3つ重なるとき: 「選べない：本育成編成 N件・レース条件 N件・①の絞り込み（' + fvC + '）N件」の順・①の数は①の理由の行の数・行の理由は1つ・320px で横にはみ出さない（3行まで）', { label: c.label, filt, lines: c.labelLines });
 		// ①の理由の行は、本育成の理由・レース条件の理由に当たらないものだけ
 		const overlap = await sp3.page.evaluate((ids) => ids.filter((id) => UmaSkillDeckCore.getPickerHiddenIds().includes(id)), c.rows.filter((r) => /が合わないため/.test(r.reason)).map((r) => r.id));
 		assert(overlap.length === 0, '検索小窓(3) ①の理由の行に、本育成で得るスキルは無い（本育成の理由が先）', overlap);

@@ -96,6 +96,7 @@ import { register66 } from './blocks-66.mjs';
 import { register67 } from './blocks-67.mjs';
 import { register68 } from './blocks-68.mjs';
 import { register69 } from './blocks-69.mjs';
+import { register70 } from './blocks-70.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15446,6 +15447,8 @@ await register67({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register68({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // オススメサポの小窓の中のスキル名の小窓の「このスキルが得られるサポートカード」（C-243。塊の見出しはすべて「得られるサポカ」で始まる）
 await register69({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// ②因子周回の絞り込みの選択欄・小窓の題名の右の値・件数の文の値（C-244。塊の見出しはすべて「②絞り込み欄」で始まる）
+await register70({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
