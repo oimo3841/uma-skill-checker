@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30d';
 
 	/* ============================================================
 	 * 定数
@@ -670,9 +670,10 @@
 	 */
 	function axisRuleHint(axis) {
 		return axis.exclusive
-			? '選んだもの以外を持つスキルは出ない（この軸のタグが無いスキルは出る）'
+			// 2026-10-30（おいもさんの決定）: 文面を今の動き（制限のタグが無いスキルの扱い）に合わせて短くした。動きを変えるときは文面も直す
+			? '選んだ制限を持つスキル、または制限なし（OR）'
 			: axis.emptyMeansNone
-				? '選んだもののいずれかに一致（OR）。この軸のタグが無いスキルは出ない'
+				? '選んだもののいずれかに一致（OR）。'
 				: '選んだもののいずれかに一致（OR）';
 	}
 
@@ -5853,12 +5854,14 @@
 		'.usd-target-distance-field { display: inline-flex; align-items: center; gap: var(--uma-sp-1); }',
 		'.usd-target-distance-input { width: 6.5em; padding: var(--uma-sp-0-5) var(--uma-sp-1-5); font-size: var(--uma-fs-sm); }',
 		'.usd-target-distance-input[aria-invalid="true"] { border-color: var(--uma-danger-text); }',
-		'.usd-target-distance-hint { flex-basis: 100%; margin: 0; }',
+		// 【INTENTIONALLY_REMOVED・2026-10-30（おいもさんの決定）】入力欄の下の説明文（.usd-target-distance-hint）は消した
 		// エラーの文は**場所を常に取る**（1行ぶんの min-height ＋ visibility）。hidden で消すと、
 		// 文が出た瞬間にパネルが伸びて下のスキル一覧が跳ねる（375px で実測 230→236px）
 		'.usd-target-distance-error { flex-basis: 100%; margin: 0; min-height: var(--uma-lh-xs); visibility: hidden;',
 		'  color: var(--uma-danger-text); font-weight: 600; }',
-		'.usd-target-distance-error[data-shown="true"] { visibility: visible; }',
+		// **visible ではなく inherit**（2026-10-30）。選んでいない軸のパネルは visibility: hidden で重ねてあり、
+		// 子に visible を書くと親の hidden を破って、ほかの軸を開いたときに透けて見える（チェックの印と同じ不具合）
+		'.usd-target-distance-error[data-shown="true"] { visibility: inherit; }',
 		'.usd-opts-wrap { position: relative; }',
 		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2);',
 		'  max-height: calc(var(--usd-opt-row) * 3 + var(--uma-sp-2) * 2);',
@@ -5929,6 +5932,36 @@
 		 * **固定値なのは「条件で検索」と同じ理由**（段6【3】）で、件数でモーダルの高さを動かさないため。
 		 * `min()` の上限（560px）は、`.usd-modal-panel` の max-height: 85vh に余裕を持って収まる値。 */
 		'.usd-results--tall { height: min(60vh, 560px); height: min(60dvh, 560px); }',
+		/* **スマホ幅の「条件で検索」**（2026-10-30・おいもさんの決定）。それまでは軸の選択肢を開くと、
+		 * 小窓の高さ（85dvh）・いちばん背の高い軸に揃えたパネル・固定 280px の一覧の箱が重なって本文ごとスクロールし、
+		 * 393×700 では一覧の上端が下の固定の行と同じ高さになって**1行も見えなかった**（実測）。そこで、この幅の、このモードだけ:
+		 *   - 小窓を画面の上 12px まで使う（高さを固定。件数で動かない）。見出しと下の行の上下の余白を 16/12 → 8px に
+		 *   - 本文を縦の flex にし、**一覧の箱が残りを全部受け取る**（最低3行ぶん）。畳んだときは、選択肢のパネルのぶんがそのまま一覧へ回る
+		 *     （--usd-results-extra の足し算は、この幅では使わない）
+		 *   - 選んでいない軸のパネルは場所を取らない（display: none）。選択肢の少ない軸で空きが残らない
+		 *   - それでも入らない高さでは、選択肢のパネルの中だけがスクロールする（一覧の3行を先に取る）
+		 * 押す範囲（タブ・チップ・×・追加のボタン）と文字の大きさは変えない。PC 幅（641px 以上）は不変。 */
+		'@media (max-width: 640px) {',
+		'  .usd-picker-panel[data-usd-mode="filter"] { height: calc(100vh - 12px); max-height: none;',
+		'    height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-picker-head { padding-top: var(--uma-sp-2); padding-bottom: var(--uma-sp-2); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-picker-body { flex: 1 1 auto; display: flex; flex-direction: column;',
+		'    padding-top: var(--uma-sp-3); padding-bottom: var(--uma-sp-2); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] [data-usd-el="mode-filter"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }',
+		'  .usd-picker-panel[data-usd-mode="filter"] [data-usd-el="filter-axes"] { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-axis-tabs { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; margin-bottom: var(--uma-sp-2); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-tabbar { flex: none; }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-tabpanels { flex: 0 1 auto; min-height: 0; overflow-y: auto;',
+		'    padding: var(--uma-sp-2) var(--uma-sp-3) var(--uma-sp-2-5); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-tabpanel:not(.is-active) { display: none; }',
+		// 選択肢が箱に収まる軸では「▼ ほか N件」の行の場所も取らない（スクロールし切って消えるときは、跳ねないよう今までどおり場所を取る）
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-opts-more[data-fits="true"] { display: none; }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-active-summary { flex: none; margin-top: var(--uma-sp-1-5); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] [data-usd-el="results"] { flex: 1 1 0; height: auto;',
+		'    min-height: calc((var(--uma-lh-sm) + var(--uma-sp-1-5) * 2 + 1px) * 3 + 2px); }',
+		'  .usd-picker-panel[data-usd-mode="filter"] .usd-modal-foot { padding-top: var(--uma-sp-2);',
+		'    padding-bottom: max(var(--uma-sp-2), env(safe-area-inset-bottom)); }',
+		'}',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -5948,7 +5981,10 @@
 		'.usd-opt input::after { content: ""; width: 8px; height: 4.5px; border: 2px solid var(--uma-text-inverse);',
 		'  border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); visibility: hidden; }',
 		'.usd-opt input:checked { background: var(--uma-accent); border-color: var(--uma-accent); }',
-		'.usd-opt input:checked::after { visibility: visible; }',
+		// **visible ではなく inherit**（2026-10-30 の不具合の直し）。選んでいない軸のパネルは同じマスに重ねて
+		// visibility: hidden で隠している（.usd-tabpanel:not(.is-active)）。visible を書くと子が親の hidden を破り、
+		// 「その他」で選んだ印が、ほかの軸の同じ位置の選択肢（フェーズの「スタート時」の丸など）に透けて出ていた
+		'.usd-opt input:checked::after { visibility: inherit; }',
 		'.usd-opt:has(input:checked) { background: var(--uma-accent-soft); border-color: var(--uma-accent-border);',
 		'  color: var(--uma-accent-soft-text); font-weight: 600; }',
 		'.usd-opt:has(input:focus-visible) { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }',
@@ -7208,15 +7244,16 @@
 
 	function pickerMarkup() {
 		return '' +
-			'<div class="usd-modal-panel">' +
-				'<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
+			// usd-picker-panel / -head / -body と data-usd-mode（openPicker が入れる）は、スマホ幅の「条件で検索」の組み方（2026-10-30）の目印
+			'<div class="usd-modal-panel usd-picker-panel" data-usd-el="picker-panel">' +
+				'<div class="usd-picker-head flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
 					'<p class="text-sm font-semibold text-slate-700" data-usd-el="picker-title">条件で検索</p>' +
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				// ヘッダー／スクロール領域／フッターの3段。真ん中だけが伸び縮みするので、
 				// 一覧をいくら下までスクロールしても追加ボタンが視界から消えない。
 				// min-height:0 が無いと、flex の子は中身の高さより小さくなれず溢れる。
-				'<div class="p-4" data-usd-el="picker-body" style="overflow:auto;min-height:0;">' +
+				'<div class="usd-picker-body p-4" data-usd-el="picker-body" style="overflow:auto;min-height:0;">' +
 					// ---- 条件でスキルを検索 ----
 					'<div class="usd-mode" data-usd-el="mode-filter">' +
 						// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
@@ -7446,7 +7483,6 @@
 							' id="usd-target-distance-input" data-usd-el="target-distance" data-usd-axis="' + axis.key + '" placeholder="例: 2400"/>' +
 						'<span>m</span>' +
 					'</span>' +
-					'<p class="usd-target-distance-hint">入れると、その距離のレースで発動するスキルに絞る（区分は距離から決まる）</p>' +
 					'<p class="usd-target-distance-error" data-usd-el="target-distance-error" role="alert" data-shown="false"></p>' +
 				'</div>' : '') +
 			'</section>';
@@ -7500,6 +7536,9 @@
 		pickerEl.querySelectorAll('.usd-tabpanel').forEach(panel => {
 			panel.classList.toggle('is-active', panel.dataset.usdAxis === axisKey);
 		});
+		// スマホ幅では選んでいない軸のパネルが場所を取らない（display: none。2026-10-30）ので、出た軸の「▼ ほか N件」をここで測り直す
+		const opts = pickerEl.querySelector('.usd-tabpanel.is-active .usd-opts');
+		if (opts) updateOptionsMore(opts);
 	}
 
 	/**
@@ -7681,7 +7720,8 @@
 		// 選択肢を「3段ぶん」で頭打ちにする高さは、チップの実測値から決める（段4 で 2.75段 → 3段）。
 		// px を決め打ちすると、チップの余白や中の checkbox の寸法を触った瞬間に
 		// 3段目が半分だけ見える状態へ静かにずれる（実際に踏んだ）。
-		const chip = pickerEl.querySelector('.usd-opt');
+		// 出ている軸のチップから測る（スマホ幅では選んでいない軸のパネルが display: none で、高さが 0 になる。2026-10-30）
+		const chip = pickerEl.querySelector('.usd-tabpanel.is-active .usd-opt') || pickerEl.querySelector('.usd-opt');
 		const tabs = pickerEl.querySelector('.usd-axis-tabs');
 		if (chip && chip.offsetHeight && tabs) tabs.style.setProperty('--usd-opt-row', chip.offsetHeight + 'px');
 
@@ -7711,6 +7751,8 @@
 		const bottom = opts.scrollTop + opts.clientHeight;
 		const hidden = [...opts.children].filter(c => c.offsetTop + c.offsetHeight > bottom + 1).length;
 		box.setAttribute('data-more', hidden > 0 ? 'below' : 'none');
+		// 選択肢がそもそも箱に収まっている（スクロールしても続きが出ない）か。スマホ幅ではこのときだけ行の場所も取らない（2026-10-30）
+		box.setAttribute('data-fits', String(opts.scrollHeight <= opts.clientHeight + 1));
 		const btn = box.querySelector('.usd-opts-more-btn');
 		if (!btn) return;
 		btn.textContent = hidden > 0 ? '▼ ほか ' + hidden + '件' : '';
@@ -8708,6 +8750,7 @@
 		q(pickerEl, 'picker-title').textContent = spec.title;
 		// ocr モードは paste の枠を借りる（貼り付け欄だけ隠す）。要約は openSkillRowsPicker が入れる
 		const isOcr = picker.mode === 'ocr';
+		q(pickerEl, 'picker-panel').setAttribute('data-usd-mode', picker.mode);
 		q(pickerEl, 'mode-filter').hidden = picker.mode !== 'filter';
 		q(pickerEl, 'mode-paste').hidden = !(picker.mode === 'paste' || isOcr);
 		q(pickerEl, 'mode-passive').hidden = picker.mode !== 'passive';
