@@ -5179,6 +5179,62 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 		/* 入口の並び: 新しい「テキストで検索」の印 */
 		.t21-new { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px dashed var(--uma-border-strong); border-radius: 6px; font-size: 10px; line-height: 16px; font-weight: 700; color: var(--uma-text-subtle); }
 		html.pm-shot .t21-new { display: none; }
+
+		/* ================================================================
+		   T25 テキストで検索（作り直し・おいもさんの決定 2026-10-30）
+		   候補を押す → 小窓の中の「追加候補」の欄に並ぶ → 下の帯の「追加（N種）」でまとめて②へ。
+		   欄の置き場: html.t25-tray-a＝入力欄のすぐ下／html.t25-tray-b＝下の帯のすぐ上
+		   ================================================================ */
+		.usd-picker-panel[data-usd-mode="t25text"] { height: calc(100vh - 12px); height: calc(100dvh - 12px); max-height: none; }
+		@media (min-width: 641px) { .usd-picker-panel[data-usd-mode="t25text"] { height: min(calc(100vh - 48px), 720px); } }
+		.usd-picker-panel[data-usd-mode="t25text"] .usd-picker-head { padding: 6px 8px 6px 12px; }
+		.usd-picker-panel[data-usd-mode="t25text"] .usd-picker-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: 8px 12px 6px; }
+		.usd-picker-panel[data-usd-mode="t25text"] .usd-modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+		.usd-picker-panel[data-usd-mode="t25text"] .usd-foot-count { margin: 0; min-width: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }
+		.usd-picker-panel[data-usd-mode="t25text"] .usd-foot-commit { min-height: 36px; padding-top: 4px; padding-bottom: 4px; margin-left: auto; }
+		.t25-text { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+		.t25-text .t21-text-field { flex: none; }
+		.t25-text .usd-results { flex: 1 1 0; height: auto; min-height: calc(25px * 3 + 2px); }
+		.t25-text .usd-results[hidden] { display: none; }
+		.t25-text .usd-results > p { margin: 0; padding: 6px 8px; font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); }
+		/* 候補の行: 高さ 25px（T21 と同じ）。左の 18px の印の場所＋名前＋右の短い表記 */
+		.t25-text .usd-row { padding-top: 4px; padding-bottom: 4px; gap: 6px; cursor: pointer; user-select: none; }
+		.t25-mark { flex: none; width: 16px; height: 16px; border-radius: var(--uma-r-full); display: grid; place-content: center; font-size: 11px; line-height: 1; font-weight: 800; }
+		.t25-text .t21-name { flex: 1 1 auto; min-width: 0; color: var(--uma-text); }
+		.t25-text .t21-name b { font-weight: 800; color: var(--uma-text-heading); }
+		.t25-side { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }
+		/* 選べる行: 印の場所は ＋ の輪（薄い線） */
+		.t25-row--pick .t25-mark { border: 1.5px solid var(--usd-ui-line, var(--uma-border-strong)); color: var(--uma-text-subtle); }
+		.t25-row--pick:hover { background: var(--uma-control-soft); }
+		/* 追加候補に入れた行: 地＝--usd-ui-set・印＝--uma-control の塗りに ✓（緑は使わない）・右に「追加候補」 */
+		.t25-text .t25-row--queued { background: var(--usd-ui-set); }
+		.t25-row--queued .t25-mark { background: var(--uma-control); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }
+		.t25-row--queued .t21-name { color: var(--uma-text-heading); font-weight: 700; }
+		.t25-row--queued .t25-side { color: var(--uma-text-heading); }
+		/* 追加済み: 押せない・薄く（取り消し線は付けない）・右に「追加済み」 */
+		.t25-text .t25-row--added { cursor: default; color: var(--uma-text-faint); }
+		.t25-text .t25-row--added .t21-name, .t25-text .t25-row--added .t21-name b { color: var(--uma-text-faint); }
+		.t25-row--added .t25-mark { color: var(--uma-text-faint); }
+		/* 選べない: 押せない・名前に取り消し線＋行を薄く（T21 の (3) 案 (b)） */
+		.t25-text .t25-row--excluded { cursor: default; color: color-mix(in srgb, var(--uma-text-faint) 55%, var(--uma-surface)); background: var(--uma-surface-sunken); }
+		.t25-text .t25-row--excluded .t21-name, .t25-text .t25-row--excluded .t21-name b { color: inherit; text-decoration-line: line-through; text-decoration-thickness: 1px; }
+		.t25-text .t25-row--excluded .t25-side { color: color-mix(in srgb, var(--uma-text-subtle) 65%, var(--uma-surface)); }
+		/* ↑↓で移った候補: 内側の 2px の枠（追加候補の地と重なっても分かる） */
+		.t25-text .usd-row.t25-active { box-shadow: inset 0 0 0 2px var(--usd-ui-sel); }
+
+		/* 追加候補の欄: 1行目の頭に「追加候補」の見出し、続けて札（スキル名＋外すボタン）を折り返して並べる。
+		   札は 2行まで見せ、3行目は上半分だけ覗かせて、それ以上は欄の中をスクロール */
+		.t25-tray { flex: none; border: 1px solid var(--usd-ui-line, var(--uma-border)); border-radius: 10px; background: var(--uma-surface-sunken); }
+		.t25-tray-in { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; max-height: calc(28px * 2 + 4px * 2 + 4px + 14px); overflow-y: auto; overscroll-behavior: contain; }
+		.t25-tray-label { flex: none; padding: 0 4px; font-size: var(--uma-fs-xs); line-height: 28px; font-weight: 700; color: var(--uma-text-heading); }
+		.t25-tray-empty { font-size: var(--uma-fs-xs); line-height: 28px; color: var(--uma-text-subtle); }
+		.t25-chip { display: inline-flex; align-items: center; max-width: 100%; height: 28px; padding-left: 10px; border: 1px solid var(--usd-ui-sel); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-heading); font-size: var(--uma-fs-sm); line-height: 18px; font-weight: 700; }
+		.t25-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.t25-chip-x { flex: none; width: 28px; height: 26px; margin-left: 0; display: grid; place-content: center; border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-subtle); font-size: 15px; line-height: 1; cursor: pointer; }
+		.t25-chip-x:hover { background: var(--uma-control-soft); color: var(--uma-text-heading); }
+		.t25-chip.t25-flash { animation: t25-flash .6s ease-out; }
+		@keyframes t25-flash { 0% { box-shadow: 0 0 0 3px var(--usd-ui-sel); } 100% { box-shadow: 0 0 0 0 transparent; } }
+		html.t25-tray-b .t25-tray { margin-top: 2px; }
 	</style>
 	<script>
 		(function () {
@@ -5217,7 +5273,16 @@ const DATA = {"pool":[{"id":"31","name":"コーナー巧者○","reason":"","add
 			['t-pc', '(2)PC', 'テキストで検索：PC（↑↓で候補を移り、Enter で追加）'],
 			['p-now', '(3)今', '「緑スキルを追加」今の画面'],
 			['p-a', '(3)a', '緑スキル：上の行を消す・チェックをベースカラー・選べない行は名前に取り消し線'],
-			['p-b', '(3)b', '緑スキル：上の行を消す・チェックをベースカラー・選べない行は取り消し線＋行を薄く']
+			['p-b', '(3)b', '緑スキル：上の行を消す・チェックをベースカラー・選べない行は取り消し線＋行を薄く'],
+			['v-entry', 'T25入口', 'T25 テキストで検索（作り直し）：入口の並び（「新」の札なし）'],
+			['v-empty', 'T25入力前', 'T25：入力前'],
+			['v-query', 'T25真髄', 'T25：「真髄」を入れたところ'],
+			['v-3', 'T25候補3種', 'T25：そのうち3種を追加候補に入れたところ'],
+			['v-6', 'T25候補6種', 'T25：6種を追加候補に入れたところ'],
+			['v-remove', 'T25外す', 'T25：6種のうち「レースの真髄・力」を追加候補から外したところ'],
+			['v-zero', 'T25-0件', 'T25：一致が0件'],
+			['v-pc', 'T25-PC', 'T25：PC（↑↓で移った候補。Enter で追加候補に入れる）'],
+			['v-mix', 'T25印', 'T25：「コーナー」（追加候補・追加済み・選べない行が混ざった一覧）']
 		];
 		var Q = new URLSearchParams(location.search);
 		var SCENE = Q.get('scene');
@@ -5229,6 +5294,7 @@ const DATA = {"pool":[{"id":"31","name":"コーナー巧者○","reason":"","add
 		var tplHtml = function (id) { return document.getElementById(id + (PHONE ? '-phone' : '-pc')).innerHTML; };
 		var href = function (s, extra) { var p = new URLSearchParams(location.search); p.set('scene', s); p.delete('strike'); p.delete('sel'); if (extra) Object.keys(extra).forEach(function (k) { p.set(k, extra[k]); }); return '?' + p.toString(); };
 		var STRIKE = Q.get('strike');
+		var TRAY = Q.get('tray') === 'b' ? 'b' : 'a';
 
 		(function () {
 			var bar = document.getElementById('pm-bar');
@@ -5242,9 +5308,14 @@ const DATA = {"pool":[{"id":"31","name":"コーナー巧者○","reason":"","add
 					return (STRIKE || '') === k ? '<b>' + lab + '</b>' : '<a href="' + href(SCENE, k ? { strike: k } : null) + '">' + lab + '</a>';
 				}).join('／');
 			}
+			if (/^v-/.test(SCENE || '') && SCENE !== 'v-entry') extra = '　追加候補の欄: ' + ['a', 'b'].map(function (k) {
+				var lab = k === 'a' ? '(a) 入力欄のすぐ下' : '(b) 下の帯のすぐ上';
+				var p = new URLSearchParams(location.search); p.set('tray', k);
+				return TRAY === k ? '<b>' + lab + '</b>' : '<a href="?' + p.toString() + '">' + lab + '</a>';
+			}).join('／');
 			if (/^f-/.test(SCENE || '')) extra += '　<a href="' + href(SCENE, Q.get('sel') === '0' ? (STRIKE ? { strike: STRIKE } : null) : Object.assign({ sel: '0' }, STRIKE ? { strike: STRIKE } : {})) + '">' + (Q.get('sel') === '0' ? '選んだ状態にする' : '何も選んでいない状態にする') + '</a>';
 			bar.innerHTML = '<a class="pm-theme" href="?' + tq.toString() + '">' + (th === 'dark' ? 'ライトで見る' : 'ダークで見る') + '</a>'
-				+ '<b>検索の小窓のモック（T21・作業用）</b>' + (cur ? '　' + esc(cur[1] + '　' + cur[2]) : '') + extra
+				+ '<b>検索の小窓のモック（T21・T25・作業用）</b>' + (cur ? '　' + esc(cur[1] + '　' + cur[2]) : '') + extra
 				+ '<nav><a href="?">一覧</a>' + SCENES.map(function (s) { return s[0] === SCENE ? '<b>' + s[1] + '</b>' : '<a href="' + href(s[0]) + '">' + s[1] + '</a>'; }).join('') + '</nav>';
 		})();
 		if (!SCENE) {
@@ -5411,7 +5482,132 @@ const DATA = {"pool":[{"id":"31","name":"コーナー巧者○","reason":"","add
 			if (!o.noFocus) input.focus();
 		}
 
-		if (SCENE === 'f-now') filterScene(null);
+		// ── T25 テキストで検索（作り直し） ──
+		// 選べない理由の短い表記（①の絞り込みは理由にしない。写しの理由は「本育成編成」「レース条件」の2つだけ）
+		var SHORT_REASON = function (r) { return /本育成/.test(r) ? '本育成で取得' : /レース条件/.test(r) ? 'レース条件不一致' : r; };
+		// （TRAY は上で決めている）
+		function t25Scene(o) {
+			putPanel();
+			var m = putModal('tpl-filter');
+			root.classList.add('t21-mono', 't25-tray-' + TRAY);
+			var P = m.querySelector('[data-usd-el="picker-panel"]');
+			P.setAttribute('data-usd-mode', 't25text');
+			m.querySelector('[data-usd-el="picker-title"]').textContent = 'テキストで検索';
+			var hf = m.querySelector('[data-usd-el="picker-roster-filter"]'); if (hf) hf.hidden = true;
+			var body = m.querySelector('[data-usd-el="picker-body"]');
+			var trayHtml = '<div class="t25-tray" data-t25="tray"><div class="t25-tray-in" role="list" aria-label="追加候補"></div></div>';
+			body.innerHTML = '<div class="t25-text">'
+				+ '<div class="t21-text-field"><input class="uma-input t21-text-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="t25-list" autocomplete="off" enterkeyhint="search" placeholder="スキル名の一部（例: 真髄）" aria-label="スキル名で検索"/>'
+				+ '<button type="button" class="t21-text-clear" aria-label="入力を消す" hidden>×</button></div>'
+				+ (TRAY === 'a' ? trayHtml : '')
+				+ '<p class="t21-text-count" aria-live="polite"></p>'
+				+ '<div class="usd-results" id="t25-list" role="listbox" aria-label="候補" hidden></div>'
+				+ (TRAY === 'b' ? trayHtml : '') + '</div>';
+			var foot = m.querySelector('[data-usd-el="picker-footer"]');
+			foot.innerHTML = '<p class="usd-foot-count" aria-live="polite"></p><button type="button" class="uma-btn uma-btn--primary usd-foot-commit" data-t25="commit" disabled>追加（0種）</button>';
+			var input = body.querySelector('.t21-text-input'), clear = body.querySelector('.t21-text-clear'), count = body.querySelector('.t21-text-count'), list = body.querySelector('#t25-list');
+			var trayIn = body.querySelector('.t25-tray-in'), commit = foot.querySelector('[data-t25="commit"]'), status = foot.querySelector('.usd-foot-count');
+			var queue = [], active = -1, rows = [];
+			var byId = function (id) { return POOL.find(function (x) { return x.id === id; }); };
+			var pickable = function (p) { return !p.reason && !p.added; };
+			function renderTray() {
+				trayIn.innerHTML = '<span class="t25-tray-label">追加候補</span>' + (queue.length ? queue.map(function (id) {
+					var p = byId(id);
+					return '<span class="t25-chip" role="listitem" data-id="' + esc(id) + '"><span class="t25-chip-name">' + esc(p.name) + '</span><button type="button" class="t25-chip-x" data-t25="remove" aria-label="' + esc(p.name) + 'を追加候補から外す">×</button></span>';
+				}).join('') : '<span class="t25-tray-empty">候補を押すと、ここに並びます</span>');
+				commit.disabled = !queue.length;
+				commit.textContent = '追加（' + queue.length + '種）';
+			}
+			function render() {
+				var r = search(input.value);
+				clear.hidden = !input.value;
+				if (!r) { list.hidden = true; list.innerHTML = ''; count.textContent = ''; input.setAttribute('aria-expanded', 'false'); rows = []; active = -1; return; }
+				list.hidden = false; input.setAttribute('aria-expanded', 'true');
+				if (r.hits.length === 0) { list.innerHTML = '<p>一致するスキルはありません</p>'; count.textContent = '候補（0件）'; rows = []; active = -1; return; }
+				count.textContent = '候補（' + r.hits.length + '件）';
+				list.innerHTML = r.hits.map(function (h, i) {
+					var p = h.p, q = queue.indexOf(p.id) >= 0;
+					var cls = p.reason ? 't25-row--excluded' : p.added ? 't25-row--added' : q ? 't25-row--pick t25-row--queued' : 't25-row--pick';
+					var mark = p.reason || p.added ? '' : q ? '✓' : '+';
+					var side = p.reason ? SHORT_REASON(p.reason) : p.added ? '追加済み' : q ? '追加候補' : '';
+					return '<div class="usd-row ' + cls + '" role="option" id="t25-opt-' + i + '" data-id="' + esc(p.id) + '"' + (pickable(p) ? ' aria-selected="' + q + '"' : ' aria-disabled="true"') + '>'
+						+ '<span class="t25-mark" aria-hidden="true">' + mark + '</span>'
+						+ '<span class="t21-name">' + markName(h, r.qn.length) + '</span>'
+						+ (side ? '<span class="t25-side">' + side + '</span>' : '') + '</div>';
+				}).join('');
+				rows = Array.from(list.querySelectorAll('.usd-row'));
+				if (active >= rows.length) active = rows.length - 1;
+				paintActive();
+			}
+			function paintActive() {
+				rows.forEach(function (r, i) { r.classList.toggle('t25-active', i === active); });
+				if (active >= 0 && rows[active]) { input.setAttribute('aria-activedescendant', rows[active].id); rows[active].scrollIntoView({ block: 'nearest' }); } else input.removeAttribute('aria-activedescendant');
+			}
+			function enqueue(id) {
+				var p = byId(id); if (!p || !pickable(p)) return;
+				if (queue.indexOf(id) < 0) { queue.push(id); status.textContent = ''; renderTray(); render(); }
+				// もう一度押したとき（二重には入れない）: 欄の中の札を光らせて見せる
+				var chip = trayIn.querySelector('.t25-chip[data-id="' + id + '"]');
+				if (chip) { chip.classList.remove('t25-flash'); void chip.offsetWidth; chip.classList.add('t25-flash'); chip.scrollIntoView({ block: 'nearest' }); }
+			}
+			function dequeue(id) { queue = queue.filter(function (x) { return x !== id; }); renderTray(); render(); }
+			// 候補を押しても入力欄のフォーカスを外さない（続けて打つ・↑↓を使える。スマホはキーボードが閉じない）
+			list.addEventListener('mousedown', function (e) { if (document.activeElement === input) e.preventDefault(); });
+			list.addEventListener('click', function (e) {
+				var row = e.target.closest('.usd-row'); if (!row) return;
+				if (!row.classList.contains('t25-row--pick')) return;
+				active = rows.indexOf(row); enqueue(row.dataset.id);
+			});
+			trayIn.addEventListener('click', function (e) {
+				var b = e.target.closest('[data-t25="remove"]'); if (!b) return;
+				dequeue(b.closest('.t25-chip').dataset.id);
+			});
+			// 「追加（N種）」: 欄のスキルをまとめて②へ（モックなので印を「追加済み」に替えるだけ。保存はしない）
+			commit.addEventListener('click', function () {
+				var n = queue.length; if (!n) return;
+				queue.forEach(function (id) { byId(id).added = true; });
+				queue = []; renderTray(); render();
+				status.textContent = n + '種を②に追加しました（モック）';
+			});
+			input.addEventListener('input', function () { active = -1; render(); });
+			input.addEventListener('keydown', function (e) {
+				if (!rows.length) return;
+				var step = function (d) { var i = active; for (var k = 0; k < rows.length; k++) { i = (i + d + rows.length) % rows.length; if (rows[i].classList.contains('t25-row--pick')) { active = i; break; } } paintActive(); };
+				if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+				else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+				// 日本語の変換中の Enter（isComposing・keyCode 229）では入れない
+				else if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && active >= 0) { e.preventDefault(); enqueue(rows[active].dataset.id); }
+			});
+			clear.addEventListener('click', function () { input.value = ''; active = -1; render(); input.focus(); });
+			var qv = Q.get('q') != null ? Q.get('q') : o.query;
+			if (qv) input.value = qv;
+			var n = Q.get('n') != null ? +Q.get('n') : (o.queueN || 0);
+			if (n) queue = POOL.filter(function (p) { return /真髄/.test(p.name) && pickable(p); }).slice(0, n).map(function (p) { return p.id; });
+			(o.queueNames || []).forEach(function (nm) { var p = POOL.find(function (x) { return x.name === nm; }); if (p && queue.indexOf(p.id) < 0) queue.push(p.id); });
+			if (o.removeName) queue = queue.filter(function (id) { return byId(id).name !== o.removeName; });
+			renderTray(); render();
+			if (o.active != null) { active = o.active; paintActive(); }
+			if (!o.noFocus && !PHONE) input.focus();
+		}
+		// T25 の入口の並び（「新」の札は出さない）
+		function t25EntryScene() {
+			entryScene();
+			document.querySelectorAll('.t21-new').forEach(function (e) { e.remove(); });
+			var b = document.querySelector('[data-usd-act="t21-text-search"]');
+			var c = b.cloneNode(true); b.replaceWith(c);
+			c.addEventListener('click', function () { location.href = href('v-empty'); });
+		}
+
+		if (SCENE === 'v-entry') t25EntryScene();
+		else if (SCENE === 'v-empty') t25Scene({});
+		else if (SCENE === 'v-query') t25Scene({ query: '真髄' });
+		else if (SCENE === 'v-3') t25Scene({ query: '真髄', queueN: 3 });
+		else if (SCENE === 'v-6') t25Scene({ query: '真髄', queueN: 6 });
+		else if (SCENE === 'v-remove') t25Scene({ query: '真髄', queueN: 6, removeName: 'レースの真髄・力' });
+		else if (SCENE === 'v-zero') t25Scene({ query: '真髄だいすき' });
+		else if (SCENE === 'v-pc') t25Scene({ query: 'コーナー', queueNames: ['中距離コーナー○', '差しコーナー○'], active: 4 });
+		else if (SCENE === 'v-mix') t25Scene({ query: 'コーナー', queueNames: ['中距離コーナー○', '差しコーナー○'] });
+		else if (SCENE === 'f-now') filterScene(null);
 		else if (/^f-[ab][ab]$/.test(SCENE || '')) filterScene(SCENE[2], SCENE[3]);
 		else if (SCENE === 'p-now') passiveScene(null);
 		else if (SCENE === 'p-a') passiveScene('a');
