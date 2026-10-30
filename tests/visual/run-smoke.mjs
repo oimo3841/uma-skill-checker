@@ -99,6 +99,7 @@ import { register69 } from './blocks-69.mjs';
 import { register70 } from './blocks-70.mjs';
 import { register71 } from './blocks-71.mjs';
 import { register72 } from './blocks-72.mjs';
+import { register73 } from './blocks-73.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15455,6 +15456,8 @@ await register70({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register71({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // 合計の式の小窓（帯のセット名の右の ?）の括弧の文面・「①と②の両方にあるスキル」の名前の行・置き換えの文の削除（C-246。塊の見出しはすべて「合計の小窓」で始まる）
 await register72({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// オススメサポのピン止めの計算（C-247。計算だけ）
+await register73({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

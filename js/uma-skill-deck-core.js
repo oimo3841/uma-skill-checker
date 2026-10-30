@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-30k';
 
 	/* ============================================================
 	 * 定数
@@ -3165,10 +3165,16 @@
 		};
 		const candidateOf = (score, picks, base) => ({ score: score, size: picks.length, ssr: picks.reduce((s, o) => s + o.ssr, 0),
 			ids: picks.map(o => o.card).sort(), picks: picks.slice(), base: base || 0 });
+		// C-247: 必ず含むビット（cons.req。ピン止めしたスキル）。無ければ今までどおり。あれば、最良の候補にするのは req をすべて含む組だけ
+		const req = cons.req ? (cons.req instanceof Int32Array ? cons.req : outsideMaskOf(cons.req, W)) : null;
+		const reqOk = (cov) => req === null || outsideMaskSubset(req, cov);
+		// 1つの選択肢が含められる req のビットの最大（残りの枚数で不足を埋められるかの見積もり）
+		let reqMaxPer = 0;
+		if (req !== null) groups.forEach(g => g.opts.forEach(o => { let n = 0; for (let i = 0; i < W; i++) n += outsidePopcount32(o.m[i] & req[i]); if (n > reqMaxPer) reqMaxPer = n; }));
 		// (a) 貪欲法の解を出発点にして、枝刈りを早く効かせる（種類の不足を埋められる途中までの組だけを使う）
 		bases.forEach((bm, bi) => {
 			let cov = bm, covN = outsideMaskPop(bm); const used = new Set(); const picks = [], pg = [];
-			if (covN > 0 && feasible(picks, pg, K)) { const c0 = candidateOf(covN, picks, bi); if (better(c0, best)) best = c0; }
+			if (covN > 0 && reqOk(cov) && feasible(picks, pg, K)) { const c0 = candidateOf(covN, picks, bi); if (better(c0, best)) best = c0; }
 			for (let k = 0; k < K; k++) {
 				let bg = 0, bo = null, bgi = -1;
 				for (let g = 0; g < G; g++) {
@@ -3177,9 +3183,36 @@
 				}
 				if (!bo) break;
 				used.add(bgi); picks.push(bo); pg.push(bgi); cov = outsideMaskOr(cov, bo.m); covN += bg;
-				if (feasible(picks, pg, K - picks.length)) { const c = candidateOf(covN, picks, bi); if (better(c, best)) best = c; }
+				if (reqOk(cov) && feasible(picks, pg, K - picks.length)) { const c = candidateOf(covN, picks, bi); if (better(c, best)) best = c; }
 			}
 		});
+		// C-247 (c): 判定（outsidePinFeasible）が見つけた組（cons.seed＝{ base, picks: [{ g, oi }] }）を出発点に、貪欲法で残りの枠を埋めた組を最初の最良にする
+		// （req を含む組が最初から最良にあるので、締め切りで止まった途中の結果も必ずピンを含む）
+		if (req !== null && cons.seed &&Array.isArray(cons.seed.picks)) {
+			const bi = typeof cons.seed.base === 'number' && cons.seed.base >= 0 && cons.seed.base < bases.length ? cons.seed.base : 0;
+			let cov = bases[bi], covN = outsideMaskPop(cov); const used = new Set(); const picks = [], pg = [];
+			let valid = true;
+			cons.seed.picks.forEach(s => {
+				const o = groups[s.g] && groups[s.g].opts[s.oi];
+				if (!o || used.has(s.g) || !allowed(o, picks)) { valid = false; return; }
+				used.add(s.g); picks.push(o); pg.push(s.g); cov = outsideMaskOr(cov, o.m);
+			});
+			if (valid && picks.length <= K) {
+				covN = outsideMaskPop(cov);
+				const consider = () => { if (covN > 0 && reqOk(cov) && feasible(picks, pg, K - picks.length)) { const c = candidateOf(covN, picks, bi); if (better(c, best)) best = c; } };
+				consider();
+				for (let k = picks.length; k < K; k++) {
+					let bg = 0, bo = null, bgi = -1;
+					for (let g = 0; g < G; g++) {
+						if (used.has(g)) continue;
+						for (const o of groups[g].opts) { if (!allowed(o, picks)) continue; const gn = outsideMaskGain(o.m, cov); if (gn > bg) { bg = gn; bo = o; bgi = g; } }
+					}
+					if (!bo) break;
+					used.add(bgi); picks.push(bo); pg.push(bgi); cov = outsideMaskOr(cov, bo.m); covN += bg;
+					consider();
+				}
+			}
+		}
 		const stack = [];
 		const pickStack = [];
 		const pickGroupStack = [];
@@ -3192,6 +3225,8 @@
 			const B = best ? best.score : 0;
 			if (ub > B) return true;
 			if (ub < B) return false;
+			// C-247: req を含まない f は候補にしていないので、同点でも、枚数で負けない範囲は調べる
+			if (req !== null && !reqOk(f.cov)) return best === null || pickStack.length + 1 <= best.size;
 			// 同点: すでに f の時点の組が B に届いていれば、深くなるだけの組は負ける。届いていないときだけ、枚数で負けない範囲で調べる
 			return f.covN < B && (best === null || pickStack.length + 1 <= best.size);
 		};
@@ -3211,7 +3246,7 @@
 					const d = pickStack.length;
 					// 種類の不足を、残りの枚数と使っていないキャラクターで埋められない枝は落とす（この先の組もすべて埋められない）
 					if (!feasible(pickStack, pickGroupStack, f.left)) { if (f.root) infeasible = true; popFrame(f); continue; }
-					if (f.covN > 0 && (!best || f.covN > best.score || (f.covN === best.score && d <= best.size))) {
+					if (f.covN > 0 && reqOk(f.cov) && (!best || f.covN > best.score || (f.covN === best.score && d <= best.size))) {
 						const c = candidateOf(f.covN, pickStack, f.base);
 						if (better(c, best)) best = c;
 					}
@@ -3241,15 +3276,67 @@
 					f.gains = gs.map(x => x[0]);
 					f.tgains = f.need ? gs.map(x => x[2]) : null;
 					f.i = 0; f.os = null;
+					// C-247 (b): req の不足を、残りの枚数と残りのグループで埋められない枝は落とす。
+					// 不足のビットごとに「そのビットを持つグループが order の何番目まであるか」の最小（reqLast）を持ち、f.i がそれを越えたら、この先の組はどれも req を含まない
+					f.reqLast = Infinity;
+					if (req !== null) {
+						const miss = new Int32Array(W); let mc = 0;
+						for (let i = 0; i < W; i++) { miss[i] = req[i] & ~f.cov[i]; mc += outsidePopcount32(miss[i]); }
+						if (mc > 0) {
+							if (mc > f.left * reqMaxPer) { popFrame(f); continue; }
+							// 並べ方: 不足のビットのうち持つグループが最も少ないもの（rarest）を持つグループを先に試す（その中と残りは増分の順のまま）。
+							// どの組も、そのビットを持つグループを少なくとも1つ含むので、先頭の数グループを試し終えた時点で reqLast により枝が閉じる。
+							// 並べ替えた frame は、上限の見積もりを「order[f.i..] の増分の上位」で計算し直す（f.reordered）
+							const holders = new Map();
+							f.order.forEach(g => {
+								for (const o of groups[g].opts) {
+									if (!allowed(o, pickStack)) continue;
+									for (let i = 0; i < W; i++) { let x = o.m[i] & miss[i]; while (x !== 0) { const b = x & -x; const bit = i * 32 + 31 - Math.clz32(b); if (!holders.has(bit)) holders.set(bit, new Set()); holders.get(bit).add(g); x ^= b; } }
+								}
+							});
+							if (holders.size < mc) { popFrame(f); continue; }
+							let rare = null;
+							holders.forEach(s => { if (rare === null || s.size < rare.size) rare = s; });
+							const idx0 = f.order.map((g, j) => j);
+							const first = idx0.filter(j => rare.has(f.order[j])), rest = idx0.filter(j => !rare.has(f.order[j]));
+							if (first.length > 0 && first[first.length - 1] !== first.length - 1) {
+								const perm = first.concat(rest);
+								f.order = perm.map(j => f.order[j]);
+								f.gains = perm.map(j => f.gains[j]);
+								if (f.tgains) f.tgains = perm.map(j => f.tgains[j]);
+								f.reordered = true;
+							}
+							const last = new Map();
+							f.order.forEach((g, j) => {
+								for (const o of groups[g].opts) {
+									if (!allowed(o, pickStack)) continue;
+									for (let i = 0; i < W; i++) { let x = o.m[i] & miss[i]; while (x !== 0) { const b = x & -x; last.set(i * 32 + 31 - Math.clz32(b), j); x ^= b; } }
+								}
+							});
+							if (last.size < mc) { popFrame(f); continue; }
+							last.forEach(j => { if (j < f.reqLast) f.reqLast = j; });
+						}
+					}
 				}
 				if (f.os === null) {
 					if (f.i >= f.order.length) { popFrame(f); continue; }
+					if (f.i > f.reqLast) { popFrame(f); continue; }
 					// 上限の見積もり: 残り left 枚のうち、不足を埋めるのに要る枚数（不足の合計）は、その種類のカードにしか使えない。
 					// ＝「自由に選べる left − 不足の合計 枚の、増分の上位」＋「不足している種類ごとに、その種類の増分の上位（不足の枚数ぶん）」（同じ群を両方で数えても上限としては正しい）
 					let ub = f.covN;
 					const needTotal = f.need ? f.need.reduce((s, x) => s + x[1], 0) : 0;
 					const freeN = Math.max(0, f.left - needTotal);
-					for (let j = f.i; j < Math.min(f.i + freeN, f.gains.length); j++) ub += f.gains[j];
+					let ubPick = null;   // 並べ替えた frame で、この枝（order[f.i] を選ぶ）だけの上限
+					if (f.reordered) {
+						const gsuf = f.gains.slice(f.i).sort((a, b) => b - a);
+						for (let j = 0; j < Math.min(freeN, gsuf.length); j++) ub += gsuf[j];
+						if (freeN >= 1) {
+							const rest = f.gains.slice(f.i + 1).sort((a, b) => b - a);
+							ubPick = ub - gsuf.slice(0, Math.min(freeN, gsuf.length)).reduce((s, x) => s + x, 0) + f.gains[f.i];
+							for (let j = 0; j < Math.min(freeN - 1, rest.length); j++) ubPick += rest[j];
+						}
+					}
+					else for (let j = f.i; j < Math.min(f.i + freeN, f.gains.length); j++) ub += f.gains[j];
 					if (f.need) f.need.forEach(([t, n]) => {
 						const vals = [];
 						for (let j = f.i; j < f.tgains.length; j++) { const v = f.tgains[j][t]; if (v > 0) vals.push(v); }
@@ -3257,6 +3344,8 @@
 						for (let k = 0; k < Math.min(n, vals.length); k++) ub += vals[k];
 					});
 					if (!worth(ub, f)) { popFrame(f); continue; }
+					// 並べ替えた frame（C-247）: この枝だけの上限で届かなければ、この枝だけ飛ばす（種類の不足があるときは使わない。不足の枠を数え分けられないため）
+					if (ubPick !== null && !f.need && !worth(ubPick, f)) { f.i++; continue; }
 					const g = f.order[f.i];
 					f.os = groups[g].opts.map(o => ({ o: o, gn: outsideMaskGain(o.m, f.cov) })).filter(x => x.gn > 0 && allowed(x.o, pickStack))
 						.sort((a, b) => (b.gn - a.gn) || (a.o.card < b.o.card ? -1 : a.o.card > b.o.card ? 1 : 0)).map(x => x.o);
@@ -3351,24 +3440,71 @@
 		const raceOut = [], excludeOut = [], noRaceOut = [], userOut = [];
 		const ids = [];
 		const seen = new Set();
+		// C-247: ピン止めしたスキル（po.pins）。除外（小窓の「除外」・このセットだけの個別除外・距離の区分ごとの個別除外・レースを選んでいないときのレース条件のスキル）に
+		// 当たっていても母集団に残す（除外の設定は変えない。この計算の中だけ）。①の条件・レース・②で追加済みなどに当たるピンは残さず、理由を返す（outsidePinReasonOf）
+		const pins = outsidePinIdsOf(po.pins);
+		const pinSet = new Set(pins);
+		const pinRestored = new Set(), pinRejected = new Map();
 		pool.forEach(s => {
 			if (seen.has(s.id)) return;
 			seen.add(s.id);
+			const pinned = pinSet.has(s.id);
 			const row = skillPtData.skillPt.get(s.id);
-			if (row && row.rarity !== 'white') return;
-			if (wanted && !wanted(s.id)) return;
-			if (taken.has(s.id) || off.has(s.id) || skipped.has(s.id)) return;
-			if (race && raceRejectsSkill(findSkill(s.id), race)) { raceOut.push(s.id); return; }
+			if (row && row.rarity !== 'white') { if (pinned) pinRejected.set(s.id, OUTSIDE_PIN_REASON.gold); return; }
+			if (wanted && !wanted(s.id)) { if (pinned) pinRejected.set(s.id, outsidePinFilterReasonOf(r, s.id)); return; }
+			if (taken.has(s.id)) { if (pinned) pinRejected.set(s.id, OUTSIDE_PIN_REASON.taken); return; }
+			if (off.has(s.id)) { if (pinned) pinRejected.set(s.id, OUTSIDE_PIN_REASON.off); return; }
+			// ②で追加済みのピンは効かせない（母集団の扱いは今までどおり。残るなら追加済みとして数える）
+			const keep = pinned && !added.has(s.id);
+			if (skipped.has(s.id) && !keep) { if (pinned) pinRejected.set(s.id, OUTSIDE_PIN_REASON.added); return; }
+			if (race && raceRejectsSkill(findSkill(s.id), race)) { raceOut.push(s.id); if (pinned) pinRejected.set(s.id, OUTSIDE_PIN_REASON.race); return; }
+			if (pinned && !keep) pinRejected.set(s.id, OUTSIDE_PIN_REASON.added);
+			if (keep && skipped.has(s.id)) pinRestored.add(s.id);
 			// C-185: レースを選んでいないときだけ、レース条件（レース場・季節・回り・小回り／直線コース）で決まる緑スキルを外す（②で追加済みは数える）
-			if (!race && !added.has(s.id) && isRaceConditionSkill(s)) { noRaceOut.push(s.id); return; }
+			if (!race && !added.has(s.id) && isRaceConditionSkill(s)) { if (keep) pinRestored.add(s.id); else { noRaceOut.push(s.id); return; } }
 			// C-185: 距離ごとの個別除外（②で追加済みは、除外の設定と同じく数える）
-			if (!added.has(s.id) && userEx.has(s.id)) { userOut.push(s.id); return; }
-			if (excluding && !added.has(s.id) && outsideExcludesSkill(findSkill(s.id), oex)) { excludeOut.push(s.id); return; }
+			if (!added.has(s.id) && userEx.has(s.id)) { if (keep) pinRestored.add(s.id); else { userOut.push(s.id); return; } }
+			if (excluding && !added.has(s.id) && outsideExcludesSkill(findSkill(s.id), oex)) { if (keep) pinRestored.add(s.id); else { excludeOut.push(s.id); return; } }
 			ids.push(s.id);
 		});
-		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race,
+		const out = { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race,
 			optionExcludedIds: excludeOut, outsideExclude: oex, filtered: !!wanted,
 			noRaceExcludedIds: noRaceOut, recommendExcludedIds: userOut, distKey: distKey };
+		// ピンを渡したときだけ足す（渡さなければ今までと同じ形）。pinIds＝必ず含めるピン（押した順）・pinRestoredIds＝除外から戻したピン・pinRejected＝戻せなかったピンと理由
+		if (pins.length > 0) {
+			// 母集団の元（taggedSkillPool）に無いピン: 金・①で取得・①でOFF なら、その理由。どれでもなければ unknown
+			pins.forEach(id => {
+				if (seen.has(id) || pinRejected.has(id)) return;
+				const row = skillPtData.skillPt.get(id);
+				pinRejected.set(id, row && row.rarity === 'gold' ? OUTSIDE_PIN_REASON.gold : taken.has(id) ? OUTSIDE_PIN_REASON.taken : off.has(id) ? OUTSIDE_PIN_REASON.off : OUTSIDE_PIN_REASON.unknown);
+			});
+			out.pinIds = pins.filter(id => !pinRejected.has(id));
+			out.pinRestoredIds = pins.filter(id => pinRestored.has(id));
+			out.pinRejected = pins.filter(id => pinRejected.has(id)).map(id => ({ skillId: id, reason: pinRejected.get(id) }));
+		}
+		return out;
+	}
+	/* ---- ピン止め（C-247。2026-10-30。計算だけ。ピンのボタン・保存・画面は次の作業）----
+	   ピン止めしたスキルは、必ず取得候補に含めて計算する（含められるカードの組み合わせだけを探す）。
+	   入れ直せなかったピンの理由（内部の値。画面の文言は次の作業で決める）:
+	     taken …①で取得／distance・style・surface …①の絞り込み（距離・脚質・バ場）に合わない／off …①でOFF／race …選択中のレースの条件に合わない／
+	     added …②で追加済み（ピンを効かせない）／none …含められるカードの組み合わせがない／gold …金スキル（ピンは白にだけ付く）／unknown …母集団の元（taggedSkillPool）に無い */
+	const OUTSIDE_PIN_REASON = { taken: 'taken', distance: 'distance', style: 'style', surface: 'surface', off: 'off', race: 'race', added: 'added', none: 'none', gold: 'gold', unknown: 'unknown' };
+	/** ピンの判定の打ち切り（ms。案A: メインスレッドで回す） */
+	const OUTSIDE_PIN_JUDGE_MS = 100;
+	/** ピンのスキルID の並び（文字列・重複なし・押した順）。引けるかどうかは母集団の側で見る（引けないものは unknown） */
+	function outsidePinIdsOf(stored) {
+		const out = [];
+		(Array.isArray(stored) ? stored : []).forEach(id => { if (typeof id === 'string' && id && out.indexOf(id) === -1) out.push(id); });
+		return out;
+	}
+	/** ①の絞り込みに合わないピンの理由（軸ごとに見て、最初に合わない軸。どの軸だけでも合うなら距離） */
+	function outsidePinFilterReasonOf(r, skillId) {
+		const sel = resolvedFilterOf(r);
+		const target = raceLockedTargetOf(raceOfRoster(r));
+		const s = findSkill(skillId);
+		const k = ROSTER_FILTER_AXIS_KEYS.find(key => sel[key] !== undefined && s && !matchesFilters(s, { [key]: [sel[key]] }, target));
+		return OUTSIDE_PIN_REASON[k || 'distance'];
 	}
 	/** 提案から除外したスキルID（roster.outsideSkillExcluded。小窓のチェックを外したスキル）のうち、収録データで引けるものだけ。保存値は書き換えない。この計算（母集団）にだけ効かせる */
 	function outsideSkillExcludedIdsOf(roster) {
@@ -3520,7 +3656,9 @@
 	function outsideBuild(args) {
 		const a = args || {};
 		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-		const pop = outsidePopulationOf(roster, { exclude: (a.exclude && typeof a.exclude === 'object') ? a.exclude : null, addedSkillIds: a.addedSkillIds });
+		// C-247: ピン（pinSkillIds）は、渡したときだけ母集団に渡す（空なら今までと同じ）
+		const pinIn = outsidePinIdsOf(a.pinSkillIds);
+		const pop = outsidePopulationOf(roster, Object.assign({ exclude: (a.exclude && typeof a.exclude === 'object') ? a.exclude : null, addedSkillIds: a.addedSkillIds }, pinIn.length > 0 ? { pins: pinIn } : {}));
 		if (!pop.ok) return { ok: false, reason: pop.reason };
 		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
 		// 段13・C1: 残りの枠に指定したカード（pinnedCardIds）。そのカードで得られるスキルは「得られる」として扱い（探索の出発点の被覆）、
@@ -3605,13 +3743,153 @@
 			bases.forEach(b => opts.forEach(o => next.push({ m: outsideMaskOr(b.m, o.m), picks: b.picks.concat(o.picks.map(p => Object.assign({ card: c.id }, p))) })));
 			bases = outsidePareto(next);
 		});
-		return { ok: true, roster: roster, pop: pop, cands: cands, cardSrc: cardSrc, commonSrc: commonSrc, universe: universe, idx: idx, W: W,
+		const prob = { ok: true, roster: roster, pop: pop, cands: cands, cardSrc: cardSrc, commonSrc: commonSrc, universe: universe, idx: idx, W: W,
 			countableGolds: new Set(countableGolds), groups: groups, expandIds: expandIds, ancestors: ancestors,
 			// C-131: 組のどちらかが②にあれば、もう一方も「追加済み」（一覧で選べない・追加しない・下段の追加済みに数える）
 			added: new Set(withEquivalents((a.addedSkillIds || []).filter(id => typeof id === 'string'))),
 			typeMin: typeMinOk, pinned: pinnedCards, bases: bases,
 			cons: { typeMin: typeMinOk, friendType: OUTSIDE_FRIEND_TYPE, friendMax: OUTSIDE_FRIEND_MAX, fill: Array.from(fillTypes.keys()).sort().map(k => ({ key: k, types: fillTypes.get(k) })),
 				bases: bases.map(b => b.m) } };
+		// C-247: ピンを渡したときだけ。pins＝{ ids（必ず含めるピン）, restored, rejected }・reqBits＝ピンの universe の番号（ids の順）。探索には cons.req（ビット列）で渡す
+		if (pop.pinIds) {
+			prob.pins = { ids: pop.pinIds.slice(), restored: pop.pinRestoredIds.slice(), rejected: pop.pinRejected.map(x => Object.assign({}, x)) };
+			prob.reqBits = pop.pinIds.map(id => idx.get(id));
+			if (prob.reqBits.length > 0) prob.cons.req = outsideMaskOf(prob.reqBits, W);
+		}
+		return prob;
+	}
+
+	// 検査用: ピンの判定を差し替える（null で元に戻す）。fn(prob, K, pinIds) が { result: 'ok'|'ng'|'timeout', witness? } を返す。「含められない」状態を作るためだけに使う
+	let outsidePinJudgeOverride = null;
+	/**
+	 * C-247: ピンを「すべて含められるか」の判定（探索とは別。ピンを押した瞬間に使う・案A）。問題（outsideBuild の結果）の groups・universe だけを見る。
+	 *   opts.pins … 判定するピンのスキルID（無ければ prob.pins.ids）／opts.deadlineMs … 打ち切り（既定 100ms）
+	 * ピンだけに射影した選択肢で、まだ含めていないピンのうち「含められるグループが最も少ないもの」から分ける深さ優先。
+	 * 守るもの: 選ぶのは K 枚まで・同じキャラクター（グループ）は1枚・友人は friendMax 枚まで・種類の指定（残りの枚数で使っていないキャラクターから埋められる。探索の feasible と同じ照合）・
+	 * 残りの枠のカードの被覆（bases。どれか1つから始める）。射影が同じグループ（種類・埋められる種類も同じ）は代表の1つだけ試す。
+	 * 返り値: { result: 'ok'（含められる）|'ng'（含められない）|'timeout'（打ち切り）|'unknown'（ピンが universe に無い＝この問題では判定できない）,
+	 *   witness: { base, picks: [{ g（groups の番号）, oi（options の番号）}] }（ok のとき）, missing: [universe に無いピン], nodes, ms }
+	 */
+	function outsidePinFeasible(prob, K, opts) {
+		const o = opts || {};
+		const t0 = outsideNow();
+		const pins = outsidePinIdsOf(Array.isArray(o.pins) ? o.pins : (prob && prob.pins ? prob.pins.ids : []));
+		const done = (r) => Object.assign({ witness: null, missing: [], nodes: 0 }, r, { ms: outsideNow() - t0 });
+		if (!prob || !prob.ok) return done({ result: 'unknown' });
+		const missing = pins.filter(id => !prob.idx.has(id));
+		if (missing.length > 0) return done({ result: 'unknown', missing: missing });
+		if (typeof outsidePinJudgeOverride === 'function' && pins.length > 0) {
+			const r = outsidePinJudgeOverride(prob, K, pins.slice()) || {};
+			return done({ result: r.result === 'ok' || r.result === 'timeout' ? r.result : 'ng', witness: r.result === 'ok' && r.witness ? r.witness : null });
+		}
+		const deadlineAt = t0 + (typeof o.deadlineMs === 'number' && o.deadlineMs >= 0 ? o.deadlineMs : OUTSIDE_PIN_JUDGE_MS);
+		const bits = pins.map(id => prob.idx.get(id));
+		const P = bits.length;
+		const hasBit = (m, b) => (m[b >> 5] & (1 << (b & 31))) !== 0;
+		const projOf = (m) => { let pr = 0; for (let j = 0; j < P; j++) if (hasBit(m, bits[j])) pr |= (1 << j); return pr; };
+		if (P > 30) return done({ result: 'timeout' });   // ピンを 31 個以上は扱わない（ビットの幅）。画面は押した数だけなので起きない想定
+		const FULL = (1 << P) - 1;
+		const cons = prob.cons || {};
+		const friendType = typeof cons.friendType === 'number' ? cons.friendType : null;
+		const friendMax = typeof cons.friendMax === 'number' ? cons.friendMax : Infinity;
+		const typeMin = new Map();
+		Object.keys(cons.typeMin || {}).forEach(k => { const n = cons.typeMin[k]; if (typeof n === 'number' && n > 0) typeMin.set(Number(k), n); });
+		const minTypes = Array.from(typeMin.keys()).sort((a, b) => a - b);
+		const fill = (Array.isArray(cons.fill) ? cons.fill : []).map(e => ({ key: e.key, types: new Set((e.types || []).filter(t => typeof t === 'number')) }));
+		const fillIdx = new Map(fill.map((e, i) => [e.key, i]));
+		// 種類の指定: picks（選んだもの）に、残り left 枚で使っていないキャラクターを足して満たせるか（outsideEngine の feasible と同じ照合）
+		const typeOk = (picks, left) => {
+			if (minTypes.length === 0) return true;
+			const need = [];
+			for (const t of minTypes) {
+				const want = typeMin.get(t);
+				if (t === friendType && want > friendMax) return false;
+				let have = 0; picks.forEach(p => { if (p.type === t) have++; });
+				for (let i = have; i < want; i++) need.push(t);
+			}
+			if (need.length === 0) return true;
+			if (need.length > left) return false;
+			const used = new Set(picks.map(p => fillIdx.get(p.key)).filter(i => i !== undefined));
+			const owner = new Map();
+			const aug = (ni, seen) => {
+				for (let fi = 0; fi < fill.length; fi++) {
+					if (!fill[fi].types.has(need[ni]) || used.has(fi) || seen.has(fi)) continue;
+					seen.add(fi);
+					const cur = owner.get(fi);
+					if (cur === undefined || aug(cur, seen)) { owner.set(fi, ni); return true; }
+				}
+				return false;
+			};
+			for (let ni = 0; ni < need.length; ni++) if (!aug(ni, new Set())) return false;
+			return true;
+		};
+		// ピンだけに射影した選択肢（グループごと。同じ射影・同じ種類はビットの多いものを代表に・同じ種類の中で部分集合になる射影は落とす）
+		const groups = [];
+		(prob.groups || []).forEach((g, gi) => {
+			const seen = new Map();
+			g.options.forEach((op, oi) => {
+				const pr = projOf(op.m);
+				if (pr === 0) return;
+				const t = typeof op.type === 'number' ? op.type : null;
+				const k = pr + ':' + t;
+				const pc = outsideMaskPop(op.m);
+				if (!seen.has(k) || seen.get(k).pc < pc) seen.set(k, { pr: pr, type: t, oi: oi, pc: pc });
+			});
+			const opts2 = Array.from(seen.values()).filter((x, _, arr) => !arr.some(y => y !== x && y.type === x.type && y.pr !== x.pr && (x.pr & ~y.pr) === 0));
+			if (opts2.length === 0) return;
+			const fe = fillIdx.has(g.key) ? Array.from(fill[fillIdx.get(g.key)].types).sort().join('.') : '';
+			groups.push({ gi: gi, key: g.key, opts: opts2, sig: opts2.map(x => x.pr + ':' + x.type).sort().join(',') + '|' + fe });
+		});
+		const byBit = Array.from({ length: P }, () => []);
+		groups.forEach((g, i) => g.opts.forEach((x, k) => { for (let j = 0; j < P; j++) if (x.pr & (1 << j)) byBit[j].push([i, k]); }));
+		let maxPr = 0;
+		groups.forEach(g => g.opts.forEach(x => { const n = outsidePopcount32(x.pr); if (n > maxPr) maxPr = n; }));
+		let nodes = 0, timedOut = false, witness = null;
+		const used = new Uint8Array(groups.length);
+		const picks = [];
+		const dfs = (cov, depth, base) => {
+			if ((++nodes & 255) === 0 && outsideNow() >= deadlineAt) timedOut = true;
+			if (timedOut) return false;
+			if (cov === FULL) {
+				if (!typeOk(picks, K - depth)) return false;
+				witness = { base: base, picks: picks.map(p => ({ g: p.gi, oi: p.oi })) };
+				return true;
+			}
+			const left = K - depth;
+			if (left <= 0 || outsidePopcount32(FULL & ~cov) > left * maxPr) return false;
+			let bj = -1, bn = Infinity;
+			for (let j = 0; j < P; j++) {
+				if (cov & (1 << j)) continue;
+				let n = 0; for (const [i] of byBit[j]) if (!used[i]) n++;
+				if (n === 0) return false;
+				if (n < bn) { bn = n; bj = j; }
+			}
+			let friends = 0; picks.forEach(p => { if (friendType !== null && p.type === friendType) friends++; });
+			const tried = new Set();
+			for (const [i, k] of byBit[bj]) {
+				if (used[i]) continue;
+				const g = groups[i], x = g.opts[k];
+				if (friendType !== null && x.type === friendType && friends >= friendMax) continue;
+				const sk = g.sig + '#' + k;
+				if (tried.has(sk)) continue;
+				tried.add(sk);
+				used[i] = 1; picks.push({ key: g.key, type: x.type, gi: g.gi, oi: x.oi });
+				const ok = dfs(cov | x.pr, depth + 1, base);
+				picks.pop(); used[i] = 0;
+				if (ok) return true;
+				if (timedOut) return false;
+			}
+			return false;
+		};
+		const bases = Array.isArray(cons.bases) && cons.bases.length > 0 ? cons.bases : [null];
+		let ok = false;
+		for (let bi = 0; bi < bases.length && !ok && !timedOut; bi++) ok = dfs(bases[bi] ? projOf(bases[bi]) : 0, 0, bi);
+		return done({ result: ok ? 'ok' : (timedOut ? 'timeout' : 'ng'), witness: ok ? witness : null, nodes: nodes });
+	}
+	/** ピンのうち、1つだけでも含められないもの（判定が ng のとき、どのピンが原因かを返すため）。1つずつでは全部含められるなら、全部を返す（組み合わせとして含められない） */
+	function outsidePinCulprits(prob, K, pins, deadlineMs) {
+		const alone = pins.filter(id => outsidePinFeasible(prob, K, { pins: [id], deadlineMs: deadlineMs }).result === 'ng');
+		return alone.length > 0 ? alone : pins.slice();
 	}
 
 	/**
@@ -3803,7 +4081,36 @@
 		const pinned = outsidePinnedOf(Array.isArray(a.pinnedCardIds) ? a.pinnedCardIds : opt.pinned, K);
 		const prob = outsideBuild(Object.assign({}, a, { roster: roster, typeMin: typeMin, pinnedCardIds: pinned }));
 		if (!prob.ok) return { prob: prob, K: K };
+		// C-247: ピン（args.pinSkillIds）があれば、探索の前に判定する。含められなければ探索しない（pinNone）。含められれば、判定の組を探索の出発点にする
+		if (prob.reqBits && prob.reqBits.length > 0) {
+			// 種類の指定そのものが満たせないときは、ピンのせいにしない（探索が今までどおり「指定を満たす組み合わせがありません」を出す）
+			if (outsidePinFeasible(prob, K, { pins: [], deadlineMs: OUTSIDE_PIN_JUDGE_MS }).result === 'ok') {
+				const j = outsidePinFeasible(prob, K, { deadlineMs: typeof a.pinJudgeMs === 'number' ? a.pinJudgeMs : OUTSIDE_PIN_JUDGE_MS });
+				if (j.result === 'ng') return { prob: prob, K: K, pinNone: outsidePinCulprits(prob, K, prob.pins.ids, OUTSIDE_PIN_JUDGE_MS), judge: j };
+				if (j.result === 'ok') return { prob: prob, K: K, judge: j, engine: outsideEngine(prob.groups, prob.W, K, Object.assign({}, prob.cons, { seed: j.witness })) };
+			}
+		}
 		return { prob: prob, K: K, engine: outsideEngine(prob.groups, prob.W, K, prob.cons) };
+	}
+	/** C-247: 結果にピンの情報を足す（ピンを渡したときだけ。渡さなければ結果は今までと同じ形）。none＝含められなかったピン（理由 none を rejected の後ろに足す） */
+	function outsideWithPins(r, prob, none) {
+		if (!prob.pins || !r || !r.ok) return r;
+		const noneSet = new Set(none || []);
+		const ids = prob.pins.ids.filter(id => !noneSet.has(id));
+		r.pins = { ids: ids, restored: prob.pins.restored.filter(id => !noneSet.has(id)),
+			rejected: prob.pins.rejected.map(x => Object.assign({}, x)).concat(prob.pins.ids.filter(id => noneSet.has(id)).map(id => ({ skillId: id, reason: OUTSIDE_PIN_REASON.none }))) };
+		if (noneSet.size > 0) r.pinInfeasible = true;
+		const idSet = new Set(ids);
+		(r.skills || []).forEach(s => { if (idSet.has(s.skillId)) s.pinned = true; });
+		return r;
+	}
+	/** C-247: ピンを含む組み合わせが無いとき（探索しない）。カード・スキルは空。pinInfeasible: true と、含められないピン（pins.rejected の reason none）を返す */
+	function outsidePinNoneResult(p) {
+		const prob = p.prob;
+		return outsideWithPins({ ok: true, pinInfeasible: true, partial: false, count: p.K, score: 0, cards: [], kindOrder: [], skills: [], golds: [],
+			counts: { kinds: 0, gold: 0, white: 0, hintWhiteCount: 0, added: 0 },
+			stats: { engineScore: 0, nodes: p.judge ? p.judge.nodes : 0, ms: p.judge ? p.judge.ms : 0, groups: prob.groups.length, candidates: prob.cands.length, population: prob.pop.ids.length, goldCountable: prob.countableGolds.size } },
+		prob, p.pinNone);
 	}
 	/**
 	 * 種類の指定を満たす組み合わせが無いとき（④・段11）の結果。カード・スキルは空で、足りない種類（shortTypes）を添える。
@@ -3821,14 +4128,23 @@
 			stats: { engineScore: 0, nodes: search.nodes, ms: search.ms, groups: search.groups, candidates: prob.cands.length, population: prob.pop.ids.length, goldCountable: prob.countableGolds.size } };
 	}
 	function outsideFinish(p, search) {
-		if (search.infeasible) return outsideInfeasible(p, search);
+		if (search.infeasible) return outsideWithPins(outsideInfeasible(p, search), p.prob);
+		const req = !!(p.prob.reqBits && p.prob.reqBits.length > 0);
+		// C-247: ピンがあって、ピンを含む組が1つも見つからなかった（判定が打ち切りで、探索も見つけられなかった）ときは、含められないとして返す
+		if (!search.best && req) return outsidePinNoneResult(Object.assign({}, p, { pinNone: outsidePinCulprits(p.prob, p.K, p.prob.pins.ids, OUTSIDE_PIN_JUDGE_MS) }));
 		if (!search.best) return outsideAssemble(p.prob, [], p.K, { partial: search.partial, nodes: search.nodes, ms: search.ms, groups: search.groups, base: 0 });
-		return outsideAssemble(p.prob, search.best.picks.map(o => o.ref), p.K, Object.assign({}, search, { base: search.best.base || 0 }));
+		return outsideWithPins(outsideAssemble(p.prob, search.best.picks.map(o => o.ref), p.K, Object.assign({}, search, { base: search.best.base || 0 })), p.prob);
 	}
+	/**
+	 * args.pinSkillIds … C-247 のピン（スキルID の配列・押した順）。無い・空なら今までと同じ結果。あれば結果に pins（{ ids, restored, rejected: [{ skillId, reason }] }）・
+	 * skills のピンの行に pinned: true・含められないときは pinInfeasible: true（探索しない。カードとスキルは空）。args.onPrepared(p) … 組み立てた問題（{ prob, K }）を受け取る（画面が判定に使う）
+	 */
 	async function outsideSolve(args) {
 		const a = args || {};
 		const p = outsidePrepare(a);
 		if (!p.prob.ok) return { ok: false, reason: p.prob.reason };
+		if (typeof a.onPrepared === 'function') a.onPrepared({ prob: p.prob, K: p.K });
+		if (p.pinNone) return outsidePinNoneResult(p);
 		const search = await outsideRunAsync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : outsideDeadlineMs(), typeof a.sliceMs === 'number' ? a.sliceMs : OUTSIDE_SLICE_MS);
 		return outsideFinish(p, search);
 	}
@@ -3836,7 +4152,33 @@
 		const a = args || {};
 		const p = outsidePrepare(a);
 		if (!p.prob.ok) return { ok: false, reason: p.prob.reason };
+		if (typeof a.onPrepared === 'function') a.onPrepared({ prob: p.prob, K: p.K });
+		if (p.pinNone) return outsidePinNoneResult(p);
 		return outsideFinish(p, outsideRunSync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : outsideDeadlineMs()));
+	}
+	/* ---- C-247: 表示中の結果の問題を持っておく口（案A。画面のピンのボタンが使う）----
+	   オススメサポの小窓の再計算（outsideRun）が、計算に使った問題と結果をここに置く。計算を始めたら空にする（計算中はピンを押せない想定）。 */
+	let outsideHeld = null;   // { prob, K, result }
+	function outsideSetHeld(h) { outsideHeld = h && h.prob ? { prob: h.prob, K: h.K, result: h.result || null } : null; }
+	/**
+	 * C-247: ピンを押した瞬間の判定（案A）。pinIds … 押したあとのピン全部（スキルID）。held … 無ければ持っている問題（outsideHeld）。
+	 *   (1) 表示中の結果のスキル（追加済みでない行）にピンがすべてあれば、探索せず ok（via: 'result'・0ms）
+	 *   (2) そうでなければ、持っている問題で判定だけを回す（via: 'judge'・打ち切り opts.deadlineMs、既定 100ms）
+	 *   (3) 問題が無い・ピンが問題の universe に無い（除外から戻すピンなど）ときは unknown（画面は、ピンを付けて再計算に任せる）
+	 * 返り値: { result: 'ok'|'ng'|'timeout'|'unknown', via: 'result'|'judge'|null, missing: [ids], ms }
+	 */
+	function outsidePinCheck(pinIds, held, opts) {
+		const t0 = outsideNow();
+		const h = held || outsideHeld;
+		const pins = outsidePinIdsOf(pinIds);
+		const r = h && h.result && h.result.ok && Array.isArray(h.result.skills) ? h.result : null;
+		if (r && !r.pinInfeasible) {
+			const have = new Set(r.skills.filter(s => !s.added).map(s => s.skillId));
+			if (pins.every(id => have.has(id))) return { result: 'ok', via: 'result', missing: [], ms: outsideNow() - t0 };
+		}
+		if (!h || !h.prob) return { result: 'unknown', via: null, missing: pins.slice(), ms: outsideNow() - t0 };
+		const j = outsidePinFeasible(h.prob, h.K, { pins: pins, deadlineMs: opts && typeof opts.deadlineMs === 'number' ? opts.deadlineMs : OUTSIDE_PIN_JUDGE_MS });
+		return { result: j.result, via: j.result === 'unknown' ? null : 'judge', missing: j.missing, ms: outsideNow() - t0 };
 	}
 	/** 探索の部品だけを単独で回す（検査用）。groups の形は outsideEngine を参照。 */
 	function outsideSolveGroups(groups, universeSize, K, opts) {
@@ -15179,6 +15521,8 @@
 			outsideUi.applied = outsideSkillKey();
 			outsideUi.computing = true;
 			outsideUi.result = null;
+			// C-247: 計算に使った問題を持っておく（ピンの判定・案A）。計算中は空
+			outsideSetHeld(null);
 			renderOutside();
 			let r;
 			// C-129: 「低効果」を除外しているときは、効果の段階のデータを先に読む（読めなければ低効果では何も外さず、計算は続ける）
@@ -15191,9 +15535,11 @@
 			try { await ensureEquivalentsLoaded(); } catch (e) { /* 読めなくても計算は止めない */ }
 			if (tok !== outsideUi.token || !outsideUi.open) return;
 			// 枚数・種類・絞り込みは、セットの指定（roster.outsideOptions）を計算の側が読む（④・段10〜12）
-			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [] }); }
+			let prepared = null;
+			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [], onPrepared: (p) => { prepared = p; } }); }
 			catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] オススメサポの計算で例外', e); r = { ok: false, reason: 'error' }; }
 			if (tok !== outsideUi.token || !outsideUi.open) return;
+			if (prepared && r && r.ok) outsideSetHeld({ prob: prepared.prob, K: prepared.K, result: r });
 			outsideUi.computing = false;
 			outsideUi.result = r;
 			outsideUi.checked = new Set(r && r.ok ? r.skills.filter(s => !s.added).map(s => s.skillId) : []);
@@ -17396,7 +17742,16 @@
 			recommendExcluded: { keys: recommendDistKeys, keyOf: recommendDistKeyOf, label: recommendDistLabel, idsOf: recommendExcludedIdsOf, set: setRecommendExcluded, clear: clearRecommendExcluded },
 			isRaceConditionSkill: isRaceConditionSkill, raceConditionSkillIds: raceConditionSkillIds,
 			// ④（段11）: 種類の番号と表示名・友人の種類の番号
-			typeNames: function () { return Array.from(outsideTypeNames().entries()); }, FRIEND_TYPE: OUTSIDE_FRIEND_TYPE
+			typeNames: function () { return Array.from(outsideTypeNames().entries()); }, FRIEND_TYPE: OUTSIDE_FRIEND_TYPE,
+			// C-247: ピン止めの計算（画面と保存は次の作業）。solve・solveSync・build は args.pinSkillIds（populationOf は popOpts.pins）でピンを受ける。
+			// pinFeasible(prob, K, { pins, deadlineMs }) … 判定だけ（探索とは別）／pinCheck(pinIds, held?, { deadlineMs }) … 押した瞬間の判定（案A。結果のスキル → 持っている問題）／
+			// heldProblem() … 表示中の結果の問題（{ prob, K, result }。無ければ null）／setHeld … 持つ問題を置く（検査用。null で空）／
+			// setPinJudge(fn) … 判定を差し替える（検査用。setDeadline と同じ形。null で戻す）／PIN_REASONS … 入れ直せなかった理由の値
+			pinFeasible: outsidePinFeasible, pinCheck: outsidePinCheck,
+			heldProblem: function () { return outsideHeld ? { prob: outsideHeld.prob, K: outsideHeld.K, result: outsideHeld.result } : null; },
+			setHeld: outsideSetHeld,
+			setPinJudge: function (fn) { outsidePinJudgeOverride = typeof fn === 'function' ? fn : null; },
+			PIN_JUDGE_MS: OUTSIDE_PIN_JUDGE_MS, PIN_REASONS: Object.assign({}, OUTSIDE_PIN_REASON)
 		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },
