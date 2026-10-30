@@ -254,7 +254,7 @@ export async function register18(env) {
 		return document.querySelector('.step-tab[aria-selected="true"]').id;
 	}, { sel, dx, dy });
 
-	await block('C132D 表の外で左右に払うと①②③が切り替わる（左＝次・右＝前・端では変わらない）／①の表・②の入口のボタン・スキル名・入力欄・小窓から始まった動きや、縦に大きい動きでは変わらない', async () => {
+	await block('C132D 表の外で左右に払うと①②③が切り替わる（左＝次・右＝前・端では変わらない）／①の表・②の入口のボタン・スキル名の上でも送られなければ切り替わる（T23）／入力欄・小窓から始まった動きや、縦に大きい動きでは変わらない', async () => {
 		const sp = await openSp({ tab: 0, ids: LONG });
 		const p = sp.page;
 		const OUT = '.site-header h1';
@@ -263,14 +263,19 @@ export async function register18(env) {
 		assert(await swipe(p, OUT, -120, 10) === 'step-tab-2', 'C132D 端（③）でさらに左へ払っても変わらない', await activeTab(p));
 		assert(await swipe(p, OUT, 120, 10) === 'step-tab-1', 'C132D 右へ払うと前（③→②）', await activeTab(p));
 		assert(await swipe(p, OUT, 40, 0) === 'step-tab-1', 'C132D 横の動きが小さい（40px）と変わらない', await activeTab(p));
-		assert(await swipe(p, OUT, 120, 90) === 'step-tab-1', 'C132D 縦の動きが大きい（横の半分以上）と変わらない', await activeTab(p));
-		// ②の中の横に送れる場所
-		assert(await swipe(p, T + '[data-usd-el="panel-namescroll"]', -120, 0) === 'step-tab-1', 'C132D ②のスキル名から始まった動きでは変わらない', await activeTab(p));
-		assert(await swipe(p, T + '.usd-entry-row', -120, 0) === 'step-tab-1', 'C132D ②の入口のボタンの列から始まった動きでは変わらない', await activeTab(p));
-		// ①の表
+		assert(await swipe(p, OUT, 120, 90) === 'step-tab-1', 'C132D 縦の動きが大きい（横の 2/3 以上。T23 で 1.5倍に）と変わらない', await activeTab(p));
+		// ②の中の横に送れる部品（T23 で決まりが変わった: 名前で一律に外さず、その動きで部品が送られたときだけ外す。
+		// 合成の TouchEvent ではブラウザが部品を送らないので、ここでは「送られなければ切り替わる」を見る。送られたときは blocks-75 が本物のタッチで見る）
+		assert(await swipe(p, T + '[data-usd-el="panel-namescroll"]', -120, 0) === 'step-tab-2', 'C132D ②のスキル名から始まった動きでも、名前が送られなければ切り替わる（T23）', await activeTab(p));
+		await p.click('#step-tab-1');
+		await p.waitForTimeout(200);
+		assert(await swipe(p, T + '.usd-entry-row', -120, 0) === 'step-tab-2', 'C132D ②の入口のボタンの列から始まった動きでも、列が送られなければ切り替わる（T23）', await activeTab(p));
+		// ①の表（T23: 横に送れない箱なので、外す一覧から外した）
 		await p.click('#step-tab-0');
 		await p.waitForTimeout(200);
-		assert(await swipe(p, '#deck-roster-panel .usd-roster-grid-wrap .usd-roster-gc--name[role="rowheader"]', -120, 0) === 'step-tab-0', 'C132D ①の表の上で横に動かしてもタブは変わらない', await activeTab(p));
+		assert(await swipe(p, '#deck-roster-panel .usd-roster-grid-wrap .usd-roster-gc--name[role="rowheader"]', -120, 0) === 'step-tab-1', 'C132D ①の表の上で左へ払うと②へ切り替わる（T23）', await activeTab(p));
+		await p.click('#step-tab-0');
+		await p.waitForTimeout(200);
 		assert(await swipe(p, '#deck-roster-panel select', -120, 0) === 'step-tab-0', 'C132D 選択欄から始まった動きでは変わらない', await activeTab(p));
 		// 小窓が開いているあいだ
 		await p.click('#deck-set-bar [data-usd-act="set-list"]');

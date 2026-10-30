@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-31b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-31c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -1589,17 +1589,16 @@
 
 		/* ---------- C-132: ①②③の左右スワイプ（タッチ操作のときだけ） ----------
 		   横の動きが SWIPE_MIN_PX 以上で、縦の動きの SWIPE_RATIO 倍より大きいときだけ、隣のタブへ切り替える（左へ払うと次、右へ払うと前。端では何もしない）。
-		   次の場所から始まった動きは切り替えにしない：横にスクロールできる場所（①の表・②の入口の行・スキル名など）・小窓・ポップオーバー・入力欄・選択欄。
+		   次の場所から始まった動きは切り替えにしない：小窓・ポップオーバー・引き出し・右下のボタン・入力欄・選択欄。
+		   T23（2026-10-30 おいもさんの決定）: 横に送れる部品（②の入口の行・スキル名・overflow-x が auto／scroll の箱など）は名前で一律に外さない。
+		   送れる中身が無ければ無いものとして扱い、送れる中身があれば、その動きで送られたときだけ切り替えない（送り切っていて送れなかったときは切り替える。core の swipeScrollersAt）。
+		   ①の表・②の星取表の箱（.usd-roster-grid-wrap）は横に送れないので外す一覧から外した。
 		   切り替えたあとのスクロール位置は、タブを押したときと同じ（動かさない） */
 		// 判定（SWIPE_MIN_PX・SWIPE_RATIO と向き）は core の swipeDirectionOf が持つ（イベントの小窓の「イベント」「スキル」のタブと共有）
-		// 横にスクロールする作りの部品（中身が収まっていて、いまは送れないときも含めて外す）
-		const SWIPE_BLOCK_SELECTOR = '.usd-roster-grid-wrap, .usd-hscroll, .usd-entry-row,.usd-panel-namescroll, .uma-subtabs, '
-			+ 'input, textarea, select, [contenteditable], [role="dialog"], .uma-overlay, .uma-overlay-backdrop, .usd-modal, .uma-drawer, .uma-fab-nav, .uma-undo-fab';
+		const SWIPE_BLOCK_SELECTOR = 'input, textarea, select, [contenteditable], [role="dialog"], .uma-overlay, .uma-overlay-backdrop, .usd-modal, .uma-drawer, .uma-fab-nav, .uma-undo-fab';
 		function swipeBlockedAt(el) {
 			for (let n = el; n && n !== document.body && n.nodeType === 1; n = n.parentElement) {
 				if (n.matches(SWIPE_BLOCK_SELECTOR)) return true;
-				const ox = getComputedStyle(n).overflowX;
-				if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 1) return true;
 			}
 			return false;
 		}
@@ -1612,7 +1611,7 @@
 			swipeStart = null;
 			if (!deckMode || e.touches.length !== 1 || anyLayerOpen() || swipeBlockedAt(e.target)) return;
 			const t = e.touches[0];
-			swipeStart = { x: t.clientX, y: t.clientY };
+			swipeStart = { x: t.clientX, y: t.clientY, scrollers: UmaSkillDeckCore.swipeScrollersAt(e.target, document.body) };
 		}, { passive: true });
 		document.addEventListener('touchcancel', () => { swipeStart = null; }, { passive: true });
 		document.addEventListener('touchend', (e) => {
@@ -1622,7 +1621,7 @@
 			const t = e.changedTouches[0];
 			const dx = t.clientX - s.x, dy = t.clientY - s.y;
 			const dir = UmaSkillDeckCore.swipeDirectionOf(dx, dy);
-			if (dir === 0) return;
+			if (dir === 0 || UmaSkillDeckCore.swipeScrollerMoved(s.scrollers)) return;
 			const tabs = visibleStepTabs();
 			const cur = tabs.findIndex(k => document.getElementById('step-tab-' + k).getAttribute('aria-selected') === 'true');
 			const next = tabs[cur + dir];

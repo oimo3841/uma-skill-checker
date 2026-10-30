@@ -646,7 +646,7 @@ export async function register34(env) {
 			await sp.page.click('[data-usd-el="events-tab"][data-pane="0"]');
 			await sp.page.waitForTimeout(250);
 			assert((await tabView(sp.page)).left, tag + '「イベント」のタブで戻る', null);
-			// 左右スワイプ（①②③と同じ決まり: 60px 以上・縦の2倍より大きい。左へ払うと次・右へ払うと前・端では何もしない）
+			// 左右スワイプ（①②③と同じ決まり: 50px 以上・縦の1.5倍より大きい〔T23〕。左へ払うと次・右へ払うと前・端では何もしない）
 			const sel = '[data-usd-el="events-panes"]';
 			assert((await swipeOn(sp.page, sel, 30, 0)) === '0' && (await swipeOn(sp.page, sel, -100, 80)) === '0', tag + '短い動き（30px）・縦に大きい動きでは切り替わらない', null);
 			assert((await swipeOn(sp.page, sel, 100, 0)) === '0', tag + '最初のタブで右へ払っても何も起きない（端）', null);

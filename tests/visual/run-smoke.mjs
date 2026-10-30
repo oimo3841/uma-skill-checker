@@ -101,6 +101,7 @@ import { register71 } from './blocks-71.mjs';
 import { register72 } from './blocks-72.mjs';
 import { register73 } from './blocks-73.mjs';
 import { register74 } from './blocks-74.mjs';
+import { register75 } from './blocks-75.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15461,6 +15462,8 @@ await register72({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register73({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // オススメサポのピン止めの画面と保存（T18・C-247 の後段。塊の見出しはすべて「ピン画面」で始まる）
 await register74({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// ①②③のスワイプの受け付け範囲の直し（T23。塊の見出しはすべて「T23スワイプ」で始まる）
+await register75({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

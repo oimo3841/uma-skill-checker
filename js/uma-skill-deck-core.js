@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31c';
 
 	/* ============================================================
 	 * 定数
@@ -10599,12 +10599,31 @@
 	/**
 	 * 左右のスワイプでタブを切り替えるかの判定（special.html の①②③のタブと共有。C-132 の決まり）。横の動きが SWIPE_MIN_PX 以上で、縦の動きの SWIPE_RATIO 倍より大きいときだけスワイプ。
 	 * 返り値は 1（左へ払った＝次のタブ）・-1（右へ払った＝前のタブ）・0（スワイプではない）。
+	 * T23（2026-10-30 おいもさんの決定）: 60px・2倍（水平から約27度）→ 50px・1.5倍（約34度）。
 	 */
-	const SWIPE_MIN_PX = 60;
-	const SWIPE_RATIO = 2;
+	const SWIPE_MIN_PX = 50;
+	const SWIPE_RATIO = 1.5;
 	function swipeDirectionOf(dx, dy) {
 		if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= SWIPE_RATIO * Math.abs(dy)) return 0;
 		return dx < 0 ? 1 : -1;
+	}
+	/**
+	 * T23: 指を置いた所から stop の手前までの、横に送れる部品（名前で決まる部品と overflow-x が auto／scroll の箱）のうち、
+	 * 送れる中身があるもの（scrollWidth > clientWidth + 1）と、いまの scrollLeft の一覧。送れる中身が無い部品は無いものとして扱う。
+	 * 動きの終わりに swipeScrollerMoved で、どれかが送られていたら切り替えにしない（送り切っていて送れなかったときは切り替える）。
+	 */
+	const SWIPE_SCROLLER_SELECTOR = '.usd-hscroll, .usd-entry-row, .usd-panel-namescroll, .uma-subtabs';
+	function swipeScrollersAt(el, stop) {
+		const out = [];
+		for (let n = el; n && n !== stop && n.nodeType === 1; n = n.parentElement) {
+			let can = n.matches(SWIPE_SCROLLER_SELECTOR);
+			if (!can) { const ox = getComputedStyle(n).overflowX; can = ox === 'auto' || ox === 'scroll'; }
+			if (can && n.scrollWidth > n.clientWidth + 1) out.push({ el: n, left: n.scrollLeft });
+		}
+		return out;
+	}
+	function swipeScrollerMoved(list) {
+		return !!list && list.some((s) => s.el.scrollLeft !== s.left);
 	}
 
 	/* ---- 「イベント」と「取得できるスキル」の小窓の部品（①とオススメサポで共有） ---- */
@@ -11097,13 +11116,14 @@
 			setPane(next);
 			tabEls[next].focus();
 		});
-		// 左右スワイプ（タッチのときだけ。タブが見えている＝1列のときだけ）。入力欄・横にスクロールする部品から始まった動きは切り替えにしない
+		// 左右スワイプ（タッチのときだけ。タブが見えている＝1列のときだけ）。入力欄から始まった動きは切り替えにしない。
+		// 横に送れる部品の上では、その動きで部品が送られたときだけ切り替えない（T23。swipeScrollersAt）
 		let swipeStart = null;
-		const swipeBlocked = (el) => { for (let n = el; n && n !== panes && n.nodeType === 1; n = n.parentElement) { if (n.matches('.usd-hscroll, input, textarea, select, [contenteditable]')) return true; } return false; };
+		const swipeBlocked = (el) => { for (let n = el; n && n !== panes && n.nodeType === 1; n = n.parentElement) { if (n.matches('input, textarea, select, [contenteditable]')) return true; } return false; };
 		panes.addEventListener('touchstart', (e) => {
 			swipeStart = null;
 			if (e.touches.length !== 1 || tabs.getClientRects().length === 0 || swipeBlocked(e.target)) return;
-			swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+			swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrollers: swipeScrollersAt(e.target, panes) };
 		}, { passive: true });
 		panes.addEventListener('touchcancel', () => { swipeStart = null; }, { passive: true });
 		panes.addEventListener('touchend', (e) => {
@@ -11113,7 +11133,7 @@
 			const t = e.changedTouches[0];
 			const dir = swipeDirectionOf(t.clientX - st.x, t.clientY - st.y);
 			const next = (o.getPane() === 1 ? 1 : 0) + dir;
-			if (dir === 0 || next < 0 || next > 1) return;
+			if (dir === 0 || next < 0 || next > 1 || swipeScrollerMoved(st.scrollers)) return;
 			setPane(next);
 		}, { passive: true });
 		body.insertBefore(tabs, panes);
@@ -17769,6 +17789,8 @@
 				prevItems: pt.prevItems.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })) };
 		},
 		swipeDirectionOf: swipeDirectionOf,   // 左右スワイプでタブを切り替えるかの判定（special.html の①②③のタブと小窓のタブが共有）
+		swipeScrollersAt: swipeScrollersAt,   // T23: 指を置いた所の、送れる中身がある横に送れる部品と scrollLeft の一覧
+		swipeScrollerMoved: swipeScrollerMoved,   // T23: その一覧のどれかが送られたか（送られたら切り替えにしない）
 		circleComboOf: circleComboOf,   // ◎として数えている行の Pt（○の分と◎の分の合算。C-168）。検査のため
 		compareSkillIds: compareSkillIds,
 		// スキルの既定の並び（2026-10-27）。各画面と skillset-ocr.js はこれだけを呼ぶ
