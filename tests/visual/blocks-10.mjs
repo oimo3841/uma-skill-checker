@@ -81,7 +81,10 @@ export async function register10(env) {
 	add(card('syn-t05', 'テストW', 'SR', { hint: [W[18], W[19]] }));                       // 同点: 1枚で足りるほう
 	add(card('syn-t06', 'テストX', 'SSR', { hint: [W[18]] }));
 	add(card('syn-t07', 'テストY', 'SSR', { hint: [W[19]] }));
-	const CHARA_EVENTS = [{ charaName: 'テストF', status: 'done', events: [evN([W[6]], [])] }];
+	// T20: 連続イベントの行が none（見て回ってスキルが無かった）のカードは候補になる。ヒントと共通イベントだけを数える。行が無い（pending）カードは候補にならない
+	CARDS.push(card('syn-c20', 'テストZ', 'SR', { hint: [W[10]] })); EVENTS.push({ cardId: 'syn-c20', status: 'none' });
+	CARDS.push(card('syn-c21', 'テストAA', 'SSR', { hint: [W[10]] }));                   // 連続イベントの行なし（pending） → 候補にならない
+	const CHARA_EVENTS = [{ charaName: 'テストF', status: 'done', events: [evN([W[6]], [])] }, { charaName: 'テストZ', status: 'done', events: [ev1([W[11]])] }];
 	const ALL_IDS = CARDS.map((c) => c.id);
 	const onlyOf = (ids) => ALL_IDS.filter((id) => ids.indexOf(id) === -1);   // 「この候補だけ残す」ための除外の指定
 
@@ -252,9 +255,9 @@ export async function register10(env) {
 				extra: idsOf(C.candidatesOf({}, ['syn-c14']))
 			};
 		});
-		const not = ['syn-c09', 'syn-c10', 'syn-c11'];
-		assert(not.every((id) => !ids.all.includes(id)) && ids.all.includes('syn-c12') && ids.all.length === ALL_IDS.length - not.length,
-			'段10(B) 候補: グループ（c09）・seeded（c10）・R（c11）は入らない。ヒントが未確認のカード（c12）は候補になる', { all: ids.all.length, expected: ALL_IDS.length - not.length });
+		const not = ['syn-c09', 'syn-c10', 'syn-c11', 'syn-c21'];
+		assert(not.every((id) => !ids.all.includes(id)) && ids.all.includes('syn-c12') && ids.all.includes('syn-c20') && ids.all.length === ALL_IDS.length - not.length,
+			'段10(B) 候補: グループ（c09）・seeded（c10）・R（c11）・連続イベントの行なし（c21）は入らない。ヒントが未確認のカード（c12）・連続イベントの行が none のカード（c20。T20）は候補になる', { all: ids.all.length, expected: ALL_IDS.length - not.length });
 		assert(!ids.inRoster.includes('syn-c15') && ids.inRoster.includes('syn-c16') && ids.inRoster.length === ids.all.length - 1,
 			'段10(B) 候補: ①の6枚（cardIds）のカードだけが除かれ、同じキャラクターの別のカード（c16）は残る', ids.inRoster.length);
 		assert(!ids.excluded.includes('syn-c13') && ids.excluded.length === ids.all.length - 1 && !ids.extra.includes('syn-c14') && ids.extra.length === ids.all.length - 1,
@@ -338,6 +341,11 @@ export async function register10(env) {
 		const com = await solve(sp.page, { roster: {}, count: 5, excludedCardIds: onlyOf(['syn-c07']) });
 		assert(com.score === 1 && com.skills[0].skillId === W[6] && com.skills[0].event && !com.skills[0].hint && com.skills[0].unsure === true && com.cards[0].picks[0].scope === 'chara',
 			'段10(B) キャラクター共通のイベントのスキルも数える（選択肢が2つ＝△）', brief(com));
+		const none = await solve(sp.page, { roster: {}, count: 5, excludedCardIds: onlyOf(['syn-c20']) });
+		const byNone = Object.fromEntries(none.skills.map((s) => [s.skillId, s]));
+		assert(none.score === 2 && none.cards[0].cardId === 'syn-c20' && byNone[W[10]] && byNone[W[10]].hint && !byNone[W[10]].event
+			&& byNone[W[11]] && byNone[W[11]].event && !byNone[W[11]].hint && none.cards[0].picks.every((p) => p.scope === 'chara'),
+			'段10(B) 連続イベントの行が none のカード（c20。T20）は、連続イベントのスキル0件として、ヒント（W10）と共通イベント（W11）だけを数える', brief(none));
 		const added = await solve(sp.page, { roster: {}, count: 5, excludedCardIds: onlyOf(['syn-c01']), addedSkillIds: [W[0]] });
 		assert(added.score === 2 && added.skills.find((s) => s.skillId === W[0]).added === true && added.counts.added === 1, '段10(B) すでに②にあるスキルは結果に残り、追加済みの印が付き、点数にも数える', brief(added));
 		const rf = await solve(sp.page, { roster: { skillFilter: { distance: 'short' } }, count: 5, excludedCardIds: onlyOf(['syn-c13', 'syn-c14']) });
@@ -400,7 +408,7 @@ export async function register10(env) {
 		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { race: { id: 'race-blank', name: 'blank' }, outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
 		assert(cut.ok && cut.partial === true && cut.score > 0 && cut.cards === 6 && full.ok && full.partial === false && cut.score <= full.score, '段10(C) 実データ: 締め切り 0ms だと途中の結果（partial）で、それまでの最良（6枚）を返す。十分な時間なら印は付かない', { cut, full: { partial: full.partial, score: full.score } });
 		assert(full.stats.engineScore === full.score, '段10(C) 実データでも、探索の点数と組み立ての点数が一致する', [full.stats.engineScore, full.score]);
-		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 462 && full.stats.candidates === 412 && full.stats.groups === 147, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団462・候補412枚・147キャラクター（2026-10-26: 検索の母集団に ex-1693 が増え461→462。R の card-0566 は候補に入らず、候補・キャラクター・点数114は変わらない。2026-10-25a: 先行データでカード2枚・吾妻が増え、候補410→412・キャラクター146→147。検索の母集団に6件が増え455→461。点数114は変わらない。2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146。2026-10-16: 検索に出す拡張スキルが7→10件になり母集団452→455。点数114・候補・キャラクターは変わらない）', { counts: full.counts, stats: full.stats });
+		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 462 && full.stats.candidates === 414 && full.stats.groups === 147, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団462・候補414枚・147キャラクター（2026-10-31 T20: 連続イベントの行が none のカード2枚〔card-0161・card-0180〕を候補に入れ412→414。2枚のキャラクターは既に候補にいるのでキャラクターは147のまま。2026-10-26: 検索の母集団に ex-1693 が増え461→462。R の card-0566 は候補に入らず、候補・キャラクター・点数114は変わらない。2026-10-25a: 先行データでカード2枚・吾妻が増え、候補410→412・キャラクター146→147。検索の母集団に6件が増え455→461。点数114は変わらない。2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146。2026-10-16: 検索に出す拡張スキルが7→10件になり母集団452→455。点数114・候補・キャラクターは変わらない）', { counts: full.counts, stats: full.stats });
 		const ticks = await sp.page.evaluate(async () => {
 			let n = 0; const iv = setInterval(() => { n++; }, 0);
 			const roster = { cardIds: ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'], skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };

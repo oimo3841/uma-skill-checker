@@ -24,14 +24,15 @@ export async function register69(env) {
 	const CARDS = readJson('data/support-cards.json').entries;
 	const EV = new Map(readJson('data/support-card-event-skills.json').entries.map((r) => [r.cardId, r]));
 	const CH = new Map(readJson('data/character-event-skills.json').entries.map((r) => [r.charaName, r]));
-	const rowIds = (row, key) => {
+	// T20: 結果が分かれる選択肢は成功側（先頭の結果）だけ（点数の計算と同じ）。allResults は検査の比べ用に、失敗側も含めた集め方
+	const rowIds = (row, key, allResults) => {
 		const out = new Set();
 		if (!row) return out;
 		const put = (x) => { if (x && x.skillId) out.add(x.skillId); };
 		if (row.status === 'seeded') { (row.unplaced || []).forEach(put); return out; }
 		if (row.status !== 'done') return out;
 		(row[key] || []).forEach((ev) => {
-			(ev.choices || []).forEach((c) => { (c.skills || []).forEach(put); (c.results || []).forEach((r) => (r || []).forEach(put)); });
+			(ev.choices || []).forEach((c) => { (c.skills || []).forEach(put); (allResults ? (c.results || []) : (c.results || []).slice(0, 1)).forEach((r) => (r || []).forEach(put)); });
 			(ev.acquireOptions || []).forEach((o) => ((o && o.skills) || []).forEach(put));
 		});
 		return out;
@@ -50,6 +51,15 @@ export async function register69(env) {
 			|| a.title.localeCompare(b.title, 'ja') || (a.id < b.id ? -1 : 1));
 		return out;
 	};
+	// 失敗側の結果でしか得られない（スキル・カード）の組（T20 でパネルから消えた行。2026-10-31 時点で19行・18種）
+	const FAIL_ONLY = [];
+	CARDS.forEach((c) => {
+		if (c.rarity !== 'SSR' && c.rarity !== 'SR') return;
+		const hint = new Set(!!(c.dataStatus && c.dataStatus.hint === 'done') ? (c.hintSkills || []).map((s) => s && s.skillId) : []);
+		const of = (all) => { const s = new Set(rowIds(EV.get(c.id), 'chain', all)); charasOf(c).forEach((n) => rowIds(CH.get(n), 'events', all).forEach((x) => s.add(x))); return s; };
+		const succ = of(false);
+		of(true).forEach((id) => { if (!succ.has(id) && !hint.has(id)) FAIL_ONLY.push([id, c.id]); });
+	});
 	const R_IDS = new Set(CARDS.filter((c) => c.rarity !== 'SSR' && c.rarity !== 'SR').map((c) => c.id));
 	const AKI = '19', CORNER = '104';
 	const count = (list, k, v) => list.filter((x) => x[k] === v).length;
@@ -135,6 +145,10 @@ export async function register69(env) {
 			assert(JSON.stringify(g) === JSON.stringify(w), '得られるサポカ(1) ' + [AKI, CORNER][k] + ': 製品の一覧は検査の側で出した一覧と同じカード・同じ並び・同じ札', { got: g.slice(0, 6), want: w.slice(0, 6) });
 			assert(got[k].every((x) => (x.rarity === 'SSR' || x.rarity === 'SR') && !R_IDS.has(x.cardId)), '得られるサポカ(1) ' + [AKI, CORNER][k] + ': R のカードは含まない', got[k].filter((x) => R_IDS.has(x.cardId)));
 		});
+		// T20: 失敗側の結果でしか得られないカードは出さない（成功側だけ）
+		const failGot = await sp.page.evaluate((pairs) => pairs.filter(([s, c]) => UmaSkillDeckCore.cardsWithSkill(s).some((x) => x.cardId === c)), FAIL_ONLY);
+		assert(FAIL_ONLY.length === 19 && new Set(FAIL_ONLY.map((p) => p[0])).size === 18 && failGot.length === 0,
+			'得られるサポカ(1) 失敗側の結果でしか得られない19行（18種）は、どれも製品の一覧に出ない（成功側だけ。T20）', { n: FAIL_ONLY.length, kinds: new Set(FAIL_ONLY.map((p) => p[0])).size, shown: failGot.slice(0, 5) });
 		// オススメサポの一覧に出るすべてのスキルで、製品の逆引きが独立の一覧と同じ
 		await openOutside(sp.page);
 		const rowIdsOut = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]')).map((r) => r.dataset.skillId));

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31b';
 
 	/* ============================================================
 	 * 定数
@@ -3005,7 +3005,8 @@
 	 * データ（support-cards の hintSkills・support-card-event-skills・character-event-skills）から1回だけ作って持つ（今の core はカード → スキルの向きだけ）。
 	 *   - カードは SSR・SR だけ（R は載せない）。グループのカードも含む（共通イベントは groupMembers の全員ぶん。charactersOfCard と同じ決まり）。
 	 *   - ヒント: dataStatus.hint が done のときの hintSkills（①・オススメサポの点数と同じ）。
-	 *   - イベント: 行が done ならすべてのイベントのすべての選択肢（結果・段階も全部。編成の選択には左右されない）、seeded なら unplaced。
+	 *   - イベント: 行が done ならすべてのイベントのすべての選択肢（段階も全部。編成の選択には左右されない）。結果が分かれる選択肢は成功側（先頭の結果）だけ
+	 *     （T20。点数の計算と同じ。因子周回で編成するカードは大成功を前提に採用を決めるので、失敗側でしか得られないカードは出さない）。seeded なら unplaced。
 	 * 返り値は [{ card, hint, event }]。並びは SSR → SR、種別の順（typeOrder。無いものは後ろ）、カードの題の順（日本語の順）、id。
 	 * 読み込んだデータの入れ物が変わったら作り直す（検査でデータを差し替えたとき）。
 	 * ------------------------------------------------------------ */
@@ -3020,7 +3021,8 @@
 			(ev.choices || []).forEach(ch => {
 				if (!ch) return;
 				if (Array.isArray(ch.skills)) ch.skills.forEach(put);
-				if (Array.isArray(ch.results)) ch.results.forEach(r => { if (Array.isArray(r)) r.forEach(put); });
+				// T20: 結果が分かれる選択肢は成功側（先頭の結果）だけ。点数の計算（eventChoiceSuccessSkills）と同じ
+				if (Array.isArray(ch.results)) eventChoiceSuccessSkills(ch).forEach(put);
 			});
 			if (Array.isArray(ev.acquireOptions)) ev.acquireOptions.forEach(o => ((o && o.skills) || []).forEach(put));
 		});
@@ -3630,13 +3632,17 @@
 		notifyRecommendExcluded();
 		return true;
 	}
-	/** 候補のカード: SSR・SR、グループでない、イベント行が done。①の6枚（cardIds のカードだけ）と、提案から外したカードは除く */
+	/**
+	 * 候補のカード: SSR・SR、グループでない、イベント行が done か none（T20。none は連続イベントのスキルが0件で、ヒントと共通イベントだけを数える。
+	 * seeded と行なし〔pending〕は外す）。①の6枚（cardIds のカードだけ）と、提案から外したカードは除く
+	 */
 	function outsideCandidatesOf(roster, extraExcludedIds) {
 		const inRoster = new Set(((roster && roster.cardIds) || []).filter(Boolean));
 		const ex = new Set(outsideExcludedIdsOf(roster).concat((extraExcludedIds || []).filter(id => typeof id === 'string')));
+		const evOk = (id) => { const s = eventStatusOf(id); return s === 'done' || s === 'none'; };
 		// C-168: 育成ウマ娘と同じキャラクターのカードは候補（探索の母集団）に入れない
 		return listCards().filter(c => c && (c.rarity === 'SSR' || c.rarity === 'SR') && c.isGroup === false
-			&& eventStatusOf(c.id) === 'done' && !inRoster.has(c.id) && !ex.has(c.id) && umaSharedCharasOf(roster && roster.umaId, c).length === 0)
+			&& evOk(c.id) && !inRoster.has(c.id) && !ex.has(c.id) && umaSharedCharasOf(roster && roster.umaId, c).length === 0)
 			.sort((a, b) => ((b.rarity === 'SSR' ? 1 : 0) - (a.rarity === 'SSR' ? 1 : 0)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 	}
 	/** イベントの行 → [{ idx, alts: [[skillId…]…] }]。done のときだけ。選択肢は成功側。スキルを得ない選択肢も空の選択肢として残す */
