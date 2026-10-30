@@ -82,7 +82,7 @@ export async function register57(env) {
 			const nb = p.querySelector('.usd-panel-namebtn');
 			const pt = p.querySelector('[data-usd-el="panel-pt"]');
 			return { id: p.dataset.skillId, circle: p.dataset.usdCircle || null, info: nb ? nb.getAttribute('data-usd-info') : null, name: nb ? nb.textContent : null,
-				pt: pt ? pt.textContent : '', ptShown: !!pt && getComputedStyle(pt).display !== 'none' && pt.textContent !== '', toggle: t ? t.getAttribute('aria-pressed') : null, h: p.getBoundingClientRect().height,
+				pt: pt ? pt.textContent : '', ptShown: !!pt && getComputedStyle(pt).display !== 'none' && pt.textContent !== '', toggle: t ? t.getAttribute('aria-pressed') : null, scope: t ? t.getAttribute('data-usd-scope') : null, h: p.getBoundingClientRect().height,
 				toggleBox: t ? (() => { const r = t.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })() : null };
 		});
 		const n = (sel) => { const e = document.querySelector(sel); return e ? Number(e.textContent.replace(/[^0-9]/g, '')) : null; };
@@ -364,8 +364,12 @@ export async function register57(env) {
 			await setMode(sp.page, true);
 			const m = await read(sp.page);
 			const cand = new Map(m.circles.candidates);
-			const bad = m.rows.filter((r) => r.ptShown || (cand.has(r.id) ? !(r.toggle === (r.id === '6' ? 'false' : 'true') && r.toggleBox.w >= 44) : r.toggle !== null));
-			assert(m.modeBtn === 'true' && bad.length === 0 && cand.size === FIX.S1.cand, tag + 'モード: すべての行の Pt を隠し、候補の行だけ◎（○に戻した「6」は○）・押せる幅 44px、候補でない行は何も出さない', bad.slice(0, 3));
+			// C-245: ①に関わる○（①の◎の候補）の行にも、①の状態の◎／○が出る（data-usd-scope="roster"）。②独自の候補の行は②の状態（○に戻した「6」は○）
+			const rv = await sp.page.evaluate((r) => { const v = UmaSkillDeckCore.getRosterVisiblePart(r); return { cand: v.circleCandidates.map((x) => x[0]), on: v.circleOf.map((x) => x[0]) }; }, R2);
+			const rCand = new Set(rv.cand.filter((id) => ONE12.includes(id) && !cand.has(id))), rOn = new Set(rv.on);
+			const bad = m.rows.filter((r) => r.ptShown || (cand.has(r.id) ? !(r.toggle === (r.id === '6' ? 'false' : 'true') && r.scope === null && r.toggleBox.w >= 44)
+				: rCand.has(r.id) ? !(r.toggle === (rOn.has(r.id) ? 'true' : 'false') && r.scope === 'roster' && r.toggleBox.w >= 44) : r.toggle !== null));
+			assert(m.modeBtn === 'true' && bad.length === 0 && cand.size === FIX.S1.cand, tag + 'モード: すべての行の Pt を隠し、②の候補の行は◎（○に戻した「6」は○）・①に関わる行（' + rCand.size + '行）は①の状態の◎／○・押せる幅 44px、候補でない行は何も出さない', bad.slice(0, 3));
 			assert(m.rows.every((r) => r.h === 36) && n0.rows.every((r) => r.h === 36) && !m.overflowX, tag + '行の高さは 36px のまま（通常・モード）・横スクロールなし', Array.from(new Set(m.rows.map((r) => r.h))));
 			assert(m.factorPt === n0.factorPt && m.bandPt === n0.bandPt, tag + 'モードに入っても数は変わらない', { n: n0.factorPt, m: m.factorPt });
 			const ls = await sp.page.evaluate(() => JSON.stringify(Object.assign({}, localStorage)));
