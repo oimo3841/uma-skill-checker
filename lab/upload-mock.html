@@ -43,6 +43,22 @@ button.usd-setbar-name.t43-sn { display: inline-flex; align-items: baseline; gap
 .t43-sn-meta { flex: none; font-size: 12px; line-height: 1; font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; letter-spacing: .02em; }
 .t43-sn-pen { font-size: 12px; margin-right: 2px; }
 
+/* ---- T46: 押して編集できることが分かる表現の案（?sn=a|b|c|d）。押せる高さ 44px・帯の高さは今のままは T43 と同じ ---- */
+button.usd-setbar-name.t43-sn[data-t46-sn="a"], button.usd-setbar-name.t43-sn[data-t46-sn="b"],
+button.usd-setbar-name.t43-sn[data-t46-sn="c"], button.usd-setbar-name.t43-sn[data-t46-sn="d"] { align-items: center; line-height: 1.25; min-width: 0; }
+.t46-pen { display: block; width: 16px; height: 16px; flex: none; }
+/* 案A・案B・案D: 鉛筆は名前と同じ濃さ（--uma-text-heading） */
+.t46-pen-plain { display: inline-flex; flex: none; color: var(--uma-text-heading); }
+/* 案B・案D: 帯のレース条件のボタン（.usd-setbar-race）と同じ仲間の形（線 --uma-border-strong・角の丸み いっぱい・地 --uma-surface-muted・高さ 28px） */
+.t46-box { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; height: 28px; box-sizing: border-box; padding: 0 10px 0 12px;
+	border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface-muted); }
+button.t43-sn:hover .t46-box { background: var(--uma-surface); }
+.t46-caret { flex: none; font-size: 10px; line-height: 1; color: var(--uma-text-muted); margin-left: -2px; }
+/* 案C: 名前の右に、丸（28px・線 --uma-border-strong・地 --uma-surface-muted）の中の鉛筆 16px */
+.t46-circle { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; box-sizing: border-box;
+	border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+button.t43-sn:hover .t46-circle { background: var(--uma-surface); }
+
 /* ---- (2)-2・(2)-5 セットの見出しを消したあとの「セットをクリア」 ---- */
 .t43-setpanel { position: relative; }
 .t43-clear-row { position: absolute; top: 10px; right: 14px; margin: 0 !important; z-index: 1; }
@@ -5585,6 +5601,7 @@ button.bg-slate-900 { background-color: var(--uma-control); color: var(--uma-con
 	// (1) の下線と (2)-3 の見出し。案の場面では v=1 → 下線あり・(ア)、v=2 → 下線なし・(イ)。動画の場面は v を場面の案に使うので既定は 下線あり・(ア)
 	var UL = Q.get('ul') !== null ? Q.get('ul') !== '0' : (scene === 'new' ? V !== '2' : true);
 	var BADGE = Q.get('badge') !== null ? (Q.get('badge') === 'i' ? 'i' : 'a') : (scene === 'new' && V === '2' ? 'i' : 'a');
+	var SN = /^[abcd]$/.test(Q.get('sn') || '') ? Q.get('sn') : '';   // T46 のセット名の案
 	var G = Q.get('g') === '2' ? '2' : (Q.get('g') === '3' ? '3' : '1');
 	var SHOT = Q.get('shot') === '1';
 	var SET_COUNT = 3, SET_LIMIT = 10;
@@ -5710,10 +5727,28 @@ button.bg-slate-900 { background-color: var(--uma-control); color: var(--uma-con
 	function applySetName() {
 		var nb = $('#deck-set-bar [data-usd-el="set-name"]');
 		if (!nb) return;
-		var name = nb.getAttribute('title') || nb.textContent;
+		var name = Q.get('name') || nb.getAttribute('title') || nb.textContent;
 		nb.classList.add('t43-sn');
-		nb.classList.toggle('t43-sn--ul', UL);
-		nb.innerHTML = '<span class="t43-sn-name">' + name + '</span><span class="t43-sn-meta" aria-hidden="true"><span class="t43-sn-pen">✎</span>' + SET_COUNT + '/' + SET_LIMIT + '</span>';
+		var meta = SET_COUNT + '/' + SET_LIMIT;
+		var pen = '<svg class="t46-pen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></svg>';
+		var nm = '<span class="t43-sn-name">' + name + '</span>';
+		var mt = '<span class="t43-sn-meta" aria-hidden="true">' + meta + '</span>';
+		nb.setAttribute('data-t46-sn', SN);
+		// T46: ?big=1 で帯の右の合計を実際の大きさに近い値（12,321 Pt／106種）にする（写しの 840 Pt／6種は短い）
+		if (Q.get('big') === '1') {
+			var num = $('#deck-set-bar [data-usd-el="set-total-num"]'), kinds = $('#deck-set-bar [data-usd-el="set-total-kinds"]');
+			if (num) num.textContent = '12,321';
+			if (kinds) kinds.textContent = '／106種';
+		}
+		// T46: 押して編集できることが分かる表現の案（?sn=a|b|c|d）。sn が無ければ T43 の v=1（下線あり）・v=2（下線なし）
+		if (SN === 'a') { nb.classList.add('t43-sn--ul'); nb.innerHTML = nm + '<span class="t46-pen-plain">' + pen + '</span>' + mt; }
+		else if (SN === 'b') nb.innerHTML = '<span class="t46-box">' + nm + '<span class="t46-pen-plain">' + pen + '</span>' + mt + '</span>';
+		else if (SN === 'c') nb.innerHTML = nm + '<span class="t46-circle">' + pen + '</span>' + mt;
+		else if (SN === 'd') nb.innerHTML = '<span class="t46-box">' + nm + '<span class="t46-pen-plain">' + pen + '</span>' + mt + '<span class="t46-caret" aria-hidden="true">▾</span></span>';
+		else {
+			nb.classList.toggle('t43-sn--ul', UL);
+			nb.innerHTML = nm + '<span class="t43-sn-meta" aria-hidden="true"><span class="t43-sn-pen">✎</span>' + meta + '</span>';
+		}
 		nb.setAttribute('aria-label', name + '（セットの一覧 ' + SET_COUNT + '／' + SET_LIMIT + '件）');
 		nb.setAttribute('title', name + '（押すとセットの一覧）');
 	}
@@ -6052,6 +6087,9 @@ button.bg-slate-900 { background-color: var(--uma-control); color: var(--uma-con
 		if (scene === 'vprog') extra += '<label>段<select data-q="step">' + [0, 1, 2, 3, 4].map(function (s) { return opt(String(s), Q.get('step') || '2', s + ' ' + STEPS[s]); }).join('') + '</select></label>';
 		if (scene === 'vwarn') extra += '<label>警告の人数<select data-q="n">' + ['0', '1', '3'].map(function (s) { return opt(s, Q.get('n') || '1', s + '人'); }).join('') + '</select></label>';
 		if (scene === 'verr') extra += '<label>失敗<select data-q="e">' + Object.keys(ERRORS).map(function (s) { return opt(s, Q.get('e') || 'unreadable', s); }).join('') + '</select></label>';
+		if (scene !== 'now' && TOOL === 'special') extra += '<label>(1) セット名の案（T46）<select data-q="sn">' + opt('', SN, 'なし（下の「下線」に従う。T43 の形）') + opt('a', SN, '案A 下線あり＋鉛筆 16px') + opt('b', SN, '案B 枠で囲む＋鉛筆 16px') + opt('c', SN, '案C 丸の中に鉛筆') + opt('d', SN, '案D 枠＋鉛筆＋▾') + '</select></label>'
+			+ '<label>セット名の長さ<select data-q="name">' + opt('', Q.get('name') || '', 'LoHトプロ') + opt('チャンミ中距離先行用', Q.get('name') || '', 'チャンミ中距離先行用（10文字）') + '</select></label>'
+			+ '<label>帯の右の合計<select data-q="big">' + opt('', Q.get('big') || '', '写しのまま（840 Pt／6種）') + opt('1', Q.get('big') || '', '12,321 Pt／106種') + '</select></label>';
 		if (scene !== 'now') extra += '<label>(1) セット名の下線<select data-q="ul">' + opt('1', UL ? '1' : '0', '残す') + opt('0', UL ? '1' : '0', '外す') + '</select></label>'
 			+ '<label>(2)-3 人の欄の見出し<select data-q="badge">' + opt('a', BADGE, '(ア) 丸を消して文字だけ') + opt('i', BADGE, '(イ) 丸の中を「親A」など') + '</select></label>';
 		g.innerHTML = '<summary>モックの案内 ▾</summary><div class="t43-gbody">'
