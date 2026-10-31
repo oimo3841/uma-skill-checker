@@ -169,8 +169,14 @@ export async function register66(env) {
 			const pas = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="passive-results"] label.usd-row')).map((r) => { const b = r.querySelector('button[data-usd-info]'); return { id: r.querySelector('input').value, gray: r.classList.contains('usd-row--excluded'), btn: !!b && b.getAttribute('data-usd-info') === r.querySelector('input').value, cls: b ? b.className : '' }; }));
 			const qmiss = pas.filter((p) => !p.btn || toneOfClass(p.cls) !== (p.gray ? '' : toneWant(p.id)));
 			assert(pas.length > 10 && qmiss.length === 0, tag + '緑スキルの一覧: すべての行の名前が説明の小窓のボタン・色のクラスが期待と一致（灰色の行は色なし。' + pas.length + '行）', qmiss.slice(0, 4));
+			/* T26（2026-10-31・おいもさんの決定）: 緑スキルの一覧の選べない行（.usd-row--excluded。チェックボックスは disabled）は、
+			   わざと薄くした（取り消し線＋行を薄く）。押せない部品の文字は WCAG 1.4.3 の対象外なので、測る間だけ印（aria-disabled）を付けて
+			   scanTextContrastInPage の「disabled」の側へ分ける（製品の DOM には付けない。ラベルに付けると中の名前のボタンまで押せない扱いになるため）。
+			   選べる行は今までどおり 4.5 以上。選べない行と選べる行の差の実測は blocks-76「T26緑スキル」 */
+			const nEx = await sp.page.evaluate(() => { const r = [...document.querySelectorAll('[data-usd-el="passive-results"] label.usd-row--excluded')]; r.forEach((e) => e.setAttribute('aria-disabled', 'true')); return r.length; });
 			const c3 = await sp.page.evaluate(scanTextContrastInPage, '[data-usd-el="passive-results"]');
-			assert(c3.checked > 0 && c3.bad.length === 0, tag + '緑スキルの一覧の文字のコントラスト 4.5 以上', formatContrast(c3.bad).slice(0, 4));
+			await sp.page.evaluate(() => document.querySelectorAll('[data-usd-el="passive-results"] label.usd-row--excluded').forEach((e) => e.removeAttribute('aria-disabled')));
+			assert(c3.checked > 0 && c3.bad.length === 0 && c3.disabled.length >= nEx, tag + '緑スキルの一覧の文字のコントラスト 4.5 以上（選べない ' + nEx + '行は押せない部品として対象外）', formatContrast(c3.bad).slice(0, 4));
 			await sp.page.click('[data-usd-act="picker-close"]');
 			await sp.page.waitForTimeout(300);
 			// オススメサポ（追加済みでない行に色・追加済みの灰色の行は色なし）

@@ -102,6 +102,7 @@ import { register72 } from './blocks-72.mjs';
 import { register73 } from './blocks-73.mjs';
 import { register74 } from './blocks-74.mjs';
 import { register75 } from './blocks-75.mjs';
+import { register76 } from './blocks-76.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -723,8 +724,10 @@ await block('special.html（UmaStar OCR）', async () => {
 				saved: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
 				// 段8（C-120）で「追加済みスキル（N種）」を無くしたので、分類のタブの数の合計で見る
 				panelCount: String(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length),
-				note: el('passive-note').textContent,
-				noteCount: el('passive-count').textContent,
+				// T26（2026-10-31）: 上の2行（注記・件数）は消した。残っていないことを見る
+				note: el('passive-note') ? el('passive-note').textContent : null,
+				noteCount: el('passive-count') ? el('passive-count').textContent : null,
+				modeKids: [...el('mode-passive').children].map((c) => c.getAttribute('data-usd-el')),
 			};
 		});
 
@@ -816,12 +819,11 @@ await block('special.html（UmaStar OCR）', async () => {
 		assert(already.length > 0 && p0.checked.join() === already.join(),
 			'段9: 開いた時点のチェックは、いまセットに入っている緑スキルと一致する',
 			{ チェック: p0.checked, セット: p0.saved });
-		/* 注記の数え方 ―― **単位は背後の見出し（追加済みスキル（N種））と同じ「種」**。
-		   「絞り込み結果（N件）」の「件」に引きずられていないことも一緒に見る。 */
-		assert(p0.noteCount === already.length + '種'
-			&& p0.note === 'チェックするとその場で追加済みスキルに入り、外すと抜けます（このうち'
-				+ already.length + '種が追加済み）',
-			'段9: 注記は「このうちN種が追加済み」で、単位は追加済みスキルの見出しと揃っている', p0.note);
+		/* T26（2026-10-31・おいもさんの決定）: 上の注記「チェックするとその場で追加済みスキルに入り、外すと抜けます（このうちN種が追加済み）」と
+		   件数の行は消した（冗長なため）。以前はここで注記の文言と「N種」を見ていた。いまは、一覧の箱だけが残っていることを見る
+		   （見た目の詳細は blocks-76「T26緑スキル」）。 */
+		assert(p0.note === null && p0.noteCount === null && p0.modeKids.join() === 'passive-results',
+			'段9: 一覧の上の注記と件数の行は無く、小窓の中は一覧だけ（T26）', { note: p0.note, kids: p0.modeKids });
 
 		// (5) チェックするとその場でセットへ入る（確定ボタンを押さない）
 		const target = p0.ids.find((id) => !p0.checked.includes(id));
@@ -12785,14 +12787,16 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await page.evaluate(() => UmaSkillDeckCore.setPickerHiddenIds([]));
 	await openPassive();
 	const p0 = await passiveState();
-	assert(p0.total === passive.length && p0.greyIds.length === 0 && p0.label === null,
-		'段3b⑦: 除外なしのときは、緑スキルの一覧にグレーアウトも「除外中」も出ない', { total: p0.total, grey: p0.greyIds.length, label: p0.label });
+	// T26（2026-10-31）: 緑スキルの一覧の件数の行（passive-excluded）は消した（label は undefined＝要素が無い）。
+	// 理由は、この一覧だけ短い表記「本育成で取得」（「条件で検索」の s1.reasons[0] は「本育成で得るため選べません」のまま）
+	assert(p0.total === passive.length && p0.greyIds.length === 0 && p0.label === undefined,
+		'段3b⑦: 除外なしのときは、緑スキルの一覧にグレーアウトが出ない（件数の行は T26 で消した）', { total: p0.total, grey: p0.greyIds.length, label: p0.label });
 	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), ph);
 	await openPassive();
 	const p1 = await passiveState();
 	assert(p1.total === passive.length && p1.greyIds.length === 3 && ph.every((id) => p1.greyIds.includes(id)) && p1.greyDisabled
-		&& p1.label === '本育成編成のため選べない 3件' && p1.reasons.every((t) => t === s1.reasons[0]),
-		'段3b⑦: 緑スキルの一覧でも消えずにグレーアウト・チェック不可・同じ理由で、「本育成編成のため選べない 3件」が出る（段7の旧3: 行の数なので「件」）', p1);
+		&& p1.label === undefined && p1.reasons.every((t) => t === '本育成で取得') && s1.reasons[0] === '本育成で得るため選べません',
+		'段3b⑦: 緑スキルの一覧でも消えずにグレーアウト・チェック不可で、理由は短い表記「本育成で取得」（条件で検索は長い文言のまま。件数の行は無い。T26）', p1);
 	await page.click('[data-usd-el="passive-results"] [data-usd-excluded="1"] >> nth=0', { force: true });
 	await page.waitForTimeout(200);
 	assert((await page.evaluate(() => window.__smokeAdded.length)) === 0,
@@ -12800,7 +12804,7 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	// 追加済み（チェックが入っている）ものは、除外中でも普通の行のまま（外せなくならない）
 	await openPassive([ph[0]]);
 	const p2 = await passiveState();
-	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === '本育成編成のため選べない 2件',
+	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === undefined,
 		'段3b⑦: 追加済みの緑スキルは、選べないものでも普通の行のまま（外せる）。選べない行は2件に減る', p2);
 	await page.setViewportSize({ width: 375, height: 800 });
 	await page.waitForTimeout(300);
@@ -15464,6 +15468,8 @@ await register73({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register74({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // ①②③のスワイプの受け付け範囲の直し（T23。塊の見出しはすべて「T23スワイプ」で始まる）
 await register75({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// 「緑スキルを追加」の小窓の直し（T26。塊の見出しはすべて「T26緑スキル」で始まる）
+await register76({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

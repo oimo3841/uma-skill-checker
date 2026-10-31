@@ -77,8 +77,11 @@ export async function register15(env) {
 	const readPassiveList = (page) => page.evaluate(() => {
 		const rows = Array.from(document.querySelectorAll('[data-usd-el="passive-results"] label.usd-row'));
 		const race = rows.filter((r) => /レース条件/.test((r.querySelector('[data-usd-el="excluded-reason"]') || {}).textContent || ''));
+		// T26（2026-10-31）: 緑スキルの一覧の件数の行（passive-excluded）は消し、理由は短い表記「レース条件不一致」にした
+		const ex = document.querySelector('[data-usd-el="passive-excluded"]');
 		return { race: race.length, raceDisabled: race.every((r) => r.querySelector('input').disabled), raceIds: race.map((r) => r.querySelector('input').value),
-			label: document.querySelector('[data-usd-el="passive-excluded"]').textContent };
+			raceReasons: Array.from(new Set(race.map((r) => r.querySelector('[data-usd-el="excluded-reason"]').textContent))),
+			label: ex ? ex.textContent : null };
 	});
 
 	/* ====================================================================
@@ -100,7 +103,7 @@ export async function register15(env) {
 		await pickEntry(sp.page, 'editor-pick-passive');
 		await sp.page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
 		const b = await readPassiveList(sp.page);
-		assert(b.race > 0 && b.raceDisabled && raceNum(b.label) === b.race, 'C129B(b) 緑スキル: レース条件に合わない行がグレーアウト（チェック不可）で残る（' + b.race + '件）', b);
+		assert(b.race > 0 && b.raceDisabled && b.raceReasons.join() === 'レース条件不一致' && b.label === null, 'C129B(b) 緑スキル: レース条件に合わない行がグレーアウト（チェック不可）で残る（' + b.race + '件。理由は短い表記「レース条件不一致」・件数の行は無い〔T26〕）', b);
 		// チェック不可の行を押しても足されない（保険の経路）
 		await sp.page.evaluate((id) => { const i = document.querySelector('[data-usd-el="passive-results"] input[value="' + id + '"]'); i.disabled = false; i.click(); }, b.raceIds[0]);
 		await sp.page.waitForTimeout(200);

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31d';
 
 	/* ============================================================
 	 * 定数
@@ -5876,6 +5876,14 @@
 		'.usd-row--excluded:hover { background: transparent; }',
 		'.usd-row--excluded input { cursor: default; }',
 		'.usd-row-reason { margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		// T26（2026-10-31）: 「緑スキルを追加」の一覧（.usd-passive-list）だけ。チェックボックスはほかの小窓と同じベースカラー。
+		// 選べない行は名前に取り消し線（説明の小窓を開く下線は残す）＋行を薄く（地を沈め、文字を面の色へ寄せる・チェックボックスは 45%）。
+		// オススメサポ・脚質オススメの一覧と「条件で検索」「テキストで検索」には当てない（後者は T27・T28 で当てる予定）
+		'.usd-passive-list input[type="checkbox"] { accent-color: var(--uma-control-mark); }',
+		'.usd-passive-list .usd-row--excluded, .usd-passive-list .usd-row--excluded:hover { color: color-mix(in srgb, var(--uma-text-faint) 55%, var(--uma-surface)); background: var(--uma-surface-sunken); }',
+		'.usd-passive-list .usd-row--excluded .usd-out-namebtn { text-decoration-line: underline line-through; text-decoration-thickness: 1px; }',
+		'.usd-passive-list .usd-row--excluded .usd-row-reason { color: color-mix(in srgb, var(--uma-text-subtle) 65%, var(--uma-surface)); }',
+		'.usd-passive-list .usd-row--excluded input { opacity: .45; }',
 		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
 		// C-244: ①の絞り込みの値が入った件数の文は、入らない幅では折り返す（値は省略しない）。値「（中距離・先行・芝）」と「N件」は途中で分けない
 		'.usd-excluded-count[data-usd-wrap] { white-space: normal; }',
@@ -7676,6 +7684,11 @@
 	const PICKER_OFF_REASON = '本育成編成で不要にしているため選べません';
 	// セットのレース条件に合わないスキル（C-129）
 	const PICKER_RACE_REASON = 'レース条件に合わないため選べない';
+	// 「緑スキルを追加」の一覧だけの短い表記（T26・2026-10-31 おいもさんの決定）。「条件で検索」「名前を入れて探す」は上の文言のまま。
+	// 不要にしているもの（PICKER_OFF_REASON）は決定に含まれないので今のまま
+	const PICKER_PASSIVE_SHORT_REASONS = {};
+	PICKER_PASSIVE_SHORT_REASONS[PICKER_EXCLUDED_REASON] = '本育成で取得';
+	PICKER_PASSIVE_SHORT_REASONS[PICKER_RACE_REASON] = 'レース条件不一致';
 	/** そのスキルを選べなくしている理由（選べるなら空）。不要にしているものは、本育成で得るものとは別の理由。理由が重なるときは本育成の理由を先に出す */
 	function pickerBlockReasonOf(skillId) {
 		if (pickerHiddenIds.indexOf(skillId) === -1) return isPickerRaceBlocked(skillId) ? PICKER_RACE_REASON : '';
@@ -7816,15 +7829,10 @@
 					// 一覧の箱は「条件で検索」と同じ .usd-results（件数で高さが動かない・0件は中央）。
 					// 高さだけ .usd-results--tall で上書きする（上に選択肢パネルが無いぶん広く取れる）。
 					'<div class="usd-mode" data-usd-el="mode-passive" hidden>' +
-						// 数の単位は**背後の見出し（追加済みスキル（N種））と揃えて「種」**にする
-						// （「絞り込み結果（N件）」は別の数なので、そちらの「件」に引きずられない）。
-						// 「このうち」で、数えているのが**この一覧の中の何件か**であることを言う。
-						'<p class="text-xs text-slate-500 mb-2" data-usd-el="passive-note">' +
-							'チェックするとその場で追加済みスキルに入り、外すと抜けます' +
-							'（このうち<span data-usd-el="passive-count">0種</span>が追加済み）' +
-							'<span class="usd-excluded-count" data-usd-el="passive-excluded" hidden></span>' +
-						'</p>' +
-						'<div class="usd-results usd-results--tall" data-usd-el="passive-results"></div>' +
+						// T26（2026-10-31・おいもさんの決定）: 上の2行（「チェックするとその場で追加済みスキルに入り、外すと抜けます（このうちN種が追加済み）」
+						// 「選べない：本育成編成 N件・レース条件 N件」）は消した。選べない理由は行の右に短く出る。
+						// .usd-passive-list は、この一覧だけに効かせる見た目（チェックボックスの色・選べない行の取り消し線と薄さ）の目印
+						'<div class="usd-results usd-results--tall usd-passive-list" data-usd-el="passive-results"></div>' +
 					'</div>' +
 				'</div>' +
 				// 追加ボタンはスクロール領域の外（フッター）に置く。以前は一覧の下に流れていたので、
@@ -8532,7 +8540,7 @@
 	/**
 	 * 「除外中 M件」の表示を合わせる。M が0のときは出さない。
 	 * 単位は**その一覧の数え方に合わせる**: 「条件で検索」は「絞り込み結果（N件）」なので「件」、
-	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」。
+	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」（T26 で緑スキルの件数の行は消した）。
 	 */
 	function setExcludedCountLabel(el, count, unit, raceCount, filterCount, filterText) {
 		if (!el) return;
@@ -8602,8 +8610,8 @@
 
 	/**
 	 * 渡したIDのうち、**パッシブ（＝緑スキルの一覧に並ぶもの）が何種あるか**（段9 の追加）。
-	 * 入口のボタンの「（N種追加済み）」と、モーダルの注記の「このうちN種が追加済み」が
-	 * **必ず同じ数**になるよう、数え方をここ1か所に置く。**軸のキーは書かない**（恒久ルール1）。
+	 * 入口のボタンの「（N種追加済み）」（special の②と Deck 単体ページ）が
+	 * **必ず同じ数**になるよう、数え方をここ1か所に置く（モーダルの注記「このうちN種が追加済み」は T26 で消した）。**軸のキーは書かない**（恒久ルール1）。
 	 */
 	function countPassiveSkills(ids) {
 		const set = new Set(getPoolExcludedSkills().map(s => s.id));
@@ -8700,9 +8708,6 @@
 		if (!el) return;
 		const list = getPoolExcludedSkills();
 		const chosen = new Set(picker.excludeIds);
-		const countEl = q(pickerEl, 'passive-count');
-		// 数え方は入口のボタンの「（N種追加済み）」と同じ関数を通す（食い違わないため）
-		if (countEl) countEl.textContent = countPassiveSkills(picker.excludeIds) + '種';
 		if (list.length === 0) {
 			// 実データでは起きない（マスターに67件ある）が、収録データを読めなかったときに
 			// 空の箱だけが出るのは何が起きたのか分からないので、文を1つ置く。
@@ -8724,14 +8729,13 @@
 		 * 残し、チェックできず、理由を添える（段3b。「条件で検索」の一覧と同じ扱い）。
 		 * **すでに追加済み（チェックが入っている）ものは普通の行のまま** ―― 無効にすると、外す操作までできなくなる。
 		 * 実データでも編成の●に緑スキルは入る（練習のヒント・育成ウマ娘の覚醒・イベントのいずれにも）ので、この一覧でも効かせる。 */
-		// C-129: レース条件に合わないものも同じ作りで残す（件数は本育成の分と分けて出す）
+		// C-129: レース条件に合わないものも同じ作りで残す
+		// T26（2026-10-31）: 件数の行は消した。行の右の理由は、この一覧だけ短い表記（PICKER_PASSIVE_SHORT_REASONS）
 		const isExcludedRow = (s) => !chosen.has(s.id) && isPickerBlocked(s.id);
-		const hiddenRows = list.filter(s => !chosen.has(s.id) && isPickerExcluded(s.id)).length;
-		const raceRows = list.filter(s => !chosen.has(s.id) && !isPickerExcluded(s.id) && isPickerRaceBlocked(s.id)).length;
-		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), hiddenRows, '種', raceRows);
+		const shortReason = (id) => { const r = pickerBlockReasonOf(id) || PICKER_EXCLUDED_REASON; return PICKER_PASSIVE_SHORT_REASONS[r] || r; };
 		// C-238: スキル名は説明の小窓を開くボタン（「条件で検索」の行と同じ部品・灰色の行も開く）・名前の文字は①の表と同じ色分け（灰色の行は灰色のまま）
 		el.innerHTML = list.map(s => isExcludedRow(s)
-			? excludedRowHtml(s, 'passive-check-excluded', { nameBtn: true })
+			? excludedRowHtml(s, 'passive-check-excluded', { nameBtn: true, reason: shortReason(s.id) })
 			: '<label class="usd-row usd-pick-row">' +
 				'<input type="checkbox" data-usd-el="passive-check" value="' + esc(s.id) + '"' + (chosen.has(s.id) ? ' checked' : '') + '/>' +
 				pickerNameBtnHtml(s, pickerNameToneClass(s.id)) +

@@ -247,7 +247,7 @@ export async function register17(env) {
 		assert(sp.recReqs.length === 0, 'C131B ページの読み込みでは recommended-skills.json を取りに行かない', sp.recReqs);
 		// (1) 緑スキルの一覧（開いたときに組のデータを読み、組み直す）
 		const rows = await passiveRows(sp.page, [awk, base1]);
-		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B (1) 緑スキルの一覧で、目覚めも対応するスキルと同じく「本育成で得るため選べません」のグレーアウト', rows);
+		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で取得'), 'C131B (1) 緑スキルの一覧で、目覚めも対応するスキルと同じく「本育成で取得」のグレーアウト（緑スキルの一覧だけ短い表記。T26）', rows);
 		assert((await hiddenIds(sp.page)).includes(awk), 'C131B (1) 選べなくするスキル（条件で検索・テキストで検索・スクショで追加が使う）に目覚めが入る', true);
 		await pickEntry(sp.page, 'editor-pick');
 		await sp.page.waitForSelector('[data-usd-el="results"] label.usd-row');
@@ -291,7 +291,7 @@ export async function register17(env) {
 		rec.skills = rec.skills.concat([{ skillId: base1, name: nameOf(base1), section: 'scenario', styles: ['senko'] }, { skillId: awk, name: nameOf(awk), section: 'scenario', styles: ['senko'] }]);
 		const sp = await openSp({ roster: { umaId: UMA_WITH.id, cardIds: CARDS6, skillFilter: { style: 'senko' } }, umas, rec });
 		const rows = await passiveRows(sp.page, [awk, base1]);
-		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B 逆: ①で目覚めを得ると、対応するスキルもグレーアウト', rows);
+		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で取得'), 'C131B 逆: ①で目覚めを得ると、対応するスキルもグレーアウト', rows);
 		await addViaStyle(sp.page);
 		const ids = await draftIds(sp.page);
 		// 段F1（C-190）: 追加の知らせは「脚質オススメ N種を追加しました」の1行だけ。追加しなかったものの内訳（本育成編成のため N種）は出さない

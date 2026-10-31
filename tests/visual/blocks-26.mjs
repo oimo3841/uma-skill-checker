@@ -51,7 +51,7 @@ export async function register26(env) {
 			if (!i) return null;
 			const row = i.closest('label.usd-row');
 			const why = (row.querySelector('[data-usd-el="excluded-reason"]') || {}).textContent || '';
-			return { id, raceBlocked: /レース条件に合わないため選べない/.test(why), disabled: i.disabled };
+			return { id, raceBlocked: why === 'レース条件不一致', disabled: i.disabled };
 		}), ids);
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(200);
