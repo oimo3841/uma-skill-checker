@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31j';
 
 	/* ============================================================
 	 * 定数
@@ -6623,6 +6623,24 @@
 		// 追加候補の欄（下の帯のすぐ上）。札を2段まで見せ、3段目を上半分（14px）だけ覗かせ、それ以上は欄の中をスクロール
 		'.usd-tsearch-tray { flex: none; margin-top: 2px; border: 1px solid var(--usd-ui-line, var(--uma-border)); border-radius: 10px; background: var(--uma-surface-sunken); }',
 		'.usd-tsearch-tray-in { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; max-height: calc(28px * 2 + 4px * 2 + 4px + 14px); overflow-y: auto; overscroll-behavior: contain; }',
+		/* スマホ幅（640px 以下）の寸法（T38・おいもさんの決定 2026-10-31・T35 のモックの a3 の写し）。PC 幅は上のまま（一覧が残りを受け取る・上限 720px）。
+		 *   - 小窓の高さは中身に合わせる（上限は画面の上 12px まで。見える高さに合わせているとき〔data-usd-fit・fitSearchPicker〕は器の高さ − 6px まで）
+		 *   - 候補の一覧は 10.5行（375×812 で 265px。半分の行で続きを見せる）。狭いときは 3行まで縮む（flex-shrink 3 で欄より先に縮む）
+		 *   - 入力が空で一覧を出していないときも、一覧の場所を取っておく（打ち始めた瞬間に小窓の高さが変わらない）
+		 *   - 追加候補の欄は札4段＋5段目の上半分（中 150px・枠こみ 152px）まで。それ以上は欄の中をスクロール。狭いときは札1段＋半分まで縮む */
+		'@media (max-width: 640px) {',
+		'  .usd-picker-panel[data-usd-mode="search"] { height: auto; max-height: calc(100vh - 12px); max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px); }',
+		'  .usd-modal[data-usd-fit] .usd-picker-panel[data-usd-mode="search"] { max-height: calc(100% - 6px); }',
+		'  .usd-picker-panel[data-usd-mode="search"] .usd-picker-body { min-height: 0; }',
+		'  .usd-tsearch-list { flex: 0 3 calc((var(--uma-lh-sm) + var(--uma-sp-1) * 2 + 1px) * 10.5 + 2px); }',
+		// 一覧の箱そのものは Tailwind の基本の指定（@layer base の [hidden] { display: none !important }。層の中の !important は層の外から上書きできない）で消えるので、
+		// 同じ寸法の見えない箱（::after）を一覧の場所（追加候補の欄の前。order で並べ替える）に置く
+		'  .usd-tsearch:has(> .usd-tsearch-list[hidden])::after { content: ""; order: 0; flex: 0 3 calc((var(--uma-lh-sm) + var(--uma-sp-1) * 2 + 1px) * 10.5 + 2px);',
+		'    min-height: calc((var(--uma-lh-sm) + var(--uma-sp-1) * 2 + 1px) * 3 + 2px); }',
+		'  .usd-tsearch:has(> .usd-tsearch-list[hidden]) > .usd-tsearch-tray { order: 1; }',
+		'  .usd-tsearch-tray { flex: 0 1 auto; min-height: calc(28px + 4px * 2 + 4px + 14px + 2px); display: flex; flex-direction: column; }',
+		'  .usd-tsearch-tray-in { flex: 1 1 auto; min-height: 0; max-height: calc(28px * 4 + 4px * 4 + 4px * 2 + 14px); }',
+		'}',
 		'.usd-tsearch-tray-label { flex: none; padding: 0 4px; font-size: var(--uma-fs-xs); line-height: 28px; font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-tsearch-tray-empty { font-size: var(--uma-fs-xs); line-height: 28px; color: var(--uma-text-subtle); }',
 		'.usd-tsearch-chip { display: inline-flex; align-items: center; max-width: 100%; height: 28px; padding-left: 10px; border: 1px solid var(--usd-ui-sel, var(--uma-control-mark)); border-radius: var(--uma-r-full);',
@@ -9708,6 +9726,9 @@
 		q(pickerEl, 'picker-footer').hidden = !spec.commit;
 
 		pickerEl.hidden = false;
+		syncModalScrollLock();
+		bindSearchFit();
+		fitSearchPicker();
 		// 幅が確定するのは hidden を外したあとなので、タブの段数の判定もここで行う。
 		resetPickerFilterUi();
 		renderPickerResults();
@@ -9798,6 +9819,160 @@
 
 	function closePicker() {
 		if (pickerEl) pickerEl.hidden = true;
+		syncModalScrollLock();
+		fitSearchPicker();
+	}
+
+	/* ---- 「テキストで検索」の小窓を見える高さに合わせる（T38・おいもさんの決定 2026-10-31・T35 のモックの a3） ----
+	 * iPhone の Safari はキーボードが出てもレイアウトの高さ（100dvh）を変えず、見える範囲（visualViewport の height・offsetTop）だけが縮む。
+	 * そのままでは小窓の下（追加候補の欄・追加のボタン）がキーボードの裏に入るので、スマホ幅（640px 以下）のこのモードだけ、
+	 * 小窓の器（.usd-modal）を見える範囲に合わせる（上端＝offsetTop・高さ＝height）。中の寸法は CSS（一覧が先に 3行まで縮み、欄は 1段＋半分まで）。
+	 * Deck の引き出し（special の中の iframe）の中では、iframe の中の visualViewport はキーボードで縮まないことがあるので、
+	 * 親のページの visualViewport と iframe の重なりを iframe の中の座標で使う。親が読めないときは合わせない（今の形のまま）。PC 幅は合わせない */
+	const SEARCH_FIT_MQ = '(max-width: 640px)';
+	let searchFitBound = false;
+	function searchViewportBox() {
+		const w = global;
+		let inFrame = false;
+		try { inFrame = w.parent && w.parent !== w; } catch (e) { inFrame = true; }
+		if (inFrame) {
+			let fe = null, pvv = null, rect = null;
+			try { fe = w.frameElement; pvv = fe ? w.parent.visualViewport : null; rect = fe ? fe.getBoundingClientRect() : null; } catch (e) { return null; }
+			if (!fe || !pvv || !rect) return null;
+			const top0 = rect.top + (fe.clientTop || 0);
+			const top = Math.max(0, pvv.offsetTop - top0);
+			const bottom = Math.min(w.innerHeight, pvv.offsetTop + pvv.height - top0);
+			return bottom - top > 0 ? { top: top, h: bottom - top } : null;
+		}
+		const vv = w.visualViewport;
+		return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: w.innerHeight };
+	}
+	function fitSearchPicker() {
+		if (!pickerEl) return;
+		const on = !pickerEl.hidden && picker.mode === 'search' && typeof global.matchMedia === 'function' && global.matchMedia(SEARCH_FIT_MQ).matches;
+		const box = on ? searchViewportBox() : null;
+		const s = pickerEl.style;
+		if (!box) {
+			if (pickerEl.hasAttribute('data-usd-fit')) { pickerEl.removeAttribute('data-usd-fit'); s.top = ''; s.height = ''; s.bottom = ''; }
+			return;
+		}
+		pickerEl.setAttribute('data-usd-fit', 'vv');
+		s.top = box.top + 'px';
+		s.height = box.h + 'px';
+		s.bottom = 'auto';
+	}
+	function bindSearchFit() {
+		if (searchFitBound) return;
+		searchFitBound = true;
+		const w = global;
+		const on = (t) => { if (t && typeof t.addEventListener === 'function') { t.addEventListener('resize', fitSearchPicker); t.addEventListener('scroll', fitSearchPicker); } };
+		w.addEventListener('resize', fitSearchPicker);
+		on(w.visualViewport);
+		let pvv = null;
+		try { if (w.parent && w.parent !== w && w.frameElement) pvv = w.parent.visualViewport; } catch (e) { pvv = null; }
+		if (pvv) on(pvv);
+	}
+
+	/* ---- .usd-modal を開いている間、後ろのページのスクロールを止める（T38・おいもさんの決定 2026-10-31・T35 のモックの lock=2） ----
+	 * core の .usd-modal を使う小窓すべて（スキルを選ぶ小窓の各モード・オススメサポ・脚質オススメ・Deck の自前の読み取り結果の小窓）にかかる。
+	 *   - 開いている間 html・body に overflow: hidden・overscroll-behavior: none（.usd-modal-open）。小窓の器・本文には overscroll-behavior
+	 *   - body を今の位置で固定する（position: fixed; top: -スクロール量）。閉じたら戻し、ページの位置も開く前に戻す
+	 *     （iPhone の Safari では body の overflow: hidden がすり抜けることがあるため）
+	 *   - 小窓の中の touchmove を passive: false で見張り、送れる箱の中でまだその向きに送れるときだけ通す。それ以外は preventDefault
+	 * 開いている数は、つながっていて hidden でない .usd-modal を数え直して決める（重ねて開いても、全部閉じるまで固定が続く）。
+	 * core が開け閉めする所では syncModalScrollLock() をその場で呼ぶ（閉じた直後のスクロールが固定のまま走らないように）。
+	 * それ以外（Deck の自前の小窓など）は MutationObserver が拾う。special.html の自前の4つの小窓（告知・案内・パネル画像・引き出し）は対象外 */
+	const modalLock = { installed: false, locked: false, open: 0, x: 0, y: 0, padPrev: null, watched: null, mo: null };
+	const MODAL_LOCK_CSS = [
+		'html.usd-modal-open, html.usd-modal-open body { overflow: hidden; overscroll-behavior: none; }',
+		'html.usd-modal-open body { position: fixed; left: 0; right: 0; }',
+		'.usd-modal { overscroll-behavior: none; }',
+		'.usd-modal .usd-picker-body, .usd-modal .usd-results, .usd-modal .usd-tsearch-tray-in { overscroll-behavior: contain; }'
+	].join('\n');
+	function modalScrollerOf(el, stop, horiz) {
+		for (let n = el; n && n !== stop && n.nodeType === 1; n = n.parentElement) {
+			const cs = global.getComputedStyle(n);
+			const o = horiz ? cs.overflowX : cs.overflowY;
+			if ((o === 'auto' || o === 'scroll') && (horiz ? n.scrollWidth > n.clientWidth + 1 : n.scrollHeight > n.clientHeight + 1)) return n;
+		}
+		return null;
+	}
+	function watchModalForLock(el) {
+		if (!el || modalLock.watched.has(el)) return;
+		modalLock.watched.add(el);
+		modalLock.mo.observe(el, { attributes: true, attributeFilter: ['hidden'] });
+		let lx = 0, ly = 0;
+		el.addEventListener('touchstart', (e) => { if (e.touches.length === 1) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; } }, { passive: true });
+		el.addEventListener('touchmove', (e) => {
+			if (e.touches.length !== 1) return;
+			const t = e.touches[0];
+			const dx = t.clientX - lx, dy = t.clientY - ly;
+			lx = t.clientX; ly = t.clientY;
+			// 入力欄の中の指の動き（カーソルの移動・範囲の選択）は止めない
+			if (e.target && e.target.closest && e.target.closest('input, textarea, select')) return;
+			const horiz = Math.abs(dx) > Math.abs(dy);
+			const d = horiz ? dx : dy;
+			if (d === 0) return;
+			const sc = modalScrollerOf(e.target, el, horiz);
+			if (!sc) { if (e.cancelable) e.preventDefault(); return; }
+			const pos = horiz ? sc.scrollLeft : sc.scrollTop;
+			const max = horiz ? sc.scrollWidth - sc.clientWidth : sc.scrollHeight - sc.clientHeight;
+			if ((d > 0 && pos <= 0) || (d < 0 && pos >= max - 1)) { if (e.cancelable) e.preventDefault(); }
+		}, { passive: false });
+	}
+	function installModalScrollLock() {
+		const doc = global.document;
+		if (modalLock.installed || !doc || !doc.body || typeof global.MutationObserver !== 'function') return;
+		modalLock.installed = true;
+		modalLock.watched = new WeakSet();
+		const st = doc.createElement('style');
+		st.setAttribute('data-usd-style', 'modal-lock');
+		st.textContent = MODAL_LOCK_CSS;
+		doc.head.appendChild(st);
+		modalLock.mo = new global.MutationObserver((list) => {
+			for (let i = 0; i < list.length; i++) {
+				const m = list[i];
+				if (m.type === 'childList') m.addedNodes.forEach((n) => { if (n.nodeType === 1 && n.classList.contains('usd-modal')) watchModalForLock(n); });
+			}
+			syncModalScrollLock();
+		});
+		modalLock.mo.observe(doc.body, { childList: true });
+		doc.querySelectorAll('body > .usd-modal').forEach(watchModalForLock);
+		syncModalScrollLock();
+	}
+	function syncModalScrollLock() {
+		installModalScrollLock();
+		const doc = global.document;
+		if (!modalLock.installed) return;
+		doc.querySelectorAll('body > .usd-modal').forEach(watchModalForLock);
+		let n = 0;
+		doc.querySelectorAll('body > .usd-modal').forEach((el) => { if (!el.hidden) n++; });
+		modalLock.open = n;
+		const html = doc.documentElement, body = doc.body;
+		if (n > 0 && !modalLock.locked) {
+			modalLock.locked = true;
+			modalLock.x = global.scrollX || global.pageXOffset || 0;
+			modalLock.y = global.scrollY || global.pageYOffset || 0;
+			// PC の縦のスクロールバーが消えるぶん、右に余白を足して後ろの画面が横にずれないようにする
+			const gap = global.innerWidth - html.clientWidth;
+			modalLock.padPrev = null;
+			if (gap > 0) {
+				modalLock.padPrev = body.style.paddingRight;
+				body.style.paddingRight = (parseFloat(global.getComputedStyle(body).paddingRight) || 0) + gap + 'px';
+			}
+			body.style.top = (-modalLock.y) + 'px';
+			html.classList.add('usd-modal-open');
+		} else if (n === 0 && modalLock.locked) {
+			modalLock.locked = false;
+			html.classList.remove('usd-modal-open');
+			body.style.top = '';
+			if (modalLock.padPrev !== null) { body.style.paddingRight = modalLock.padPrev; modalLock.padPrev = null; }
+			global.scrollTo(modalLock.x, modalLock.y);
+		}
+	}
+	if (global.document) {
+		if (global.document.body) installModalScrollLock();
+		else global.document.addEventListener('DOMContentLoaded', installModalScrollLock);
 	}
 
 	/* ============================================================
@@ -15995,6 +16170,7 @@
 			outsideUi.focusPin = null;
 			outsideUi.opener = btn || null;
 			el.hidden = false;
+			syncModalScrollLock();
 			toastLiftFn = outsideSyncToastLift;
 			const closeBtn = q(el, 'outside-close');
 			if (closeBtn) focusNoScroll(closeBtn);
@@ -16023,6 +16199,7 @@
 			outsideUi.token++;
 			closeSkillInfo();
 			outsideUi.el.hidden = true;
+			syncModalScrollLock();
 			const o = outsideUi.opener;
 			outsideUi.opener = null;
 			if (o && o.isConnected && typeof o.focus === 'function') focusNoScroll(o);
@@ -16952,6 +17129,7 @@
 			styleUi.open = true;
 			styleUi.opener = btn || null;
 			el.hidden = false;
+			syncModalScrollLock();
 			toastLiftFn = styleSyncToastLift;
 			styleRender();
 			const closeBtn = q(el, 'style-close');
@@ -16964,6 +17142,7 @@
 			global.document.documentElement.style.removeProperty('--usd-toast-bottom');
 			closeSkillInfo();
 			styleUi.el.hidden = true;
+			syncModalScrollLock();
 			const o = styleUi.opener;
 			styleUi.opener = null;
 			if (o && o.isConnected && typeof o.focus === 'function') focusNoScroll(o);

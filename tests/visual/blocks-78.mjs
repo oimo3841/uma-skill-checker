@@ -223,13 +223,13 @@ export async function register78(env) {
 		await type(p, 'コーナー');
 		const e = await readSearch(p);
 		assert(e.chips.length === 2 && e.commitText === '追加（2種）', 'T28テキストで検索(3) 入力の文字を変えても欄の中身は残る', e.chips.map((c) => c.id));
-		// 欄の高さ: 札を2段まで見せ、3段目を半分覗かせる（それ以上は欄の中をスクロール）
+		// 欄の高さ: 札を4段まで見せ、5段目を半分覗かせる（それ以上は欄の中をスクロール）。T38 でスマホ幅は 2段＋半分（84px）→ 4段＋半分（152px）。PC 幅は 84px のまま（blocks-80 の (3)）
 		await type(p, '○');
-		const more = (await readSearch(p)).rows.filter((r) => r.state === 'pick').slice(0, 10).map((r) => r.id);
+		const more = (await readSearch(p)).rows.filter((r) => r.state === 'pick').slice(0, 20).map((r) => r.id);
 		for (const id of more) await clickRow(p, id);
 		await sleep(p, 100);
 		const tray = await p.evaluate(() => { const t = document.querySelector('[data-usd-el="search-tray-in"]'); const box = document.querySelector('[data-usd-el="search-tray"]'); const chips = Array.from(t.querySelectorAll('.usd-tsearch-chip')); return { h: Math.round(box.getBoundingClientRect().height), sh: t.scrollHeight, ch: t.clientHeight, lines: new Set(chips.map((c) => Math.round(c.offsetTop))).size }; });
-		assert(tray.lines >= 3 && tray.h === 84 && tray.sh > tray.ch, 'T28テキストで検索(3) 欄は2段＋3段目の半分（84px）まで・それ以上は欄の中をスクロール', tray);
+		assert(tray.lines >= 5 && tray.h === 152 && tray.sh > tray.ch, 'T28テキストで検索(3) 欄は4段＋5段目の半分（152px）まで・それ以上は欄の中をスクロール', tray);
 		// 閉じると欄は捨てる（確かめの小窓は出さない）
 		await p.click('[data-usd-act="picker-close"]');
 		await sleep(p, 200);
