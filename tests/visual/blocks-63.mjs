@@ -412,26 +412,27 @@ export async function register63(env) {
 			const card = (id) => ({ id, title: 'T' + id, name: 'N' + id, typeOrder: 1, icon: null });
 			const topLay = __compose({ c: [pc, __person(1179, 1757), null], heads: [null, null, null], legend, bar: 'S｜中距離',
 				table: stitchTableData(__snap(4, [__res({ N0: 3 }), __res({}), null], ['card', 'star', 'other']), [0, 1, 2]),
-				top: { sp: { total: 12321, totalKinds: 106, rosterPt: 8655, factorPt: 3666, statusLabel: '切れ者' }, roster: [card('a'), card('b')], factor: [card('c')] } })._layout.top;
+				top: { sp: { total: 12321, totalKinds: 106, rosterPt: 8655, factorPt: 3666, statusLabel: '切れ者', uniqKinds: 6, uniqLevel: 3, commonLevel: 5 }, roster: [card('a'), card('b')], factor: [card('c')] } })._layout.top;
 			const topTexts = texts.slice(before);
 			CanvasRenderingContext2D.prototype.fillText = o;
 			return { legendTexts, texts: texts.slice(0, before), topTexts, topLines: topLay.sp.lines, h: legend.height, w: legend.width, noteGone: typeof FACTOR_LEGEND_NOTE === 'undefined' && typeof FACTOR_LEGEND_TABLE_NOTE === 'undefined' };
 		});
-		assert(JSON.stringify(r.legendTexts) === JSON.stringify(['枠の見かた：', ' 周回サポカスキル', ' サポカ外スキル', ' その他（親から継承）']) && r.h === 40 && r.w < 1600,
-			'結合画像の構成(8): 枠の見かたは1行（高さ 40）に見出しと3種だけ', { t: r.legendTexts, h: r.h, w: r.w });
+		// T51: 最後に「遺伝子」（公式の遺伝子には「遺伝子」の語を使う。D10 の直した書き方）。「その他（親から継承）」には使わない
+		assert(JSON.stringify(r.legendTexts) === JSON.stringify(['枠の見かた：', ' 周回サポカスキル', ' サポカ外スキル', ' その他（親から継承）', ' 遺伝子']) && r.h === 40 && r.w < 1600,
+			'結合画像の構成(8): 枠の見かたは1行（高さ 40）に見出しと3種と「遺伝子」だけ', { t: r.legendTexts, h: r.h, w: r.w });
 		assert(r.noteGone && !r.texts.some((s) => /枠の無いパネル|数字は★の数/.test(s)), '結合画像の構成(8): 断りの文（「枠の無いパネルは…」「数字は★の数…」）は描かない・定数も無い', r.texts.filter((s) => /パネル|★/.test(s)));
 		const bad = r.texts.filter((s) => /[①②③]/.test(s));
 		assert(bad.length === 0 && r.texts.length > 20, '結合画像の構成(8): 組み立てで描いた文字列（バー・表・見出し・凡例）に ①②③ が無い', bad);
-		// T37（C-228 の例外）: 上段の見出し「①本育成編成」「②因子周回編成」と想定SP の内訳「① N Pt ＋ ② N Pt」だけが ①② を持つ。③ はどこにも無い
-		const allowed = ['①本育成編成', '②因子周回編成', '① 8,655 Pt ＋ ② 3,666 Pt'];
+		// T37・T51（C-228・C-257・C-261 の例外）: 上段の見出し「①本育成編成」「②因子周回編成」と理論値SP の内訳「①　本育成編成：N Pt」「②　因子周回：N Pt」だけが ①② を持つ。③ はどこにも無い
+		const allowed = ['①本育成編成', '②因子周回編成', '①　本育成編成：8,655 Pt', '②　因子周回：3,666 Pt'];
 		const numbered = r.topTexts.filter((s) => /[①②③]/.test(s));
 		assert(JSON.stringify(numbered.slice().sort()) === JSON.stringify(allowed.slice().sort()),
-			'結合画像の構成(8): 上段つきの組み立てで ①② を持つ文字列は、上段の見出し2つと想定SP の内訳だけ（凡例・表・タイトル・人の見出しには無い）', { numbered, all: r.topTexts.length });
-		assert(r.topLines[1] === allowed[2] && !r.topTexts.some((s) => s.includes('③')), '結合画像の構成(8): 想定SP の内訳の行（例外）と ③ が無いこと', r.topLines);
-		// コード側: 画像に描く文字列の定数（STITCH_TABLE_*・FACTOR_LEGEND_HEAD）
+			'結合画像の構成(8): 上段つきの組み立てで ①② を持つ文字列は、上段の見出し2つと理論値SP の内訳の2行だけ（凡例・表・タイトル・人の見出しには無い）', { numbered, all: r.topTexts.length });
+		assert(r.topLines[1] === allowed[2] && r.topLines[2] === allowed[3] && !r.topTexts.some((s) => s.includes('③')), '結合画像の構成(8): 理論値SP の内訳の行（例外）と ③ が無いこと', r.topLines);
+		// コード側: 画像に描く文字列の定数（STITCH_TABLE_*・FACTOR_LEGEND_HEAD・STITCH_GENE_LEGEND）
 		const src = fs.readFileSync(path.join(REPO_ROOT, 'special.html'), 'utf8');
-		const consts = [...src.matchAll(/const (STITCH_TABLE_[A-Z_]+|FACTOR_LEGEND_HEAD) = '([^']*)'/g)].map((m) => m[1] + '=' + m[2]);
-		assert(consts.length >= 7 && consts.every((s) => !/[①②③]/.test(s)), '結合画像の構成(8): 画像に描く文字列の定数に ①②③ が無い', consts);
+		const consts = [...src.matchAll(/const (STITCH_TABLE_[A-Z_]+|FACTOR_LEGEND_HEAD|STITCH_GENE_LEGEND) = '([^']*)'/g)].map((m) => m[1] + '=' + m[2]);
+		assert(consts.length >= 8 && consts.every((s) => !/[①②③]/.test(s)), '結合画像の構成(8): 画像に描く文字列の定数に ①②③ が無い', consts);
 		assert(jsErrors(errors).length === 0, '結合画像の構成(8): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
@@ -457,7 +458,7 @@ export async function register63(env) {
 			const keepRoster = deckRosterPanel.getRoster, keepSum = deckTemplateManager.getSetSummary;
 			const realRoster = deckRosterPanel.getRoster();
 			deckRosterPanel.getRoster = () => Object.assign({}, realRoster, { umaId: 'uma-0002', cardIds: realRoster.cardIds.slice(0, 2), outsideOptions: { cards: ['card-0310'] } });
-			deckTemplateManager.getSetSummary = () => ({ total: 1, totalKinds: 2, rosterPt: 3, factorPt: 4, statusLabel: 'X' });
+			deckTemplateManager.getSetSummary = () => ({ total: 1, totalKinds: 2, rosterPt: 3, factorPt: 4, statusLabel: 'X', uniqKinds: 5, uniqLevel: 2, commonLevel: 4 });
 			const withOcr = await buildStitchedSetImage(0, null, true);
 			const noOcr = await buildStitchedSetImage(0, null, false);
 			deckRosterPanel.getRoster = keepRoster; deckTemplateManager.getSetSummary = keepSum;
@@ -471,7 +472,7 @@ export async function register63(env) {
 			return { n, rows: L(withOcr).table ? L(withOcr).table.rows : -1, legend: !!L(withOcr).legend, kindsSame: kindsBefore === kindsAfter,
 				setBefore, setAfter, ocrTop: { roster: ids(L(withOcr).top, 'roster'), factor: ids(L(withOcr).top, 'factor'), sp: L(withOcr).top && L(withOcr).top.sp.lines },
 				noTop: { roster: ids(L(noOcr).top, 'roster'), factor: ids(L(noOcr).top, 'factor'), sp: L(noOcr).top && L(noOcr).top.sp.lines }, legacyTop: L(legacy).top,
-				spBeforeLine: setBefore.sp ? UmaSkillDeckCore.formatPtNumber(setBefore.sp.total) + ' Pt／' + setBefore.sp.totalKinds + '種' : null,
+				spBeforeLine: setBefore.sp ? UmaSkillDeckCore.formatPtNumber(setBefore.sp.total) + ' Pt／' + setBefore.sp.totalKinds + '種' + (setBefore.sp.statusLabel ? '／' + setBefore.sp.statusLabel : '') : null,
 				no: { table: !!L(noOcr).table, legend: !!L(noOcr).legend, parent: !!L(noOcr).parent, bar: !!L(noOcr).bar, crop: L(noOcr).parent.crop, head: L(noOcr).heads[0], width: L(noOcr).width },
 				legacy: { table: !!L(legacy).table, parent: !!L(legacy).parent, crop: L(legacy).parent.crop } };
 		});
@@ -486,7 +487,7 @@ export async function register63(env) {
 		assert(JSON.stringify(r.setAfter) === JSON.stringify(r.setBefore), '結合画像の構成(9): 押した後に画面の値が変わっても、写しのセットの部分は押した時点のまま', { before: r.setBefore, after: r.setAfter });
 		assert(JSON.stringify(r.ocrTop.roster) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(r.ocrTop.factor) === JSON.stringify(expectOrder(SAVED5)) && r.ocrTop.sp[0] === r.spBeforeLine,
 			'結合画像の構成(9): OCR の結合の上段は写しの値（押した後の変更は入らない）', { ocrTop: r.ocrTop, want: [expectOrder(CARDS6), expectOrder(SAVED5), r.spBeforeLine] });
-		assert(JSON.stringify(r.noTop.roster) === JSON.stringify(expectOrder(CARDS6.slice(0, 2))) && JSON.stringify(r.noTop.factor) === JSON.stringify(['card-0310']) && JSON.stringify(r.noTop.sp) === JSON.stringify(['1 Pt／2種', '① 3 Pt ＋ ② 4 Pt', 'X']),
+		assert(JSON.stringify(r.noTop.roster) === JSON.stringify(expectOrder(CARDS6.slice(0, 2))) && JSON.stringify(r.noTop.factor) === JSON.stringify(['card-0310']) && JSON.stringify(r.noTop.sp) === JSON.stringify(['1 Pt／2種／X', '①　本育成編成：3 Pt', '②　因子周回：4 Pt', '・継承固有5種／ヒントLv2含む', '・共通スキルヒントLv4']),
 			'結合画像の構成(9): 「OCRしない」結合の上段は結合した時点の値（空振りでないこと＝OCR の結合とは違う値になる）', r.noTop);
 		assert(r.legacyTop === null, '結合画像の構成(9): 旧UI（写しにセットが無い）は上段を描かない', r.legacyTop);
 		assert(jsErrors(errors).length === 0, '結合画像の構成(9): コンソールエラー0', jsErrors(errors).slice(0, 3));
@@ -573,7 +574,7 @@ export async function register63(env) {
 		return sp;
 	};
 
-	await block('結合画像の構成(12) 上段: 左から 想定SP（幅 400）｜①本育成編成｜②因子周回編成（残りを半分ずつ・全体の幅に合わせて広がる）・区切りは #E8E8E8 の縦線 3px・高さ 176 は枚数で変えない・中段はその下／カードは 3列×2行（種別の順＋ID の降順・6枚未満は左上から詰める・種別のアイコン）・②0枚と想定SP が取れないときは見出しだけ／想定SP の値は getSetSummary()（② は factorPt）', async () => {
+	await block('結合画像の構成(12) 上段: 左から 理論値SP（幅 400）｜①本育成編成｜②因子周回編成（残りを半分ずつ・全体の幅に合わせて広がる）・区切りは #E8E8E8 の縦線 3px・高さ 228 は枚数で変えない・中段はその下／カードは 3列×2行（種別の順＋ID の降順・6枚未満は左上から詰める・種別のアイコン）・②0枚と理論値SP が取れないときは見出しだけ／理論値SP の値は getSetSummary()（② は factorPt）（T51: 高さ 176 → 228・理論値SP の6行）', async () => {
 		const { ctx, page, errors } = await openSet();
 		const r = await page.evaluate(async () => {
 			const L = STITCH_LAYOUT;
@@ -603,7 +604,7 @@ export async function register63(env) {
 			variants.f0 = Object.assign({}, f0.lay.top, { texts: f0.texts, white: whiteBelowHead(f0.c, f0.lay.top.factor) });
 			const spNull = run(Object.assign({}, top, { sp: null }));
 			variants.spNull = Object.assign({}, spNull.lay.top, { texts: spNull.texts, white: whiteBelowHead(spNull.c, spNull.lay.top.sp), bodyY: spNull.lay.bodyY });
-			variants.zeroPt = lay(Object.assign({}, top, { sp: { total: 8655, totalKinds: 40, rosterPt: 8655, factorPt: 0, statusLabel: '' } })).top;
+			variants.zeroPt = lay(Object.assign({}, top, { sp: { total: 8655, totalKinds: 40, rosterPt: 8655, factorPt: 0, statusLabel: '', uniqKinds: 2, uniqLevel: 1, commonLevel: 3 } })).top;
 			variants.wide = run(top, 120).lay;
 			// 実際の流れ: OCR しない結合（結合した時点の写し）で上段が付く
 			const keep = { s: window.stitchOnePerson, f: persons[0].files };
@@ -611,7 +612,8 @@ export async function register63(env) {
 			persons[0].files = [{ name: 'a.png' }];
 			const built = await buildStitchedSetImage(0, null, false);
 			window.stitchOnePerson = keep.s; persons[0].files = keep.f;
-			return { set: snap.set, sum: sum && { total: sum.total, totalKinds: sum.totalKinds, rosterPt: sum.rosterPt, factorPt: sum.factorPt, statusLabel: sum.statusLabel },
+			return { set: snap.set, sum: sum && { total: sum.total, totalKinds: sum.totalKinds, rosterPt: sum.rosterPt, factorPt: sum.factorPt, statusLabel: sum.statusLabel,
+					uniqKinds: sum.uniqKinds, uniqLevel: sum.uniqLevel, commonLevel: sum.commonLevel },
 				fmtTotal: sum && UmaSkillDeckCore.formatPtNumber(sum.total), fmtR: sum && UmaSkillDeckCore.formatPtNumber(sum.rosterPt), fmtF: sum && UmaSkillDeckCore.formatPtNumber(sum.factorPt),
 				T, bodyY: full.lay.bodyY, H: full.lay.height, W: full.lay.width, noneBodyY: none.lay.bodyY, noneH: none.lay.height, noneTop: none.lay.top, persons: full.lay.persons.map((p) => p.y), tableY: full.lay.table.y,
 				texts: full.texts, sepPx, headLinePx, iconPx, variants, builtTop: built._layout.top && { roster: built._layout.top.roster.cards.map((c) => c.id), factor: built._layout.top.factor.cards.map((c) => c.id) },
@@ -621,13 +623,13 @@ export async function register63(env) {
 		// 並びと幅
 		const zone = L.gap + L.sepW + L.gap;
 		assert(T.sp.x === L.margin && T.sp.w === 400 && T.roster.x === T.sp.x + 400 + zone && T.factor.x === T.roster.x + T.roster.w + zone && T.factor.x + T.factor.w === r.W - L.margin && Math.abs(T.roster.w - T.factor.w) <= 1,
-			'結合画像の構成(12): 左から 想定SP（400）｜①｜②・①②は残りを半分ずつ・右端は余白 28', { sp: T.sp, roster: [T.roster.x, T.roster.w], factor: [T.factor.x, T.factor.w], W: r.W });
-		assert(T.seps.length === 2 && T.seps.every((s) => s.w === 3 && s.h === 176 && s.y === T.y) && T.seps[0].x === T.sp.x + 400 + L.gap && T.seps[1].x === T.roster.x + T.roster.w + L.gap,
+			'結合画像の構成(12): 左から 理論値SP（400）｜①｜②・①②は残りを半分ずつ・右端は余白 28', { sp: T.sp, roster: [T.roster.x, T.roster.w], factor: [T.factor.x, T.factor.w], W: r.W });
+		assert(T.seps.length === 2 && T.seps.every((s) => s.w === 3 && s.h === 228 && s.y === T.y) && T.seps[0].x === T.sp.x + 400 + L.gap && T.seps[1].x === T.roster.x + T.roster.w + L.gap,
 			'結合画像の構成(12): 区切りは縦線 3px・上段の高さいっぱい・領域の間の真ん中', T.seps);
 		assert(r.sepPx.every((p) => p.join() === '232,232,232') && r.headLinePx.join() === '232,232,232', '結合画像の構成(12): 区切りの線と見出しの下線は #E8E8E8', { sep: r.sepPx, head: r.headLinePx });
-		assert(T.h === 176 && T.y === L.margin + L.barH + L.barGap && r.bodyY === T.y + 176 + L.topAfter && r.tableY === r.bodyY && r.persons.every((y) => y > T.y + T.h),
-			'結合画像の構成(12): 上段の高さ 176・タイトルの下・中段（表と人）は上段の下', { T: [T.y, T.h], bodyY: r.bodyY, persons: r.persons });
-		assert(r.noneTop === null && r.bodyY - r.noneBodyY === 176 + L.topAfter && r.H - r.noneH === 176 + L.topAfter, '結合画像の構成(12): 上段が無いと中段は今までの位置（上段の分だけ高さが違う）', { bodyY: [r.bodyY, r.noneBodyY], H: [r.H, r.noneH] });
+		assert(T.h === 228 && T.y === L.margin + L.barH + L.barGap && r.bodyY === T.y + 228 + L.topAfter && r.tableY === r.bodyY && r.persons.every((y) => y > T.y + T.h),
+			'結合画像の構成(12): 上段の高さ 228・タイトルの下・中段（表と人）は上段の下', { T: [T.y, T.h], bodyY: r.bodyY, persons: r.persons });
+		assert(r.noneTop === null && r.bodyY - r.noneBodyY === 228 + L.topAfter && r.H - r.noneH === 228 + L.topAfter, '結合画像の構成(12): 上段が無いと中段は今までの位置（上段の分だけ高さが違う）', { bodyY: [r.bodyY, r.noneBodyY], H: [r.H, r.noneH] });
 		// カードの並び・位置
 		assert(JSON.stringify(T.roster.cards.map((c) => c.id)) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(T.factor.cards.map((c) => c.id)) === JSON.stringify(expectOrder(SAVED5)),
 			'結合画像の構成(12): カードの並びは種別の順（スピード→…→友人／グループ）・同じ種別の中は ID の降順', { roster: T.roster.cards.map((c) => c.id), factor: T.factor.cards.map((c) => c.id), want: [expectOrder(CARDS6), expectOrder(SAVED5)] });
@@ -637,22 +639,25 @@ export async function register63(env) {
 			'結合画像の構成(12): カードは 3列×2行・左上から詰める（②5枚は2行目の3つ目が空き）', { roster: T.roster.cards, factor: T.factor.cards });
 		assert(T.roster.cards.concat(T.factor.cards).every((c) => c.icon) && r.iconPx.length === 11 && r.iconPx.every((n) => n > 300), '結合画像の構成(12): どのカードにも種別のアイコンを描いた（アイコンの箱 42×42 に色の画素が 300 以上）', r.iconPx);
 		const V = r.variants;
-		assert(V.f3.h === 176 && V.f3.factor.cards.length === 3 && grid(V.f3.factor.cards, V.f3.factor.x, V.f3.y) && V.f3.factor.cards.every((c) => c.y === V.f3.factor.cards[0].y),
+		assert(V.f3.h === 228 && V.f3.factor.cards.length === 3 && grid(V.f3.factor.cards, V.f3.factor.x, V.f3.y) && V.f3.factor.cards.every((c) => c.y === V.f3.factor.cards[0].y),
 			'結合画像の構成(12): ②3枚は1行目に左から詰める・高さは不変', V.f3.factor.cards);
-		assert(V.r4.h === 176 && V.r4.roster.cards.length === 4 && grid(V.r4.roster.cards, V.r4.roster.x, V.r4.y), '結合画像の構成(12): ①4枚は 3＋1 で左上から詰める', V.r4.roster.cards);
-		assert(V.f0.h === 176 && V.f0.factor.cards.length === 0 && V.f0.texts.includes('②因子周回編成') && V.f0.white === 0 && V.f0.factor.w === T.factor.w,
+		assert(V.r4.h === 228 && V.r4.roster.cards.length === 4 && grid(V.r4.roster.cards, V.r4.roster.x, V.r4.y), '結合画像の構成(12): ①4枚は 3＋1 で左上から詰める', V.r4.roster.cards);
+		assert(V.f0.h === 228 && V.f0.factor.cards.length === 0 && V.f0.texts.includes('②因子周回編成') && V.f0.white === 0 && V.f0.factor.w === T.factor.w,
 			'結合画像の構成(12): ②0枚は見出し「②因子周回編成」だけ（中は白・領域の幅と高さは不変）', { white: V.f0.white, w: V.f0.factor.w });
-		assert(V.spNull.h === 176 && V.spNull.sp.lines.length === 0 && V.spNull.texts.includes('想定SP') && V.spNull.white === 0 && V.spNull.bodyY === r.bodyY,
-			'結合画像の構成(12): 想定SP が取れないときは見出し「想定SP」だけ（中は白・上段の高さは不変）', { lines: V.spNull.sp.lines, white: V.spNull.white });
-		// 想定SP の値
-		assert(r.sum && r.set.sp && JSON.stringify(r.set.sp) === JSON.stringify(r.sum), '結合画像の構成(12): 写しの想定SP は getSetSummary() の total・totalKinds・rosterPt・factorPt・statusLabel と一致', { snap: r.set.sp, sum: r.sum });
-		const want = [r.fmtTotal + ' Pt／' + r.sum.totalKinds + '種', '① ' + r.fmtR + ' Pt ＋ ② ' + r.fmtF + ' Pt'].concat(r.sum.statusLabel ? [r.sum.statusLabel] : []);
-		assert(JSON.stringify(T.sp.lines) === JSON.stringify(want) && r.sum.factorPt > 0, '結合画像の構成(12): 想定SP の欄は「合計 Pt／種数」「① rosterPt ＋ ② factorPt」「状態」（② は factorPt）', { lines: T.sp.lines, want });
-		assert(JSON.stringify(V.zeroPt.sp.lines) === JSON.stringify(['8,655 Pt／40種', '① 8,655 Pt ＋ ② 0 Pt']), '結合画像の構成(12): ② の Pt が0なら「② 0 Pt」・状態が無ければその行は無し', V.zeroPt.sp.lines);
+		assert(V.spNull.h === 228 && V.spNull.sp.lines.length === 0 && V.spNull.texts.includes('理論値SP') && V.spNull.white === 0 && V.spNull.bodyY === r.bodyY,
+			'結合画像の構成(12): 理論値SP が取れないときは見出し「理論値SP」だけ（中は白・上段の高さは不変）', { lines: V.spNull.sp.lines, white: V.spNull.white });
+		// 理論値SP の値
+		// T51: 写しに継承固有の種類・ヒントLv と共通スキルのヒントLv（core の getSetSummary に足した口）も入る
+		assert(r.sum && r.set.sp && JSON.stringify(r.set.sp) === JSON.stringify(r.sum) && r.sum.uniqKinds === 6 && r.sum.uniqLevel === 3 && r.sum.commonLevel === 5,
+			'結合画像の構成(12): 写しの理論値SP は getSetSummary() の total・totalKinds・rosterPt・factorPt・statusLabel・uniqKinds・uniqLevel・commonLevel と一致（既定 6種・Lv3・Lv5）', { snap: r.set.sp, sum: r.sum });
+		const want = [r.fmtTotal + ' Pt／' + r.sum.totalKinds + '種' + (r.sum.statusLabel ? '／' + r.sum.statusLabel : ''), '①　本育成編成：' + r.fmtR + ' Pt', '②　因子周回：' + r.fmtF + ' Pt',
+			'・継承固有' + r.sum.uniqKinds + '種／ヒントLv' + r.sum.uniqLevel + '含む', '・共通スキルヒントLv' + r.sum.commonLevel];
+		assert(JSON.stringify(T.sp.lines) === JSON.stringify(want) && r.sum.factorPt > 0, '結合画像の構成(12): 理論値SP の欄は「合計 Pt／種数（／状態）」「①　本育成編成：rosterPt」「②　因子周回：factorPt」「・継承固有」「・共通スキルヒントLv」（② は factorPt）', { lines: T.sp.lines, want });
+		assert(JSON.stringify(V.zeroPt.sp.lines) === JSON.stringify(['8,655 Pt／40種', '①　本育成編成：8,655 Pt', '②　因子周回：0 Pt', '・継承固有2種／ヒントLv1含む', '・共通スキルヒントLv3']), '結合画像の構成(12): ② の Pt が0なら「②　因子周回：0 Pt」・状態が無ければ「／状態」は付けない', V.zeroPt.sp.lines);
 		// 全体の幅に合わせて広がる
 		const WT = V.wide.top;
 		assert(V.wide.width > 2206 && WT.sp.w === 400 && WT.factor.x + WT.factor.w === V.wide.width - L.margin && WT.roster.w > T.roster.w && Math.abs(WT.roster.w - WT.factor.w) <= 1,
-			'結合画像の構成(12): 全体の幅が広がると①②の幅が広がる（想定SP は 400 のまま）', { W: V.wide.width, roster: WT.roster.w, factor: WT.factor.w });
+			'結合画像の構成(12): 全体の幅が広がると①②の幅が広がる（理論値SP は 400 のまま）', { W: V.wide.width, roster: WT.roster.w, factor: WT.factor.w });
 		assert(r.builtTop && JSON.stringify(r.builtTop.roster) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(r.builtTop.factor) === JSON.stringify(expectOrder(SAVED5)),
 			'結合画像の構成(12): 実際の組み立て（OCRしない結合）でも上段が付く', r.builtTop);
 		assert(jsErrors(errors).length === 0, '結合画像の構成(12): コンソールエラー0', jsErrors(errors).slice(0, 3));

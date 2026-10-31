@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01a';
 
 	/* ============================================================
 	 * 定数
@@ -15236,6 +15236,8 @@
 				uniqPt: uniqPt, uniqKinds: uniqKinds, commonPt: commonPt, commonKinds: commonKinds,
 				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired, overlapKinds: overlapKinds, overlapSureIds: overlapSure,
 				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds - crossPaired - overlapKinds,
+				// T51（C-261）: 継承固有のヒントLv と共通スキルのヒントLv（②の帯の選択欄と同じ解き方の値。結合画像の「理論値SP」の欄が写しに入れる）
+				uniqLevel: uq.hintLevel, commonLevel: st.rules ? resolveParentHintLevel(parentHintLevelOf(target), st.rules) : null,
 				takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
 		}
 		/** ②の各行の Pt を描き直す（⑬）。行の Pt は、必要スキルPt に数えている値（親由来のレベルと本育成編成の割引を反映したもの） */

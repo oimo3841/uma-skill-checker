@@ -108,6 +108,7 @@ import { register78 } from './blocks-78.mjs';
 import { register79 } from './blocks-79.mjs';
 import { register80 } from './blocks-80.mjs';
 import { register81 } from './blocks-81.mjs';
+import { register82 } from './blocks-82.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15513,6 +15514,8 @@ await register79({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register80({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T38（2026-10-31）: 「テキストで検索」の小窓の直しと、.usd-modal を開いている間の背景のスクロールの止め方（見出しは「T38テキストで検索の直し」）
 await register81({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T51（2026-11-01）: 結合画像の次の直し（理論値SP の欄の6行・遺伝子の枠と「名前：★N」・凡例の「遺伝子」。見出しは「T51結合画像の次の直し」）
+await register82({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

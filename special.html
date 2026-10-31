@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-31j"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-01a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -2370,8 +2370,14 @@
 				+ 'スキルではないもの（' + m.legend + '）">' + inner + '</span>';
 		});
 
-		// 種類（'card'｜'star'｜'other'）→ { frame: 枠の色, tint: 塗りの色, marker: core の定義 }。知らない種類は null
+		// 結合画像の遺伝子の色（T51・C-261。G1 ラズベリー: 枠と字 #BE185D・塗り #FCE7F0）。**結合画像の定数**として持つ
+		// （画面の --uma-mark-gene〔紫。③の表の◇・UmaExam の画面〕は変えない。そろえるのは色のルールの見直しのとき）
+		const STITCH_GENE_COLOR = { frame: '#BE185D', tint: '#FCE7F0', text: '#BE185D' };
+		const STITCH_GENE_LEGEND = '遺伝子';
+
+		// 種類（'card'｜'star'｜'other'｜'gene'）→ { frame: 枠の色, tint: 塗りの色, marker: core の定義（遺伝子は null） }。知らない種類は null
 		function factorFrameStyleOf(kind) {
+			if (kind === 'gene') return { frame: STITCH_GENE_COLOR.frame, tint: STITCH_GENE_COLOR.tint, marker: null };
 			const list = (UmaSkillDeckCore.markers && UmaSkillDeckCore.markers.list) || [];
 			const m = list.find(x => x.id === kind);
 			return m && m.imageTint ? { frame: m.light.fill, tint: m.imageTint, marker: m } : null;
@@ -2469,8 +2475,10 @@
 		 * 1人分の結合画像（縦につないだCanvas）の上に、種類の枠を描く。返り値は枠を置いたパネルの数。
 		 *
 		 * 枠が付くのは**②で選んだスキルセットに入っているスキルの行**だけ（種類は段4 の判定＝
-		 * deckMarkerKindByName。画面のマーカー・③の表と同じ出どころ）。シナリオ因子・遺伝子の行には付けない。
+		 * deckMarkerKindByName。画面のマーカー・③の表と同じ出どころ）。シナリオ因子の行には付けない。
+		 * 遺伝子（T51・C-261）は、OCR の対象にした遺伝子のうち読めたものの行を、同じ位置の求め方・太さ・塗り方で遺伝子の色（STITCH_GENE_COLOR）で囲む。
 		 * OCRを回していない人・セットを選んでいないときは、種類が分からないので1つも描かない。
+		 * 返り値は遺伝子を除いた枠の数（遺伝子の枠の数は canvas._geneFrameCount）。
 		 */
 		function drawFactorFramesOnPerson(canvas, personIdx) {
 			if (!tierMarksEnabled) return 0;
@@ -2486,10 +2494,11 @@
 				return 0;
 			}
 			const kindByName = stitchKindByName();
+			const geneSet = new Set(stitchGeneNames());
 			// rowKey（"画像の番号:行の番号"）→ 種類
 			const kindByRowKey = {};
 			res.detectedSkills.forEach(name => {
-				const kind = kindByName[name];
+				const kind = geneSet.has(name) ? 'gene' : kindByName[name];
 				if (!kind || !factorFrameStyleOf(kind)) return;
 				(res.skillSources[name] || []).forEach(li => {
 					const l = lines[li];
@@ -2551,7 +2560,9 @@
 				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] + ': 枠を置いた ' + boxes.length +
 					' / 置きたかった行 ' + want + '（結合後のCanvasに収まらなかった行があります）');
 			}
-			return boxes.length;
+			const geneN = boxes.filter(b => b.kind === 'gene').length;
+			canvas._geneFrameCount = geneN;
+			return boxes.length - geneN;
 		}
 
 		/* ------------------------------------------------------------
@@ -2560,7 +2571,8 @@
 		 * 1行に「枠の見かた：」＋種類ごとに「枠と塗りの見本＋②の自動のマーカー（core と同じ SVG のパスを Path2D で）＋種類の名前」。
 		 * **種類はいつも全部出す**（D9。その画像に出ていない種類も含める。「その種類が無い」こと自体が読み手の情報になる）。
 		 * 「枠の無いパネルは…」「数字は★の数…」の断りの文は置かない（T36・おいもさんの決定）。
-		 * 呼び名に「遺伝子」の語は使わない（②の「遺伝子」のチェックと紛れるため。D10）。
+		 * 「その他（親から継承）」の呼び名・項目名に「遺伝子」の語は使わない（公式の「芝ダ・距離・脚質の遺伝子」と紛れるため。D10。
+		 * 2026-10-31 に直した書き方）。公式の遺伝子には「遺伝子」の語を使う: 行の最後に「遺伝子」の項目（枠と塗りの見本だけ。T51・C-261）。
 		 * 画像に描く文字列には、画面の部品の番号（①②③）を使わない（段6・C-228。何も知らない人には意味が分からないため）。
 		 * ------------------------------------------------------------ */
 		const FACTOR_LEGEND_HEAD = '枠の見かた：';
@@ -2607,6 +2619,19 @@
 			ctx.restore();
 		}
 
+		// 遺伝子の見本（T51）: 左端 x・中心 cy・文字の大きさ d。枠と塗り（パネルの灰に掛けた色）だけ
+		function drawGeneLegendSample(ctx, x, cy, d) {
+			const sw = d * 1.5, sh = d * 0.86;
+			const panel = factorHexToRgb(STITCH_GENE_COLOR.tint).map(v => Math.round(FACTOR_LEGEND_PANEL_GRAY * v / 255));
+			ctx.save();
+			ctx.fillStyle = 'rgb(' + panel.join(',') + ')';
+			ctx.fillRect(x, cy - sh / 2, sw, sh);
+			ctx.strokeStyle = STITCH_GENE_COLOR.frame;
+			ctx.lineWidth = Math.max(2, Math.round(d * 0.95 * 0.12));
+			ctx.strokeRect(x, cy - sh / 2, sw, sh);
+			ctx.restore();
+		}
+
 		// totalWidth     … 行の幅の上限（Canvas の幅は中身に合わせて詰め、これを超えない。超えるなら字を縮める）
 		// referenceWidth … 使わない（T36 までの呼び方のまま受け取る）
 		// 枠を1つも置いていないときは null（行そのものを置かない）。opts も使わない（T36 で断りの文をやめた）
@@ -2624,8 +2649,12 @@
 				list.forEach((mk, i) => {
 					segs.push({ mark: mk.id, w: d * 2.9 });
 					const label = ' ' + mk.label;
-					segs.push({ text: label, w: ctx0.measureText(label).width + (i < list.length - 1 ? d * 1.2 : 0) });
+					segs.push({ text: label, w: ctx0.measureText(label).width + d * 1.2 });
 				});
+				// 遺伝子（T51）: 枠と塗りの見本（幅 1.5 文字ぶん＋隙間 0.3）と名前。②のマーカーは無い
+				segs.push({ gene: true, w: d * 1.8 });
+				const gl = ' ' + STITCH_GENE_LEGEND;
+				segs.push({ text: gl, w: ctx0.measureText(gl).width });
 				return segs;
 			};
 			const padX = 2;
@@ -2645,6 +2674,8 @@
 			segsAt(d).forEach(g => {
 				if (g.mark) {
 					drawFactorLegendSample(ctx, g.mark, x + g.w / 2, cy, d * 0.95);
+				} else if (g.gene) {
+					drawGeneLegendSample(ctx, x, cy, d);
 				} else {
 					ctx.font = font(d);
 					ctx.fillStyle = STITCH_NOTE_COLOR;
@@ -2660,7 +2691,7 @@
 		 * 結合画像の構成（②因子周回 段6・C-228。T36 で中段を作り直した。親A の家系で1枚・親B の家系で1枚）
 		 *
 		 *  ┌ タイトルのバー（全幅・高さ70・両端が丸い。色はゲームの「ウマ娘詳細」の帯から読んだ値）「セット名｜[題]育成ウマ娘｜レース条件」┐
-		 *  │ 想定SP       ┃ ①本育成編成（3列×2行）        ┃ ②因子周回編成（3列×2行）       │  ← 上段（T37。写しにセットがあるときだけ）
+		 *  │ 理論値SP     ┃ ①本育成編成（3列×2行）        ┃ ②因子周回編成（3列×2行）       │  ← 上段（T37。写しにセットがあるときだけ）
 		 *  │ 表（星取表）│ ［顔］親A          │ ［顔］祖A1        │ ［顔］祖A2        │
 		 *  │            │ 親の結合画像        │ 祖1の結合画像      │ 祖2の結合画像      │
 		 *  │            │（両側を削ったもの）  │                   │                   │
@@ -2671,16 +2702,20 @@
 		 *    親の幅に上限は無い。全体の幅の下限は minW。
 		 *  ・人の画像は両側を削る（stitchSideCrop。パネルの範囲を画像の中身から見つける。見つからなければ削らない）。
 		 *  ・人の上に見出しの行（顔のアイコン＋ラベル）。因子一覧の画面（顔が画像の中に残る）はラベルだけ。
+		 *    ラベルの右に、その人の読めた遺伝子を「名前：★N」（測れなければ ★?）で縦に最大3段（T51・C-261。UmaExam の結合画像と同じ形）。
 		 *  ・表は内容に見合う幅。行は消さずに全部描く。行の高さは rowMin〜rowMax（40行を超えれば rowMinOver まで縮める）。
 		 *    入らなければ中段を高くして（その分だけ幅が広がる）入れる。画像の画素数が maxPixels に届くときは高くせず、行をさらに縮める。
 		 *  ・「枠の見かた」の行は、親（いちばん左の人）の左端の下から。表の列はこの行の高さのぶんも下まで使う。
 		 * 上段（T37・おいもさんの決定）:
-		 *  ・左から「想定SP」｜「①本育成編成」｜「②因子周回編成」。区切りは #E8E8E8 の縦線 3px。①②の幅は全体の幅に合わせて広がる。
+		 *  ・左から「理論値SP」｜「①本育成編成」｜「②因子周回編成」。区切りは #E8E8E8 の縦線 3px。①②の幅は全体の幅に合わせて広がる。
 		 *  ・カードは 3列×2行（種別のアイコン＋[題]＋キャラクター名）。種別の順（スピード→…→友人／グループ）、同じ種別の中は ID の降順。
-		 *    6枚より少なければ左上から詰める。0枚なら見出しだけ。高さは枚数で変えない。想定SP が取れなければ見出しだけ。
+		 *    6枚より少なければ左上から詰める。0枚なら見出しだけ。高さは枚数で変えない。理論値SP が取れなければ見出しだけ。
+		 *  ・「理論値SP」の欄（T51・C-258 (4)・C-261）は6行（見出し・「合計 Pt／N種／状態」・「①　本育成編成：N Pt」・「②　因子周回：N Pt」・
+		 *    「・継承固有N種／ヒントLvN含む」・「・共通スキルヒントLvN」）。上段の高さはこの6行が入る 228。
 		 *  ・旧UI と「OCRしない結合」のうち写しにセットが無いときは描かない。
 		 * 画像に描く文字列に、画面の部品の番号（①②③）は使わない（②は「因子周回スキル」）。
-		 * 例外は上段の見出し（①本育成編成・②因子周回編成）と想定SP の内訳（① N Pt ＋ ② N Pt）だけ（T37・おいもさんの決定）。凡例・表・タイトルには使わない。
+		 * 例外は上段の見出し（①本育成編成・②因子周回編成）と理論値SP の内訳（「①　本育成編成：」「②　因子周回：」の行）だけ
+		 * （T37・T51・おいもさんの決定。C-228・C-257・C-261）。凡例・表・タイトルには使わない。
 		 * ------------------------------------------------------------ */
 		const STITCH_LAYOUT = {
 			margin: 28, gap: 24, barH: 70, barGap: 20, innerGap: 16,
@@ -2694,14 +2729,20 @@
 			// 画像の画素数の上限。iOS の Safari が作れる Canvas の面積の上限 16,777,216（4096×4096）の手前
 			maxPixels: 16000000,
 			// 上段（T37。T32 のモックの値）: 見出しの行の高さ・見出しとカードの間・カードの高さ・カードの間・想定SP の欄の幅・区切りの線の太さ・上段と中段の間
-			topHeadH: 34, topHeadGap: 6, cardH: 64, cardGap: 8, cardCols: 3, cardRows: 2, spW: 400, sepW: 3, topAfter: 30
+			topHeadH: 34, topHeadGap: 6, cardH: 64, cardGap: 8, cardCols: 3, cardRows: 2, spW: 400, sepW: 3, topAfter: 30,
+			// 理論値SP の欄（T51・T50 のモックの値）: 合計の数字の字・後ろの部分の字の上限と下限・内訳の行の字・1行目の高さ・内訳の行の高さ・内訳の行の数
+			spNum: 46, spTailMax: 26, spTailMin: 20, spRow: 23, spLine1H: 52, spRowH: 34, spRows: 4,
+			// 人の見出しの行の遺伝子（T51）: 字の大きさ（入らなければ下限まで縮める）・最大の段数・見本の大きさ・見本と名前の間・ラベルとの間
+			geneFont: 18, geneFontMin: 14, geneMax: 3, geneSwatchW: 14, geneSwatchH: 12, geneSwatchGap: 6, geneLeftGap: 14
 		};
+		// 理論値SP の1行目の後ろの部分の字の大きさを決める「いちばん幅の広い見本」（T51・C-261 の追記 2。合計 99,999・999種・勉強家と切れ者の広いほう）
+		const STITCH_SP_WIDEST = { num: '99,999', tails: [' Pt／999種／勉強家', ' Pt／999種／切れ者'] };
 		const STITCH_TOP_SEP = '#E8E8E8';    // 上段の区切りの縦線・見出しの下線（表の下の行の地と同じ色）
 		const STITCH_TOP_LINE = '#999999';   // カードの枠（表の線と同じ色）
 		const STITCH_TOP_MUTED = '#555555';  // 見出し・題（表の見出しの地・凡例の字と同じ色）
 		const STITCH_TOP_HEAD_ROSTER = '①本育成編成';
 		const STITCH_TOP_HEAD_FACTOR = '②因子周回編成';
-		const STITCH_TOP_HEAD_SP = '想定SP';
+		const STITCH_TOP_HEAD_SP = '理論値SP';
 		// 両側を削る範囲の見つけ方（T32 の detectPanelRange・T34 §5 で 3つの幅と因子一覧を確かめた値）
 		const STITCH_CROP = {
 			bg: 242, bgTol: 6, white: 248,   // 地の灰（242±6）と白（248 以上）は中身に数えない
@@ -2742,13 +2783,42 @@
 				const sel = roster ? UmaSkillDeckCore.outside.resolvedFilterOf(roster) : {};
 				raceLabels = UmaSkillDeckCore.ROSTER_FILTER_AXIS_KEYS.filter(k => sel[k]).map(k => UmaSkillDeckCore.tagLabel(k, sel[k]));
 			} catch (e) { raceLabels = []; }
-			return { entries: entries, kindByName: deckMarkerKindByName(), setName: setName, raceLabels: raceLabels, set: captureStitchSetPart(), results: null };
+			return { entries: entries, kindByName: deckMarkerKindByName(), geneNames: currentGeneNames(), setName: setName, raceLabels: raceLabels, set: captureStitchSetPart(), results: null };
+		}
+
+		/**
+		 * 今 OCR の対象にしている遺伝子の名前（T51）。③の「遺伝子」のチェックが入っているときだけ辞書に入っている（factorMarkByNorm の印が 'gene'）。
+		 * 並びは辞書の並び（data/aptitude-genes.json の順）。遺伝子は表の行・帯の Pt・種数・②の数には入れない（枠と人の見出しの行だけ）
+		 */
+		function currentGeneNames() {
+			return (skillList || []).filter(n => factorMarkByNorm.get(normalizeText(n)) === 'gene');
+		}
+		/** 結合画像の遺伝子の名前。OCR の写しがあればそれ、無ければ今の対象 */
+		function stitchGeneNames() {
+			return (stitchSnapshot && Array.isArray(stitchSnapshot.geneNames)) ? stitchSnapshot.geneNames : currentGeneNames();
+		}
+		/**
+		 * 写しの人ごとの結果から、その人の読めた遺伝子を [{ name, stars }]（stars は数＝★の数・null＝検出したが★を測れなかった）。
+		 * 読み方は starsFor と同じ（写しの results から読む）。最大 geneMax（遺伝子は1人最大3つ。4つ以上読めたら★の多い順に3つ）
+		 */
+		function stitchGenesOfPerson(snap, idx) {
+			const res = snap && snap.results ? snap.results[idx] : null;
+			if (!res || !Array.isArray(snap.geneNames)) return [];
+			const found = snap.geneNames.filter(n => res.detectedSkills.has(n)).map((n, i) => {
+				const s = res.skillStars[n];
+				return { name: n, stars: (s === null || s === undefined) ? null : s, order: i };
+			});
+			const max = STITCH_LAYOUT.geneMax;
+			const list = found.length <= max ? found
+				: found.slice().sort((a, b) => ((typeof b.stars === 'number' ? b.stars : -0.5) - (typeof a.stars === 'number' ? a.stars : -0.5)) || (a.order - b.order)).slice(0, max);
+			return list.map(g => ({ name: g.name, stars: g.stars }));
 		}
 
 		/**
 		 * 写しのうち上段とタイトルの材料（T37）。セットがあるとき（Deck連携でセットを選んでいる）だけ。旧UI などは null（上段を描かない）。
 		 * umaId・rosterCards（本育成のカード。空きの枠は除く）・factorCards（因子周回のカード＝オススメサポの「追加」で書かれたもの）・
-		 * sp（想定SP の数字と文字だけ。取れなければ null）。参照は持たない（あとで画面が変わっても写しのまま）
+		 * sp（理論値SP の数字と文字だけ。T51 で継承固有の種類・ヒントLv と共通スキルのヒントLv を足した。取れなければ null）。
+		 * 参照は持たない（あとで画面が変わっても写しのまま）
 		 */
 		function captureStitchSetPart() {
 			if (!(deckMode && deckScope)) return null;
@@ -2762,7 +2832,9 @@
 				const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : null;
 				if (sum && num(sum.total) !== null) {
 					sp = { total: num(sum.total), totalKinds: num(sum.totalKinds), rosterPt: num(sum.rosterPt) || 0, factorPt: num(sum.factorPt) || 0,
-						statusLabel: typeof sum.statusLabel === 'string' ? sum.statusLabel : '' };
+						statusLabel: typeof sum.statusLabel === 'string' ? sum.statusLabel : '',
+						// T51: 継承固有の種類・ヒントLv と共通スキルのヒントLv（core の getSetSummary が返す値。画面の選択欄からは読まない）
+						uniqKinds: num(sum.uniqKinds) || 0, uniqLevel: num(sum.uniqLevel), commonLevel: num(sum.commonLevel) };
 				}
 			} catch (e) { sp = null; }
 			return {
@@ -3137,8 +3209,10 @@
 		/**
 		 * 人の見出しの行（T36）: 顔のアイコン（高さ headIcon）と、その右にラベル（「親A」など。3人とも同じ大きさ）。
 		 * icon が null（因子一覧の画面・アイコンが見つからない）ならラベルだけを左端に置く。返り値は置いた矩形
+		 * genes（T51）: その人の遺伝子 [{ name, stars }]。ラベルの右に「名前：★N」（★を測れなければ ★?）を縦に最大3段・字は geneFont の太字・
+		 * 遺伝子の色・1段は headIcon の 1/3。名前の左に枠と塗りの見本。maxRight（人の列の右端）に入らなければ字を geneFontMin まで縮める
 		 */
-		function stitchDrawPersonHead(ctx, x, y, icon, label) {
+		function stitchDrawPersonHead(ctx, x, y, icon, label, genes, maxRight) {
 			const L = STITCH_LAYOUT;
 			const out = { icon: null, label: null };
 			let iw = 0;
@@ -3170,13 +3244,50 @@
 			ctx.fillText(label, left + lw / 2, top + lh / 2 + 1);
 			ctx.restore();
 			out.label = { x: left, y: top, w: lw, h: lh, size: size };
+			if (genes && genes.length) out.genes = stitchDrawPersonGenes(ctx, left + lw + L.geneLeftGap, y, genes.slice(0, L.geneMax), maxRight);
 			return out;
 		}
 
-		/** 上段の高さ（T37。カードの枚数で変えない） */
+		/** 人の見出しの行の遺伝子（T51）。gx＝見本の左端。返り値は置いた範囲と字の大きさ・文字・幅（検査が読む） */
+		function stitchDrawPersonGenes(ctx, gx, y, list, maxRight) {
+			const L = STITCH_LAYOUT;
+			const starText = (v) => (typeof v === 'number' ? '★' + v : '★?');
+			const texts = list.map(g => g.name + '：' + starText(g.stars));
+			const lead = L.geneSwatchW + L.geneSwatchGap;
+			const room = (typeof maxRight === 'number') ? maxRight - gx : Infinity;
+			ctx.save();
+			const widthAt = (px) => { ctx.font = 'bold ' + px + 'px sans-serif'; return Math.max(...texts.map(t => lead + ctx.measureText(t).width)); };
+			let fs = L.geneFont;
+			while (fs > L.geneFontMin && widthAt(fs) > room) fs--;
+			ctx.font = 'bold ' + fs + 'px sans-serif';
+			const lineH = Math.floor(L.headIcon / 3);
+			const top = y + Math.round((L.headIcon - lineH * list.length) / 2);
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'middle';
+			const widths = [];
+			texts.forEach((t, i) => {
+				const cy = top + lineH * i + lineH / 2;
+				const sw = L.geneSwatchW, sh = L.geneSwatchH;
+				ctx.fillStyle = STITCH_GENE_COLOR.tint;
+				ctx.fillRect(gx, cy - sh / 2, sw, sh);
+				ctx.strokeStyle = STITCH_GENE_COLOR.frame;
+				ctx.lineWidth = 2;
+				ctx.strokeRect(gx + 1, cy - sh / 2 + 1, sw - 2, sh - 2);
+				ctx.fillStyle = STITCH_GENE_COLOR.text;
+				ctx.fillText(t, gx + lead, cy + 1);
+				widths.push(Math.ceil(lead + ctx.measureText(t).width));
+			});
+			ctx.restore();
+			const w = Math.max(...widths);
+			return { x: gx, y: top, w: w, h: lineH * list.length, font: fs, lineH: lineH, texts: texts, widths: widths, room: room, fits: w <= room };
+		}
+
+		/** 上段の高さ（T37。カードの枚数で変えない）。T51: 理論値SP の6行が入る高さとカードの高さの大きいほう（228） */
 		function stitchTopRowH() {
 			const L = STITCH_LAYOUT;
-			return L.topHeadH + L.topHeadGap + L.cardRows * L.cardH + (L.cardRows - 1) * L.cardGap;
+			const cards = L.topHeadH + L.topHeadGap + L.cardRows * L.cardH + (L.cardRows - 1) * L.cardGap;
+			const sp = L.topHeadH + L.topHeadGap + L.spLine1H + L.spRows * L.spRowH;
+			return Math.max(cards, sp);
 		}
 		/** 中段の上端。上段があればその下（topH は上段の高さ。0 なら無し） */
 		function stitchMidTop(topH) {
@@ -3269,38 +3380,70 @@
 				return { id: c.id, x: cx, y: cy, w: w1, h: L.cardH, icon: !!c.icon };
 			});
 		}
-		/** 上段の想定SP の欄。sp が null なら見出しだけ。返り値は描いた行の文字 */
+		/**
+		 * 理論値SP の1行目の後ろの部分（「 Pt／N種／状態」）の字の大きさ（T51・C-261）。いちばん幅の広い見本（STITCH_SP_WIDEST）が
+		 * 字に使える幅 maxW に入る大きさを spTailMax から 1px ずつ下げて決める（下限 spTailMin）。状態によって変えない。
+		 * 返り値 { px, widestW（見本の1行目の幅）, fits }
+		 */
+		function stitchSpTailPx(ctx, maxW) {
+			const L = STITCH_LAYOUT;
+			ctx.save();
+			ctx.font = 'bold ' + L.spNum + 'px sans-serif';
+			const nw = ctx.measureText(STITCH_SP_WIDEST.num).width;
+			const widthAt = (px) => { ctx.font = 'bold ' + px + 'px sans-serif'; return Math.max(...STITCH_SP_WIDEST.tails.map(t => ctx.measureText(t).width)); };
+			let px = L.spTailMax;
+			while (px > L.spTailMin && nw + widthAt(px) > maxW) px--;
+			const need = Math.ceil(nw + widthAt(px));
+			ctx.restore();
+			return { px: px, widestW: need, fits: need <= maxW };
+		}
+		/**
+		 * 上段の理論値SP の欄（T51・C-258 (4)・C-261。T37 の想定SP を置き換えた）。sp が null なら見出しだけ。返り値は描いた行の文字。
+		 * 1行目「合計 Pt／N種／状態」（合計は spNum の太字・後ろは stitchSpTailPx の太字。勉強家なら「／勉強家」・状態なしなら付けない）、
+		 * 2〜5行目（spRow・行の高さ spRowH）「①　本育成編成：N Pt」「②　因子周回：N Pt」「・継承固有N種／ヒントLvN含む」（0種は「・継承固有0種」）
+		 * 「・共通スキルヒントLvN」。返す配列の _rows に各行の字の大きさ・幅・上端を添える（検査が読む）
+		 */
 		function stitchDrawTopSp(ctx, x, y, w, sp) {
 			const L = STITCH_LAYOUT;
 			stitchDrawTopHead(ctx, x, y, w, STITCH_TOP_HEAD_SP);
 			const lines = [];
+			const rowsInfo = [];
+			lines._rows = rowsInfo;
 			if (!sp) return lines;
 			const fmt = UmaSkillDeckCore.formatPtNumber;
+			const maxW = w - 4;
 			let yy = y + L.topHeadH + L.topHeadGap;
 			ctx.save();
 			ctx.fillStyle = STITCH_INK;
 			ctx.textAlign = 'left';
 			ctx.textBaseline = 'alphabetic';
 			const num = fmt(sp.total);
-			const unit = ' Pt' + (sp.totalKinds !== null ? '／' + sp.totalKinds + '種' : '');
-			ctx.font = 'bold 46px sans-serif';
-			const bw = ctx.measureText(num).width;
+			const tail = ' Pt' + (sp.totalKinds !== null ? '／' + sp.totalKinds + '種' : '') + (sp.statusLabel ? '／' + sp.statusLabel : '');
+			const ts = stitchSpTailPx(ctx, maxW);
+			ctx.font = 'bold ' + L.spNum + 'px sans-serif';
+			const nw = ctx.measureText(num).width;
 			ctx.fillText(num, x + 2, yy + 44);
-			ctx.font = 'bold 26px sans-serif';
-			ctx.fillText(unit, x + 2 + bw, yy + 44);
-			lines.push(num + unit);
-			yy += 52;
+			ctx.font = 'bold ' + ts.px + 'px sans-serif';
+			const tw = ctx.measureText(tail).width;
+			ctx.fillText(tail, x + 2 + nw, yy + 44);
+			lines.push(num + tail);
+			rowsInfo.push({ numPx: L.spNum, tailPx: ts.px, widestW: ts.widestW, width: Math.ceil(nw + tw), top: yy, h: L.spLine1H, maxW: maxW });
+			yy += L.spLine1H;
 			ctx.textBaseline = 'middle';
-			const parts = '① ' + fmt(sp.rosterPt) + ' Pt ＋ ② ' + fmt(sp.factorPt) + ' Pt';
-			let f = stitchFitText(ctx, parts, w - 4, 23, 14, 'normal');
-			ctx.fillText(f.text, x + 2, yy + 15);
-			lines.push(parts);
-			if (sp.statusLabel) {
-				yy += 34;
-				f = stitchFitText(ctx, sp.statusLabel, w - 4, 23, 14, 'normal');
-				ctx.fillText(f.text, x + 2, yy + 15);
-				lines.push(sp.statusLabel);
-			}
+			const lv = (v) => (typeof v === 'number' ? String(v) : '?');
+			const rows = [
+				'①　本育成編成：' + fmt(sp.rosterPt) + ' Pt',
+				'②　因子周回：' + fmt(sp.factorPt) + ' Pt',
+				sp.uniqKinds > 0 ? '・継承固有' + sp.uniqKinds + '種／ヒントLv' + lv(sp.uniqLevel) + '含む' : '・継承固有0種',
+				'・共通スキルヒントLv' + lv(sp.commonLevel)
+			];
+			rows.forEach(t => {
+				const f = stitchFitText(ctx, t, maxW, L.spRow, 14, 'normal');
+				ctx.fillText(f.text, x + 2, yy + L.spRowH / 2);
+				lines.push(t);
+				rowsInfo.push({ px: f.size, width: Math.ceil(ctx.measureText(f.text).width), top: yy, h: L.spRowH, maxW: maxW });
+				yy += L.spRowH;
+			});
 			ctx.restore();
 			return lines;
 		}
@@ -3441,7 +3584,8 @@
 		 * parts = { idxs: [親, 祖1, 祖2], canvases: [Canvas|null ×3]（両側を削った後の人の結合画像）,
 		 *           heads: [Canvas|null ×3]（見出しの顔のアイコン。null ならラベルだけ）,
 		 *           table: stitchTableData の値|null, legend: 枠の見かたの行の Canvas|null, barText,
-		 *           top: stitchTopData の値|null（上段。T37。null なら描かない） }
+		 *           top: stitchTopData の値|null（上段。T37。null なら描かない）,
+		 *           genes: [[{ name, stars }]|null ×3]（人の見出しの行の遺伝子。T51。無ければ描かない） }
 		 * 返す Canvas には _layout（各部品の矩形・行の高さ・見出し・上段）を添える。
 		 */
 		function composeFamilyImage(parts) {
@@ -3476,7 +3620,8 @@
 			const px0 = x;
 			people.forEach((p, i) => {
 				const s = mid.fit.ws[i];
-				const head = stitchDrawPersonHead(ctx, x, midY, (parts.heads || [])[p.k] || null, PERSON_LABELS[parts.idxs[p.k]]);
+				const head = stitchDrawPersonHead(ctx, x, midY, (parts.heads || [])[p.k] || null, PERSON_LABELS[parts.idxs[p.k]],
+					(parts.genes || [])[p.k] || null, x + s.w);
 				ctx.drawImage(p.c, x, midY + headH, s.w, s.h);
 				const rect = { k: p.k, x: x, y: midY + headH, w: s.w, h: s.h, scale: s.w / p.c.width, crop: p.c._sideCrop || null };
 				layout.persons.push(rect);
@@ -3511,7 +3656,8 @@
 			const stitched = {};
 			const heads = {};
 			const allWarnings = [];
-			let markCount = 0;   // セット内で実際に付けた枠の数
+			let markCount = 0;   // セット内で実際に付けた枠の数（遺伝子の枠は数えない）
+			let geneFrameCount = 0;   // 遺伝子の枠の数（T51）
 
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
@@ -3521,7 +3667,10 @@
 				// アイコンの位置は枠を描く前に測る（枠・塗りはパネルの上だけだが、念のため元の画素で）
 				const icon = stitchPersonIconBox(contentCanvas);
 				// 枠は**結合の後**に付ける（C-58 の作業C。前に描くと継ぎ目の判定が狂う）
-				if (withMarks) markCount += drawFactorFramesOnPerson(contentCanvas, idx);
+				if (withMarks) {
+					markCount += drawFactorFramesOnPerson(contentCanvas, idx);
+					geneFrameCount += contentCanvas._geneFrameCount || 0;
+				}
 				heads[idx] = stitchHeadIconOf(contentCanvas, icon);
 				const cropped = stitchSideCrop(contentCanvas, icon);
 				if (!cropped._sideCrop.ok) devGeometry.push('[結合画像] ' + label + ': 両側を削りませんでした（' + cropped._sideCrop.reason + '）');
@@ -3534,18 +3683,22 @@
 
 			const snap = (withMarks && stitchSnapshot && stitchSnapshot.results && stitchSnapshot.entries.length) ? stitchSnapshot : null;
 			const table = snap ? stitchTableData(snap, idxs) : null;
-			const legend = buildFactorFrameLegendBar(STITCH_LAYOUT.legendMaxW, STITCH_LAYOUT.legendRef, !!table || markCount > 0);
+			const legend = buildFactorFrameLegendBar(STITCH_LAYOUT.legendMaxW, STITCH_LAYOUT.legendRef, !!table || markCount > 0 || geneFrameCount > 0);
 			const barSnap = snap || (withMarks ? stitchSnapshot : null) || captureStitchSnapshot();
 			// 上段（T37）: タイトルと同じ写し（OCR を押した時点。OCRしない結合は結合した時点）のセットから。セットが無ければ描かない
 			const top = await stitchTopData(barSnap && barSnap.set);
+			// 人の見出しの行の遺伝子（T51）: OCR の写しの人ごとの結果から。OCRしない結合では描かない
+			const geneSnap = (withMarks && stitchSnapshot && stitchSnapshot.results) ? stitchSnapshot : null;
 			const result = composeFamilyImage({
 				idxs: idxs,
 				canvases: idxs.map(i => stitched[i] || null),
 				heads: idxs.map(i => heads[i] || null),
-				table: table, legend: legend, barText: stitchBarText(barSnap), top: top
+				table: table, legend: legend, barText: stitchBarText(barSnap), top: top,
+				genes: idxs.map(i => (geneSnap && stitched[i]) ? stitchGenesOfPerson(geneSnap, i) : null)
 			});
 			result._stitchWarnings = allWarnings;
 			result._markCount = markCount;
+			result._geneFrameCount = geneFrameCount;
 			return result;
 		}
 
