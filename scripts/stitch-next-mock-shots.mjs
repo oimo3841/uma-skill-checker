@@ -1,5 +1,5 @@
 // 結合画像の次の直しのモック（作業用。T44 で作り、T49 で作り直した）: special.html（製品のまま）で素材の家系を OCR → 結合し、lab/stitch-next-mock.js で
-// 「理論値SP」の欄（案B の (b)＝1行目を2行に分ける）と遺伝子の表示（G1・「名前：★N」）を差し替えた画像を作る。製品のファイルは変えない。
+// 「理論値SP」の欄（T50: 1行目「合計 Pt／N種／状態」を1行に）と遺伝子の表示（G1・「名前：★N」）を差し替えた画像を作る。製品のファイルは変えない。
 // T37 の画像づくり（t37-shots.mjs）と同じ流れ: 旧UI で行を入れて OCR → 写しの行・種類・セット名・レース条件・セット（①②のカード・育成ウマ娘・SP）を入れて結合。
 // 遺伝子は、data/aptitude-genes.json の10種を OCR の行に足し、因子の照合のガード（完全一致だけ）を効かせて読む（数・表には入れない）。
 // 使い方: node scripts/stitch-next-mock-shots.mjs <素材フォルダ> <出力フォルダ> [場合の名前,...]
@@ -44,7 +44,8 @@ const CASES = [
 	{ name: 'kiremono', set: SET(), crop: true },
 	{ name: 'benkyouka', set: SET({ statusLabel: '勉強家' }) },
 	{ name: 'nostatus', set: SET({ statusLabel: '' }) },
-	{ name: 'uniq0', set: SET({ uniqKinds: 0 }) },
+	// いちばん幅の広い見本（T50。合計 99,999・999種・勉強家）
+	{ name: 'widest', set: SET({ total: 99999, totalKinds: 999, statusLabel: '勉強家' }) },
 ].filter((c) => !ONLY || ONLY.includes(c.name));
 
 const toUrl = (f) => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
@@ -126,6 +127,18 @@ try {
 		gap.forEach((g) => console.log('   gene', JSON.stringify(g)));
 		summary.push({ name: cs.name, width: L.width, height: L.height, topH: L.top && L.top.h, bodyY: L.bodyY, spMetrics: res.sp, geneHeads: gap,
 			heads: res.heads, genesByLabel: res.genesByLabel, geneBoxes: res.geneBoxes, legend: L.legend, persons: L.persons.map((p) => ({ k: p.k, x: p.x, y: p.y, w: p.w, h: p.h, scale: p.scale })), mark: res.mark });
+		// 上段の左の欄（理論値SP）の等倍の切り出し（欄の左右に 16px ずつ・上段の上下に 10px ずつ）
+		if (L.top && L.top.sp) {
+			const r = L.top.sp;
+			const box = { x: Math.max(0, r.x - 16), y: Math.max(0, r.y - 10), w: r.w + 32, h: r.h + 20 };
+			const sc = await page.evaluate(async ({ png, b }) => {
+				const img = await new Promise((rs) => { const i = new Image(); i.onload = () => rs(i); i.src = png; });
+				const c = document.createElement('canvas'); c.width = b.w; c.height = b.h;
+				c.getContext('2d').drawImage(img, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+				return c.toDataURL('image/png');
+			}, { png: res.png, b: box });
+			fs.writeFileSync(path.join(OUT, cs.name + '-sp.png'), Buffer.from(sc.split(',')[1], 'base64'));
+		}
 		// 色の案の切り出し（等倍）: 遺伝子のある人の見出しの行〜その人の遺伝子の枠の下端
 		if (cs.crop && res.geneBoxes.length) {
 			const byK = {};

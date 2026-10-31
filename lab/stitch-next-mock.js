@@ -3,11 +3,11 @@
  * special.html を開いたページに後から読み込み、結合画像の関数のいくつかをページの中だけで差し替える。
  * 使い方は scripts/stitch-next-mock-shots.mjs（Playwright で special.html を開き、このファイルを読み込む）。
  *
- * 形（T49）:
- *   上段の左の欄「理論値SP」（幅は今の 400 のまま。字は今の大きさ。行が入る高さまで上段を高くする）
+ * 形（T50。T49 の2行目「（固有スキル含む）」を消し、1行目を1行に戻した）:
+ *   上段の左の欄「理論値SP」（幅は今の 400 のまま。行が入る高さまで上段を高くする）
  *     理論値SP
- *     12,321 Pt／106種              … 数字 46px 太字・「 Pt／106種」26px 太字
- *     （固有スキル含む）／切れ者      … 26px 太字（入らなければ 23px。状態なしは「（固有スキル含む）」だけ）
+ *     12,321 Pt／106種／切れ者      … 数字 46px 太字・「 Pt／106種／切れ者」は太字で、いちばん幅の広い見本が入る大きさ（26〜20px）
+ *                                     （勉強家なら「／勉強家」、状態なしなら付けない）
  *     ①　本育成編成：8,655 Pt        … 以下4行は 23px
  *     ②　因子周回：3,666 Pt
  *     ・継承固有6種／ヒントLv3含む    （0種なら「・継承固有0種」だけ）
@@ -27,9 +27,23 @@
 	const L = STITCH_LAYOUT;
 	const HEAD_SP = '理論値SP';
 	// 寸法（今の字の大きさのまま）。行の高さ: 1行目は今の 52、2行目〜は今の内訳の行の 34
-	const S = { num: 46, unit: 26, note: 26, noteMin: 23, row: 23, line1H: 52, rowH: 34 };
-	const ROWS_AFTER = 5;   // 2行目（固有スキル含む）＋4行
+	const S = { num: 46, tail: 26, tailMin: 20, row: 23, line1H: 52, rowH: 34 };
+	const ROWS_AFTER = 4;   // ①・②・継承固有・共通スキル
 	const spH = () => L.topHeadH + L.topHeadGap + S.line1H + ROWS_AFTER * S.rowH;
+	// 1行目の後半（「 Pt／N種／状態」）の字の大きさ（T50）: いちばん幅の広い見本（合計 99,999・999種・勉強家／切れ者の広いほう）が
+	// 欄に入る大きさを 26px から 1px ずつ下げて決める（下限 20px）。状態によって変えない。入らなければ fits: false（幅は広げない）
+	const WIDEST = { num: '99,999', tails: [' Pt／999種／勉強家', ' Pt／999種／切れ者'] };
+	function tailPx(ctx, maxW) {
+		ctx.save();
+		ctx.font = 'bold ' + S.num + 'px sans-serif';
+		const nw = ctx.measureText(WIDEST.num).width;
+		const widthAt = (px) => { ctx.font = 'bold ' + px + 'px sans-serif'; return Math.max(...WIDEST.tails.map(t => ctx.measureText(t).width)); };
+		let px = S.tail;
+		while (px > S.tailMin && nw + widthAt(px) > maxW) px--;
+		const need = Math.ceil(nw + widthAt(px));
+		ctx.restore();
+		return { px: px, widestW: need, fits: need <= maxW, widestNumW: Math.ceil(nw) };
+	}
 	const cardsH = () => L.topHeadH + L.topHeadGap + L.cardRows * L.cardH + (L.cardRows - 1) * L.cardGap;
 
 	// 上段の高さ: 「理論値SP」の行が入る高さとカードの高さの大きいほう
@@ -47,33 +61,24 @@
 		ctx.save();
 		ctx.fillStyle = STITCH_INK;
 		ctx.textAlign = 'left';
-		// 1行目: 合計の数字 46px 太字 ＋「 Pt／N種」26px 太字
+		// 1行目: 合計の数字 46px 太字 ＋「 Pt／N種／状態」（太字。大きさは tailPx() で決めた1つ。状態によって変えない）
 		const num = fmt(sp.total);
-		const unit = ' Pt' + (sp.totalKinds !== null ? '／' + sp.totalKinds + '種' : '');
+		const tail = ' Pt' + (sp.totalKinds !== null ? '／' + sp.totalKinds + '種' : '') + (sp.statusLabel ? '／' + sp.statusLabel : '');
+		const ts = tailPx(ctx, maxW);
 		ctx.textBaseline = 'alphabetic';
 		ctx.font = 'bold ' + S.num + 'px sans-serif';
 		const nw = ctx.measureText(num).width;
 		ctx.fillText(num, x + 2, yy + 44);
-		ctx.font = 'bold ' + S.unit + 'px sans-serif';
-		const uw = ctx.measureText(unit).width;
-		ctx.fillText(unit, x + 2 + nw, yy + 44);
-		lines.push(num + unit);
-		m.rows.push({ text: num + unit, numPx: S.num, unitPx: S.unit, weight: 'bold', width: Math.ceil(nw + uw), top: yy, h: S.line1H, fits: nw + uw <= maxW });
-		if (nw + uw > maxW) m.overflow.push({ row: 1, need: Math.ceil(nw + uw + 4) });
+		ctx.font = 'bold ' + ts.px + 'px sans-serif';
+		const tw = ctx.measureText(tail).width;
+		ctx.fillText(tail, x + 2 + nw, yy + 44);
+		lines.push(num + tail);
+		m.tail = ts;
+		m.rows.push({ text: num + tail, numPx: S.num, tailPx: ts.px, weight: 'bold', numW: Math.ceil(nw), tailW: Math.ceil(tw), width: Math.ceil(nw + tw), top: yy, h: S.line1H, fits: nw + tw <= maxW });
+		if (nw + tw > maxW) m.overflow.push({ row: 1, need: Math.ceil(nw + tw + 4) });
 		yy += S.line1H;
 		ctx.textBaseline = 'middle';
-		// 2行目: （固有スキル含む）／状態。26px 太字・入らなければ 23px
-		const note = '（固有スキル含む）' + (sp.statusLabel ? '／' + sp.statusLabel : '');
-		let ns = S.note;
-		ctx.font = 'bold ' + ns + 'px sans-serif';
-		if (ctx.measureText(note).width > maxW) { ns = S.noteMin; ctx.font = 'bold ' + ns + 'px sans-serif'; }
-		const ntw = ctx.measureText(note).width;
-		ctx.fillText(note, x + 2, yy + S.rowH / 2);
-		lines.push(note);
-		m.rows.push({ text: note, px: ns, weight: 'bold', width: Math.ceil(ntw), top: yy, h: S.rowH, fits: ntw <= maxW });
-		if (ntw > maxW) m.overflow.push({ row: 2, need: Math.ceil(ntw + 4) });
-		yy += S.rowH;
-		// 3〜6行目（23px）
+		// 2〜5行目（23px）
 		const rows = [
 			'①　本育成編成：' + fmt(sp.rosterPt) + ' Pt',
 			'②　因子周回：' + fmt(sp.factorPt) + ' Pt',
@@ -82,11 +87,11 @@
 		];
 		ctx.font = 'normal ' + S.row + 'px sans-serif';
 		rows.forEach((t, i) => {
-			const tw = ctx.measureText(t).width;
+			const rw = ctx.measureText(t).width;
 			ctx.fillText(t, x + 2, yy + S.rowH / 2);
 			lines.push(t);
-			m.rows.push({ text: t, px: S.row, weight: 'normal', width: Math.ceil(tw), top: yy, h: S.rowH, fits: tw <= maxW });
-			if (tw > maxW) m.overflow.push({ row: i + 3, need: Math.ceil(tw + 4) });
+			m.rows.push({ text: t, px: S.row, weight: 'normal', width: Math.ceil(rw), top: yy, h: S.rowH, fits: rw <= maxW });
+			if (rw > maxW) m.overflow.push({ row: i + 2, need: Math.ceil(rw + 4) });
 			yy += S.rowH;
 		});
 		m.bottom = yy;
