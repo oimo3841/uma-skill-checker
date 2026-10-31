@@ -103,6 +103,7 @@ import { register73 } from './blocks-73.mjs';
 import { register74 } from './blocks-74.mjs';
 import { register75 } from './blocks-75.mjs';
 import { register76 } from './blocks-76.mjs';
+import { register77 } from './blocks-77.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -3561,7 +3562,8 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	assert(!(await panelShown('distance')) && await panelShown(otherAxis),
 		'deck: タブを押すと表示パネルが入れ替わる', otherAxis);
 
-	// パネルの高さは全軸で共通（切り替えても下のスキル一覧が上下に跳ねない）
+	// T27（2026-10-31・おいもさんの決定）: 選んでいない軸のパネルは PC でも場所を取らない（軸を替えるとパネルの高さが変わる）。
+	// それまでの「全軸で共通の高さ」は置き換えた。パネルの高さが、出ている軸の中身（いちばん背の高い軸ではない）で決まることを見る
 	const panelHeights = await page.evaluate(() => {
 		const h = [...document.querySelectorAll('.usd-tabpanels')].map((el) => el.getBoundingClientRect().height);
 		return h[0];
@@ -3569,8 +3571,9 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	await page.click('.usd-tab[data-usd-axis="distance"]');
 	await page.waitForTimeout(300);
 	const panelHeightAfter = await page.evaluate(() => document.querySelector('.usd-tabpanels').getBoundingClientRect().height);
-	assert(Math.abs(panelHeights - panelHeightAfter) < 1,
-		'deck: タブを切り替えてもパネルの高さが変わらない', { panelHeights, panelHeightAfter });
+	const inactiveShown = await page.evaluate(() => [...document.querySelectorAll('.usd-tabpanel:not(.is-active)')].filter((el) => el.getBoundingClientRect().height > 0).length);
+	assert(inactiveShown === 0 && panelHeights > 0 && panelHeightAfter > 0,
+		'deck: 選んでいない軸のパネルは場所を取らない（T27。高さは出ている軸の中身で決まる）', { panelHeights, panelHeightAfter, inactiveShown });
 
 	// 件数バッジ
 	await page.click('[data-usd-el="filter-check"][data-axis="distance"][data-value="long"]');
@@ -3813,7 +3816,8 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	await page.click('.usd-tab[data-usd-axis="distance"]');
 	await page.waitForTimeout(300);
 	const heightOnDistance = await page.evaluate(() => Math.round(document.querySelector('.usd-tabpanels').getBoundingClientRect().height));
-	assert(heightOnVenue === heightOnDistance, 'deck: 軸を替えてもパネルの高さは変わらない', { heightOnVenue, heightOnDistance });
+	// T27（2026-10-31）: 軸を替えるとパネルの高さは変わる（選んでいない軸は場所を取らない）。どちらの軸でも高さがあることだけを見る
+	assert(heightOnVenue > 0 && heightOnDistance > 0, 'deck: 軸を替えてもパネルが出ている（T27 で高さは軸ごとに変わる形にした）', { heightOnVenue, heightOnDistance });
 
 	/* --- 375px：ここで初めて3段に入りきらない軸が出るので、合図の出方と押したときの動きを見る ---
 	   **PC幅では合図が1つも出ない**（3段に全部収まる）ので、上の (3)(4) は広い幅では
@@ -12650,7 +12654,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await page.evaluate(() => UmaSkillDeckCore.setPickerHiddenIds([]));
 	await openFilter();
 	const base0 = await listState();
-	assert(base0.activeIds.length > 20 && base0.greyIds.length === 0 && base0.excludedLabel === null && base0.count === base0.activeIds.length + '件',
+	// T27（2026-10-31）: 件数の文（result-excluded）は消した（excludedLabel は undefined＝要素が無い）
+	assert(base0.activeIds.length > 20 && base0.greyIds.length === 0 && base0.excludedLabel === undefined && base0.count === base0.activeIds.length + '件',
 		'段3b(基準): 除外なしのときはグレーアウトも「除外中」も出ない', { active: base0.activeIds.length, grey: base0.greyIds.length, label: base0.excludedLabel, count: base0.count });
 
 	/* --- ① 除外中の行が残る（並びは元のまま）・チェックできない・理由が出る --- */
@@ -12674,7 +12679,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 		'段3b①: 除外中の行を押しても選択に入らない', { checkedCount: afterClick.checkedCount });
 
 	/* 見た目（commit 2）: グレーアウトは**色**で表す（opacity は使わない。恒久ルール9）。理由は名前より濃い補助色 */
-	assert(s1.reasons[0] === '本育成で得るため選べません', '段3b①: 理由の文言は「本育成で得るため選べません」（段7で「除外」の語をやめた）', s1.reasons[0]);
+	// T27（2026-10-31）: 「条件で検索」の一覧も緑スキルの一覧と同じ短い表記「本育成で取得」
+	assert(s1.reasons[0] === '本育成で取得', '段3b①: 理由の文言は短い表記「本育成で取得」（T27。それまでは「本育成で得るため選べません」）', s1.reasons[0]);
 	const look = await page.evaluate(() => {
 		const grey = document.querySelector('[data-usd-el="results"] [data-usd-excluded="1"]');
 		const normal = document.querySelector('[data-usd-el="results"] label.usd-row:not([data-usd-excluded])');
@@ -12685,14 +12691,15 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	});
 	assert(look.greyColor !== look.normalColor && look.reasonColor !== look.greyColor && look.greyColor !== look.reasonColor,
 		'段3b見た目: 除外中の行は名前の色が通常と違い（グレーアウト）、理由は名前とも違う色', look);
-	assert(look.greyOpacity === '1' && look.inputOpacity === '1' && look.reasonOpacity === '1',
-		'段3b見た目: グレーアウトは opacity を使わない（色だけで表す。sticky を使う表と同じ規則）', look);
+	// T27（2026-10-31）: 選べない行は T26 の緑スキルの一覧と同じ表し方（チェックボックスだけ 45%。行と理由の文字は色で表す。この一覧は sticky の表ではない）
+	assert(look.greyOpacity === '1' && look.inputOpacity === '0.45' && look.reasonOpacity === '1',
+		'段3b見た目: 行と理由は opacity を使わず色で表し、チェックボックスだけ 45%（T27・緑スキルの一覧と同じ）', look);
 	assert(look.cursor === 'default' && look.normalCursor === 'pointer', '段3b見た目: 除外中の行はカーソルが押せる形にならない', look);
 
 	/* --- ② 「N件」に除外中を含めず、「除外中 M件」が別に出る --- */
 	assert(s1.count === (base0.activeIds.length - 3) + '件' && s1.activeIds.length === base0.activeIds.length - 3,
 		'段3b②: 「N件」は除外中の行を含めない', { count: s1.count, active: s1.activeIds.length, base: base0.activeIds.length });
-	assert(s1.excludedLabel === '本育成編成のため選べない 3件', '段3b②: 「本育成編成のため選べない 3件」が別に出る（段7の文言）', s1.excludedLabel);
+	assert(s1.excludedLabel === undefined, '段3b②: 件数の文（「本育成編成のため選べない 3件」）は出ない（T27 で消した）', s1.excludedLabel);
 
 	/* --- ③ 「表示中を全て選択」が除外中の行を選ばない。追加しても除外中は足されない --- */
 	await page.click('[data-usd-act="picker-select-all"]');
@@ -12710,7 +12717,7 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await page.evaluate(() => { window.__smokeAdded = []; UmaSkillDeckCore.setPickerHiddenIds([]); });
 	await openFilter();
 	const s4 = await listState();
-	assert(s4.greyIds.length === 0 && s4.excludedLabel === null && s4.activeIds.length === base0.activeIds.length && s4.count === base0.count,
+	assert(s4.greyIds.length === 0 && s4.excludedLabel === undefined && s4.activeIds.length === base0.activeIds.length && s4.count === base0.count,
 		'段3b④: 除外を解除するとグレーアウトも「除外中」も消えて、元の一覧に戻る', { grey: s4.greyIds.length, label: s4.excludedLabel, count: s4.count });
 
 	/* --- ⑤ 「名前を入れて探す」の候補の文言が、②の理由と揃っている --- */
@@ -12734,15 +12741,16 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 		UmaSkillDeckCore.closeSkillPicker();
 		return out;
 	}, hide[0]);
-	assert(finderReason.reason && finderReason.reason === s1.reasons[0],
-		'段3b⑤: 「名前を入れて探す」の候補の文言が、一覧の理由と同じ', { 名前で探す: finderReason.reason, 一覧: s1.reasons[0] });
+	// T27（2026-10-31）: 一覧は短い表記「本育成で取得」。「名前を入れて探す」は決定に含まれないので長い文言のまま
+	assert(finderReason.reason === '本育成で得るため選べません' && s1.reasons[0] === '本育成で取得',
+		'段3b⑤: 「名前を入れて探す」の候補は「本育成で得るため選べません」のまま・一覧は短い表記（T27）', { 名前で探す: finderReason.reason, 一覧: s1.reasons[0] });
 
 	/* --- ⑨ 追加できる行が0件でも、除外中の行は残り、「追加できるスキルがありません。」が出る --- */
 	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), base0.activeIds);
 	await openFilter();
 	const s9 = await listState();
 	assert(s9.activeIds.length === 0 && s9.greyIds.length === base0.activeIds.length && s9.count === '0件' && s9.lead
-		&& s9.excludedLabel === '本育成編成のため選べない ' + base0.activeIds.length + '件',
+		&& s9.excludedLabel === undefined,
 		'段3b⑨: 全部が除外中でも行は残り、「0件」と「追加できるスキルがありません。」が出る', { active: s9.activeIds.length, grey: s9.greyIds.length, count: s9.count, lead: s9.lead, label: s9.excludedLabel });
 	await page.click('[data-usd-act="picker-select-all"]');
 	await page.waitForTimeout(200);
@@ -12754,8 +12762,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await page.waitForTimeout(400);
 	await openFilter();
 	const s6 = await listState();
-	assert(s6.greyIds.length === 3 && s6.boxOverflow <= 1 && s6.reasonsOutside === 0 && s6.labelInView === true,
-		'段3b⑥: 375px で、理由と「除外中 M件」が一覧の箱と画面からはみ出さない', { grey: s6.greyIds.length, overflow: s6.boxOverflow, reasonsOutside: s6.reasonsOutside, labelInView: s6.labelInView });
+	assert(s6.greyIds.length === 3 && s6.boxOverflow <= 1 && s6.reasonsOutside === 0 && s6.labelInView === null,
+		'段3b⑥: 375px で、理由が一覧の箱と画面からはみ出さない（件数の文は T27 で消した）', { grey: s6.greyIds.length, overflow: s6.boxOverflow, reasonsOutside: s6.reasonsOutside, labelInView: s6.labelInView });
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.waitForTimeout(300);
 
@@ -12795,8 +12803,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await openPassive();
 	const p1 = await passiveState();
 	assert(p1.total === passive.length && p1.greyIds.length === 3 && ph.every((id) => p1.greyIds.includes(id)) && p1.greyDisabled
-		&& p1.label === undefined && p1.reasons.every((t) => t === '本育成で取得') && s1.reasons[0] === '本育成で得るため選べません',
-		'段3b⑦: 緑スキルの一覧でも消えずにグレーアウト・チェック不可で、理由は短い表記「本育成で取得」（条件で検索は長い文言のまま。件数の行は無い。T26）', p1);
+		&& p1.label === undefined && p1.reasons.every((t) => t === '本育成で取得') && s1.reasons[0] === '本育成で取得',
+		'段3b⑦: 緑スキルの一覧でも消えずにグレーアウト・チェック不可で、理由は短い表記「本育成で取得」（条件で検索も T27 で同じ短い表記。件数の行は無い。T26）', p1);
 	await page.click('[data-usd-el="passive-results"] [data-usd-excluded="1"] >> nth=0', { force: true });
 	await page.waitForTimeout(200);
 	assert((await page.evaluate(() => window.__smokeAdded.length)) === 0,
@@ -14827,8 +14835,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	});
 	// 段8: W2・W3 はセットに入ったまま（自動では外さない）なので一覧には出ない。「W2 がグレーアウトで並ぶ」の確認は外し、
 	// グレーアウトがあり、どれも①の●であることで見る
-	assert(pick.greyIds.length >= 1 && pick.greyIds.every((id) => allSure.includes(id)) && pick.reasons.join() === '本育成で得るため選べません' && pick.label === '本育成編成のため選べない ' + pick.greyIds.length + '件',
-		'段7(E)(旧3): 対象があるあいだ、「条件で検索」で本育成で得るスキルはグレーアウトで残り、理由「本育成で得るため選べません」と「本育成編成のため選べない M件」が出る', pick);
+	assert(pick.greyIds.length >= 1 && pick.greyIds.every((id) => allSure.includes(id)) && pick.reasons.join() === '本育成で取得' && pick.label === null,
+		'段7(E)(旧3): 対象があるあいだ、「条件で検索」で本育成で得るスキルはグレーアウトで残り、理由は「本育成で取得」（T27 の短い表記。件数の文は T27 で消した）', pick);
 	// 旧5: モーダルを開いたまま、選んだ編成（AB）が変わる（カード A を外す）と、一覧が描き直される
 	await sp.page.evaluate(() => { document.querySelector('#deck-roster-panel [data-usd-act="clear-card"][data-index="0"]').click(); });
 	await sp.page.waitForTimeout(300);
@@ -15470,6 +15478,8 @@ await register74({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register75({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // 「緑スキルを追加」の小窓の直し（T26。塊の見出しはすべて「T26緑スキル」で始まる）
 await register76({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T27（2026-10-31）: 「条件で検索」の小窓の直し（見出しは「T27条件で検索」）
+await register77({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

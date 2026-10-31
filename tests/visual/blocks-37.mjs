@@ -58,7 +58,8 @@ export async function register37(env) {
 		assert(a.shown && a.checked === false, '低効果トグル(1) トグルが出ていて、既定はOFF', { shown: a.shown, checked: a.checked });
 		assert(a.text === '効果「' + LOW_KEY + '」以下を除外（' + n + '件）', '低効果トグル(1) 文は「効果「（lowEffectMax の段階）」以下を除外（N件）」で、N は一覧の低効果の数（独立に数えた値と一致）', { text: a.text, n, LOW_KEY });
 		assert(n > 0 && a.count === a.addable + '件', '低効果トグル(1) OFFでは一覧に低効果のスキルが並び、件数は一覧の行数と同じ（絞り込み結果' + a.count + '）', { n, count: a.count, addable: a.addable });
-		assert(a.h >= 44, '低効果トグル(1) 押す場所は44px以上', { h: a.h });
+		// T27（2026-10-31・おいもさんの決定）: 44 → 28px（T21 のモックの値。段7c の基準 24px 以上は保つ）
+		assert(a.h >= 28 && a.h >= 24, '低効果トグル(1) 押す場所は28px以上（T27。それまでは44px以上）', { h: a.h });
 		assert(!/ヒント|必ず合う|合うことがある|合わない/.test(a.modalText) && a.overflowX === false, '低効果トグル(1) 小窓に「ヒント」「必ず合う／合うことがある／合わない」の語が出ず、横スクロールも出ない', { overflowX: a.overflowX });
 		await sp.ctx.close();
 	});

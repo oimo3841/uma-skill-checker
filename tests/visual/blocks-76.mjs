@@ -130,7 +130,8 @@ export async function register76(env) {
 		}
 	});
 
-	await block('T26緑スキル(2) 範囲: 「条件で検索」の選べない行は今までどおり（取り消し線なし・地を沈めない・長い理由）・オススメサポ・脚質オススメの選べない行は変更前の実測値のまま（ライト・ダーク）', async () => {
+	// T27（2026-10-31・おいもさんの決定）で「条件で検索」の一覧にも同じ表し方を当てた（取り消し線＋薄く・短い表記）。この塊の「条件で検索」の部分はその形を見る
+	await block('T26緑スキル(2) 範囲: 「条件で検索」の選べない行は T27 で緑スキルと同じ表し方（取り消し線＋薄く・短い表記）・オススメサポ・脚質オススメの選べない行は変更前の実測値のまま（ライト・ダーク）', async () => {
 		// 変更前（246a76d）の 375×812 の実測値。オススメサポは②に追加済みの行（.usd-row--excluded）、脚質オススメは灰色の行（.usd-sty-row--gray）
 		const BEFORE = {
 			light: { out: { row: 'rgb(113, 98, 80)', bg: 'rgba(0, 0, 0, 0)', deco: 'underline', reason: 'rgb(106, 91, 69)', accent: 'auto', opacity: '1' },
@@ -151,9 +152,10 @@ export async function register76(env) {
 					bgs: [...new Set(rows.map((r) => getComputedStyle(r).backgroundColor))], opac: [...new Set(rows.map((r) => getComputedStyle(r.querySelector('input')).opacity))],
 					reasons: [...new Set(rows.map((r) => r.querySelector('[data-usd-el="excluded-reason"]').textContent))] };
 			});
-			assert(f.n > 0 && f.decos.join() === 'underline' && f.bgs.join() === 'rgba(0, 0, 0, 0)' && f.opac.join() === '1'
-				&& f.reasons.includes('レース条件に合わないため選べない') && !f.reasons.includes(SHORT.race) && !f.reasons.includes(SHORT.sure),
-				tag + '「条件で検索」の選べない行は今までどおり（取り消し線なし・地は透明・チェックボックス 100%・長い理由）', f);
+			const sunk = await sp.page.evaluate(() => { const d = document.createElement('div'); d.style.background = 'var(--uma-surface-sunken)'; document.body.appendChild(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c; });
+			assert(f.n > 0 && f.decos.join() === 'underline line-through' && f.bgs.join() === sunk && f.opac.join() === '0.45'
+				&& f.reasons.includes(SHORT.race) && f.reasons.every((x) => x === SHORT.race || x === SHORT.sure),
+				tag + '「条件で検索」の選べない行は緑スキルと同じ（取り消し線・地 --uma-surface-sunken・チェックボックス 45%・短い表記。T27）', { f, sunk });
 			await sp.page.click('[data-usd-act="picker-close"]');
 			await sp.page.waitForTimeout(200);
 			// 脚質オススメの灰色の行

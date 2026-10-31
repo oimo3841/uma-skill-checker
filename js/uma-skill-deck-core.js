@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31e';
 
 	/* ============================================================
 	 * 定数
@@ -5878,16 +5878,15 @@
 		'.usd-row-reason { margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		// T26（2026-10-31）: 「緑スキルを追加」の一覧（.usd-passive-list）だけ。チェックボックスはほかの小窓と同じベースカラー。
 		// 選べない行は名前に取り消し線（説明の小窓を開く下線は残す）＋行を薄く（地を沈め、文字を面の色へ寄せる・チェックボックスは 45%）。
-		// オススメサポ・脚質オススメの一覧と「条件で検索」「テキストで検索」には当てない（後者は T27・T28 で当てる予定）
+		// オススメサポ・脚質オススメの一覧と「テキストで検索」には当てない（後者は T28 で当てる予定）。
+		// T27（2026-10-31）: 「条件で検索」の一覧（.usd-filter-list）にも同じ表し方を当てた（チェックボックスの色は小窓の指定 [data-usd-mode="filter"] が持つ）
 		'.usd-passive-list input[type="checkbox"] { accent-color: var(--uma-control-mark); }',
-		'.usd-passive-list .usd-row--excluded, .usd-passive-list .usd-row--excluded:hover { color: color-mix(in srgb, var(--uma-text-faint) 55%, var(--uma-surface)); background: var(--uma-surface-sunken); }',
-		'.usd-passive-list .usd-row--excluded .usd-out-namebtn { text-decoration-line: underline line-through; text-decoration-thickness: 1px; }',
-		'.usd-passive-list .usd-row--excluded .usd-row-reason { color: color-mix(in srgb, var(--uma-text-subtle) 65%, var(--uma-surface)); }',
-		'.usd-passive-list .usd-row--excluded input { opacity: .45; }',
-		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
-		// C-244: ①の絞り込みの値が入った件数の文は、入らない幅では折り返す（値は省略しない）。値「（中距離・先行・芝）」と「N件」は途中で分けない
-		'.usd-excluded-count[data-usd-wrap] { white-space: normal; }',
-		'.usd-excluded-count .usd-nowrap { white-space: nowrap; }',
+		'.usd-passive-list .usd-row--excluded, .usd-passive-list .usd-row--excluded:hover, .usd-filter-list .usd-row--excluded, .usd-filter-list .usd-row--excluded:hover { color: color-mix(in srgb, var(--uma-text-faint) 55%, var(--uma-surface)); background: var(--uma-surface-sunken); }',
+		'.usd-passive-list .usd-row--excluded .usd-out-namebtn, .usd-filter-list .usd-row--excluded .usd-out-namebtn { text-decoration-line: underline line-through; text-decoration-thickness: 1px; }',
+		'.usd-passive-list .usd-row--excluded .usd-row-reason, .usd-filter-list .usd-row--excluded .usd-row-reason { color: color-mix(in srgb, var(--uma-text-subtle) 65%, var(--uma-surface)); }',
+		'.usd-passive-list .usd-row--excluded input, .usd-filter-list .usd-row--excluded input { opacity: .45; }',
+		// 【INTENTIONALLY_REMOVED・2026-10-31（T27・おいもさんの決定）】「条件で検索」の件数の文（.usd-excluded-count。「選べない：…」
+		// 「①の絞り込み（…）に合わないため選べない N件」など。C-244 の折り返しの指定を含む）は、文ごと消した
 		// C-244: 「条件で検索」・オススメサポの題名の右の、①の絞り込みの値（表示だけ。押せない）
 		'.usd-head-filter { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-subtle); }',
 		'.usd-head-filter[hidden] { display: none; }',
@@ -6300,7 +6299,8 @@
 		'.usd-tabpanel { grid-area: 1 / 1; min-width: 0; }',
 		// Tailwind の hidden クラスは使わない（F-13）。visibility なら場所は取ったままなので、
 		// いちばん背の高い軸に高さが揃う（display:none にすると揃わなくなる）
-		'.usd-tabpanel:not(.is-active) { visibility: hidden; }',
+		// T27（2026-10-31）: どの幅でも場所を取らない（display: none）。それまでの PC は visibility: hidden でいちばん背の高い軸に揃えていた
+		'.usd-tabpanel:not(.is-active) { display: none; }',
 		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
 		'.usd-axis-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-3);',
 		'  margin-bottom: var(--uma-sp-2); }',
@@ -6336,13 +6336,10 @@
 		'.usd-target-distance-input { width: 6.5em; padding: var(--uma-sp-0-5) var(--uma-sp-1-5); font-size: var(--uma-fs-sm); }',
 		'.usd-target-distance-input[aria-invalid="true"] { border-color: var(--uma-danger-text); }',
 		// 【INTENTIONALLY_REMOVED・2026-10-30（おいもさんの決定）】入力欄の下の説明文（.usd-target-distance-hint）は消した
-		// エラーの文は**場所を常に取る**（1行ぶんの min-height ＋ visibility）。hidden で消すと、
-		// 文が出た瞬間にパネルが伸びて下のスキル一覧が跳ねる（375px で実測 230→236px）
-		'.usd-target-distance-error { flex-basis: 100%; margin: 0; min-height: var(--uma-lh-xs); visibility: hidden;',
-		'  color: var(--uma-danger-text); font-weight: 600; }',
-		// **visible ではなく inherit**（2026-10-30）。選んでいない軸のパネルは visibility: hidden で重ねてあり、
-		// 子に visible を書くと親の hidden を破って、ほかの軸を開いたときに透けて見える（チェックの印と同じ不具合）
-		'.usd-target-distance-error[data-shown="true"] { visibility: inherit; }',
+		// エラーの文は**出たときだけ場所を取る**（T27・2026-10-31 おいもさんの決定。出た瞬間に下の一覧が 16px 下がる）。
+		// それまでは跳ねないよう 1行ぶんの場所を常に取っていた（min-height ＋ visibility）
+		'.usd-target-distance-error { flex-basis: 100%; margin: 0; color: var(--uma-danger-text); font-weight: 600; }',
+		'.usd-target-distance-error:not([data-shown="true"]) { display: none; }',
 		'.usd-opts-wrap { position: relative; }',
 		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2);',
 		'  max-height: calc(var(--usd-opt-row) * 3 + var(--uma-sp-2) * 2);',
@@ -6421,28 +6418,36 @@
 		 *     （--usd-results-extra の足し算は、この幅では使わない）
 		 *   - 選んでいない軸のパネルは場所を取らない（display: none）。選択肢の少ない軸で空きが残らない
 		 *   - それでも入らない高さでは、選択肢のパネルの中だけがスクロールする（一覧の3行を先に取る）
-		 * 押す範囲（タブ・チップ・×・追加のボタン）と文字の大きさは変えない。PC 幅（641px 以上）は不変。 */
-		'@media (max-width: 640px) {',
-		'  .usd-picker-panel[data-usd-mode="filter"] { height: calc(100vh - 12px); max-height: none;',
-		'    height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-picker-head { padding-top: var(--uma-sp-2); padding-bottom: var(--uma-sp-2); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-picker-body { flex: 1 1 auto; display: flex; flex-direction: column;',
-		'    padding-top: var(--uma-sp-3); padding-bottom: var(--uma-sp-2); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] [data-usd-el="mode-filter"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }',
-		'  .usd-picker-panel[data-usd-mode="filter"] [data-usd-el="filter-axes"] { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-axis-tabs { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; margin-bottom: var(--uma-sp-2); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-tabbar { flex: none; }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-tabpanels { flex: 0 1 auto; min-height: 0; overflow-y: auto;',
-		'    padding: var(--uma-sp-2) var(--uma-sp-3) var(--uma-sp-2-5); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-tabpanel:not(.is-active) { display: none; }',
+		 * 押す範囲（タブ・チップ・×・追加のボタン）と文字の大きさは変えない。PC 幅（641px 以上）は不変。
+		 *
+		 * **T27（2026-10-31・おいもさんの決定）で PC にも広げ、余白を詰めた**（手本は T21 のモック lab/search-ui-mock.html の f-ba）。
+		 *   - PC も本文を縦の flex にして一覧が残りを受け取る。小窓の高さは画面の上下 24px を残す（上限 900px）。選んでいない軸のパネルは PC でも場所を取らない
+		 *   - 見出し 上下 6px・左右 12/8px／本文 上下 6px・左右 12px／軸のパネル 上下 6px・左右 10px／下の行 上下 6px・左右 12px
+		 *   - 押せる大きさ（C-241 で「不変」とした値を置き換えた）: タブ 30px（PC の1行のタブは 32px＋持ち上げ 3px）・選択肢 26px・追加のボタン 32px・「効果『ちょっと』以下を除外」28px。
+		 *     「絞り込み中」の札と「この軸を解除」「すべて解除」は 20 → 24px。段7c の基準（24px 以上）は保つ。× 28px と文字（最小 11px）は不変
+		 *   - 一覧の行 29 → 25px。--usd-results-extra の足し算は、この小窓では使わない（どの幅でも height: auto） */
+		'.usd-picker-panel[data-usd-mode="filter"] { height: calc(100vh - 12px); max-height: none;',
+		'  height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px); }',
+		'@media (min-width: 641px) { .usd-picker-panel[data-usd-mode="filter"] { height: min(calc(100vh - 48px), 900px); height: min(calc(100dvh - 48px), 900px); } }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-picker-head { padding: var(--uma-sp-1-5) var(--uma-sp-2) var(--uma-sp-1-5) var(--uma-sp-3); }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-picker-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: var(--uma-sp-1-5) var(--uma-sp-3); }',
+		'.usd-picker-panel[data-usd-mode="filter"] [data-usd-el="mode-filter"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }',
+		'.usd-picker-panel[data-usd-mode="filter"] [data-usd-el="filter-axes"] { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-axis-tabs { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-tabbar { flex: none; }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-tabpanels { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: var(--uma-sp-1-5) var(--uma-sp-2-5); }',
 		// 選択肢が箱に収まる軸では「▼ ほか N件」の行の場所も取らない（スクロールし切って消えるときは、跳ねないよう今までどおり場所を取る）
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-opts-more[data-fits="true"] { display: none; }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-active-summary { flex: none; margin-top: var(--uma-sp-1-5); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] [data-usd-el="results"] { flex: 1 1 0; height: auto;',
-		'    min-height: calc((var(--uma-lh-sm) + var(--uma-sp-1-5) * 2 + 1px) * 3 + 2px); }',
-		'  .usd-picker-panel[data-usd-mode="filter"] .usd-modal-foot { padding-top: var(--uma-sp-2);',
-		'    padding-bottom: max(var(--uma-sp-2), env(safe-area-inset-bottom)); }',
-		'}',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-opts-more[data-fits="true"] { display: none; }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-active-summary { flex: none; margin-top: var(--uma-sp-1); min-height: 24px; gap: var(--uma-sp-1) var(--uma-sp-1-5); }',
+		// 「表示中を全て選択」の行（Tailwind の mb-1 の箱）
+		'.usd-picker-panel[data-usd-mode="filter"] [data-usd-el="mode-filter"] > .flex { margin-top: var(--uma-sp-0-5); margin-bottom: var(--uma-sp-1); }',
+		'.usd-picker-panel[data-usd-mode="filter"] [data-usd-el="results"] { flex: 1 1 0; height: auto;',
+		'  min-height: calc((var(--uma-lh-sm) + var(--uma-sp-1) * 2 + 1px) * 3 + 2px); }',
+		'.usd-picker-panel[data-usd-mode="filter"] [data-usd-el="results"] .usd-row { padding-top: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-modal-foot { padding: var(--uma-sp-1-5) var(--uma-sp-3);',
+		'  padding-bottom: max(var(--uma-sp-1-5), env(safe-area-inset-bottom)); }',
+		'.usd-picker-panel[data-usd-mode="filter"] .usd-foot-commit { min-height: 32px; padding-top: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); }',
+		'.usd-picker-panel[data-usd-mode="filter"] input[type="checkbox"] { accent-color: var(--uma-control-mark); }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -6479,6 +6484,44 @@
 		'  color: var(--uma-accent-soft-text); background: var(--uma-accent-soft); border: 1px solid var(--uma-accent-border); }',
 		'.usd-summary-item:hover { border-color: var(--uma-accent); }',
 		'.usd-summary-item b { font-weight: 700; margin-right: var(--uma-sp-1); }',
+
+		/* T27（2026-10-31・おいもさんの決定）: 「条件で検索」の大きさと色（手本は T21 のモック f-ba）。
+		 * 色は緑（--uma-accent 系）をやめ、選択の表現はベースカラー（恒久ルール30）。--usd-ui-* は special だけが持つので、Deck では後ろの既定の値で出る */
+		'.usd-axis-head { margin-bottom: var(--uma-sp-1); }',
+		// 選択肢: 高さ 32 → 26px（上下 6 → 4px）・間 8 → 6px。選び方は地の色が変わる（○は出さない。枠 2px・太字。T21 の (a)）。
+		// 中の checkbox は見えないだけで本物のまま（選択肢の全面に重ねる。既存の JS・検査がそのまま掴める）
+		'.usd-opts { gap: var(--uma-sp-1-5); max-height: calc(var(--usd-opt-row) * 3 + var(--uma-sp-1-5) * 2); }',
+		'.usd-opt { position: relative; padding: var(--uma-sp-1) var(--uma-sp-3); }',
+		'.usd-opt:hover { border-color: var(--usd-ui-sel, var(--uma-control-mark)); }',
+		'.usd-opt input { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; opacity: 0; }',
+		'.usd-opt input:checked { background: var(--uma-control); border-color: var(--uma-control); }',
+		'.usd-opt:has(input:checked) { background: var(--usd-ui-set, var(--uma-control-soft)); border-color: var(--usd-ui-sel, var(--uma-control-mark));',
+		'  box-shadow: inset 0 0 0 1px var(--usd-ui-sel, var(--uma-control-mark)); color: var(--uma-text-heading); font-weight: 700; }',
+		'.usd-opt:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
+		// 「絞り込み中」の札・「この軸を解除」「すべて解除」: 20 → 24px（段7c の基準 24px 以上）。色は緑をやめる
+		'.usd-summary-item { min-height: 24px; padding: 3px var(--uma-sp-2); color: var(--uma-text-heading);',
+		'  background: var(--usd-ui-set, var(--uma-control-soft)); border-color: var(--usd-ui-line, var(--uma-border-strong)); }',
+		'.usd-summary-item:hover { border-color: var(--usd-ui-sel, var(--uma-control-mark)); }',
+		'.usd-link-btn { min-height: 24px; padding: var(--uma-sp-1) var(--uma-sp-1-5); color: var(--uma-text-muted); }',
+		// 目標のレースの距離: 上 6px・入力欄 24px
+		'.usd-target-distance { margin-top: var(--uma-sp-1-5); gap: var(--uma-sp-0-5) var(--uma-sp-2); }',
+		'.usd-target-distance-input { min-height: 24px; padding-top: 1px; padding-bottom: 1px; }',
+		// 「表示中を全て選択」「効果『ちょっと』以下を除外」: 押せる範囲 44 → 28px
+		'.usd-lowtoggle { min-height: 28px; }',
+		'.usd-selrow > label:first-child { min-height: 28px; }',
+		// 軸のタブ: 2段（スマホ）は 41.6 → 30px・帯の内側と間 6 → 4px・件数の印はタブの右上の角に重ねる（T21 の (b)）。
+		// 1行（PC）は 32px＋持ち上げ 3px・件数の印は文字の右に並べる
+		'.usd-axis-tabs { --usd-tab-lift: 3px; }',
+		'.usd-tabbar[data-usd-rows="multi"] { padding: var(--uma-sp-1); }',
+		'[data-usd-rows="multi"] .usd-tablist { gap: var(--uma-sp-1); }',
+		'[data-usd-rows="multi"] .usd-tab { min-height: 30px; padding: 2px var(--uma-sp-1); }',
+		'[data-usd-rows="multi"] .usd-tab-count { top: -5px; right: -3px; }',
+		'[data-usd-rows="1"] .usd-tab { flex-direction: row; gap: var(--uma-sp-1); min-height: 32px; padding: var(--uma-sp-1) var(--uma-sp-3); }',
+		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] { min-height: calc(32px + var(--usd-tab-lift)); }',
+		'[data-usd-open="false"] [data-usd-rows="1"] .usd-tab[aria-selected="true"] { min-height: 32px; }',
+		'[data-usd-rows="1"] .usd-tab-count { position: static; }',
+		// 件数の印（タブと入口のボタンで共通の見た目）: 緑の丸 → 操作の色
+		'.usd-tab-count, .usd-entry-count { background: var(--uma-control); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
 
 		// スキルを足す3つの入口。モーダルは選ばれた1つぶんだけを出す
 		'.usd-mode[hidden] { display: none; }',
@@ -7689,6 +7732,11 @@
 	const PICKER_PASSIVE_SHORT_REASONS = {};
 	PICKER_PASSIVE_SHORT_REASONS[PICKER_EXCLUDED_REASON] = '本育成で取得';
 	PICKER_PASSIVE_SHORT_REASONS[PICKER_RACE_REASON] = 'レース条件不一致';
+	/** 選べない行の右に出す短い表記（T26 の緑スキルの一覧・T27〔2026-10-31〕で「条件で検索」の一覧にも）。短い表記の無い理由（不要にしているもの）はそのまま */
+	function pickerShortReasonOf(skillId) {
+		const r = pickerBlockReasonOf(skillId) || PICKER_EXCLUDED_REASON;
+		return PICKER_PASSIVE_SHORT_REASONS[r] || r;
+	}
 	/** そのスキルを選べなくしている理由（選べるなら空）。不要にしているものは、本育成で得るものとは別の理由。理由が重なるときは本育成の理由を先に出す */
 	function pickerBlockReasonOf(skillId) {
 		if (pickerHiddenIds.indexOf(skillId) === -1) return isPickerRaceBlocked(skillId) ? PICKER_RACE_REASON : '';
@@ -7700,8 +7748,8 @@
 		const s = findSkill(skillId);
 		return !!s && raceBlocksSkill(s, pickerRace);
 	}
-	// ①の絞り込みに合わないスキル（C-222）。軸の名前（「距離」「脚質」「バ場」）の後ろに付ける
-	const PICKER_FILTER_REASON_SUFFIX = 'が合わないため選べない';
+	// 【INTENTIONALLY_REMOVED・2026-10-31（T27）】①の絞り込みに合わない行の理由の文（「距離が合わないため選べない」など。C-222）は、
+	// その行を一覧に出さなくなったので消した（PICKER_FILTER_REASON_SUFFIX）
 	/**
 	 * ①の絞り込みに合わないとき、合わない軸（理由に名前を出す軸）。合う・絞り込んでいない・スキルが無いときは null（C-222）。
 	 * 合うかどうかは①の述語（filterPredicateOf）と同じ matchesFilters に同じ材料を渡して決める。理由の軸は、①の軸の並び（距離 → 脚質 → バ場）で最初に合わないもの。
@@ -7786,20 +7834,20 @@
 							'<label class="flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">' +
 								'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
 							'</label>' +
-							// 低効果の除外（既定OFF）。段階の名前と件数は renderPickerLowEffect が入れる。押す場所は44px以上
+							// 低効果の除外（既定OFF）。段階の名前と件数は renderPickerLowEffect が入れる。押す場所は 28px（T27 で 44 → 28。段7c の基準 24 以上）
 							'<label class="usd-lowtoggle text-xs text-slate-600" data-usd-el="low-toggle" hidden>' +
 								'<input type="checkbox" data-usd-act="picker-low-effect"/>' +
 								'<span>効果「<span data-usd-el="low-name"></span>」以下を除外<span data-usd-el="low-count"></span></span>' +
 							'</label>' +
 							'</div>' +
-							// 「除外中 M件」は M が0のときは出さない（renderPickerResults が hidden を切り替える）
-							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）' +
-								'<span class="usd-excluded-count" data-usd-el="result-excluded" hidden></span></p>' +
+							// T27（2026-10-31・おいもさんの決定）: N は追加できるスキルの数。選べない件数の文（result-excluded）は消した
+							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
 						'</div>' +
 						// 高さは .usd-results（下の CORE_STYLES）。**インラインの style をやめた** ――
 						// 選択肢パネルを畳んだぶんをここへ足すのに、CSS 変数で足し算する必要があるため。
 						// 罫線の色もトークン（--uma-border。値は同じ #e2e8f0）へ移した。
-						'<div class="usd-results" data-usd-el="results"></div>' +
+						// .usd-filter-list は、選べない行の取り消し線と薄さ（T26 の緑スキルの一覧と同じ表し方。T27）の目印
+						'<div class="usd-results usd-filter-list" data-usd-el="results"></div>' +
 					'</div>' +
 					// ---- テキストで検索 ----
 					// 枠も見出しも説明文も持たせない。何を貼ればよいかはプレースホルダー1行で足りる
@@ -8538,32 +8586,6 @@
 	}
 
 	/**
-	 * 「除外中 M件」の表示を合わせる。M が0のときは出さない。
-	 * 単位は**その一覧の数え方に合わせる**: 「条件で検索」は「絞り込み結果（N件）」なので「件」、
-	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」（T26 で緑スキルの件数の行は消した）。
-	 */
-	function setExcludedCountLabel(el, count, unit, raceCount, filterCount, filterText) {
-		if (!el) return;
-		// 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数。
-		// C-129: レース条件だけで選べない行は別に数える（本育成の理由が先）
-		// 2つ以上あるときは短い形「選べない：本育成編成 N件・レース条件 M件」（375px・320px で実測）。
-		// C-222: ①の絞り込みだけで選べない行（「条件で検索」だけ）も別に数え、同じ形で「①の絞り込み L件」を足す
-		// C-244: ①の絞り込みの値を出す「①の絞り込み（中距離・先行・芝）に合わないため選べない N件」／短い形「①の絞り込み（中距離・先行・芝）L件」。
-		// 値の入った文は、入らない幅では折り返す（data-usd-wrap。値と「N件」は途中で分けない）
-		const parts = [];
-		const nw = (s) => '<span class="usd-nowrap">' + esc(s) + '</span>';
-		const fv = filterText ? nw('（' + filterText + '）') : ' ';
-		if (count > 0) parts.push([esc('本育成編成 ' + count + '件'), esc('本育成編成のため選べない ' + count + '件')]);
-		if (raceCount > 0) parts.push([esc('レース条件 ' + raceCount + '件'), esc('レース条件に合わないため選べない ' + raceCount + '件')]);
-		if (filterCount > 0) parts.push(filterText ? ['①の絞り込み' + fv + nw(filterCount + '件'), '①の絞り込み' + fv + 'に合わないため選べない ' + nw(filterCount + '件')]
-			: [esc('①の絞り込み ' + filterCount + '件'), esc('①の絞り込みに合わないため選べない ' + filterCount + '件')]);
-		const html = parts.length === 0 ? '' : parts.length === 1 ? parts[0][1] : esc('選べない：') + parts.map(p => p[0]).join('・');
-		el.hidden = !html;
-		el.innerHTML = html;
-		if (filterCount > 0 && filterText) el.setAttribute('data-usd-wrap', ''); else el.removeAttribute('data-usd-wrap');
-	}
-
-	/**
 	 * 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。
 	 * opts（「条件で検索」だけ。C-222）: { reason: 理由の文（省略時は pickerBlockReasonOf）, nameBtn: スキル名を説明の小窓のボタンにする }
 	 */
@@ -8655,16 +8677,13 @@
 		renderPassiveList();
 		const el = q(pickerEl, 'results');
 		if (!el) return;
-		// 除外中の行は消さずに残す（段3b）。「N件」と「表示中を全て選択」は追加できる行だけを数え、
-		// 除外中の行の数は「除外中 M件」として別に出す。
-		const rows = getPickerPoolRows();
+		// 本育成編成・レース条件で選べない行は消さずに残す（段3b・C-129）。「N件」と「表示中を全て選択」は追加できる行だけを数える。
+		// T27（2026-10-31・おいもさんの決定）: ①の絞り込みに合わない行（filterAxis。C-222 では灰色で残していた）は一覧に出さない。
+		// 選べない件数の文は出さない（除かれた件数も出さない）
+		const rows = getPickerPoolRows().filter(r => !r.filterAxis);
 		const filtered = rows.filter(r => !r.excluded).map(r => r.skill);
-		const raceCount = rows.filter(r => r.race).length;
-		const filterCount = rows.filter(r => r.filterAxis).length;
-		const excludedCount = rows.length - filtered.length - raceCount - filterCount;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
 		renderPickerLowEffect();
-		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount, filterCount, pickerRosterFilter ? rosterFilterSummaryOf(pickerRosterFilter.sel) : '');
 		syncPickerRosterSel();
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
@@ -8679,8 +8698,9 @@
 		const lead = filtered.length === 0
 			? '<div class="text-xs text-slate-400 p-3" data-usd-el="results-none-addable">追加できるスキルがありません。</div>' : '';
 		// C-222: スキル名は説明の小窓を開くボタン（灰色の行も開く）・名前の文字は①の表と同じ色分け（灰色の行は灰色のまま）
+		// T27: 選べない行の右は緑スキルの一覧と同じ短い表記（「本育成で取得」「レース条件不一致」。不要にしているものは今のまま）
 		el.innerHTML = lead + rows.map(r => r.excluded
-			? excludedRowHtml(r.skill, 'skill-check-excluded', { nameBtn: true, reason: r.filterAxis ? r.filterAxis.label + PICKER_FILTER_REASON_SUFFIX : '' })
+			? excludedRowHtml(r.skill, 'skill-check-excluded', { nameBtn: true, reason: pickerShortReasonOf(r.skill.id) })
 			: '<label class="usd-row usd-pick-row">' +
 				'<input type="checkbox" data-usd-el="skill-check" value="' + esc(r.skill.id) + '"' + (picker.checked.has(r.skill.id) ? ' checked' : '') + '/>' +
 				pickerNameBtnHtml(r.skill, pickerNameToneClass(r.skill.id)) +
@@ -8732,10 +8752,9 @@
 		// C-129: レース条件に合わないものも同じ作りで残す
 		// T26（2026-10-31）: 件数の行は消した。行の右の理由は、この一覧だけ短い表記（PICKER_PASSIVE_SHORT_REASONS）
 		const isExcludedRow = (s) => !chosen.has(s.id) && isPickerBlocked(s.id);
-		const shortReason = (id) => { const r = pickerBlockReasonOf(id) || PICKER_EXCLUDED_REASON; return PICKER_PASSIVE_SHORT_REASONS[r] || r; };
 		// C-238: スキル名は説明の小窓を開くボタン（「条件で検索」の行と同じ部品・灰色の行も開く）・名前の文字は①の表と同じ色分け（灰色の行は灰色のまま）
 		el.innerHTML = list.map(s => isExcludedRow(s)
-			? excludedRowHtml(s, 'passive-check-excluded', { nameBtn: true, reason: shortReason(s.id) })
+			? excludedRowHtml(s, 'passive-check-excluded', { nameBtn: true, reason: pickerShortReasonOf(s.id) })
 			: '<label class="usd-row usd-pick-row">' +
 				'<input type="checkbox" data-usd-el="passive-check" value="' + esc(s.id) + '"' + (chosen.has(s.id) ? ' checked' : '') + '/>' +
 				pickerNameBtnHtml(s, pickerNameToneClass(s.id)) +

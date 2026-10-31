@@ -298,9 +298,10 @@ export async function register7c(env) {
 					return { ids: grey.map((r) => r.querySelector('input').value), reasons, disabled: grey.every((r) => r.querySelector('input').disabled), label: ex && !ex.hidden ? ex.textContent : null };
 				});
 				assert(pick.ids.includes(W[2]) && pick.ids.includes(W[7]) && pick.disabled && pick.reasons[W[2]] === '本育成編成で不要にしているため選べません' && pick.reasons[W[7]] === '本育成編成で不要にしているため選べません'
-					&& allSureOn.filter((id) => pick.ids.includes(id)).every((id) => pick.reasons[id] === '本育成で得るため選べません'),
-					tag + '「条件で検索」: オフのスキルはグレーアウトで残り、チェックできず、理由「本育成編成で不要にしているため選べません」（オンの●は「本育成で得るため選べません」のまま）', pick);
-				assert(pick.label === '本育成編成のため選べない ' + pick.ids.length + '件', tag + '件数は「本育成編成のため選べない M件」（本育成で得るためと、不要にしているための両方を合わせた件数）', pick);
+					&& allSureOn.filter((id) => pick.ids.includes(id)).every((id) => pick.reasons[id] === '本育成で取得'),
+					tag + '「条件で検索」: オフのスキルはグレーアウトで残り、チェックできず、理由「本育成編成で不要にしているため選べません」（オンの●は T27 の短い表記「本育成で取得」）', pick);
+				// T27（2026-10-31）: 件数の文（「本育成編成のため選べない M件」）は消した
+				assert(pick.label === null, tag + '件数の文は出ない（T27 で消した）', pick);
 				await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
 				// 貼り付け: オフのスキルは追加せず、「本育成編成のため追加しなかったもの N種」（本育成で得るものも含めた件数）
 				await pickEntry(sp.page, 'editor-pick-text');

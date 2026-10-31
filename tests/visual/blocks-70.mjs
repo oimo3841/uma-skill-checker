@@ -62,20 +62,21 @@ export async function register70(env) {
 	/** 小窓の題名の右の値・件数の文 */
 	const readPicker = (page) => page.evaluate(() => {
 		const sel = document.querySelector('[data-usd-el="picker-roster-filter"]');
+		// T27（2026-10-31）: 件数の文（result-excluded）は消した。無いときは label が空・lines が 0
 		const lab = document.querySelector('[data-usd-el="result-excluded"]');
 		const head = document.querySelector('.usd-modal:not([hidden]) .usd-picker-head');
 		const title = document.querySelector('[data-usd-el="picker-title"]');
-		const lines = lab.hidden ? 0 : new Set(Array.from(lab.getClientRects()).filter((r) => r.width > 0).map((r) => Math.round(r.top))).size;
+		const lines = !lab || lab.hidden ? 0 : new Set(Array.from(lab.getClientRects()).filter((r) => r.width > 0).map((r) => Math.round(r.top))).size;
 		const sb = sel.getBoundingClientRect(), tb = title.getBoundingClientRect();
 		return { sel: sel.hidden ? '' : sel.textContent, selShown: !sel.hidden && sb.width > 0, tag: sel.tagName, tabindex: sel.getAttribute('tabindex'), role: sel.getAttribute('role'),
 			selRightOfTitle: sb.left >= tb.right - 0.5 && Math.abs((sb.top + sb.bottom) / 2 - (tb.top + tb.bottom) / 2) < 4, headH: Math.round(head.getBoundingClientRect().height),
 			// 横にはみ出さない: 件数の段落は flex の子で、文が折り返さないと段落ごと広がる（親の右端と比べても捕まらない）。小窓の本文の内側の右端と、本文の横スクロールで見る
-			label: lab.hidden ? '' : lab.textContent, lines, fits: (() => {
+			label: !lab || lab.hidden ? '' : lab.textContent, lines, fits: (() => {
 				const body = document.querySelector('[data-usd-el="picker-body"]');
 				const br = body.getBoundingClientRect().right - parseFloat(getComputedStyle(body).paddingRight);
-				return body.scrollWidth <= body.clientWidth + 1 && (lab.hidden || (lab.getBoundingClientRect().right <= br + 0.5 && lab.parentElement.getBoundingClientRect().right <= br + 0.5));
+				return body.scrollWidth <= body.clientWidth + 1 && (!lab || lab.hidden || (lab.getBoundingClientRect().right <= br + 0.5 && lab.parentElement.getBoundingClientRect().right <= br + 0.5));
 			})(),
-			countRowH: Math.round(lab.parentElement.getBoundingClientRect().height),
+			countRowH: Math.round(document.querySelector('[data-usd-el="result-count"]').parentElement.getBoundingClientRect().height),
 			hx: document.documentElement.scrollWidth > innerWidth + 1 };
 	});
 	const readOutside = (page) => page.evaluate(() => {
@@ -216,7 +217,8 @@ export async function register70(env) {
 	});
 
 	await block('②絞り込み欄(4) 小窓の題名の右の①の絞り込みの値: 「条件で検索」とオススメサポ／未指定の軸は出さない・すべて未指定なら何も出さない／表示だけ（押せない）／見出しの高さは変わらない', async () => {
-		for (const [w, h, headP, headO] of [[375, 812, 45, 65], [1280, 900, 61, 53]]) {
+		// 「条件で検索」の見出しの高さは T27（2026-10-31）で 45／61 → 41（上下の余白 6px。変更前 f3d4882 で 45・61 を実測し、変更後に 41 を実測）
+		for (const [w, h, headP, headO] of [[375, 812, 41, 65], [1280, 900, 41, 53]]) {
 			const tag = '②絞り込み欄(4) ' + w + 'px: ';
 			const sp = await openSp({ w, h, roster: null });
 			const p = sp.page;
@@ -248,7 +250,7 @@ export async function register70(env) {
 			const co = await readOutside(p);
 			assert(v3.split('・').length === 3 && c.sel === v3 && co.sel === v3 && c.selRightOfTitle && co.selRightOfTitle, tag + '3つ: 「' + v3 + '」が題名の右（同じ高さ）に出る（条件で検索・オススメサポ）', { c: c.sel, co: co.sel, cr: c.selRightOfTitle, or: co.selRightOfTitle });
 			assert(c.tag === 'SPAN' && c.tabindex === null && c.role === null && co.tag === 'SPAN' && co.tabindex === null && co.role === null, tag + '表示だけ（押せる部品ではない）', { c: [c.tag, c.tabindex, c.role], co: [co.tag, co.tabindex, co.role] });
-			assert(a.headH === headP && c.headH === headP && ao.headH === headO && co.headH === headO, tag + '見出しの高さは変更前と同じ（条件で検索 ' + headP + '・オススメサポ ' + headO + '）', { picker: [a.headH, c.headH], outside: [ao.headH, co.headH] });
+			assert(a.headH === headP && c.headH === headP && ao.headH === headO && co.headH === headO, tag + '見出しの高さは値の有無で変わらない（条件で検索 ' + headP + '〔T27〕・オススメサポ ' + headO + '）', { picker: [a.headH, c.headH], outside: [ao.headH, co.headH] });
 			assert(!c.hx && !co.hx, tag + '横スクロールなし');
 			await closeOutside(p);
 			// テキストで検索（同じ小窓の別の入口）には出さない
@@ -261,47 +263,32 @@ export async function register70(env) {
 		}
 	});
 
-	await block('②絞り込み欄(5) 件数の文に値: 「①の絞り込み（中距離・先行・芝）に合わないため選べない N件」／短い形「…・①の絞り込み（中距離・先行・芝）N件」／375px・320px で横にはみ出さず2行まで（件数の行の高さは変更前の2行と同じ）／結果は C-241 の最小の行数以上', async () => {
+	// T27（2026-10-31・おいもさんの決定）: 件数の文（C-244 で値を入れた「①の絞り込み（…）に合わないため選べない N件」など）は丸ごと消し、
+	// ①の絞り込みに合わない行は一覧に出さない。題名の右の値（(4)）は今のまま。この塊は「件数の文が無い・その行が無い・N が追加できる数」に置き換えた
+	await block('②絞り込み欄(5) 件数の文は無い（T27 で C-244 の件数の文を消した）・①の絞り込みに合わない行は出ない・「N件」は追加できる行の数／375・320・393px で横にはみ出さない／結果は C-241 の最小の行数以上', async () => {
 		for (const [w, h, minRows] of [[375, 812, 3], [320, 568, 3], [393, 700, 5]]) {
 			const tag = '②絞り込み欄(5) ' + w + '×' + h + ': ';
 			const sp = await openSp({ w, h, roster: { skillFilter: FILTER } });
 			const p = sp.page;
-			const v3 = await valueText(p, FILTER);
 			await openPicker(p);
 			const a = await readPicker(p);
-			const rows = await p.evaluate(() => {
+			const r = await p.evaluate(() => {
 				const res = document.querySelector('[data-usd-el="results"]').getBoundingClientRect();
 				const foot = document.querySelector('[data-usd-el="picker-footer"]').getBoundingClientRect();
 				const lim = Math.min(res.bottom, foot.top, innerHeight);
-				return [...document.querySelectorAll('[data-usd-el="results"] .usd-row')].filter((x) => { const b = x.getBoundingClientRect(); return b.top >= res.top - 0.5 && b.bottom <= lim + 0.5; }).length;
+				const rows = [...document.querySelectorAll('[data-usd-el="results"] .usd-row')];
+				return { inView: rows.filter((x) => { const b = x.getBoundingClientRect(); return b.top >= res.top - 0.5 && b.bottom <= lim + 0.5; }).length,
+					filtReason: rows.filter((x) => /が合わないため/.test((x.querySelector('[data-usd-el="excluded-reason"]') || {}).textContent || '')).length,
+					addable: rows.filter((x) => !x.classList.contains('usd-row--excluded')).length, count: document.querySelector('[data-usd-el="result-count"]').textContent,
+					el: !!document.querySelector('[data-usd-el="result-excluded"]') };
 			});
-			const m = new RegExp('^①の絞り込み（' + v3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '）に合わないため選べない (\\d+)件$').exec(a.label);
-			const grayN = await p.evaluate(() => document.querySelectorAll('[data-usd-el="results"] .usd-row--excluded').length);
-			assert(m && Number(m[1]) === grayN && grayN > 0, tag + '件数の文「' + a.label + '」（N は選べない行の数）', { label: a.label, grayN });
-			assert(a.fits && a.lines >= 1 && a.lines <= 2 && !a.hx, tag + '件数の文は横にはみ出さず2行まで（' + a.lines + '行）', a);
-			if (w <= 375) assert(a.countRowH === 32, tag + '件数の行の高さは 32（変更前の 375px・320px の2行と同じ）', a.countRowH);
-			assert(rows >= minRows, tag + '結果は ' + minRows + '行以上見える（C-241 の最小）', rows);
+			assert(!r.el && a.label === '' && r.filtReason === 0, tag + '件数の文は無く、「…が合わないため選べない」の行も無い', { el: r.el, label: a.label, filtReason: r.filtReason });
+			assert(r.count === r.addable + '件', tag + '「N件」は追加できる行の数', r);
+			assert(a.fits && !a.hx && a.countRowH === 16, tag + '横にはみ出さず、件数の行は1行（16）', a);
+			assert(r.inView >= minRows, tag + '結果は ' + minRows + '行以上見える（C-241 の最小）', r.inView);
 			await closePicker(p);
 			await sp.ctx.close();
 		}
-		// 理由が2種類以上: 短い形（320px）
-		const sp = await openSp({ w: 320, h: 568, roster: { umaId: 'uma-0001', cardIds: NOCARDS, skillFilter: FILTER } });
-		const v3 = await valueText(sp.page, FILTER);
-		await openPicker(sp.page);
-		const b = await readPicker(sp.page);
-		const m = new RegExp('^選べない：本育成編成 \\d+件・①の絞り込み（' + v3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '）(\\d+)件$').exec(b.label);
-		const filt = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="results"] [data-usd-el="excluded-reason"]')).filter((e) => /が合わないため/.test(e.textContent)).length);
-		assert(m && Number(m[1]) === filt && b.fits && b.lines <= 2 && b.countRowH === 32 && !b.hx, '②絞り込み欄(5) 320px 理由が2種類: 「' + b.label + '」（①の数は①の理由の行の数・2行まで・件数の行 32）', { label: b.label, filt, lines: b.lines, h: b.countRowH });
-		await closePicker(sp.page);
-		await sp.ctx.close();
-		// 値を省略しない・指定のある軸だけ（バ場だけ）
-		const sp2 = await openSp({ w: 320, h: 568, roster: { skillFilter: { surface: 'turf' } } });
-		const vs = await valueText(sp2.page, { surface: 'turf' });
-		await openPicker(sp2.page);
-		const c = await readPicker(sp2.page);
-		assert(new RegExp('^①の絞り込み（' + vs + '）に合わないため選べない \\d+件$').test(c.label) && c.lines <= 2, '②絞り込み欄(5) 320px バ場だけ: 「' + c.label + '」', c.label);
-		await closePicker(sp2.page);
-		await sp2.ctx.close();
 	});
 
 	await block('②絞り込み欄(6) ②の入口の寸法: 合計の帯 → 選択欄（28）→ 白い枠（入口の行）の順・間は 8／帯と入口の行の高さは変更前と同じ／375・320・393・1280px で横スクロールなし', async () => {
@@ -346,8 +333,8 @@ export async function register70(env) {
 			assert(c1.length === 3 && c1.some((x) => x.on) && c1.some((x) => !x.on) && c1.every((x) => x.opaque && x.ratio >= 4.5), tag + '②の選択欄の文字のコントラスト（選んだ形・指定なしの形とも 4.5 以上）', c1);
 			await openPicker(p);
 			const c2 = await p.evaluate(scanTextContrastInPage, '.usd-modal:not([hidden]) .usd-picker-head');
-			const c3 = await p.evaluate(scanTextContrastInPage, '[data-usd-el="result-excluded"]');
-			assert(c2.checked >= 2 && c2.bad.length === 0 && c3.checked >= 1 && c3.bad.length === 0, tag + '「条件で検索」の題名の右の値・件数の文のコントラスト', formatContrast(c2.bad.concat(c3.bad)));
+			// T27（2026-10-31）: 件数の文は消したので、題名の右の値だけを見る
+			assert(c2.checked >= 2 && c2.bad.length === 0, tag + '「条件で検索」の題名の右の値のコントラスト（件数の文は T27 で消した）', formatContrast(c2.bad));
 			await closePicker(p);
 			await openOutside(p);
 			const c4 = await p.evaluate(scanTextContrastInPage, '[data-usd-el="outside-modal"] .usd-out-head');

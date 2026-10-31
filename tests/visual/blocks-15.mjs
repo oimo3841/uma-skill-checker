@@ -68,9 +68,8 @@ export async function register15(env) {
 			// C-222: スキル名は説明の小窓のボタン（[data-usd-info]）
 			raceNames: race.map((r) => r.querySelector('[data-usd-info]').textContent),
 			addableNames: rows.filter((r) => !r.classList.contains('usd-row--excluded')).map((r) => r.querySelector('[data-usd-info]').textContent),
-			label: document.querySelector('[data-usd-el="result-excluded"]').textContent,
-			// 件数の行は折り返さない作り（nowrap）なので、はみ出していないこと（右端が箱の中）
-			labelFits: (() => { const e = document.querySelector('[data-usd-el="result-excluded"]'); return e.hidden || e.getBoundingClientRect().right <= e.parentElement.getBoundingClientRect().right + 0.5; })(),
+			// T27（2026-10-31）: 件数の文（result-excluded）は消した。要素が無ければ null
+			label: (() => { const e = document.querySelector('[data-usd-el="result-excluded"]'); return e ? e.textContent : null; })(),
 			reasons: Array.from(new Set(rows.map((r) => (r.querySelector('[data-usd-el="excluded-reason"]') || {}).textContent).filter(Boolean)))
 		};
 	});
@@ -94,11 +93,8 @@ export async function register15(env) {
 		const a = await readFilterList(sp.page);
 		assert(a.race > 0 && a.raceDisabled, 'C129B(a) 条件で検索: レース条件に合わない行がグレーアウト（チェック不可）で残る（' + a.race + '件。空振りでない）', { race: a.race });
 		assert(a.count === a.addable + '件', 'C129B(a) 「N件」は追加できる行だけを数える', { count: a.count, addable: a.addable });
-		// 件数: レース条件だけなら「レース条件に合わないため選べない N件」、本育成の分もあるときは短い形「選べない：本育成編成 M件・レース条件 N件」
-		const raceNum = (label) => { const m = /レース条件(?:に合わないため選べない)? (\d+)件/.exec(label); return m ? Number(m[1]) : -1; };
-		assert(a.reasons.includes('レース条件に合わないため選べない') && raceNum(a.label) === a.race && a.labelFits, 'C129B(a) 理由と件数の文言（件数の行は1行に収まる）', { reasons: a.reasons, label: a.label, fits: a.labelFits });
-		// 本育成の理由が重なるものは、本育成の理由が先（レース条件の件数には数えない）
-		assert(a.label.indexOf('本育成') === -1 || a.label.indexOf('本育成') < a.label.indexOf('レース条件'), 'C129B(a) 件数の並びは本育成の分が先', a.label);
+		// T27（2026-10-31）: 理由は短い表記「レース条件不一致」（緑スキルの一覧と同じ）・件数の文は無い
+		assert(a.reasons.includes('レース条件不一致') && !a.reasons.includes('レース条件に合わないため選べない') && a.label === null, 'C129B(a) 理由は「レース条件不一致」・件数の文は無い〔T27〕', { reasons: a.reasons, label: a.label });
 		await closePicker(sp.page);
 		await pickEntry(sp.page, 'editor-pick-passive');
 		await sp.page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
@@ -118,19 +114,20 @@ export async function register15(env) {
 		await sp2.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const n = await readFilterList(sp2.page);
 		// （レースは①の距離・バ場も固定するので、本育成で得るスキルの顔ぶれも変わる。比べるのは追加できる行の数だけ）
-		assert(n.race === 0 && n.addable > a.addable && !/レース条件/.test(n.label), 'C129B 指定なし: レース条件の行は無く、追加できる行はレースありより多い', { none: n.addable, race: a.addable });
+		assert(n.race === 0 && n.addable > a.addable && n.label === null, 'C129B 指定なし: レース条件の行は無く、追加できる行はレースありより多い', { none: n.addable, race: a.addable });
 		await closePicker(sp2.page);
 		await pickEntry(sp2.page, 'editor-pick-passive');
 		await sp2.page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
 		const n2 = await readPassiveList(sp2.page);
 		assert(n2.race === 0, 'C129B 指定なし: 緑スキルにもレース条件の行は無い', n2);
 		await sp2.ctx.close();
-		// 320px でも、件数の行（本育成とレース条件の両方）は1行に収まる
+		// 320px: 件数の文は無く（T27）、横スクロールも無い
 		const sp3 = await openSp({ w: 320, h: 568, roster: Object.assign({}, FULL, { race: RACE }) });
 		await pickEntry(sp3.page, 'editor-pick');
 		await sp3.page.waitForSelector('[data-usd-el="results"] label.usd-row');
 		const n3 = await readFilterList(sp3.page);
-		assert(n3.race > 0 && n3.labelFits && /^選べない：本育成編成 \d+件・レース条件 \d+件$/.test(n3.label), 'C129B 320px: 両方あるときの件数は短い形で、1行に収まる', { label: n3.label, fits: n3.labelFits });
+		const hx3 = await sp3.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+		assert(n3.race > 0 && n3.label === null && !hx3, 'C129B 320px: レース条件の行はあり、件数の文は無く、横スクロールも無い〔T27〕', { label: n3.label, hx: hx3 });
 		await sp3.ctx.close();
 	});
 
