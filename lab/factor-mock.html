@@ -9,7 +9,9 @@
 	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
 	<title>②因子周回の調和のモック（作業用）</title>
 	<!--
-		UmaStar（special）の②因子周回の画面を①本育成編成の画面にそろえ、並べ替えの操作を直す案の試し描き（モック・T45）。
+		UmaStar（special）の②因子周回の画面を①本育成編成の画面にそろえ、並べ替えの操作を直す案の試し描き（モック・T45。T48 でおいもさんの回答に合わせて直した:
+		並べ替えは今の4つのアイコンを同じ位置に残し、漏斗を1つにして、アイコンと漏斗の範囲全体を1つの入口に／②のカードのパネルは 720px 以上で
+		①の育成ウマ娘の枠と同じ位置・大きさの空白の領域を置く／合計の行は案d だけ）。
 		おいもさんが見て決めるための作業用のページ。**ツール本体には組み込まない**（どのページからもリンクしない）。保存は無い。外へは何も送らない。
 
 		作り: special.html を「セット名 LoHトプロ・①に [陣風の花紺青]ダイワスカーレットとカード6枚・距離／脚質／バ場 長距離／逃げ／芝・
@@ -19,7 +21,7 @@
 		写しなので、製品を変えてもこのページは変わらない。その上にモックの差分（<style id="t45-css"> と <script id="t45-js">）を当てている。
 
 		引数: ?scene=1now|1new|1sort|2tnow|2tnew|2sort|2gnow|2gnew|count（既定 2tnew）
-		      ?fit=a|b|c|d（②の合計の行の案。既定 d）・?pin=0（枚数の小窓で、残りの枠の指定が無い形）・?theme=light|dark・?guide=0（案内を閉じておく）・?shot=1（案内を隠す）
+		      ?sort=heal|circle|passive|debuff（並べ替えありの形）・?pin=0（枚数の小窓で、残りの枠の指定が無い形）・?theme=light|dark・?guide=0（案内を閉じておく）・?shot=1（案内を隠す）
 	-->
 	<style id="t45-css">
 /* ===== T45 のモックの差分（ここから下だけがモックの追加。上の写しは 2026-10-31 の origin/main〔core 2026-10-31i〕） ===== */
@@ -108,6 +110,23 @@
 :root[data-theme="dark"] .t45-pop { --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }
 /* 案d: 間隔をもう 1px 詰める（375px で 1px はみ出したため） */
 .t45-head[data-t45-fit="d"] :is(.usd-band-main, .t45-cfg) { gap: 3px; }
+
+/* ===== T48 の直し ===== */
+/* 並べ替え: 4つの漏斗は場所だけ残して見えなくする（アイコンの位置を今の製品と同じに保つ）。漏斗は1つを4つのアイコンの幅の真ん中に */
+.t48-tones { position: relative; }
+.t48-tones .usd-roster-tonebtn.t48-gone { visibility: hidden; }
+.t48-tones .t48-funnel { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }
+/* 4つのアイコンと漏斗の範囲全体が1つの入口（高さは列見出しいっぱい。見た目は持たず、押したときの枠だけ） */
+.t48-entry { position: absolute; top: 0; bottom: 0; z-index: 1; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 6px; }
+.t48-entry:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
+/* 並べている種類のアイコンの印（ベースカラーの枠。色の地は今のまま） */
+.t48-tones .usd-roster-toneicon.t48-on { outline: 2px solid var(--uma-control-mark); outline-offset: 1px; border-radius: 3px; }
+
+/* ②のカードのパネルの空白の領域（①の育成ウマ娘の枠の位置・大きさ。①が2段組みになる 720px 以上だけ。何も描かない） */
+.t45-fcards .t48-fblank { display: none; }
+@media (min-width: 720px) { .t45-fcards .t48-fblank { display: flex; visibility: hidden; } }
+/* 719px 以下は空白の領域を出さないので、隣の枠の上の余白（core の ≤640px の .usd-roster-sub + .usd-roster-sub）も当てない（T45 の寸法を保つ） */
+@media (max-width: 719px) { .t45-fcards .t48-fblank + .usd-roster-sub { margin-top: 0; } }
 
 	</style>
 </head>
@@ -4650,8 +4669,8 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 	var BODY = { '1now': 'c1', '1new': 'c1', '1sort': 'c1', '2tnow': 'c2t', '2tnew': 'c2t', '2sort': 'c2t', '2gnow': 'c2g', '2gnew': 'c2g', count: 'c2o' };
 	var scene = Q.get('scene') || '2tnew';
 	if (!BODY[scene]) scene = '2tnew';
-	var FITS = { a: '案a: 詰めた部品（▾ を無くす。字は今の大きさ）', b: '案b: 案a＋字を 11px に（今の fit の段と同じ詰め方）', c: '案c: 案b＋ラベルを2段の小さな字', d: '案d: 案b＋「?」を合計の数字に入れる（①と同じく数字を押すと小窓）' };
-	var FIT = FITS[Q.get('fit')] ? Q.get('fit') : 'd';
+	// T48: 合計の行は案d（おいもさんの回答 1）だけにした（案a〜c の切り替えは消した）
+	var FIT = 'd';
 	var SHOT = Q.get('shot') === '1';
 	var IS1 = scene.charAt(0) === '1';
 	var NEW = /new|sort|count/.test(scene);
@@ -4724,7 +4743,8 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 	}
 
 	/* ===== (1)(2) 合計の行 ===== */
-	var state = { count: 5, lv: 3, F: 3, sort: null, circleMode: false };
+	var SORT_KEYS = ['heal', 'circle', 'passive', 'debuff'];
+	var state = { count: 5, lv: 3, F: 3, sort: SORT_KEYS.indexOf(Q.get('sort')) !== -1 ? Q.get('sort') : null, circleMode: false };
 	var UNIQ_COUNTS = [2, 3, 4, 5, 6], LVS = [1, 2, 3, 4, 5];
 	var next = function (list, v) { var i = list.indexOf(v); return list[(i + 1) % list.length]; };
 	function buildHead() {
@@ -4785,7 +4805,9 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 			box.setAttribute('data-t45', 'fcards');
 			filter.parentNode.insertBefore(box, filter);
 		}
-		box.innerHTML = '<div class="usd-roster-lower"><div class="usd-roster-sub"><div class="usd-roster-slots" data-usd-el="card-slots" role="group" aria-label="②因子周回のサポートカード">'
+		// T48: ①の育成ウマ娘の枠と同じ位置・同じ大きさの空白の領域（①が2段組みになる幅 720px 以上だけ。何も描かない・押せない）
+		box.innerHTML = '<div class="usd-roster-lower"><div class="usd-roster-sub t48-fblank" data-t48="fblank" aria-hidden="true"></div>'
+			+ '<div class="usd-roster-sub"><div class="usd-roster-slots" data-usd-el="card-slots" role="group" aria-label="②因子周回のサポートカード">'
 			+ panelCards.map(tileHtml).join('') + '</div></div></div>';
 	}
 
@@ -4799,31 +4821,74 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 	// アイコンは①の写しの列見出しから借りる（今の見た目のまま）
 	var c1 = tpl('c1').content;
 	var toneIcon = function (key) { var n = c1.querySelector('.usd-roster-toneicon--' + key); return n ? n.outerHTML : ''; };
-	var SORT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>';
 	function sortLabelOf(k) { var t = TONES.filter(function (x) { return x.key === k; })[0]; return t ? t.label + 'を上に寄せる' : '並べ替えない'; }
-	function tonesHtml() {
-		return '<span class="t45-tones" data-t45="tones">'
-			+ '<button type="button" class="t45-tonebtn t45-sortentry" data-t45="sort-entry" aria-haspopup="dialog" aria-expanded="false" aria-label="並べ替え（今: ' + esc(sortLabelOf(state.sort)) + '）" title="並べ替え">' + SORT_SVG + '</button>'
-			+ TONES.map(function (t) {
-				return '<button type="button" class="t45-tonebtn" data-t45="sort-icon" data-tone="' + t.key + '" aria-haspopup="dialog" aria-pressed="' + (state.sort === t.key ? 'true' : 'false') + '"'
-					+ ' aria-label="並べ替え（' + esc(t.label) + '）" title="並べ替え">' + toneIcon(t.key) + '</button>';
-			}).join('') + '</span>';
-	}
+	/*
+	 * T48（おいもさんの回答 8 のやり直し）: 列見出し「スキル名」の右の4つのアイコンは、今の製品と同じ大きさ・同じ位置のまま。
+	 * その下の4つの漏斗を、今の漏斗の形のまま1つにして、4つのアイコンの幅の真ん中に置く（4つの漏斗は場所だけ残して見えなくする＝アイコンの位置を動かさない）。
+	 * アイコンと漏斗をまとめた範囲全体（高さは列見出しいっぱい）を1つの入口のボタンにする。どこを押しても同じ並べ替えの小窓。
+	 * 並べ替えが有効なら漏斗を塗りつぶし（今の aria-pressed の見た目）、並べている種類のアイコンにベースカラーの枠の印。
+	 * ②（星取表）の列見出しにも、①の写しの列見出しの中身を入れて同じ形にする。
+	 */
 	function buildTones() {
 		var cell = IS1 ? $('.usd-roster-gh--skill') : $('.usd-fstar-gh.usd-roster-gc--name');
 		if (!cell) return;
-		cell.classList.add('t45-gh-flex');
-		if (IS1) {
-			var old = cell.querySelector('[data-usd-el="tone-sorts"]');
-			if (old) old.remove();
-			var title = cell.querySelector('.usd-roster-ghtitle');
-			if (title) title.classList.add('t45-gh-title');
-		} else {
-			cell.innerHTML = '<span class="t45-gh-title">スキル名</span>';
+		if (!IS1 && !cell.querySelector('[data-usd-el="tone-sorts"]')) {
+			var src = c1.querySelector('.usd-roster-gh--skill');
+			cell.classList.add('usd-roster-gh--skill');
+			cell.setAttribute('aria-label', 'スキル名');
+			cell.innerHTML = src ? src.innerHTML : 'スキル名';
 		}
-		var old2 = cell.querySelector('[data-t45="tones"]');
-		if (old2) old2.remove();
-		cell.insertAdjacentHTML('beforeend', tonesHtml());
+		var tones = cell.querySelector('[data-usd-el="tone-sorts"]');
+		if (!tones) return;
+		tones.classList.add('t48-tones');
+		var btns = Array.prototype.slice.call(tones.querySelectorAll('.usd-roster-tonebtn:not(.t48-funnel)'));
+		btns.forEach(function (b) {
+			b.classList.add('t48-gone');
+			b.setAttribute('aria-pressed', 'false');
+			b.setAttribute('aria-hidden', 'true');
+			b.tabIndex = -1;
+			b.removeAttribute('data-usd-act');
+			b.removeAttribute('title');
+		});
+		var f = tones.querySelector('.t48-funnel');
+		if (!f && btns[0]) {
+			f = document.createElement('span');
+			f.className = 'usd-roster-ghbtn usd-roster-tonebtn t48-funnel';
+			f.setAttribute('aria-hidden', 'true');
+			f.setAttribute('data-t48', 'funnel');
+			f.innerHTML = btns[0].innerHTML;
+			tones.appendChild(f);
+		}
+		if (f) f.setAttribute('aria-pressed', state.sort ? 'true' : 'false');
+		TONES.forEach(function (t) {
+			var ic = tones.querySelector('.usd-roster-toneicon--' + t.key);
+			if (ic) { ic.classList.toggle('t48-on', state.sort === t.key); ic.removeAttribute('title'); }
+		});
+		var entry = cell.querySelector('[data-t45="sort-entry"]');
+		if (!entry) {
+			entry = document.createElement('button');
+			entry.type = 'button';
+			entry.className = 't48-entry';
+			entry.setAttribute('data-t45', 'sort-entry');
+			entry.setAttribute('aria-haspopup', 'dialog');
+			entry.setAttribute('aria-expanded', 'false');
+			entry.title = '並べ替え';
+			cell.appendChild(entry);
+		}
+		entry.setAttribute('aria-label', '並べ替え（今: ' + sortLabelOf(state.sort) + '）');
+		entry.setAttribute('aria-pressed', state.sort ? 'true' : 'false');
+		placeEntry();
+	}
+	function placeEntry() {
+		$$('[data-t45="sort-entry"]').forEach(function (entry) {
+			var cell = entry.parentElement;
+			var tones = cell.querySelector('[data-usd-el="tone-sorts"]');
+			if (!tones || !cell.offsetParent) return;
+			if (getComputedStyle(cell).position === 'static') cell.style.position = 'relative';
+			var cr = cell.getBoundingClientRect(), tr = tones.getBoundingClientRect();
+			entry.style.left = (tr.left - cr.left - cell.clientLeft) + 'px';
+			entry.style.width = tr.width + 'px';
+		});
 	}
 	function syncCircleBtn() {
 		var b = $('[data-usd-el="factor-circle-mode"]');
@@ -4872,7 +4937,7 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 		if (first) first.focus({ preventScroll: true });
 	}
 	function openSortPop(anchor) {
-		var opts = TONES.map(function (t) { return { key: t.key, label: t.label + 'を上に寄せる', icon: toneIcon(t.key), sub: t.key === 'circle' ? '行の◎／○の切り替えも出す' + (IS1 ? '' : '（操作の行の◎と同じ）') : '' }; })
+		var opts = TONES.map(function (t) { return { key: t.key, label: t.label + 'を上に寄せる', icon: toneIcon(t.key), sub: '' }; })
 			.concat([{ key: '', label: '並べ替えない', icon: '', sub: '' }]);
 		var html = '<div class="t45-sortlist" role="radiogroup" aria-label="並べ替え">' + opts.map(function (o) {
 			var on = (state.sort || '') === o.key;
@@ -4935,7 +5000,7 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 			// ②の操作の行の◎（◎を○に変えるモード）と、並べ替えの◎は同じ状態
 			state.sort = state.sort === 'circle' ? null : 'circle';
 			syncCircleBtn();
-			if ($('[data-t45="tones"]')) buildTones();
+			if ($('[data-t48="funnel"]')) buildTones();
 			return;
 		}
 		if (k === 'uniq-count') { state.count = next(UNIQ_COUNTS, state.count); refreshSteps(); }
@@ -4982,29 +5047,28 @@ button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring);
 		g.innerHTML = '<button type="button" class="t45-guide-toggle" aria-expanded="' + open + '">モックの案内（T45・作業用）</button>'
 			+ '<div class="t45-guide-body">'
 			+ '<label>場面<select data-g="scene">' + SCENES.map(function (s) { return '<option value="' + s[0] + '"' + (s[0] === scene ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select></label>'
-			+ '<label>②の合計の行の案<select data-g="fit">' + Object.keys(FITS).map(function (k) { return '<option value="' + k + '"' + (k === FIT ? ' selected' : '') + '>' + FITS[k] + '</option>'; }).join('') + '</select></label>'
 			+ '<div class="t45-guide-row"><button type="button" data-g="light" aria-pressed="' + (THEME === 'light') + '">ライト</button><button type="button" data-g="dark" aria-pressed="' + (THEME === 'dark') + '">ダーク</button></div>'
-			+ '<p>写しは 2026-10-31 の origin/main（core 2026-10-31i）。保存はしない。数字（Pt／種）は写した時点のままで、部品を押しても変わらない。</p>'
-			+ '<p>継承固有の「X種」「LvX」と共通スキルの「LvX」は押すたびに1つ増え、最大の次は最小に戻る。並べ替えはアイコンのどれを押しても同じ小窓が開く（行の並びは今と同じなので、モックでは行を動かさない）。②のカードは × で外し、空きを押すと直接指定の小窓。</p>'
+			+ '<p>T48 で直した形（並べ替えの入口・②のカードのパネルの空白・合計の行は案d だけ）。写しは 2026-10-31 の origin/main（core 2026-10-31i）。保存はしない。数字（Pt／種）は写した時点のままで、部品を押しても変わらない。</p>'
+			+ '<p>継承固有の「X種」「LvX」と共通スキルの「LvX」は押すたびに1つ増え、最大の次は最小に戻る。並べ替えは列見出しの4つのアイコンと漏斗の範囲のどこを押しても同じ小窓が開く（行の並びは今と同じなので、モックでは行を動かさない。?sort=heal|circle|passive|debuff で並べ替えありの形）。①の2段組み（幅 720px 以上）では、②のカードの左に①の育成ウマ娘の枠と同じ大きさの空白がある。②のカードは × で外し、空きを押すと直接指定の小窓。</p>'
 			+ '</div>';
 		document.body.appendChild(g);
 		g.querySelector('.t45-guide-toggle').addEventListener('click', function () { var o = g.getAttribute('data-open') === '1'; g.setAttribute('data-open', o ? '0' : '1'); this.setAttribute('aria-expanded', String(!o)); });
 		g.querySelector('[data-g="scene"]').addEventListener('change', function () { go({ scene: this.value }); });
-		g.querySelector('[data-g="fit"]').addEventListener('change', function () { go({ fit: this.value }); });
 		g.querySelector('[data-g="light"]').addEventListener('click', function () { go({ theme: 'light' }); });
 		g.querySelector('[data-g="dark"]').addEventListener('click', function () { go({ theme: 'dark' }); });
 	}
 	buildGuide();
 
-	function fitAll() { syncStickyTop(); if (!NEW) fitNowHead(); fitEntry(); }
+	function fitAll() { syncStickyTop(); if (!NEW) fitNowHead(); fitEntry(); placeEntry(); }
 	fitAll();
 	window.addEventListener('resize', fitAll);
 	// 小窓の場面は開いた形で出す
 	if (scene === '1sort' || scene === '2sort') {
 		var entry = $('[data-t45="sort-entry"]');
-		if (entry) { entry.scrollIntoView({ block: 'start' }); window.scrollBy(0, -140); openSortPop(entry); }
+		if (entry) { entry.scrollIntoView({ block: 'start' }); window.scrollBy(0, -140); placeEntry(); openSortPop(entry); }
 	}
 	window.__t45 = { scene: scene, fit: FIT, state: state };
+	window.__t48 = { placeEntry: placeEntry };
 })();
 
 </script>
