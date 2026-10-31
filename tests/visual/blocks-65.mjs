@@ -348,13 +348,14 @@ export async function register65(env) {
 				await page.waitForTimeout(200);
 				const pop = await page.evaluate(() => ({ title: document.querySelector('[data-usd-el="info-pop"] .uma-popover-title').textContent, exp: document.querySelector('#deck-template-panel [data-usd-act="entry-search"]').getAttribute('aria-expanded'),
 					items: Array.from(document.querySelectorAll('[data-usd-el="entry-search-list"] > button')).map((b) => ({ act: b.getAttribute('data-usd-act'), text: b.textContent.trim(), icon: (b.querySelector('svg, i') || {}).getAttribute ? (b.querySelector('svg, i').getAttribute('data-lucide') || b.querySelector('svg, i').getAttribute('class')) : null })) }));
-				assert(pop.title === 'スキルを探して追加' && pop.exp === 'true' && pop.items.map((i) => i.act).join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
-					&& /^条件で検索$/.test(pop.items[0].text) && /^緑スキル/.test(pop.items[1].text) && pop.items[2].text === 'テキストで検索' && pop.items[3].text === 'スクショで追加'
-					&& /filter/.test(pop.items[0].icon) && /sprout/.test(pop.items[1].icon) && /file-text/.test(pop.items[2].icon) && /upload-cloud|cloud-upload/.test(pop.items[3].icon),
-					'タイトルと帯(8): 虫眼鏡の小窓（題「スキルを探して追加」）に4つの入口を今と同じ名前・アイコンで縦に並べる', pop);
+				assert(pop.title === 'スキルを探して追加' && pop.exp === 'true' && pop.items.map((i) => i.act).join(',') === 'editor-pick,editor-pick-passive,editor-pick-search,editor-pick-screenshot,editor-pick-text'
+					&& /^条件で検索$/.test(pop.items[0].text) && /^緑スキル/.test(pop.items[1].text) && pop.items[2].text === 'テキストで検索' && pop.items[3].text === 'スクショで追加' && pop.items[4].text === 'リストを貼り付けて追加'
+					&& /filter/.test(pop.items[0].icon) && /sprout/.test(pop.items[1].icon) && /search/.test(pop.items[2].icon) && /upload-cloud|cloud-upload/.test(pop.items[3].icon) && /file-text/.test(pop.items[4].icon),
+					// T28（2026-10-31）: 3つ目に新しい「テキストで検索」（虫眼鏡）、最後に「リストを貼り付けて追加」（今までの「テキストで検索」を改名・書類のアイコンのまま）
+					'タイトルと帯(8): 虫眼鏡の小窓（題「スキルを探して追加」）に5つの入口（条件で検索・緑スキル・テキストで検索・スクショで追加・リストを貼り付けて追加）を縦に並べる', pop);
 				await page.keyboard.press('Escape');
-				const where = { 'editor-pick': '[data-usd-el="picker-modal"], .usd-modal', 'editor-pick-passive': '.usd-modal', 'editor-pick-text': '.usd-modal' };
-				for (const act of ['editor-pick', 'editor-pick-passive', 'editor-pick-text']) {
+				const where = { 'editor-pick': '[data-usd-el="picker-modal"], .usd-modal', 'editor-pick-passive': '.usd-modal', 'editor-pick-search': '.usd-modal', 'editor-pick-text': '.usd-modal' };
+				for (const act of ['editor-pick', 'editor-pick-passive', 'editor-pick-search', 'editor-pick-text']) {
 					await pickEntry(page, act);
 					await page.waitForTimeout(500);
 					const got = await page.evaluate((sel) => ({ popHidden: document.querySelector('[data-usd-el="info-pop"]').hidden, modal: Array.from(document.querySelectorAll(sel)).some((e) => e.offsetParent || getComputedStyle(e).position === 'fixed' && getComputedStyle(e).display !== 'none') }), where[act]);

@@ -22,8 +22,8 @@
 	<!-- Lucide Icons（2026-10-27: 版を固定。1.62.0 は固定した日の @latest と同じ中身。上げるときは special.html・exam.html も一緒に） -->
 	<script src="https://unpkg.com/lucide@1.62.0/dist/umd/lucide.min.js"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-31e"></script>
-	<script src="js/uma-skill-deck.js?v=2026-10-13a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-31f"></script>
+	<script src="js/uma-skill-deck.js?v=2026-10-31a"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -499,8 +499,13 @@
 					<button onclick="openRecordPassivePicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
 						<i data-lucide="sprout" class="w-3.5 h-3.5 usd-green-icon" style="display:inline;vertical-align:-2px;"></i> 緑スキル<span id="record-passive-added" class="usd-entry-count" hidden></span>
 					</button>
+					<!-- T28（2026-10-31）: core の入口と同じ並び（条件で検索 → 緑スキル → テキストで検索 → リストを貼り付けて追加）。
+					     「テキストで検索」は新しい入口（名前の一部を打って探す）。貼り付けの照合は「リストを貼り付けて追加」に改名して最後へ -->
+					<button onclick="openRecordSearchPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
+						<i data-lucide="search" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索
+					</button>
 					<button onclick="openRecordTextPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
-						<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索
+						<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> リストを貼り付けて追加
 					</button>
 				</div>
 				<div class="flex flex-wrap gap-2 mb-2">

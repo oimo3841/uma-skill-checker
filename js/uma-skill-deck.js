@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-10-13a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-10-31a';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -818,8 +818,14 @@ function openRecordSkillPicker() {
 	Core.openSkillPicker(draftRecord.skillIds, recordSkillSink());
 }
 
+// リストを貼り付けて追加（T28 で「テキストで検索」から改名。関数名は変えない）
 function openRecordTextPicker() {
 	Core.openTextSkillPicker(draftRecord.skillIds, recordSkillSink());
+}
+
+// テキストで検索（T28。名前の一部を打って探し、追加候補の欄に並べてまとめて足す）。受け皿は他の入口と同じ
+function openRecordSearchPicker() {
+	Core.openTextSearchPicker(draftRecord.skillIds, recordSkillSink());
 }
 
 // 緑スキルを追加（72セッション目・段9）。受け皿は他の入口と同じものを使うので、

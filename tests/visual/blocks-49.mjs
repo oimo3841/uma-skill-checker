@@ -110,7 +110,8 @@ export async function register49(env) {
 		await p.click('[data-usd-el="picker-commit"]');
 		await sleep(p, 300);
 		n = await noticeOf(p);
-		assert(!!n && n.visible && n.text === 'テキストで検索 2種を追加しました', '段F1(a) テキストで検索: 「テキストで検索 2種を追加しました」', n);
+		// T28（2026-10-31）: 貼り付けの照合は「リストを貼り付けて追加」に改名（知らせの追加元の名前も入口の名前と同じ）
+		assert(!!n && n.visible && n.text === 'リストを貼り付けて追加 2種を追加しました', '段F1(a) リストを貼り付けて追加: 「リストを貼り付けて追加 2種を追加しました」', n);
 		await p.click('[data-usd-el="add-notice-close"]');
 		await sleep(p, 100);
 		n = await noticeOf(p);

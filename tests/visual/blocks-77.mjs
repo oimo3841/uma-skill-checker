@@ -177,6 +177,8 @@ export async function register77(env) {
 			assert(ids.length > 0 && misfit.length === 0, tag + '一覧（' + ids.length + '件）に、①の絞り込み（脚質）に合わないスキルが無い', misfit.slice(0, 5));
 			const r = await readLayout(sp.page);
 			assert(!r.countEl && !r.sentence && r.count === r.addable + '件', tag + '件数の文は無く、「絞り込み結果（N件）」の N は追加できる行の数（' + r.count + '）', { countEl: r.countEl, sentence: r.sentence, count: r.count, addable: r.addable });
+			// T28（2026-10-31）: 入口の小窓が5つになって高さが変わり、入口を押した位置が一覧の行の上に来ることがある（その行は hover の地 --uma-surface-sunken になる）。読む前にマウスを小窓の外へ外す
+			await sp.page.mouse.move(0, 0);
 			const e = await readExcluded(sp.page);
 			const reasons = Array.from(new Set(e.ex.map((x) => x.reason)));
 			assert(SHORT.every((s) => reasons.includes(s)) && reasons.every((s) => SHORT.includes(s)), tag + '選べない行の右は「本育成で取得」「レース条件不一致」だけ', reasons);

@@ -104,6 +104,7 @@ import { register74 } from './blocks-74.mjs';
 import { register75 } from './blocks-75.mjs';
 import { register76 } from './blocks-76.mjs';
 import { register77 } from './blocks-77.mjs';
+import { register78 } from './blocks-78.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -743,9 +744,10 @@ await block('special.html（UmaStar OCR）', async () => {
 			}));
 		const iFilter = entryOrder.findIndex((b) => b.act === 'editor-pick');
 		const iPassive = entryOrder.findIndex((b) => b.act === 'editor-pick-passive');
-		const iText = entryOrder.findIndex((b) => b.act === 'editor-pick-text');
+		// T28（2026-10-31）: 「緑スキル」の次は新しい「テキストで検索」（editor-pick-search）。今までの editor-pick-text は「リストを貼り付けて追加」に改名して最後へ
+		const iText = entryOrder.findIndex((b) => b.act === 'editor-pick-search');
 		assert(iFilter >= 0 && iPassive === iFilter + 1 && iText === iPassive + 1
-			&& entryOrder[iPassive].label === '緑スキル',
+			&& entryOrder[iPassive].label === '緑スキル' && entryOrder[iText].label === 'テキストで検索',
 			'段9: 入口は「条件で検索」と「テキストで検索」の間に「緑スキル」',
 			entryOrder.map((b) => b.label));
 
@@ -1241,8 +1243,9 @@ await block('special.html — 「画像から読み取る」の口（openSkillRo
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		return { title: el('picker-title').textContent, inputHidden: el('paste-input-wrap').hidden, summaryHidden: el('paste-summary').hidden, report: el('paste-report').innerHTML.length };
 	});
-	assert(back.title === 'テキストで検索' && !back.inputHidden && back.summaryHidden && back.report === 0,
-		'special/ocr口: 「テキストで検索」を開き直すと貼り付け欄が戻り、要約と前の報告が消える', back);
+	// T28（2026-10-31）: 貼り付けの小窓の題名は「リストを貼り付けて追加」（識別子 paste・openTextSkillPicker は不変）
+	assert(back.title === 'リストを貼り付けて追加' && !back.inputHidden && back.summaryHidden && back.report === 0,
+		'special/ocr口: 「リストを貼り付けて追加」を開き直すと貼り付け欄が戻り、要約と前の報告が消える', back);
 	await page.click('[data-usd-act="picker-close"]');
 
 	/* ------------------------------------------------------------
@@ -1416,9 +1419,10 @@ await block('special.html — ステップ①の入口「スキルセット画�
 	// 73セッション目に末尾の「リセット」（editor-clear-skills）が名前の行へ抜けた
 	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した
 	// 2026-10-21 に「オススメサポ」の直後へ「脚質オススメ」（style-open）が入った
-	assert(entry.order.join(',') === 'outside-open,style-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
+	// T28（2026-10-31）: 「テキストで検索」（新・editor-pick-search）の後ろに「スクショで追加」、最後に「リストを貼り付けて追加」（editor-pick-text）
+	assert(entry.order.join(',') === 'outside-open,style-open,editor-pick,editor-pick-passive,editor-pick-search,editor-pick-screenshot,editor-pick-text'
 		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
-		'special/ocr入口: 「テキストで検索」の後ろ（並びの最後）に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
+		'special/ocr入口: 「テキストで検索」の後ろ・「リストを貼り付けて追加」の前に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
 		'special/ocr入口: アイコンはアップロード枠と同じ upload-cloud（雲＋上矢印）', entry.icon);
 	assert(!entry.before && entry.opened && entry.openedWithoutPicker === 0
@@ -4388,15 +4392,16 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 			return b.textContent.replace(added ? added.textContent : '', '').trim();
 		}));
 	// 2026-09-27（C-100）に4つ目の「未収録スキルを追加」を廃止した（core の並びと同時に）
-	assert(entries.join(',') === '条件で検索,緑スキル,テキストで検索',
-		'deck: 比較シート編集に3つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
+	// T28（2026-10-31）: 新しい「テキストで検索」を3つ目に足し、貼り付けの照合は「リストを貼り付けて追加」に改名して最後へ（core の並びと同じ）
+	assert(entries.join(',') === '条件で検索,緑スキル,テキストで検索,リストを貼り付けて追加',
+		'deck: 比較シート編集に4つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
 
 	await page.click('button[onclick="openRecordTextPicker()"]');
 	await page.waitForTimeout(700);
 	const pasteMode = await modeState();
 	assert(!pasteMode.filter && pasteMode.paste && !pasteMode.custom && pasteMode.commit,
-		'deck: 「テキストで検索」は貼り付け欄だけを出す', pasteMode);
-	assert(pasteMode.title === 'テキストで検索', 'deck: 見出しが「テキストで検索」', pasteMode.title);
+		'deck: 「リストを貼り付けて追加」は貼り付け欄だけを出す', pasteMode);
+	assert(pasteMode.title === 'リストを貼り付けて追加', 'deck: 見出しが「リストを貼り付けて追加」（T28 で改名）', pasteMode.title);
 	const pasteInput = await page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="paste-input"]');
 		return { placeholder: el.placeholder, focused: document.activeElement === el };
@@ -5583,7 +5588,8 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	await page.waitForTimeout(400);
 	assert(dupeRun.pasted === 3 && dupeRun.already === 1 && dupeAdd.afterIds.length === dupeAdd.beforeIds.length + 2,
 		'undo: 3件照合のうち1件は追加済みなので、足るのは2種', { ...dupeRun, added: dupeAdd.afterIds.length - dupeAdd.beforeIds.length });
-	assert(dupeAdd.notice === 'テキストで検索 2種を追加しました',
+	// T28（2026-10-31）: 追加元の名前は改名後の「リストを貼り付けて追加」
+	assert(dupeAdd.notice === 'リストを貼り付けて追加 2種を追加しました',
 		'undo: 文言が数えるのも「実際に足った数」（チェック数ではない）。段F1: 追加の知らせ', dupeAdd.notice);
 	const dupeUndo = await page.evaluate(() => {
 		const ok = UmaSkillDeckCore.performUndo();
@@ -10186,7 +10192,10 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 	   **340px 以上では3つが1行に収まり、横に送らない**（フェードも付かない）。
 	   **320px ではまだ 9px あふれる**ので、73セッション目の「覗かせ」（`measureEntryRowTrim()`）が働いて
 	   右端のボタンが「12px 以上見えて 8px 以上隠れている」状態になっていること（規則は core の ENTRY_MIN_PEEK / ENTRY_MIN_CUT）。
-	   **新しい仕掛けは足していない** ―― 既存の切り詰めとフェードの分担のまま、幅だけが変わった。 */
+	   **新しい仕掛けは足していない** ―― 既存の切り詰めとフェードの分担のまま、幅だけが変わった。
+	   **T28（2026-10-31）でボタンが4つになった**（3つ目に新しい「テキストで検索」、最後に「リストを貼り付けて追加」）。
+	   実測（T28 の作業ツリー）: あふれ 320px 158・360px 112・375px 97・390px 82・430px 42・600px と 1280px は 0。
+	   そこで 320〜430px は「あふれて、右端のボタンが 12px 以上見えて 8px 以上隠れる（覗かせが働く）」、600px は「収まる」を見る。 */
 	{
 		const rowAt = async (width) => {
 			const { ctx, page } = await openPage(browser, base, 'uma-skill-deck.html', { width, height: 900 });
@@ -10205,14 +10214,15 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 			await ctx.close();
 			return r;
 		};
-		const narrow = await rowAt(320);
-		assert(narrow.ボタン数 === 3 && narrow.あふれ > 0 && narrow.fade === 'right' && narrow.peek
-			&& narrow.peek.見えている >= 12 && narrow.peek.隠れている >= 8,
-			'C-100 deck(320px): 3つでもあふれ、右端のボタンは12px以上見えて8px以上隠れている（覗かせが働く）', narrow);
+		const narrow = [];
+		for (const w of [320, 340, 375, 430]) narrow.push(Object.assign({ 幅: w }, await rowAt(w)));
+		assert(narrow.every((n) => n.ボタン数 === 4 && n.あふれ > 0 && n.fade === 'right' && n.peek
+			&& n.peek.見えている >= 12 && n.peek.隠れている >= 8),
+			'C-100 deck(320〜430px): 4つの入口はあふれ、右端のボタンは12px以上見えて8px以上隠れている（覗かせが働く）', narrow);
 		const fits = [];
-		for (const w of [340, 375, 430]) fits.push(Object.assign({ 幅: w }, await rowAt(w)));
-		assert(fits.every((f) => f.ボタン数 === 3 && f.あふれ === 0 && f.fade === null && f.peek === null),
-			'C-100 deck(340〜430px): 3つが1行に収まり、横に送らない（フェードも付かない）', fits);
+		for (const w of [600]) fits.push(Object.assign({ 幅: w }, await rowAt(w)));
+		assert(fits.every((f) => f.ボタン数 === 4 && f.あふれ === 0 && f.fade === null && f.peek === null),
+			'C-100 deck(600px): 4つが1行に収まり、横に送らない（フェードも付かない）', fits);
 	}
 
 	/* ---- special（周回因子セット・照合の辞書） ---- */
@@ -15480,6 +15490,8 @@ await register75({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register76({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T27（2026-10-31）: 「条件で検索」の小窓の直し（見出しは「T27条件で検索」）
 await register77({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T28（2026-10-31）: 「テキストで検索」の新設と入口の並び（見出しは「T28テキストで検索」）
+await register78({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

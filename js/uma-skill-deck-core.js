@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31f';
 
 	/* ============================================================
 	 * 定数
@@ -5603,24 +5603,63 @@
 	 * **ただし「条件で検索」と違い、追加済みのものも落とさずに返す**（呼び出し側で「追加済み」と示して選べなくする。
 	 * 一覧から消すと利用者が「打ち間違えたのか」と迷うため）。
 	 *
-	 * @returns {{ query:string, hits:Array<{id,name,norm}>, total:number, more:number }}
+	 * **T28（2026-10-31）で引数を2つ足した**（「テキストで検索」の入口だけが渡す。既定の呼び方の結果は変えない）:
+	 *   - `opts.limit` … 件数の上限（既定は NAME_FIND_LIMIT。Infinity で全部返す）
+	 *   - `opts.foldKana` … 入力と名前の両方で、カタカナをひらがなにそろえてから照合する（foldSkillKana）。
+	 *     `normalizeSkillText` 自体には足さない（「リストを貼り付けて追加」の完全一致の照合の結果を変えないため）
+	 * hits の各行の `at` は、照合に使った文字列（foldKana のときはそろえたあと）の中で一致した位置。
+	 *
+	 * @returns {{ query:string, hits:Array<{id,name,norm,at}>, total:number, more:number }}
 	 */
 	function findSkillsByNameFragment(text, opts) {
-		const query = normalizeSkillText(text);
+		const fold = !!(opts && opts.foldKana);
+		const limit = (opts && opts.limit != null) ? opts.limit : NAME_FIND_LIMIT;
+		const query = fold ? foldSkillKana(normalizeSkillText(text)) : normalizeSkillText(text);
 		if (!query) return { query: '', hits: [], total: 0, more: 0 };
 		const starts = [], contains = [];
 		buildSkillTextIndex(opts).forEach(p => {
 			if (!p.norm) return;
-			const at = p.norm.indexOf(query);
-			if (at === 0) starts.push(p);
-			else if (at > 0) contains.push(p);
+			const at = (fold ? foldSkillKana(p.norm) : p.norm).indexOf(query);
+			if (at === 0) starts.push({ id: p.id, name: p.name, norm: p.norm, at: at });
+			else if (at > 0) contains.push({ id: p.id, name: p.name, norm: p.norm, at: at });
 		});
 		// 入力に近い順（前方一致 → 部分一致、短い名前が先）。同じ近さの中は既定の並び（2026-10-27。それまでは名前の順）
 		const byCloseness = (a, b) => (a.norm.length - b.norm.length) || compareGameOrder(a.id, b.id);
 		starts.sort(byCloseness);
 		contains.sort(byCloseness);
 		const all = starts.concat(contains);
-		return { query: query, hits: all.slice(0, NAME_FIND_LIMIT), total: all.length, more: Math.max(0, all.length - NAME_FIND_LIMIT) };
+		return { query: query, hits: all.slice(0, limit), total: all.length, more: Math.max(0, all.length - limit) };
+	}
+
+	/**
+	 * カタカナをひらがなにそろえる（T28・「テキストで検索」の照合だけが使う一段。normalizeSkillText のあとに通す）。
+	 * 対象はひらがなに対になる字（ァ〜ヶ・ヽヾ）だけ。長音「ー」とヷ〜ヺはそのまま。文字の数は変わらない（一致の位置をそのまま使える）。
+	 */
+	function foldSkillKana(s) {
+		let out = '';
+		for (let i = 0; i < s.length; i++) {
+			const c = s.charCodeAt(i);
+			out += ((c >= 0x30A1 && c <= 0x30F6) || c === 0x30FD || c === 0x30FE) ? String.fromCharCode(c - 0x60) : s[i];
+		}
+		return out;
+	}
+
+	/**
+	 * 名前の中で、照合に使った文字列（normalizeSkillText → foldSkillKana）の [at, at+len) に当たる元の文字の範囲を太字にした HTML（T28）。
+	 * 1文字ずつ正規化して元の位置との対応を持つ（NFKC で文字の数が変わる字があるため）。対応が取れないときは太字なしで名前だけ返す。
+	 */
+	function boldSkillNameMatch(name, at, len) {
+		const chars = Array.from(String(name || ''));
+		let norm = '';
+		const map = [];
+		chars.forEach((ch, idx) => {
+			const n = foldSkillKana(Array.from(ch.normalize('NFKC')).map(c => (TEXT_CHAR_VARIANTS[c] !== undefined ? TEXT_CHAR_VARIANTS[c] : c)).join(''));
+			for (let k = 0; k < n.length; k++) { norm += n[k]; map.push(idx); }
+		});
+		const full = foldSkillKana(normalizeSkillText(name));
+		if (norm !== full || at < 0 || len <= 0 || at + len > map.length) return esc(name);
+		const from = map[at], to = map[at + len - 1];
+		return chars.map((c, i) => (i === from ? '<b>' : '') + esc(c) + (i === to ? '</b>' : '')).join('');
 	}
 
 	/**
@@ -6448,6 +6487,66 @@
 		'  padding-bottom: max(var(--uma-sp-1-5), env(safe-area-inset-bottom)); }',
 		'.usd-picker-panel[data-usd-mode="filter"] .usd-foot-commit { min-height: 32px; padding-top: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); }',
 		'.usd-picker-panel[data-usd-mode="filter"] input[type="checkbox"] { accent-color: var(--uma-control-mark); }',
+		/* 「テキストで検索」（T28・2026-10-31。値は T25 のモック lab/search-ui-mock.html〔T28 で削除・git の履歴 f108514 に残る〕の v-*・&tray=b の写し）。
+		 * 小窓は「条件で検索」と同じく高さを固定し、本文を縦の flex にして候補の一覧が残りを受け取る（最低3行）。PC は画面の上下 24px を残す（上限 720px）。
+		 * 色は今のルールの中だけ（ベースカラー／モノトーン。--usd-ui-* の無い Deck は既定の値）。選べない行の指定は .usd-tsearch の中だけに効く */
+		'.usd-picker-panel[data-usd-mode="search"] { height: calc(100vh - 12px); max-height: none;',
+		'  height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px); }',
+		'@media (min-width: 641px) { .usd-picker-panel[data-usd-mode="search"] { height: min(calc(100vh - 48px), 720px); height: min(calc(100dvh - 48px), 720px); } }',
+		'.usd-picker-panel[data-usd-mode="search"] .usd-picker-head { padding: var(--uma-sp-1-5) var(--uma-sp-2) var(--uma-sp-1-5) var(--uma-sp-3); }',
+		'.usd-picker-panel[data-usd-mode="search"] .usd-picker-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: var(--uma-sp-2) var(--uma-sp-3) var(--uma-sp-1-5); }',
+		'.usd-picker-panel[data-usd-mode="search"] .usd-modal-foot { padding: var(--uma-sp-1-5) var(--uma-sp-3);',
+		'  padding-bottom: max(var(--uma-sp-1-5), env(safe-area-inset-bottom)); }',
+		'.usd-picker-panel[data-usd-mode="search"] .usd-foot-commit { min-height: 36px; padding-top: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); }',
+		'.usd-tsearch:not([hidden]) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
+		'.usd-tsearch-field { position: relative; flex: none; }',
+		// 文字 16px（iPhone で入力欄に触れたときに画面が拡大されない大きさ）。右は「×」のぶん空ける
+		'.usd-tsearch-input { width: 100%; min-height: 36px; padding: 6px 40px 6px 10px; font-size: 16px; line-height: 22px; }',
+		'.usd-tsearch-clear { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); width: 32px; height: 32px; display: grid; place-content: center;',
+		'  border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-subtle); font-size: 18px; line-height: 1; cursor: pointer; }',
+		'.usd-tsearch-clear:hover { background: var(--uma-control-soft); color: var(--uma-text-heading); }',
+		'.usd-tsearch-clear[hidden] { display: none; }',
+		'.usd-tsearch-count { flex: none; margin: 0; min-height: 16px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-tsearch-list { flex: 1 1 0; height: auto; min-height: calc((var(--uma-lh-sm) + var(--uma-sp-1) * 2 + 1px) * 3 + 2px); overscroll-behavior: contain; }',
+		'.usd-tsearch-list[hidden] { display: none; }',
+		'.usd-tsearch-none { margin: 0; padding: var(--uma-sp-1-5) var(--uma-sp-2); font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); }',
+		'.usd-tsearch-row { padding-top: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); gap: var(--uma-sp-1-5); user-select: none; -webkit-user-select: none; }',
+		'.usd-tsearch-row--pick { cursor: pointer; }',
+		'.usd-tsearch-row--pick:hover { background: var(--uma-control-soft); }',
+		'.usd-tsearch-mark { flex: none; width: 16px; height: 16px; border-radius: var(--uma-r-full); display: grid; place-content: center; font-size: 11px; line-height: 1; font-weight: 800; }',
+		'.usd-tsearch-name { flex: 1 1 auto; min-width: 0; color: var(--uma-text); }',
+		'.usd-tsearch-name b { font-weight: 800; color: var(--uma-text-heading); }',
+		'.usd-tsearch-side { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		// 押せる行: 細い線の輪に「＋」／追加候補に入れた行: 地の色・✓の塗り・名前を太字・右に「追加候補」
+		'.usd-tsearch-row--pick .usd-tsearch-mark { border: 1.5px solid var(--usd-ui-line, var(--uma-border-strong)); color: var(--uma-text-subtle); }',
+		'.usd-tsearch .usd-tsearch-row--queued { background: var(--usd-ui-set, var(--uma-control-soft)); }',
+		'.usd-tsearch-row--queued .usd-tsearch-mark { border: 0; background: var(--uma-control); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
+		'.usd-tsearch-row--queued .usd-tsearch-name { color: var(--uma-text-heading); font-weight: 700; }',
+		'.usd-tsearch-row--queued .usd-tsearch-side { color: var(--uma-text-heading); }',
+		// 追加済み: 薄く（取り消し線なし）・押せない
+		'.usd-tsearch .usd-tsearch-row--added { cursor: default; color: var(--uma-text-faint); }',
+		'.usd-tsearch-row--added .usd-tsearch-name, .usd-tsearch-row--added .usd-tsearch-name b { color: var(--uma-text-faint); }',
+		// 選べない: 名前に取り消し線＋行を薄く（T26 の緑スキル・T27 の条件で検索と同じ値）・押せない
+		'.usd-tsearch .usd-tsearch-row--excluded { cursor: default; color: color-mix(in srgb, var(--uma-text-faint) 55%, var(--uma-surface)); background: var(--uma-surface-sunken); }',
+		'.usd-tsearch-row--excluded .usd-tsearch-name, .usd-tsearch-row--excluded .usd-tsearch-name b { color: inherit; text-decoration-line: line-through; text-decoration-thickness: 1px; }',
+		'.usd-tsearch-row--excluded .usd-tsearch-side { color: color-mix(in srgb, var(--uma-text-subtle) 65%, var(--uma-surface)); }',
+		// ↑↓で移った行: 内側に 2px の枠（追加候補の地と重なっても見分けられるよう、地ではなく枠）
+		'.usd-tsearch .usd-tsearch-row--active { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
+		// 追加候補の欄（下の帯のすぐ上）。札を2段まで見せ、3段目を上半分（14px）だけ覗かせ、それ以上は欄の中をスクロール
+		'.usd-tsearch-tray { flex: none; margin-top: 2px; border: 1px solid var(--usd-ui-line, var(--uma-border)); border-radius: 10px; background: var(--uma-surface-sunken); }',
+		'.usd-tsearch-tray-in { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; max-height: calc(28px * 2 + 4px * 2 + 4px + 14px); overflow-y: auto; overscroll-behavior: contain; }',
+		'.usd-tsearch-tray-label { flex: none; padding: 0 4px; font-size: var(--uma-fs-xs); line-height: 28px; font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-tsearch-tray-empty { font-size: var(--uma-fs-xs); line-height: 28px; color: var(--uma-text-subtle); }',
+		'.usd-tsearch-chip { display: inline-flex; align-items: center; max-width: 100%; height: 28px; padding-left: 10px; border: 1px solid var(--usd-ui-sel, var(--uma-control-mark)); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface); color: var(--uma-text-heading); font-size: var(--uma-fs-sm); line-height: 18px; font-weight: 700; }',
+		'.usd-tsearch-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		// 外す「×」の押せる範囲 28×26px（段7c の基準 24px 以上）
+		'.usd-tsearch-chip-x { flex: none; width: 28px; height: 26px; display: grid; place-content: center; border: 0; border-radius: var(--uma-r-full); background: transparent;',
+		'  color: var(--uma-text-subtle); font-size: 15px; line-height: 1; cursor: pointer; }',
+		'.usd-tsearch-chip-x:hover { background: var(--uma-control-soft); color: var(--uma-text-heading); }',
+		// もう一度押したとき（二重には入れない）の合図: 札を一瞬光らせる
+		'.usd-tsearch-chip--flash { animation: usd-tsearch-flash .6s ease-out; }',
+		'@keyframes usd-tsearch-flash { 0% { box-shadow: 0 0 0 3px var(--usd-ui-sel, var(--uma-control-mark)); } 100% { box-shadow: 0 0 0 0 transparent; } }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -7778,8 +7877,9 @@
 		return isPickerBlocked(skillId) || (picker.mode === 'filter' && !!pickerFilterBlockAxisOf(skillId));
 	}
 
-	// ②への追加の知らせ（段F1）に出す、追加元の名前。入口のボタンの文字と同じ（緑スキルは1件ずつ足して知らせを出さないので無い）
-	const PICKER_NOTICE_LABELS = { filter: '条件で検索', paste: 'テキストで検索', ocr: 'スクショで追加' };
+	// ②への追加の知らせ（段F1）に出す、追加元の名前。入口のボタンの文字と同じ（緑スキルは1件ずつ足して知らせを出さないので無い）。
+	// T28（2026-10-31）: 貼り付けの照合（識別子 paste のまま）は「リストを貼り付けて追加」に改名。「テキストで検索」は新しい入口（search）の名前
+	const PICKER_NOTICE_LABELS = { filter: '条件で検索', search: 'テキストで検索', paste: 'リストを貼り付けて追加', ocr: 'スクショで追加' };
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
 		// 識別子 `filter` と、コード内の説明の「条件でスキルを検索」は変えない＝恒久ルール19）。
@@ -7789,7 +7889,14 @@
 		// 軸内の読み方は**その軸のパネルの注記**が言う（renderPickerFilterAxes の hint）ので、
 		// 見出しには**全軸に共通して成り立つこと＝軸間はAND**だけを残した。
 		filter: { title: '条件で検索（軸間はAND）', commit: true },
-		paste: { title: 'テキストで検索', commit: true },
+		// T28（2026-10-31・おいもさんの決定）: 利用者向けの名前を「テキストで検索」→「リストを貼り付けて追加」。識別子 paste は変えない（恒久ルール19）
+		paste: { title: 'リストを貼り付けて追加', commit: true },
+		/* 6つ目（T28・2026-10-31・おいもさんの決定。手本は T25 のモック）。**スキル名の一部を打って探す「テキストで検索」。**
+		 * 候補を押すと小窓の中の「追加候補」の欄に並び（まだ②には入らない）、下の帯の「追加（N種）」でまとめて足す＝ commit: true。
+		 * 欄の中身は picker.checked（Set は入れた順を保つ）をそのまま使うので、まとめて足す処理・Undo の積み方・追加の知らせは
+		 * 「条件で検索」の「チェックしたスキルを追加」と同じ addCheckedSkills を通る。押したら小窓を閉じる。
+		 * 閉じると欄は捨てる（openPicker が picker.checked を空に戻す）。中身は renderSearchResults／renderSearchTray */
+		search: { title: 'テキストで検索', commit: true },
 		// 【INTENTIONALLY_REMOVED・2026-09-27（C-100）】3つ目の `custom`（「未収録スキルを追加」＝名前とタグを
 		// 手入力してカスタムスキルを作る画面）は、カスタムスキルを作る手段ごと廃止した。
 		// 4つ目（スキルセットOCR・フェーズa コミット3）。外で照合を済ませた行（ID付きの候補一覧）を受け取って、
@@ -7871,6 +7978,18 @@
 						// 中身は renderPasteNamePanel() が組み立てる。画像は row.panelImage があるときだけ。
 						'<div data-usd-el="paste-name" hidden></div>' +
 					'</div>' +
+					// ---- テキストで検索（T28・2026-10-31） ----
+					// 上から 入力欄（右に入力を消す「×」）→ 件数「候補（N件）」→ 候補の一覧（中だけスクロール）→ 追加候補の欄（下の帯のすぐ上。T25 の案 (b)）。
+					// 読み上げは T25 のモックのとおり（入力欄が combobox・一覧が listbox・↑↓で移った行は aria-activedescendant）
+					'<div class="usd-mode usd-tsearch" data-usd-el="mode-search" hidden>' +
+						'<div class="usd-tsearch-field">' +
+							'<input type="text" class="uma-input usd-tsearch-input" data-usd-el="search-input" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="usd-tsearch-list" autocomplete="off" enterkeyhint="search" placeholder="スキル名の一部（例: 真髄）" aria-label="スキル名で検索">' +
+							'<button type="button" class="usd-tsearch-clear" data-usd-el="search-clear" data-usd-act="search-clear" aria-label="入力を消す" hidden>×</button>' +
+						'</div>' +
+						'<p class="usd-tsearch-count" data-usd-el="search-count" aria-live="polite"></p>' +
+						'<div class="usd-results usd-tsearch-list" id="usd-tsearch-list" data-usd-el="search-results" role="listbox" aria-label="候補" hidden></div>' +
+						'<div class="usd-tsearch-tray" data-usd-el="search-tray"><div class="usd-tsearch-tray-in" data-usd-el="search-tray-in" role="list" aria-label="追加候補"></div></div>' +
+					'</div>' +
 					// ---- 緑スキルを追加（72セッション目・段9） ----
 					// 絞り込みの軸は持たない。**パッシブは「発動条件」を持たないスキル**なので、
 					// 軸で絞る意味が無く、名前で探すしかない（だから母集団からも外してある）。
@@ -7933,7 +8052,11 @@
 			else if (act === 'filter-clear-all') clearAllPickerFilters();
 			// 「▼ ほか N件」（段4）。1段ぶん下へ送る
 			else if (act === 'opts-more') scrollOptionsByRow(btn.dataset.usdAxis);
-			else if (act === 'picker-add') addCheckedSkills();
+			// テキストで検索（T28）は、まとめて足したら小窓を閉じる（足す処理・Undo・知らせは「条件で検索」と同じ）
+			else if (act === 'picker-add') { const closeAfter = picker.mode === 'search' && picker.checked.size > 0; addCheckedSkills(); if (closeAfter) closePicker(); }
+			else if (act === 'search-pick') enqueueSearchSkill(btn.dataset.skillId);
+			else if (act === 'search-remove') dequeueSearchSkill(btn.dataset.skillId, btn);
+			else if (act === 'search-clear') { const inp = q(pickerEl, 'search-input'); inp.value = ''; searchUi.active = -1; renderSearchResults(); focusNoScroll(inp); }
 			else if (act === 'paste-run') runPasteMatch();
 			else if (act === 'paste-clear') clearPaste();
 			else if (act === 'paste-pick') choosePasteCandidate(Number(btn.dataset.row), btn.dataset.skillId);
@@ -7956,6 +8079,14 @@
 		pickerEl.addEventListener('input', (e) => {
 			const el = e.target;
 			if (el && el.dataset && el.dataset.usdEl === 'target-distance') onTargetDistanceInput(el);
+			// テキストで検索（T28）: 文字を入れるたびに候補を出す。日本語の変換中も変換前の文字で出す（isComposing でも止めない）
+			if (el && el.dataset && el.dataset.usdEl === 'search-input') { searchUi.active = -1; renderSearchResults(); }
+		});
+		// テキストで検索（T28）: ↑↓は押せる行だけを移り（端で反対側へ回る）、Enter で追加候補の欄に入れる。変換中の Enter（isComposing・keyCode 229）では入れない
+		q(pickerEl, 'search-input').addEventListener('keydown', onSearchKeydown);
+		// 候補を押しても入力欄のフォーカスを外さない（続けて打つ・↑↓を使える。スマホはキーボードが閉じない）
+		q(pickerEl, 'search-results').addEventListener('mousedown', (e) => {
+			if (global.document.activeElement === q(pickerEl, 'search-input')) e.preventDefault();
 		});
 		// 軸は実行中に増減しないので、タブとパネルは1回だけ組み立てて使い回す。
 		// 開き直すたびの初期化は resetPickerFilterUi() が担う。
@@ -8675,6 +8806,7 @@
 		// 「背後のセットが変わったら一覧を作り直す」経路が既にいくつかあり、
 		// そちらに緑スキル用の呼び出しを足して回ると、足し忘れた経路でチェックがズレる。
 		renderPassiveList();
+		renderSearchResults();   // テキストで検索（T28）も同じ合図で作り直す
 		const el = q(pickerEl, 'results');
 		if (!el) return;
 		// 本育成編成・レース条件で選べない行は消さずに残す（段3b・C-129）。「N件」と「表示中を全て選択」は追加できる行だけを数える。
@@ -8795,6 +8927,161 @@
 		renderPassiveList();
 	}
 
+	/* ------------------------------------------------------------
+	 * テキストで検索（T28・2026-10-31・おいもさんの決定。手本は T25 のモック lab/search-ui-mock.html〔T28 で削除・git の履歴 f108514 に残る〕の v-*・&tray=b）
+	 *
+	 * - 候補: 入力の文字が名前のどこかに当たるスキルを全部（findSkillsByNameFragment の上限を外す。前方一致が先・短い名前が先）。
+	 *   照合はかなをそろえる（foldSkillKana）。範囲は「名前を入れて探す」と同じ buildSkillTextIndex({ searchableOnly: true })＝T21 の案イ。
+	 * - 行の状態: 押せる（＋の輪）／追加候補に入れた（✓の塗り・地の色・右に「追加候補」）／追加済み（薄く・右に「追加済み」・取り消し線なし）／
+	 *   選べない（名前に取り消し線＋行を薄く・右に短い表記「レース条件不一致」「本育成で取得」）。追加済みと選べない行は押せない。
+	 *   選べない理由は本育成編成とレース条件だけ（isPickerBlocked）。①の絞り込みは理由にしない（「条件で検索」だけのもの。C-222）。
+	 * - 追加候補の欄の中身は picker.checked（入れた順）。もう一度押しても二重に入れず、欄の中のその札を光らせて見える位置へ送る。
+	 * ------------------------------------------------------------ */
+	// ↑↓で移った行（search-results の中の押せる行の添字ではなく、出している行の添字。-1 は無し）と、いま出している行の id
+	let searchUi = { active: -1, ids: [] };
+
+	function renderSearchResults() {
+		if (!pickerEl || picker.mode !== 'search') return;
+		const input = q(pickerEl, 'search-input');
+		const out = q(pickerEl, 'search-results');
+		const count = q(pickerEl, 'search-count');
+		if (!input || !out) return;
+		const added = new Set(picker.excludeIds);
+		// 開いている間に①が変わって選べなくなった（または追加済みになった）ものは、欄から落とす
+		Array.from(picker.checked).forEach(id => { if (added.has(id) || isPickerBlocked(id)) picker.checked.delete(id); });
+		renderSearchTray();
+		q(pickerEl, 'search-clear').hidden = !input.value;
+		const found = findSkillsByNameFragment(input.value, { searchableOnly: true, limit: Infinity, foldKana: true });
+		if (!found.query) {
+			out.hidden = true; out.innerHTML = ''; count.textContent = '';
+			input.setAttribute('aria-expanded', 'false');
+			searchUi = { active: -1, ids: [] };
+			paintSearchActive();
+			return;
+		}
+		out.hidden = false;
+		input.setAttribute('aria-expanded', 'true');
+		count.textContent = '候補（' + found.total + '件）';
+		if (found.total === 0) {
+			out.innerHTML = '<p class="usd-tsearch-none">一致するスキルはありません</p>';
+			searchUi = { active: -1, ids: [] };
+			paintSearchActive();
+			return;
+		}
+		const keep = out.scrollTop;
+		out.innerHTML = found.hits.map((h, i) => {
+			const isAdded = added.has(h.id);
+			const blocked = !isAdded && isPickerBlocked(h.id);
+			const queued = !isAdded && !blocked && picker.checked.has(h.id);
+			const cls = isAdded ? ' usd-tsearch-row--added' : blocked ? ' usd-tsearch-row--excluded' : ' usd-tsearch-row--pick' + (queued ? ' usd-tsearch-row--queued' : '');
+			const mark = (isAdded || blocked) ? '' : (queued ? '✓' : '+');
+			const side = isAdded ? '追加済み' : blocked ? pickerShortReasonOf(h.id) : (queued ? '追加候補' : '');
+			return '<div class="usd-row usd-tsearch-row' + cls + '" role="option" id="usd-tsearch-opt-' + i + '" data-skill-id="' + esc(h.id) + '"' +
+				((isAdded || blocked) ? ' aria-disabled="true"' : ' data-usd-act="search-pick" aria-selected="' + queued + '"') + '>' +
+				'<span class="usd-tsearch-mark" aria-hidden="true">' + mark + '</span>' +
+				'<span class="usd-tsearch-name">' + boldSkillNameMatch(h.name, h.at, found.query.length) + '</span>' +
+				(side ? '<span class="usd-tsearch-side">' + esc(side) + '</span>' : '') +
+			'</div>';
+		}).join('');
+		out.scrollTop = keep;
+		searchUi.ids = found.hits.map(h => h.id);
+		if (searchUi.active >= searchUi.ids.length) searchUi.active = -1;
+		paintSearchActive();
+	}
+
+	/** 追加候補の欄（札＝名前の右に外す「×」）と、下の帯の「追加（N種）」 */
+	function renderSearchTray() {
+		const tray = q(pickerEl, 'search-tray-in');
+		if (!tray) return;
+		const ids = Array.from(picker.checked);
+		tray.innerHTML = '<span class="usd-tsearch-tray-label" aria-hidden="true">追加候補</span>' + (ids.length
+			? ids.map(id => {
+				const s = findSkill(id);
+				const name = s ? s.name : id;
+				return '<span class="usd-tsearch-chip" role="listitem" data-skill-id="' + esc(id) + '">' +
+					'<span class="usd-tsearch-chip-name">' + esc(name) + '</span>' +
+					'<button type="button" class="usd-tsearch-chip-x" data-usd-act="search-remove" data-skill-id="' + esc(id) + '" aria-label="' + esc(name) + 'を追加候補から外す">×</button>' +
+				'</span>';
+			}).join('')
+			: '<span class="usd-tsearch-tray-empty">候補を押すと、ここに並びます</span>');
+		updatePickerCommitState();
+	}
+
+	/** ↑↓で移った行の印（内側の枠）と aria-activedescendant */
+	function paintSearchActive() {
+		const input = q(pickerEl, 'search-input');
+		const out = q(pickerEl, 'search-results');
+		if (!input || !out) return;
+		const rows = out.querySelectorAll('.usd-tsearch-row');
+		rows.forEach((r, i) => r.classList.toggle('usd-tsearch-row--active', i === searchUi.active));
+		const cur = searchUi.active >= 0 ? rows[searchUi.active] : null;
+		if (cur) {
+			input.setAttribute('aria-activedescendant', cur.id);
+			// 一覧の中だけを送る（scrollIntoView は小窓の外の画面まで動かすことがあるので使わない）
+			const top = cur.offsetTop - out.clientTop, bottom = top + cur.offsetHeight;
+			if (top < out.scrollTop) out.scrollTop = top;
+			else if (bottom > out.scrollTop + out.clientHeight) out.scrollTop = bottom - out.clientHeight;
+		} else input.removeAttribute('aria-activedescendant');
+	}
+
+	function onSearchKeydown(e) {
+		const out = q(pickerEl, 'search-results');
+		if (!out) return;
+		const rows = Array.from(out.querySelectorAll('.usd-tsearch-row'));
+		if (rows.length === 0) return;
+		const step = (d) => {
+			let i = searchUi.active;
+			for (let k = 0; k < rows.length; k++) {
+				i = (i + d + rows.length) % rows.length;
+				if (rows[i].classList.contains('usd-tsearch-row--pick')) { searchUi.active = i; break; }
+			}
+			paintSearchActive();
+		};
+		if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+		else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+		else if (e.key === 'Enter') {
+			// 日本語の変換を確定する Enter では入れない
+			if (e.isComposing || e.keyCode === 229) return;
+			const cur = searchUi.active >= 0 ? rows[searchUi.active] : null;
+			if (!cur || !cur.classList.contains('usd-tsearch-row--pick')) return;
+			e.preventDefault();
+			enqueueSearchSkill(cur.getAttribute('data-skill-id'));
+		}
+	}
+
+	/** 候補を押したとき（Enter も）。追加候補の欄に入れる。もう入っていれば、欄の札を光らせて見える位置へ送るだけ */
+	function enqueueSearchSkill(skillId) {
+		if (!skillId || picker.excludeIds.indexOf(skillId) !== -1 || isPickerBlocked(skillId)) return;
+		const idx = searchUi.ids.indexOf(skillId);
+		if (idx >= 0) searchUi.active = idx;
+		if (!picker.checked.has(skillId)) {
+			picker.checked.add(skillId);
+			renderSearchResults();
+		} else paintSearchActive();
+		const tray = q(pickerEl, 'search-tray-in');
+		const chip = tray ? Array.from(tray.querySelectorAll('.usd-tsearch-chip')).find(c => c.getAttribute('data-skill-id') === skillId) : null;
+		if (!chip) return;
+		chip.classList.remove('usd-tsearch-chip--flash');
+		void chip.offsetWidth;   // アニメーションを最初からかけ直す
+		chip.classList.add('usd-tsearch-chip--flash');
+		const top = chip.offsetTop - tray.offsetTop, bottom = top + chip.offsetHeight;
+		if (top < tray.scrollTop) tray.scrollTop = top;
+		else if (bottom > tray.scrollTop + tray.clientHeight) tray.scrollTop = bottom - tray.clientHeight;
+	}
+
+	/** 札の「×」。欄から外す。押した「×」が消えるので、フォーカスは隣の札の「×」へ（無ければ入力欄） */
+	function dequeueSearchSkill(skillId, btn) {
+		if (!picker.checked.has(skillId)) return;
+		const ids = Array.from(picker.checked);
+		const at = ids.indexOf(skillId);
+		const hadFocus = !!btn && global.document.activeElement === btn;
+		picker.checked.delete(skillId);
+		renderSearchResults();
+		if (!hadFocus) return;
+		const rest = Array.from(q(pickerEl, 'search-tray-in').querySelectorAll('.usd-tsearch-chip-x'));
+		focusNoScroll(rest[Math.min(at, rest.length - 1)] || q(pickerEl, 'search-input'));
+	}
+
 	/** 低効果の除外のON／OFF。ONにしたとき、一覧から外れたスキルのチェックは外す（見えないチェックを足してしまわないため） */
 	function togglePickerLowEffect(on) {
 		pickerLowOff = !!on;
@@ -8838,10 +9125,13 @@
 		if (!pickerEl) return;
 		const n = picker.checked.size;
 		const label = q(pickerEl, 'picker-checked-count');
-		if (label) label.textContent = n + '種選択';
+		// テキストで検索（T28）は、数をボタンの中に「追加（N種）」で出す（0種でも数を出す・押せない）。左の「N種選択」は出さない
+		const isSearch = picker.mode === 'search';
+		if (label) { label.textContent = n + '種選択'; label.hidden = isSearch; }
 		const btn = q(pickerEl, 'picker-commit');
 		if (!btn) return;
 		btn.disabled = (n === 0);
+		if (isSearch) { btn.textContent = '追加（' + n + '種）'; return; }
 		// まだ1種も入っていないうちは「（0種追加済み）」を出さない（数える意味がない）。
 		// 375px では1行に収まらないので、折り返しは「追加済み」の括弧の中では起こさず、
 		// 見出しとの境目で起こす（span 側を nowrap にしてある）。
@@ -9303,6 +9593,12 @@
 		q(pickerEl, 'mode-filter').hidden = picker.mode !== 'filter';
 		q(pickerEl, 'mode-paste').hidden = !(picker.mode === 'paste' || isOcr);
 		q(pickerEl, 'mode-passive').hidden = picker.mode !== 'passive';
+		// テキストで検索（T28）: 開くたびに入力も欄も空から（欄＝picker.checked は上で空にしている）
+		q(pickerEl, 'mode-search').hidden = picker.mode !== 'search';
+		const searchInput = q(pickerEl, 'search-input');
+		searchInput.value = '';
+		searchUi = { active: -1, ids: [] };
+		q(pickerEl, 'search-results').scrollTop = 0;
 		q(pickerEl, 'paste-input-wrap').hidden = isOcr;
 		const summaryEl = q(pickerEl, 'paste-summary');
 		summaryEl.hidden = true;
@@ -9319,7 +9615,7 @@
 		renderPasteReport();
 		refreshIcons();
 		// 貼り付け欄へ focus を当てるのは、マウスで開いたときだけ（タッチ・ペンではキーボードが出てしまう。C-128）
-		const focusTarget = picker.mode === 'paste' ? pasteInput : null;
+		const focusTarget = picker.mode === 'paste' ? pasteInput : picker.mode === 'search' ? searchInput : null;
 		if (focusTarget && openedByMouse()) focusNoScroll(focusTarget);
 	}
 
@@ -9329,6 +9625,8 @@
 	function openTextSkillPicker(existingSkillIds, onAdd) { openPicker('paste', existingSkillIds, onAdd); }
 	// 緑スキルを追加（パッシブを名前で選ぶ。72セッション目・段9）。
 	function openPassiveSkillPicker(existingSkillIds, onAdd) { openPicker('passive', existingSkillIds, onAdd); }
+	// テキストで検索（スキル名の一部を打って探し、追加候補の欄に並べてまとめて足す。T28）。
+	function openTextSearchPicker(existingSkillIds, onAdd) { openPicker('search', existingSkillIds, onAdd); }
 
 	/**
 	 * 外で照合を済ませた行を受け取って、候補の選択と確定だけをするモーダルを開く（スキルセットOCR・フェーズa コミット3）。
@@ -13336,7 +13634,8 @@
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
 			'</div>';
 
-		/** 4つの入口のボタン（Deck 単体ページは入口の行に、special の②は虫眼鏡の小窓に出す。C-235）。緑スキルの件数のバッジは描いたあとに入れる */
+		/** 入口のボタン（Deck 単体ページは入口の行に、special の②は虫眼鏡の小窓に出す。C-235）。緑スキルの件数のバッジは描いたあとに入れる。
+		 *  並び（T28・2026-10-31 おいもさんの決定）: 条件で検索 → 緑スキル → テキストで検索 → スクショで追加（special だけ） → リストを貼り付けて追加 */
 		function entryPickHtml() {
 			return '' +
 				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
@@ -13358,8 +13657,9 @@
 					'<i data-lucide="sprout" class="w-3.5 h-3.5 usd-green-icon" style="display:inline;vertical-align:-2px;"></i> 緑スキル' +
 					'<span class="usd-entry-count" data-usd-el="passive-added" hidden></span>' +
 				'</button>' +
-				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
-					'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
+				// テキストで検索（T28。スキル名の一部を打って探す新しい入口。識別子は editor-pick-search・モードは search）。アイコンは虫眼鏡。「新」の札は出さない
+				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-search">' +
+					'<i data-lucide="search" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
 				'</button>' +
 				// 4つ目の入口（スクショから読み取る）は呼び出し元が opts.screenshotEntry を渡したときだけ出す
 				// （special.html だけ。uma-skill-deck.html には出さない＝Deck 単体ページの入口は後続）。
@@ -13371,6 +13671,10 @@
 						'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
 					'</button>'
 				: '') +
+				// リストを貼り付けて追加（T28 で「テキストで検索」から改名し、並びの最後へ。中身・アイコン・識別子 editor-pick-text は今のまま）
+				'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
+					'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> リストを貼り付けて追加' +
+				'</button>' +
 				'';
 		}
 		// 段8・D（setBased）: 青灰色の枠をやめて①と同じ白いパネルにし、並びを組み替える。
@@ -13476,7 +13780,8 @@
 			else if (act === 'template-delete') deleteTemplate(currentTemplateId());
 			else if (act === 'editor-pick') openEditorPicker('filter');
 			else if (act === 'editor-pick-passive') openEditorPicker('passive');
-			else if (act === 'editor-pick-text') openEditorPicker('paste');
+			else if (act === 'editor-pick-search') openEditorPicker('search');   // テキストで検索（T28）
+			else if (act === 'editor-pick-text') openEditorPicker('paste');      // リストを貼り付けて追加（T28 で改名。識別子は変えない）
 			else if (act === 'editor-pick-screenshot') { ensureEquivalentsLoaded(); if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
 			else if (act === 'template-skill-remove') removeSkillFromEditing(btn.dataset.skillId);
 			else if (act === 'editor-clear-skills') clearEditingSkills();
@@ -17975,6 +18280,7 @@
 		openSkillRowsPicker: openSkillRowsPicker,
 		// 緑スキルを追加（72セッション目・段9）。Deck 単体ページの比較シート編集が自前の並びから呼ぶ。
 		openPassiveSkillPicker: openPassiveSkillPicker,
+		openTextSearchPicker: openTextSearchPicker,
 		closeSkillPicker: closePicker,
 		renderPickerResults: renderPickerResults,
 
