@@ -27,6 +27,14 @@ export async function register63(env) {
 	const imgs = (c) => { const d = path.join(TI, c); return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => /\.png$/i.test(f)).sort().map((f) => '/test-images/' + c + '/' + f) : []; };
 	const CASES = { pc976: '2026-09-15_3', ph1179: '2026-09-16_1', own765: '2026-09-17_1', list1170: '2026-09-26_1', list1170b: '2026-09-26_3', ph1179b: '2026-09-15_5', ph1179c: '2026-09-15_6' };
 	const haveImages = Object.values(CASES).every((c) => imgs(c).length >= 2);
+	// T37: 期待値の材料は収録データ（data/）を Node 側で読む（製品の stitchEntryOf とは別の読み方）
+	const readEntries = (f) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', f), 'utf8')).entries;
+	const DATA_CARDS = new Map(readEntries('support-cards.json').map((e) => [e.id, e]));
+	const DATA_UMAS = new Map(readEntries('training-umamusume.json').map((e) => [e.id, e]));
+	const shortNameOf = (e) => (e.isGroup === true && typeof e.groupName === 'string' && e.groupName.trim()) || e.charaName;
+	// 上段のカードの並び（期待値）: 種別の番号の小さい順 → 同じ種別の中は ID の降順
+	const expectOrder = (ids) => ids.slice().sort((a, b) => (DATA_CARDS.get(a).typeOrder - DATA_CARDS.get(b).typeOrder) || (a < b ? 1 : a > b ? -1 : 0));
+	const umaBarText = (id) => { const e = DATA_UMAS.get(id); return (e.title ? '[' + e.title + ']' : '') + e.charaName; };
 
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 }, o.userData || EMPTY);
@@ -56,7 +64,7 @@ export async function register63(env) {
 		const kindByName = {}; entries.forEach((e, i) => { kindByName[e.name] = kinds ? kinds[i % kinds.length] : 'other'; });
 		return { entries, kindByName, setName: 'S', raceLabels: [], results }; };
 		window.__res = (stars) => ({ detectedSkills: new Set(Object.keys(stars)), skillStars: Object.fromEntries(Object.entries(stars)), skillSources: {}, matchReasons: {} });
-		window.__compose = (o) => composeFamilyImage({ idxs: [0, 1, 2], canvases: o.c, heads: o.heads || [null, null, null], table: o.table || null, legend: o.legend || null, barText: o.bar || '' });
+		window.__compose = (o) => composeFamilyImage({ idxs: [0, 1, 2], canvases: o.c, heads: o.heads || [null, null, null], table: o.table || null, legend: o.legend || null, barText: o.bar || '', top: o.top || null });
 		window.__icon = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = 'rgb(200,120,40)'; g.fillRect(0, 0, w, h); return c; };`;
 	const prep = async (page) => { await page.evaluate(FILES_JS); await page.evaluate(SYNTH_PERSON); await page.evaluate(SNAP_OF); };
 	// ページの中: 実画像の1人分を OCR の行の位置（detectSkillRows）で枠を描ける状態にして結合する（(1) と (10) が使う）
@@ -332,7 +340,7 @@ export async function register63(env) {
 		await ctx.close();
 	});
 
-	await block('結合画像の構成(7) タイトルのバー: 全幅・高さ70・両端が丸い・色は上 #94D709 → 下 #6BC20C・白い文字「セット名｜レース条件（①の絞り込みの言い方・「・」でつなぐ）」・条件が無ければセット名だけ・長ければ 20px まで縮めて末尾を「…」', async () => {
+	await block('結合画像の構成(7) タイトルのバー: 全幅・高さ70・両端が丸い・色は上 #94D709 → 下 #6BC20C・白い文字「セット名｜[題]育成ウマ娘｜レース条件（①の絞り込みの言い方・「・」でつなぐ）」（T37）・育成ウマ娘が未設定・引けない・旧UI（写しにセットなし）なら抜く（「｜｜」にしない）・条件が無ければ抜く・長ければ 20px まで縮めて末尾を「…」', async () => {
 		const ud = { schemaVersion: 7, records: [], customSkills: [], rosters: [Object.assign({ rosterId: 'r1', name: 'R', createdAt: 'x', updatedAt: 'x', skillFilter: { distance: 'medium', style: 'sashi' } }, R1S)],
 			templates: [{ templateId: 't1', name: '名前のあるセット', skillIds: IDS.slice(), skillIcons: {}, parentHintLevel: 5, baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' }] };
 		const { ctx, page, errors } = await openSp({ userData: ud, roster: Object.assign({ skillFilter: { distance: 'medium', style: 'sashi' } }, R1S) });
@@ -348,6 +356,13 @@ export async function register63(env) {
 			const text = stitchBarText(snap);
 			const filterTexts = Array.from(document.querySelectorAll('[data-usd-act="filter"]')).map((s) => s.selectedOptions[0] ? s.selectedOptions[0].textContent : '');
 			const plain = stitchBarText(Object.assign({}, snap, { raceLabels: [] }));
+			// T37: 育成ウマ娘が未設定・引けない ID・旧UI（写しにセットが無い）
+			const noUma = stitchBarText(Object.assign({}, snap, { set: Object.assign({}, snap.set, { umaId: null }) }));
+			const badUma = stitchBarText(Object.assign({}, snap, { set: Object.assign({}, snap.set, { umaId: 'uma-9999' }) }));
+			const cardAsUma = stitchBarText(Object.assign({}, snap, { set: Object.assign({}, snap.set, { umaId: 'card-0248' }) }));
+			const legacy = stitchBarText(Object.assign({}, snap, { set: null }));
+			const noUmaNoRace = stitchBarText(Object.assign({}, snap, { raceLabels: [], set: Object.assign({}, snap.set, { umaId: null }) }));
+			const onlyUma = stitchBarText(Object.assign({}, snap, { setName: '', raceLabels: [] }));
 			const lay = __compose({ c: [__person(1179, 2342), null, null], bar: text });
 			const g = lay.getContext('2d');
 			const px = (x, y) => { const d = g.getImageData(Math.round(x), Math.round(y), 1, 1).data; return [d[0], d[1], d[2]]; };
@@ -358,11 +373,18 @@ export async function register63(env) {
 			CanvasRenderingContext2D.prototype.fillText = function (s, x, y) { texts.push({ s: String(s), color: this.fillStyle }); return o.apply(this, arguments); };
 			__compose({ c: [__person(1179, 2342), null, null], bar: text });
 			CanvasRenderingContext2D.prototype.fillText = o;
-			return { shown, text, plain, filterTexts, bar: b, top: px(xs, b.y + 3), mid: px(xs, b.y + b.h / 2), bottom: px(xs, b.y + b.h - 3), corner: px(b.x + 3, b.y + 3), edgeMid: px(b.x + 3, b.y + b.h / 2), long, fit: lay._layout.barFit, barTexts: texts.filter((t) => t.s === text) };
+			return { shown, text, plain, noUma, badUma, cardAsUma, legacy, noUmaNoRace, onlyUma, umaId: snap.set && snap.set.umaId, filterTexts, bar: b, top: px(xs, b.y + 3), mid: px(xs, b.y + b.h / 2), bottom: px(xs, b.y + b.h - 3), corner: px(b.x + 3, b.y + 3), edgeMid: px(b.x + 3, b.y + b.h / 2), long, fit: lay._layout.barFit, barTexts: texts.filter((t) => t.s === text) };
 		});
-		assert(r.shown === '名前のあるセット' && r.text === r.shown + '｜中距離・差し', '結合画像の構成(7): バーの文字は「帯のセット名｜レース条件」', r);
+		const umaText = umaBarText('uma-0001');
+		assert(r.umaId === 'uma-0001' && /^\[.+\].+/.test(umaText), '結合画像の構成(7): 写しに①の育成ウマ娘（uma-0001。題つき）', { umaId: r.umaId, umaText });
+		assert(r.shown === '名前のあるセット' && r.text === r.shown + '｜' + umaText + '｜中距離・差し', '結合画像の構成(7): バーの文字は「帯のセット名｜[題]育成ウマ娘｜レース条件」', { text: r.text, want: r.shown + '｜' + umaText + '｜中距離・差し' });
 		assert(r.filterTexts.indexOf('中距離') !== -1 && r.filterTexts.indexOf('差し') !== -1, '結合画像の構成(7): レース条件の言い方は①の選択欄の表示と同じ', r.filterTexts);
-		assert(r.plain === '名前のあるセット', '結合画像の構成(7): 条件が無ければセット名だけ', r.plain);
+		assert(r.plain === '名前のあるセット｜' + umaText, '結合画像の構成(7): 条件が無ければ「セット名｜[題]育成ウマ娘」', r.plain);
+		const noUmaWant = '名前のあるセット｜中距離・差し';
+		assert(r.noUma === noUmaWant && r.badUma === noUmaWant && r.cardAsUma === noUmaWant && r.legacy === noUmaWant,
+			'結合画像の構成(7): 育成ウマ娘が未設定・引けない ID・カードの ID・旧UI（写しにセットなし）は抜く（「セット名｜レース条件」）', r);
+		assert(r.noUmaNoRace === '名前のあるセット' && r.onlyUma === umaText, '結合画像の構成(7): 抜けた部分の「｜」は付けない（セット名だけ・育成ウマ娘だけ）', { a: r.noUmaNoRace, b: r.onlyUma });
+		assert(![r.text, r.plain, r.noUma, r.badUma, r.legacy, r.noUmaNoRace, r.onlyUma].some((s) => /｜｜|^｜|｜$|読み込めません|[①②③]/.test(s)), '結合画像の構成(7): タイトルに「｜｜」・端の「｜」・「読み込めません」・①②③ が無い', r);
 		assert(r.bar.h === 70 && r.bar.x === 28 && r.bar.w === 2206 - 56, '結合画像の構成(7): 全幅（余白を除く）・高さ70', r.bar);
 		const near = (a, hex, tol) => { const v = parseInt(hex.slice(1), 16); return Math.abs(a[0] - ((v >> 16) & 255)) <= tol && Math.abs(a[1] - ((v >> 8) & 255)) <= tol && Math.abs(a[2] - (v & 255)) <= tol; };
 		assert(near(r.top, '#94D709', 6) && near(r.mid, '#82CE0A', 6) && near(r.bottom, '#6BC20C', 6), '結合画像の構成(7): 上・中・下の色が読んだ値のグラデーション', { top: r.top, mid: r.mid, bottom: r.bottom });
@@ -373,7 +395,7 @@ export async function register63(env) {
 		await ctx.close();
 	});
 
-	await block('結合画像の構成(8) 凡例の文と画像に描く文字列: 枠の見かたは1行（見出し＋3種）・断りの文（「枠の無いパネルは…」「数字は★の数…」）は無い／組み立てで描くすべての文字列と、画像に描く文字列の定数に「①」「②」「③」が無い', async () => {
+	await block('結合画像の構成(8) 凡例の文と画像に描く文字列: 枠の見かたは1行（見出し＋3種）・断りの文（「枠の無いパネルは…」「数字は★の数…」）は無い／組み立てで描くすべての文字列と、画像に描く文字列の定数に「①」「②」「③」が無い（T37: 上段の見出しと想定SP の内訳だけは例外）', async () => {
 		const { ctx, page, errors } = await openSp();
 		await prep(page);
 		const r = await page.evaluate(() => {
@@ -385,14 +407,27 @@ export async function register63(env) {
 			const pc = __person(1179, 2342, { x0: 40, x1: 170, y0: 0, y1: 140 });
 			__compose({ c: [pc, __person(1179, 1757), null], heads: [stitchHeadIconOf(pc, stitchPersonIconBox(pc)), null, null],
 				table: stitchTableData(__snap(4, [__res({ N0: 3, N1: null }), __res({}), null], ['card', 'star', 'other']), [0, 1, 2]), legend, bar: 'S｜中距離' });
+			// T37: 上段つきで組み立てる（上段の見出しと想定SP の内訳だけは ①② を使ってよい）
+			const before = texts.length;
+			const card = (id) => ({ id, title: 'T' + id, name: 'N' + id, typeOrder: 1, icon: null });
+			const topLay = __compose({ c: [pc, __person(1179, 1757), null], heads: [null, null, null], legend, bar: 'S｜中距離',
+				table: stitchTableData(__snap(4, [__res({ N0: 3 }), __res({}), null], ['card', 'star', 'other']), [0, 1, 2]),
+				top: { sp: { total: 12321, totalKinds: 106, rosterPt: 8655, factorPt: 3666, statusLabel: '切れ者' }, roster: [card('a'), card('b')], factor: [card('c')] } })._layout.top;
+			const topTexts = texts.slice(before);
 			CanvasRenderingContext2D.prototype.fillText = o;
-			return { legendTexts, texts, h: legend.height, w: legend.width, noteGone: typeof FACTOR_LEGEND_NOTE === 'undefined' && typeof FACTOR_LEGEND_TABLE_NOTE === 'undefined' };
+			return { legendTexts, texts: texts.slice(0, before), topTexts, topLines: topLay.sp.lines, h: legend.height, w: legend.width, noteGone: typeof FACTOR_LEGEND_NOTE === 'undefined' && typeof FACTOR_LEGEND_TABLE_NOTE === 'undefined' };
 		});
 		assert(JSON.stringify(r.legendTexts) === JSON.stringify(['枠の見かた：', ' 周回サポカスキル', ' サポカ外スキル', ' その他（親から継承）']) && r.h === 40 && r.w < 1600,
 			'結合画像の構成(8): 枠の見かたは1行（高さ 40）に見出しと3種だけ', { t: r.legendTexts, h: r.h, w: r.w });
 		assert(r.noteGone && !r.texts.some((s) => /枠の無いパネル|数字は★の数/.test(s)), '結合画像の構成(8): 断りの文（「枠の無いパネルは…」「数字は★の数…」）は描かない・定数も無い', r.texts.filter((s) => /パネル|★/.test(s)));
 		const bad = r.texts.filter((s) => /[①②③]/.test(s));
 		assert(bad.length === 0 && r.texts.length > 20, '結合画像の構成(8): 組み立てで描いた文字列（バー・表・見出し・凡例）に ①②③ が無い', bad);
+		// T37（C-228 の例外）: 上段の見出し「①本育成編成」「②因子周回編成」と想定SP の内訳「① N Pt ＋ ② N Pt」だけが ①② を持つ。③ はどこにも無い
+		const allowed = ['①本育成編成', '②因子周回編成', '① 8,655 Pt ＋ ② 3,666 Pt'];
+		const numbered = r.topTexts.filter((s) => /[①②③]/.test(s));
+		assert(JSON.stringify(numbered.slice().sort()) === JSON.stringify(allowed.slice().sort()),
+			'結合画像の構成(8): 上段つきの組み立てで ①② を持つ文字列は、上段の見出し2つと想定SP の内訳だけ（凡例・表・タイトル・人の見出しには無い）', { numbered, all: r.topTexts.length });
+		assert(r.topLines[1] === allowed[2] && !r.topTexts.some((s) => s.includes('③')), '結合画像の構成(8): 想定SP の内訳の行（例外）と ③ が無いこと', r.topLines);
 		// コード側: 画像に描く文字列の定数（STITCH_TABLE_*・FACTOR_LEGEND_HEAD）
 		const src = fs.readFileSync(path.join(REPO_ROOT, 'special.html'), 'utf8');
 		const consts = [...src.matchAll(/const (STITCH_TABLE_[A-Z_]+|FACTOR_LEGEND_HEAD) = '([^']*)'/g)].map((m) => m[1] + '=' + m[2]);
@@ -401,7 +436,7 @@ export async function register63(env) {
 		await ctx.close();
 	});
 
-	await block('結合画像の構成(9) OCR を押した時点の写し: その後に②や判定が変わっても、表の行・種類・バーの文字は写しのまま／「OCRしない」結合は表・凡例なし（バーと3人だけ・人は両側を削る）／旧UI（写しの行が空）は表なし', async () => {
+	await block('結合画像の構成(9) OCR を押した時点の写し: その後に②や判定が変わっても、表の行・種類・バーの文字は写しのまま／「OCRしない」結合は表・凡例なし（バーと3人だけ・人は両側を削る）／旧UI（写しの行が空）は表なし／T37: 写しの①②のカード・育成ウマ娘・想定SP も押した時点のまま（OCRしない結合は結合した時点）・旧UI（写しにセットなし）は上段なし', async () => {
 		const { ctx, page, errors } = await openSp({ roster: R1S, ids: IDS });
 		await prep(page);
 		const r = await page.evaluate(async () => {
@@ -417,14 +452,26 @@ export async function register63(env) {
 			// 押した後に②を変える（行を1つに減らす）
 			deckScope = Object.assign({}, deckScope, { skillIds: deckScope.skillIds.slice(0, 1) });
 			const kindsAfter = JSON.stringify(stitchKindByName());
+			// T37: 押した後に①のカード・育成ウマ娘・②のカード・想定SP が変わる（画面の値を差し替える）
+			const setBefore = JSON.parse(JSON.stringify(snap.set));
+			const keepRoster = deckRosterPanel.getRoster, keepSum = deckTemplateManager.getSetSummary;
+			const realRoster = deckRosterPanel.getRoster();
+			deckRosterPanel.getRoster = () => Object.assign({}, realRoster, { umaId: 'uma-0002', cardIds: realRoster.cardIds.slice(0, 2), outsideOptions: { cards: ['card-0310'] } });
+			deckTemplateManager.getSetSummary = () => ({ total: 1, totalKinds: 2, rosterPt: 3, factorPt: 4, statusLabel: 'X' });
 			const withOcr = await buildStitchedSetImage(0, null, true);
 			const noOcr = await buildStitchedSetImage(0, null, false);
-			// 旧UI の写し（行が空）
-			stitchSnapshot = Object.assign({}, snap, { entries: [] });
+			deckRosterPanel.getRoster = keepRoster; deckTemplateManager.getSetSummary = keepSum;
+			const setAfter = JSON.parse(JSON.stringify(stitchSnapshot.set));
+			// 旧UI の写し（行が空・セットなし）
+			stitchSnapshot = Object.assign({}, snap, { entries: [], set: null });
 			const legacy = await buildStitchedSetImage(0, null, true);
 			window.stitchOnePerson = keep.s; persons[0].files = keep.f; stitchSnapshot = keep.snap; deckScope = keep.scope;
 			const L = (c) => c._layout;
+			const ids = (t, k) => t ? t[k].cards.map((c) => c.id) : null;
 			return { n, rows: L(withOcr).table ? L(withOcr).table.rows : -1, legend: !!L(withOcr).legend, kindsSame: kindsBefore === kindsAfter,
+				setBefore, setAfter, ocrTop: { roster: ids(L(withOcr).top, 'roster'), factor: ids(L(withOcr).top, 'factor'), sp: L(withOcr).top && L(withOcr).top.sp.lines },
+				noTop: { roster: ids(L(noOcr).top, 'roster'), factor: ids(L(noOcr).top, 'factor'), sp: L(noOcr).top && L(noOcr).top.sp.lines }, legacyTop: L(legacy).top,
+				spBeforeLine: setBefore.sp ? UmaSkillDeckCore.formatPtNumber(setBefore.sp.total) + ' Pt／' + setBefore.sp.totalKinds + '種' : null,
 				no: { table: !!L(noOcr).table, legend: !!L(noOcr).legend, parent: !!L(noOcr).parent, bar: !!L(noOcr).bar, crop: L(noOcr).parent.crop, head: L(noOcr).heads[0], width: L(noOcr).width },
 				legacy: { table: !!L(legacy).table, parent: !!L(legacy).parent, crop: L(legacy).parent.crop } };
 		});
@@ -433,6 +480,15 @@ export async function register63(env) {
 		assert(!r.no.table && !r.no.legend && r.no.parent && r.no.bar && r.no.width === 2206, '結合画像の構成(9): 「OCRしない」結合は表・凡例なし（バーと人の画像だけ・幅 2206）', r.no);
 		assert(r.no.crop && r.no.crop.ok && r.no.crop.R - r.no.crop.L < 1179 * 0.85 && r.no.head.icon && r.no.head.icon.h === 64, '結合画像の構成(9): 「OCRしない」結合でも両側を削り、見出しに顔とラベル', r.no);
 		assert(!r.legacy.table && r.legacy.parent && r.legacy.crop && r.legacy.crop.ok, '結合画像の構成(9): 旧UI（写しの行が空）は表なし・人は両側を削る', r.legacy);
+		// T37: 写しの①②のカード・育成ウマ娘・想定SP
+		assert(r.setBefore && r.setBefore.umaId === 'uma-0001' && JSON.stringify(r.setBefore.rosterCards) === JSON.stringify(CARDS6) && JSON.stringify(r.setBefore.factorCards) === JSON.stringify(SAVED5) && r.setBefore.sp && r.setBefore.sp.total > 0,
+			'結合画像の構成(9): 写しに①のカード6枚・育成ウマ娘・②のカード（outsideOptions.cards）・想定SP', r.setBefore);
+		assert(JSON.stringify(r.setAfter) === JSON.stringify(r.setBefore), '結合画像の構成(9): 押した後に画面の値が変わっても、写しのセットの部分は押した時点のまま', { before: r.setBefore, after: r.setAfter });
+		assert(JSON.stringify(r.ocrTop.roster) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(r.ocrTop.factor) === JSON.stringify(expectOrder(SAVED5)) && r.ocrTop.sp[0] === r.spBeforeLine,
+			'結合画像の構成(9): OCR の結合の上段は写しの値（押した後の変更は入らない）', { ocrTop: r.ocrTop, want: [expectOrder(CARDS6), expectOrder(SAVED5), r.spBeforeLine] });
+		assert(JSON.stringify(r.noTop.roster) === JSON.stringify(expectOrder(CARDS6.slice(0, 2))) && JSON.stringify(r.noTop.factor) === JSON.stringify(['card-0310']) && JSON.stringify(r.noTop.sp) === JSON.stringify(['1 Pt／2種', '① 3 Pt ＋ ② 4 Pt', 'X']),
+			'結合画像の構成(9): 「OCRしない」結合の上段は結合した時点の値（空振りでないこと＝OCR の結合とは違う値になる）', r.noTop);
+		assert(r.legacyTop === null, '結合画像の構成(9): 旧UI（写しにセットが無い）は上段を描かない', r.legacyTop);
 		assert(jsErrors(errors).length === 0, '結合画像の構成(9): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
@@ -499,6 +555,144 @@ export async function register63(env) {
 		assert(dark.attr === 'dark' && light.attr !== 'dark', '結合画像の構成(11): 前提: 画面はライトとダークに切り替わっている', [light.attr, dark.attr]);
 		assert(light.url.length > 10000 && light.url === dark.url, '結合画像の構成(11): ライトとダークで、組み立てた結合画像が画素まで同じ', [light.url.length, dark.url.length]);
 		assert(jsErrors(errors).length === 0, '結合画像の構成(11): コンソールエラー0', jsErrors(errors).slice(0, 3));
+		await ctx.close();
+	});
+
+	// T37: 上段（想定SP｜①本育成編成｜②因子周回編成）
+	const SET_UD = (extra) => ({ schemaVersion: 7, records: [], customSkills: [],
+		rosters: [Object.assign({ rosterId: 'r1', name: 'R', createdAt: 'x', updatedAt: 'x', skillFilter: { distance: 'medium', style: 'sashi' } }, R1S, extra || {})],
+		templates: [{ templateId: 't1', name: '名前のあるセット', skillIds: IDS.slice(), skillIcons: {}, parentHintLevel: 5, baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' }] });
+	const openSet = async (o = {}) => {
+		const sp = await openSp({ userData: SET_UD(o.extra), roster: Object.assign({ skillFilter: { distance: 'medium', style: 'sashi' } }, R1S, o.extra || {}), w: o.w, h: o.h });
+		await sp.page.evaluate(() => localStorage.setItem('umaSkillDeck:lastSet:special', 't1'));
+		await reloadReady(sp.page);
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForSelector('#deck-set-bar [data-usd-el="set-total"]', { timeout: 20000 });
+		await sp.page.waitForTimeout(500);
+		await prep(sp.page);
+		return sp;
+	};
+
+	await block('結合画像の構成(12) 上段: 左から 想定SP（幅 400）｜①本育成編成｜②因子周回編成（残りを半分ずつ・全体の幅に合わせて広がる）・区切りは #E8E8E8 の縦線 3px・高さ 176 は枚数で変えない・中段はその下／カードは 3列×2行（種別の順＋ID の降順・6枚未満は左上から詰める・種別のアイコン）・②0枚と想定SP が取れないときは見出しだけ／想定SP の値は getSetSummary()（② は factorPt）', async () => {
+		const { ctx, page, errors } = await openSet();
+		const r = await page.evaluate(async () => {
+			const L = STITCH_LAYOUT;
+			const snap = captureStitchSnapshot();
+			const sum = deckTemplateManager.getSetSummary();
+			const top = await stitchTopData(snap.set);
+			const legend = buildFactorFrameLegendBar(L.legendMaxW, L.legendRef, true);
+			const people = () => [__person(1179, 2342), __person(1179, 1757), __person(1179, 2521)];
+			const tab = (n) => stitchTableData(__snap(n, [__res({ N0: 3 }), __res({}), null], ['card', 'star', 'other']), [0, 1, 2]);
+			const texts = []; const o = CanvasRenderingContext2D.prototype.fillText;
+			const run = (t, n) => { texts.length = 0; CanvasRenderingContext2D.prototype.fillText = function (s) { texts.push(String(s)); return o.apply(this, arguments); };
+				try { const c = __compose({ c: people(), table: tab(n || 10), legend, bar: 'S', top: t }); return { c, lay: c._layout, texts: texts.slice() }; } finally { CanvasRenderingContext2D.prototype.fillText = o; } };
+			const full = run(top), none = run(null);
+			const g = full.c.getContext('2d');
+			const px = (x, y) => Array.from(g.getImageData(Math.round(x), Math.round(y), 1, 1).data.slice(0, 3));
+			// 領域の中が白だけか（見出しの行の下〜上段の下端）
+			const whiteBelowHead = (c, rect) => { const d = c.getContext('2d').getImageData(rect.x, rect.y + L.topHeadH + 2, rect.w, rect.h - L.topHeadH - 2).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] !== 255 || d[i + 1] !== 255 || d[i + 2] !== 255) n++; return n; };
+			const T = full.lay.top;
+			const sepPx = T.seps.map((s) => px(s.x + 1, s.y + s.h / 2));
+			const headLinePx = px(T.roster.x + 50, T.y + L.topHeadH - 3);
+			const iconPx = T.roster.cards.concat(T.factor.cards).map((c) => { const d = g.getImageData(c.x + 10, c.y + (L.cardH - 42) / 2, 42, 42).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) > 40) n++; return n; });
+			const variants = {};
+			const lay = (t) => run(t).lay;
+			variants.f3 = lay(Object.assign({}, top, { factor: top.factor.slice(0, 3) })).top;
+			variants.r4 = lay(Object.assign({}, top, { roster: top.roster.slice(0, 4) })).top;
+			const f0 = run(Object.assign({}, top, { factor: [] }));
+			variants.f0 = Object.assign({}, f0.lay.top, { texts: f0.texts, white: whiteBelowHead(f0.c, f0.lay.top.factor) });
+			const spNull = run(Object.assign({}, top, { sp: null }));
+			variants.spNull = Object.assign({}, spNull.lay.top, { texts: spNull.texts, white: whiteBelowHead(spNull.c, spNull.lay.top.sp), bodyY: spNull.lay.bodyY });
+			variants.zeroPt = lay(Object.assign({}, top, { sp: { total: 8655, totalKinds: 40, rosterPt: 8655, factorPt: 0, statusLabel: '' } })).top;
+			variants.wide = run(top, 120).lay;
+			// 実際の流れ: OCR しない結合（結合した時点の写し）で上段が付く
+			const keep = { s: window.stitchOnePerson, f: persons[0].files };
+			window.stitchOnePerson = async () => __person(1179, 2342, { x0: 40, x1: 170, y0: 0, y1: 140 });
+			persons[0].files = [{ name: 'a.png' }];
+			const built = await buildStitchedSetImage(0, null, false);
+			window.stitchOnePerson = keep.s; persons[0].files = keep.f;
+			return { set: snap.set, sum: sum && { total: sum.total, totalKinds: sum.totalKinds, rosterPt: sum.rosterPt, factorPt: sum.factorPt, statusLabel: sum.statusLabel },
+				fmtTotal: sum && UmaSkillDeckCore.formatPtNumber(sum.total), fmtR: sum && UmaSkillDeckCore.formatPtNumber(sum.rosterPt), fmtF: sum && UmaSkillDeckCore.formatPtNumber(sum.factorPt),
+				T, bodyY: full.lay.bodyY, H: full.lay.height, W: full.lay.width, noneBodyY: none.lay.bodyY, noneH: none.lay.height, noneTop: none.lay.top, persons: full.lay.persons.map((p) => p.y), tableY: full.lay.table.y,
+				texts: full.texts, sepPx, headLinePx, iconPx, variants, builtTop: built._layout.top && { roster: built._layout.top.roster.cards.map((c) => c.id), factor: built._layout.top.factor.cards.map((c) => c.id) },
+				L: { spW: L.spW, gap: L.gap, sepW: L.sepW, cardH: L.cardH, cardGap: L.cardGap, topHeadH: L.topHeadH, topHeadGap: L.topHeadGap, margin: L.margin, barH: L.barH, barGap: L.barGap, topAfter: L.topAfter } };
+		});
+		const L = r.L, T = r.T;
+		// 並びと幅
+		const zone = L.gap + L.sepW + L.gap;
+		assert(T.sp.x === L.margin && T.sp.w === 400 && T.roster.x === T.sp.x + 400 + zone && T.factor.x === T.roster.x + T.roster.w + zone && T.factor.x + T.factor.w === r.W - L.margin && Math.abs(T.roster.w - T.factor.w) <= 1,
+			'結合画像の構成(12): 左から 想定SP（400）｜①｜②・①②は残りを半分ずつ・右端は余白 28', { sp: T.sp, roster: [T.roster.x, T.roster.w], factor: [T.factor.x, T.factor.w], W: r.W });
+		assert(T.seps.length === 2 && T.seps.every((s) => s.w === 3 && s.h === 176 && s.y === T.y) && T.seps[0].x === T.sp.x + 400 + L.gap && T.seps[1].x === T.roster.x + T.roster.w + L.gap,
+			'結合画像の構成(12): 区切りは縦線 3px・上段の高さいっぱい・領域の間の真ん中', T.seps);
+		assert(r.sepPx.every((p) => p.join() === '232,232,232') && r.headLinePx.join() === '232,232,232', '結合画像の構成(12): 区切りの線と見出しの下線は #E8E8E8', { sep: r.sepPx, head: r.headLinePx });
+		assert(T.h === 176 && T.y === L.margin + L.barH + L.barGap && r.bodyY === T.y + 176 + L.topAfter && r.tableY === r.bodyY && r.persons.every((y) => y > T.y + T.h),
+			'結合画像の構成(12): 上段の高さ 176・タイトルの下・中段（表と人）は上段の下', { T: [T.y, T.h], bodyY: r.bodyY, persons: r.persons });
+		assert(r.noneTop === null && r.bodyY - r.noneBodyY === 176 + L.topAfter && r.H - r.noneH === 176 + L.topAfter, '結合画像の構成(12): 上段が無いと中段は今までの位置（上段の分だけ高さが違う）', { bodyY: [r.bodyY, r.noneBodyY], H: [r.H, r.noneH] });
+		// カードの並び・位置
+		assert(JSON.stringify(T.roster.cards.map((c) => c.id)) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(T.factor.cards.map((c) => c.id)) === JSON.stringify(expectOrder(SAVED5)),
+			'結合画像の構成(12): カードの並びは種別の順（スピード→…→友人／グループ）・同じ種別の中は ID の降順', { roster: T.roster.cards.map((c) => c.id), factor: T.factor.cards.map((c) => c.id), want: [expectOrder(CARDS6), expectOrder(SAVED5)] });
+		assert(new Set(SAVED5.map((id) => DATA_CARDS.get(id).typeOrder)).size >= 3 && new Set(CARDS6.map((id) => DATA_CARDS.get(id).typeOrder)).size >= 2, '結合画像の構成(12): 前提: 材料のカードの種別が混ざっている（並べ替えの空振りでない）', SAVED5.map((id) => DATA_CARDS.get(id).typeOrder));
+		const grid = (cards, x0, y0) => cards.every((c, i) => Math.abs(c.x - (x0 + (i % 3) * (c.w + L.cardGap))) <= 2 && c.y === y0 + L.topHeadH + L.topHeadGap + Math.floor(i / 3) * (L.cardH + L.cardGap) && c.h === L.cardH);
+		assert(T.roster.cards.length === 6 && grid(T.roster.cards, T.roster.x, T.y) && T.factor.cards.length === 5 && grid(T.factor.cards, T.factor.x, T.y),
+			'結合画像の構成(12): カードは 3列×2行・左上から詰める（②5枚は2行目の3つ目が空き）', { roster: T.roster.cards, factor: T.factor.cards });
+		assert(T.roster.cards.concat(T.factor.cards).every((c) => c.icon) && r.iconPx.length === 11 && r.iconPx.every((n) => n > 300), '結合画像の構成(12): どのカードにも種別のアイコンを描いた（アイコンの箱 42×42 に色の画素が 300 以上）', r.iconPx);
+		const V = r.variants;
+		assert(V.f3.h === 176 && V.f3.factor.cards.length === 3 && grid(V.f3.factor.cards, V.f3.factor.x, V.f3.y) && V.f3.factor.cards.every((c) => c.y === V.f3.factor.cards[0].y),
+			'結合画像の構成(12): ②3枚は1行目に左から詰める・高さは不変', V.f3.factor.cards);
+		assert(V.r4.h === 176 && V.r4.roster.cards.length === 4 && grid(V.r4.roster.cards, V.r4.roster.x, V.r4.y), '結合画像の構成(12): ①4枚は 3＋1 で左上から詰める', V.r4.roster.cards);
+		assert(V.f0.h === 176 && V.f0.factor.cards.length === 0 && V.f0.texts.includes('②因子周回編成') && V.f0.white === 0 && V.f0.factor.w === T.factor.w,
+			'結合画像の構成(12): ②0枚は見出し「②因子周回編成」だけ（中は白・領域の幅と高さは不変）', { white: V.f0.white, w: V.f0.factor.w });
+		assert(V.spNull.h === 176 && V.spNull.sp.lines.length === 0 && V.spNull.texts.includes('想定SP') && V.spNull.white === 0 && V.spNull.bodyY === r.bodyY,
+			'結合画像の構成(12): 想定SP が取れないときは見出し「想定SP」だけ（中は白・上段の高さは不変）', { lines: V.spNull.sp.lines, white: V.spNull.white });
+		// 想定SP の値
+		assert(r.sum && r.set.sp && JSON.stringify(r.set.sp) === JSON.stringify(r.sum), '結合画像の構成(12): 写しの想定SP は getSetSummary() の total・totalKinds・rosterPt・factorPt・statusLabel と一致', { snap: r.set.sp, sum: r.sum });
+		const want = [r.fmtTotal + ' Pt／' + r.sum.totalKinds + '種', '① ' + r.fmtR + ' Pt ＋ ② ' + r.fmtF + ' Pt'].concat(r.sum.statusLabel ? [r.sum.statusLabel] : []);
+		assert(JSON.stringify(T.sp.lines) === JSON.stringify(want) && r.sum.factorPt > 0, '結合画像の構成(12): 想定SP の欄は「合計 Pt／種数」「① rosterPt ＋ ② factorPt」「状態」（② は factorPt）', { lines: T.sp.lines, want });
+		assert(JSON.stringify(V.zeroPt.sp.lines) === JSON.stringify(['8,655 Pt／40種', '① 8,655 Pt ＋ ② 0 Pt']), '結合画像の構成(12): ② の Pt が0なら「② 0 Pt」・状態が無ければその行は無し', V.zeroPt.sp.lines);
+		// 全体の幅に合わせて広がる
+		const WT = V.wide.top;
+		assert(V.wide.width > 2206 && WT.sp.w === 400 && WT.factor.x + WT.factor.w === V.wide.width - L.margin && WT.roster.w > T.roster.w && Math.abs(WT.roster.w - WT.factor.w) <= 1,
+			'結合画像の構成(12): 全体の幅が広がると①②の幅が広がる（想定SP は 400 のまま）', { W: V.wide.width, roster: WT.roster.w, factor: WT.factor.w });
+		assert(r.builtTop && JSON.stringify(r.builtTop.roster) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(r.builtTop.factor) === JSON.stringify(expectOrder(SAVED5)),
+			'結合画像の構成(12): 実際の組み立て（OCRしない結合）でも上段が付く', r.builtTop);
+		assert(jsErrors(errors).length === 0, '結合画像の構成(12): コンソールエラー0', jsErrors(errors).slice(0, 3));
+		await ctx.close();
+	});
+
+	await block('結合画像の構成(13) stitchEntryOf: 育成ウマ娘（題・名前・種別なし）・カード（題・キャラクター名・種別の番号・種別のアイコンの URL＝core の版つき）・グループのカード（グループ名）・引けない／空の ID は null／上段の写しは「追加」で書かれた②のカード（0枚のセットは②0枚）／狭い画面で結合しても横スクロールなし', async () => {
+		const { ctx, page, errors } = await openSet({ extra: { outsideOptions: {} }, w: 375, h: 812 });
+		const r = await page.evaluate(async () => {
+			const E = UmaSkillDeckCore.stitchEntryOf;
+			const ids = ['uma-0001', 'card-0248', 'card-0310', 'card-0566'];
+			const got = Object.fromEntries(ids.map((id) => [id, E(id)]));
+			const status = {};
+			for (const id of ids) if (got[id] && got[id].typeIconUrl) status[id] = (await fetch(got[id].typeIconUrl)).status;
+			const snap = captureStitchSnapshot();
+			// 狭い画面（375px）で実際に結合して、ページに横スクロールが出ない
+			const keep = { s: window.stitchOnePerson, f: persons[0].files };
+			window.stitchOnePerson = async () => __person(1179, 2342, { x0: 40, x1: 170, y0: 0, y1: 140 });
+			persons[0].files = [{ name: 'a.png' }];
+			await runImageStitching({ quiet: true, keepClosed: true, withMarks: false });
+			const imgs = Array.from(document.querySelectorAll('#stitch-result-content img, #stitch-result-content canvas')).length;
+			window.stitchOnePerson = keep.s; persons[0].files = keep.f;
+			return { got, status, none: [E('uma-9999'), E('card-9999'), E(''), E(null), E(123)], factorCards: snap.set.factorCards, rosterCards: snap.set.rosterCards,
+				imgs, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth };
+		});
+		const g = r.got, uma = DATA_UMAS.get('uma-0001'), c1 = DATA_CARDS.get('card-0248'), grp = DATA_CARDS.get('card-0310'), c3 = DATA_CARDS.get('card-0566');
+		assert(g['uma-0001'] && g['uma-0001'].kind === 'uma' && g['uma-0001'].title === uma.title && g['uma-0001'].name === uma.charaName && g['uma-0001'].typeOrder === null && g['uma-0001'].typeIconUrl === null,
+			'結合画像の構成(13): 育成ウマ娘は { kind: uma, 題, 名前, 種別なし }', g['uma-0001']);
+		const KEYS = { 1: 'speed', 2: 'stamina', 3: 'power', 4: 'guts', 5: 'wisdom', 6: 'friend' };
+		const urlOk = (e, d) => new RegExp('^img/osusume-type-' + KEYS[d.typeOrder] + '-\\d{4}-\\d{2}-\\d{2}\\.png$').test(e.typeIconUrl);
+		assert(g['card-0248'] && g['card-0248'].kind === 'card' && g['card-0248'].title === c1.title && g['card-0248'].name === c1.charaName && g['card-0248'].typeOrder === c1.typeOrder && urlOk(g['card-0248'], c1),
+			'結合画像の構成(13): カードは { 題, キャラクター名, 種別の番号, 種別のアイコンの URL }', g['card-0248']);
+		assert(grp.isGroup === true && g['card-0310'].name === grp.groupName && g['card-0310'].name !== grp.charaName && g['card-0310'].typeOrder === grp.typeOrder && urlOk(g['card-0310'], grp),
+			'結合画像の構成(13): グループのカードの名前はグループ名（代表者の名前ではない）', { got: g['card-0310'], groupName: grp.groupName });
+		assert(g['card-0566'].name === shortNameOf(c3) && urlOk(g['card-0566'], c3), '結合画像の構成(13): 名前の規則は formatEntryShortLabel と同じ（別のカード）', g['card-0566']);
+		assert(Object.values(r.status).length === 3 && Object.values(r.status).every((s) => s === 200), '結合画像の構成(13): 種別のアイコンの URL の画像が読める', r.status);
+		assert(r.none.every((v) => v === null), '結合画像の構成(13): 引けない ID・空・文字列でない ID は null', r.none);
+		assert(Array.isArray(r.factorCards) && r.factorCards.length === 0 && r.rosterCards.length === 6, '結合画像の構成(13): 「追加」を押していないセット（outsideOptions.cards なし）は写しの②が0枚・①は6枚', { f: r.factorCards, r: r.rosterCards });
+		assert(r.imgs >= 1 && r.sw <= r.cw, '結合画像の構成(13): 375px の画面で結合しても横スクロールなし', { imgs: r.imgs, sw: r.sw, cw: r.cw });
+		assert(jsErrors(errors).length === 0, '結合画像の構成(13): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
 }

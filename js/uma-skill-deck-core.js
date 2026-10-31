@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31i';
 
 	/* ============================================================
 	 * 定数
@@ -2971,6 +2971,28 @@
 		const key = CARD_TYPE_ICON_KEYS[typeOrder];
 		if (!key) return '';
 		return '<img class="usd-card-ico usd-card-ico--type' + (cls ? ' ' + cls : '') + '" data-usd-el="card-type-icon" src="' + cardIconUrl('type', key) + '" alt="' + esc(cardTypeLabelOf(typeOrder)) + '" width="20" height="20" decoding="async" draggable="false" />';
+	}
+	/**
+	 * 結合画像の上段とタイトル（T37）が使う、育成ウマ娘・サポートカード1件の表示の材料。
+	 * id は育成ウマ娘（uma-…）・サポートカード（card-…）のどちらでもよい。引けなければ null。
+	 * name は formatEntryShortLabel と同じ規則（グループのカードはグループ名）。title は二つ名（無ければ ''。括弧は付けない）。
+	 * typeIconUrl は種別のアイコンの画像（カードで種別が決まるときだけ。育成ウマ娘・種別の無いカードは null）。
+	 * 画像の版（CARD_ICON_VERSION）とグループ名の規則を special で二重に持たないための口
+	 */
+	function stitchEntryOf(id) {
+		if (typeof id !== 'string' || !id) return null;
+		const uma = findUma(id);
+		const entry = uma || findCard(id);
+		if (!entry) return null;
+		const typeOrder = uma ? null : cardTypeOrderOf(entry);
+		return {
+			kind: uma ? 'uma' : 'card',
+			id: id,
+			title: entry.title || '',
+			name: formatEntryShortLabel(entry),
+			typeOrder: typeOrder,
+			typeIconUrl: (typeOrder !== null && cardTypeKnown(typeOrder)) ? cardIconUrl('type', CARD_TYPE_ICON_KEYS[typeOrder]) : null
+		};
 	}
 	/**
 	 * レアリティの印を出すか。①の画面と、①のカード選択の窓（where === CARD_PLACE_ROSTER）は SSR の印を出さない（本育成で SR を編成する需要が無く、SSR が前提のため。
@@ -18305,6 +18327,9 @@
 		factorGroupOf: factorGroupOf,
 		taggedSkillPool: function () { return taggedSkillPool().map(s => ({ id: s.id, name: s.name, tags: s.tags })); },
 		expandMergedValues: expandMergedValues,
+		// 結合画像の上段とタイトル（T37）: 育成ウマ娘・カードの id → { kind, id, title, name, typeOrder, typeIconUrl }（引けなければ null）
+		stitchEntryOf: stitchEntryOf,
+		formatPtNumber: formatPtNumber,   // 3桁ごとの区切り（結合画像の想定SP が帯と同じ書き方にするため）
 
 		// 一括貼り付けテキストのマッチング（UIを持たない純粋なロジック）
 		matchPastedSkillText: matchPastedSkillText,
