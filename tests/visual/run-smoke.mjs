@@ -106,6 +106,7 @@ import { register76 } from './blocks-76.mjs';
 import { register77 } from './blocks-77.mjs';
 import { register78 } from './blocks-78.mjs';
 import { register79 } from './blocks-79.mjs';
+import { register80 } from './blocks-80.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15496,6 +15497,8 @@ await register77({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 // T28（2026-10-31）: 「テキストで検索」の新設と入口の並び（見出しは「T28テキストで検索」）
 await register78({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register79({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T42（2026-10-31）: 動画から結合の素材のフレームを選ぶ部品 js/video-frames.js（作り物の画で。見出しは「T42動画」）
+await register80({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
