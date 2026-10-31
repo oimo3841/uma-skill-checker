@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31h';
 
 	/* ============================================================
 	 * 定数
@@ -7902,12 +7902,13 @@
 	const PICKER_OFF_REASON = '本育成編成で不要にしているため選べません';
 	// セットのレース条件に合わないスキル（C-129）
 	const PICKER_RACE_REASON = 'レース条件に合わないため選べない';
-	// 「緑スキルを追加」の一覧だけの短い表記（T26・2026-10-31 おいもさんの決定）。「条件で検索」「名前を入れて探す」は上の文言のまま。
-	// 不要にしているもの（PICKER_OFF_REASON）は決定に含まれないので今のまま
+	// 「緑スキルを追加」の一覧の短い表記（T26・2026-10-31 おいもさんの決定。T27 で「条件で検索」、T28 で「テキストで検索」も）。「名前を入れて探す」は上の文言のまま。
+	// T33（2026-10-31 おいもさんの決定）: 不要にしているもの（PICKER_OFF_REASON）も「本育成で不要」（ピン止めの表記と同じ）。「名前を入れて探す」は上の文言のまま
 	const PICKER_PASSIVE_SHORT_REASONS = {};
 	PICKER_PASSIVE_SHORT_REASONS[PICKER_EXCLUDED_REASON] = '本育成で取得';
 	PICKER_PASSIVE_SHORT_REASONS[PICKER_RACE_REASON] = 'レース条件不一致';
-	/** 選べない行の右に出す短い表記（T26 の緑スキルの一覧・T27〔2026-10-31〕で「条件で検索」の一覧にも）。短い表記の無い理由（不要にしているもの）はそのまま */
+	PICKER_PASSIVE_SHORT_REASONS[PICKER_OFF_REASON] = '本育成で不要';
+	/** 選べない行の右に出す短い表記（T26 の緑スキルの一覧・T27〔2026-10-31〕で「条件で検索」・T28 で「テキストで検索」の一覧にも。T33 で不要にしているものも） */
 	function pickerShortReasonOf(skillId) {
 		const r = pickerBlockReasonOf(skillId) || PICKER_EXCLUDED_REASON;
 		return PICKER_PASSIVE_SHORT_REASONS[r] || r;
@@ -15834,7 +15835,7 @@
 		// 種類の指定を満たせないとき（段13・A2）: 種類ごとには足りているのに、組み合わせとして満たせないときの1行
 		const OUTSIDE_MSG_COMBO = 'この組み合わせでは指定を満たせません';
 		// T18: ピン止め。今のピンを全部入れられる組み合わせが無くなるとき（ピンを押した・小窓の中の操作）のトースト
-		const OUTSIDE_MSG_PIN_NG = '条件を満たすサポートカードの組み合わせがありません';
+		const OUTSIDE_MSG_PIN_NG = '条件を満たすサポートカードの組がありません';   // T33（2026-10-31）: 折り返さないように「組み合わせ」→「組」
 		// 入れ直せなかったピンの行の Pt の代わりの文字（理由ごと。added は普通の追加済みの行・gold／unknown は行を出さない）
 		const OUTSIDE_PIN_REASON_TEXT = { none: '組み合わせなし', taken: '本育成で取得', off: '本育成で不要', distance: '①の絞り込み不一致', style: '①の絞り込み不一致', surface: '①の絞り込み不一致', race: 'レース条件不一致' };
 		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedKey: RECOMMEND_NONE_KEY, appliedDist: [], appliedLegacy: [], pinNone: [], focusPin: null };

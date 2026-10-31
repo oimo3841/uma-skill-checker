@@ -245,7 +245,7 @@ export async function register58(env) {
 		await openFilter(sp3.page);
 		const c = await readRows(sp3.page);
 		const reasons = Array.from(new Set(c.rows.filter((r) => r.gray).map((r) => r.reason)));
-		assert(reasons.includes('本育成で取得') && reasons.includes('レース条件不一致') && reasons.every((x) => ['本育成で取得', 'レース条件不一致', '本育成編成で不要にしているため選べません'].includes(x)) && c.rows.filter((r) => r.gray).every((r) => r.disabled),
+		assert(reasons.includes('本育成で取得') && reasons.includes('レース条件不一致') && reasons.every((x) => ['本育成で取得', 'レース条件不一致', '本育成で不要'].includes(x)) && c.rows.filter((r) => r.gray).every((r) => r.disabled),
 			'検索小窓(3) 3つ重なるとき: 選べない行の右は「本育成で取得」「レース条件不一致」だけ・チェック不可', reasons);
 		// 脚質（逃げ）に合わない行は出ない（レース条件・本育成で選べない行を除く。距離・バ場はレースの値で固定されるので脚質だけで見る）
 		const fit3 = await misfit(sp3.page, c.rows.filter((r) => !r.gray).map((r) => r.id), { style: 'nige' });

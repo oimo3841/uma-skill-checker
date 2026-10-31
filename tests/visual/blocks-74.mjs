@@ -21,7 +21,7 @@ export async function register74(env) {
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const CARDS = ['card-0565', 'card-0281', 'card-0402', 'card-0499', 'card-0248', 'card-0249'];
 	const R1 = { pt: { status: 'kire' }, umaId: 'uma-0179', cardIds: CARDS, skillFilter: {} };
-	const MSG = '条件を満たすサポートカードの組み合わせがありません';
+	const MSG = '条件を満たすサポートカードの組がありません';   // T33（2026-10-31）: 「組み合わせ」→「組」
 	const M = '[data-usd-el="outside-modal"] ';
 	const BAR = '#deck-set-bar ';
 	// 変更の前（8ab032d）の一覧の行の実測（375・1280 × ライト・ダークとも同じ）

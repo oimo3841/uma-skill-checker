@@ -31,6 +31,8 @@
 //
 // 塊の番号は、run-smoke.mjs と blocks-*.mjs の block( の並びから静的に数える（npm run test:visual -- --list と同じ番号。
 // 実行して確かめるときは --list と見比べる）。番号は塊が増えるとずれるので、その時点の作業ツリー（または --head）の番号で出す。
+// for (const x of [字面の配列]) の中の block( は要素の数だけ数える（T33・2026-10-31。字面でない繰り返しの中にあれば、標準エラーに注意を出す）。
+// 消したファイル（git rm）は変えたファイルの一覧と段の見立てにだけ入れ、塊を探す対象から外す（T33）。
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -110,6 +112,41 @@ function parseTitle(line) {
 	return { title: out, dynamic: rest.startsWith('+') };
 }
 
+const LOOP_LITERAL_RE = /^\s*for\s*\(\s*(?:const|let|var)\s+[\w$]+\s+of\s+\[(.*)\]\s*\)\s*\{?\s*$/;
+const LOOP_ANY_RE = /^\s*(?:for|while)\s*\(/;
+/** 配列の字面 [a, b, ...] の中身（角かっこの内側）の要素の数。引用符・かっこの中のカンマは数えない */
+function countLiteralItems(inner) {
+	let n = 0, depth = 0, q = null, any = false;
+	for (let i = 0; i < inner.length; i++) {
+		const c = inner[i];
+		if (q) { if (c === '\\') { i++; continue; } if (c === q) q = null; continue; }
+		if (c === '\'' || c === '"' || c === '`') { q = c; any = true; continue; }
+		if ('([{'.includes(c)) { depth++; any = true; continue; }
+		if (')]}'.includes(c)) { depth--; continue; }
+		if (c === ',' && depth === 0) { if (any) n++; any = false; continue; }
+		if (c.trim()) any = true;
+	}
+	return n + (any ? 1 : 0);
+}
+/** block( の行（0始まり i）を囲む for (const x of [字面]) の回数の積。字面でない繰り返しの中なら1と数えて知らせる */
+function loopTimes(lines, i) {
+	let times = 1;
+	let ind = indentOf(lines[i]);
+	for (let k = i - 1; k >= 0 && ind > 0; k--) {
+		const l = lines[k];
+		if (!l.trim() || isComment(l)) continue;
+		const li = indentOf(l);
+		if (li >= ind) continue;
+		ind = li;
+		const m = LOOP_LITERAL_RE.exec(l);
+		if (m) times *= Math.max(1, countLiteralItems(m[1]));
+		else if (LOOP_ANY_RE.test(l)) {
+			console.error('select-blocks: 注意: ' + (i + 1) + '行目の block( は字面でない繰り返し（' + (k + 1) + '行目）の中にあり、1つと数えた。番号は --list（実行時）と見比べる');
+		}
+	}
+	return times;
+}
+
 /**
  * 塊の索引を作る。戻り値:
  *   blocks: [{ no, title, dynamic, file, start, end }]（start・end は1始まりの行。end を含む）
@@ -147,8 +184,13 @@ function buildIndex() {
 			const nextB = f.bounds.find((b) => b > start);
 			const end = nextB ? nextB - 1 : f.lines.length;
 			const t = parseTitle(l);
-			blocks.push({ no: blocks.length + 1, title: t.title, dynamic: t.dynamic, file: rel, start, end });
-			f.blockIdx.push(blocks.length - 1);
+			// T33: for (const x of [...]) の中の block( は、実行すると配列の要素の数だけ塊になる（blocks-74 のピン画面(1) は light・dark の2つ）。
+			// 静的に1つと数えると、その後ろの番号が実行時（--list）より1つ小さくずれていた
+			const times = loopTimes(f.lines, i);
+			for (let r = 0; r < times; r++) {
+				blocks.push({ no: blocks.length + 1, title: t.title, dynamic: t.dynamic || times > 1, file: rel, start, end });
+				f.blockIdx.push(blocks.length - 1);
+			}
 		});
 	};
 	const sf = fileLines(smokeRel);
@@ -243,6 +285,7 @@ const indentOf = (l) => /^\s*/.exec(l)[0].replace(/\t/g, '    ').length;
 /** 変えた行を囲む関数の名前（近い順に2つまで）。lines は変更後のファイルの行。 */
 function enclosingFunctions(lines, lineNo) {
 	const out = [];
+	if (!lines.length) return out;   // 中身の無いファイル（消したファイルなど）
 	let i = Math.min(Math.max(lineNo - 1, 0), lines.length - 1);
 	// 変えた行（空行なら次の空でない行）の字下げ
 	let j = i;
@@ -346,11 +389,11 @@ export function main() {
 	const addToken = (t, from) => { if (t && t.length >= 5 && !STOP_WORDS.has(t) && !tokens.has(t)) tokens.set(t, from); };
 	const changedFiles = [];
 
-	const blockAt = (rel, line) => {
+	// 繰り返しの中の塊（T33）は同じ行の範囲に複数の番号があるので、当たる塊をすべて返す
+	const blocksAt = (rel, line) => {
 		const f = idx.files[rel];
-		if (!f) return null;
-		for (const k of f.blockIdx) { const b = idx.blocks[k]; if (line >= b.start && line <= b.end) return b; }
-		return null;
+		if (!f) return [];
+		return f.blockIdx.map((k) => idx.blocks[k]).filter((b) => line >= b.start && line <= b.end);
 	};
 
 	for (const fd of diff) {
@@ -361,6 +404,9 @@ export function main() {
 		for (const [re, why] of STAGE3_MAYBE) if (re.test(rel)) { stage3Maybe.push(why + ': ' + rel); }
 		// 検査の土台は「既存のファイルを変えた・消した」ときだけ全体（新しい部品のファイルを足しただけなら、使う塊は (1) と (2) で拾う）
 		if (FULL_FILES.some((re) => re.test(rel)) && fd.status !== 'A') full.push('検査の土台を変えた: ' + rel);
+		// 消したファイル（git rm。T33）は、変えたファイルの一覧と段の見立てにだけ入れ、塊を探す対象から外す
+		// （変更後の中身が無い。以前は囲む関数を探すところで「reading 'trim'」で止まっていた。消した lab/ のモックの語で当たりが広がるのも避ける）
+		if (fd.status === 'D') continue;
 
 		// ---- tests/visual の塊のファイル
 		if (rel.startsWith(VISUAL + '/') && idx.files[rel]) {
@@ -380,8 +426,7 @@ export function main() {
 						for (const k of f.blockIdx) addReason(idx.blocks[k].no, '(1) 塊のファイルの共通の準備を変えた: ' + path.basename(rel));
 						break;
 					}
-					const b = blockAt(rel, ln);
-					if (b) addReason(b.no, '(1) 塊の中を変えた: ' + path.basename(rel) + ':' + ln);
+					for (const b of blocksAt(rel, ln)) addReason(b.no, '(1) 塊の中を変えた: ' + path.basename(rel) + ':' + ln);
 				}
 				// tests の変えた行で宣言した名前は、ほかの塊での使用を探す
 				for (const l of h.plus.concat(h.minus)) { const n = declName(l); if (n && n.length >= 5) addToken(n, rel + '（検査の部品）'); }
@@ -414,7 +459,8 @@ export function main() {
 		for (const h of fd.hunks) {
 			if (isData) break;   // data の中身の語・文言は拾わない（ファイル名とデータに敏感な塊で拾う）
 			const lines = h.plus.concat(h.minus);
-			if (/\.(js|html|mjs)$/.test(rel)) {
+			// 消したファイル（T33）は変更後の行が無いので、囲む関数は探さない（消した行の語は下で拾う）
+			if (/\.(js|html|mjs)$/.test(rel) && afterLines.length > 0) {
 				const at = h.newCount > 0 ? h.newStart : h.newStart + 1;
 				const last = h.newCount > 0 ? h.newStart + h.newCount - 1 : at;
 				for (const n of enclosingFunctions(afterLines, at)) addToken(n, rel + '（変えた行を囲む関数）');
