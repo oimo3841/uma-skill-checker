@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01c';
 
 	/* ============================================================
 	 * 定数
@@ -2811,7 +2811,7 @@
 	 * 同点のときの選び方（毎回同じになる）: (1) 増分が正のカードの枚数が少ない → (2) SSR が多い → (3) カード番号を昇順に並べた並びが辞書順で小さい。
 	 * 候補が足りて、増分が正のカードが K 枚に満たないときは、残りを SSR → カード番号の昇順で（同じキャラクターを避けて）埋める。埋めたカードの増分は 0。
 	 * ============================================================ */
-	const OUTSIDE_COUNT_CHOICES = [4, 5, 6];   // ④・段10 で4を足した
+	const OUTSIDE_COUNT_CHOICES = [1, 2, 3, 4, 5, 6];   // ④・段10 で4を足した。T53（C-262 の (4)）で 1〜3 を足した
 	const OUTSIDE_COUNT_DEFAULT = 5;        // 指定（roster.outsideOptions.count）が無いセットは5枚（④・段10 で「開くたびに5枚から」は廃止。セットごとに保存する）
 	/** カードの種類の番号（typeOrder。1 スピード〜5 賢さ・6 友人）。「種類」の指定（④・段11）で使う。6（友人）はオススメで選ぶのが最大1枚 */
 	const OUTSIDE_TYPE_ORDERS = [1, 2, 3, 4, 5, 6];
@@ -2823,7 +2823,7 @@
 	}
 	/**
 	 * セットの「種類」「除外」「枚数」と残りの枠の指定（④・段10。段13 で「絞り込み」を「除外」に置き換え、pinned を足した。roster.outsideOptions）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
-	 *   count … 4・5・6（無い・知らない値は5）
+	 *   count … 1〜6（無い・知らない値は5。T53 で 1〜3 を足した）
 	 *   typeMin … { 種類の番号: 最低の枚数 }（1以上の整数だけ。友人は最大1。合計が枚数を超えていてもそのまま＝計算で満たせないと出る）
 	 *   exclude … { 軸: [値…] }（「除外」に出す軸の、選べる値だけ。保存値が無ければ初期値 OUTSIDE_EXCLUDE_DEFAULT）
 	 *   pinned … [カードID…]（残りの枠に指定したカード。outsidePinnedOf）
@@ -2919,8 +2919,10 @@
 		const charas = new Set();
 		(Array.isArray(stored) ? stored : []).forEach(id => {
 			const c = typeof id === 'string' && id ? findCard(id) : null;
-			if (!c || out.indexOf(id) !== -1 || charas.has(c.charaName)) return;
-			charas.add(c.charaName);
+			// T53: グループのカードはメンバー全員で重なりを見る（outsideCharasOfCard。グループでないカードは今までと同じ charaName）
+			const names = outsideCharasOfCard(c);
+			if (!c || out.indexOf(id) !== -1 || names.some(n => charas.has(n))) return;
+			names.forEach(n => charas.add(n));
 			out.push(id);
 		});
 		return out.slice(0, Math.max(0, ROSTER_CARD_SLOTS - (typeof count === 'number' ? count : OUTSIDE_COUNT_DEFAULT)));
@@ -3021,6 +3023,36 @@
 	/** 読み上げ用の「スピード・SSR」（種別が決まらなければ種別を、SSR・SR でなければレアリティを出さない） */
 	function cardKindText(typeOrder, rarity, where) {
 		return [CARD_TYPE_ICON_KEYS[typeOrder] ? cardTypeLabelOf(typeOrder) : '', cardRarityShown(rarity, where) ? rarity : ''].filter(Boolean).join('・');
+	}
+	/**
+	 * ①の6枚のカードのタイル1枚（C-187・C-188。①の編成と、②因子周回のカードのパネル〔T53・C-262 の (3)〕で共通）。
+	 * i … 枠の番号（0 始まり）／cardId … カードID（空きは ''・null）。
+	 * o: { pickAct, pickEl, clearAct, clearEl, tileEl, nameEl, nickEl …（data-usd-act／data-usd-el の値）, emptyName（空きの名前）, emptyAria（空きの読み上げ）, selected（太い枠） }
+	 */
+	function rosterCardTileHtml(i, cardId, o) {
+		const slotCard = cardId ? findCard(cardId) : null;
+		const slotOrder = slotCard ? cardTypeOrderOf(slotCard) : null;
+		const shortLabel = !cardId ? o.emptyName : slotCard ? formatEntryShortLabel(slotCard) : '（読み込めません：' + cardId + '）';
+		const fullLabel = slotCard ? formatEntryLabel(slotCard) : shortLabel;
+		const slotKnown = cardTypeKnown(slotOrder);
+		let kind = slotCard ? cardKindText(slotOrder, slotCard.rarity, CARD_PLACE_ROSTER) : '';
+		if (cardId && !slotKnown) kind = ['種別不明'].concat(kind ? [kind] : []).join('・');   // 正常なデータでは出ない（読み込めないカード・種別が 1〜6 の外）
+		const aria = !cardId && o.emptyAria ? o.emptyAria : (i + 1) + '枚目：' + fullLabel + (kind ? '（' + kind + '）' : '');
+		const nick = slotCard && slotCard.title ? '[' + slotCard.title + ']' : '';
+		const main = (inner) => '<button type="button" class="usd-out-card-main" data-usd-act="' + o.pickAct + '" data-usd-el="' + o.pickEl + '" data-index="' + i + '" title="' + esc(fullLabel) + '" aria-label="' + esc(aria) + '">' + inner + '</button>';
+		if (!cardId) {
+			return '<div class="usd-out-card usd-roster-tile usd-roster-tile--empty" data-usd-el="' + o.tileEl + '" data-index="' + i + '" data-no="' + (i + 1) + '">'
+				+ '<span class="usd-out-card-lead"></span>'
+				+ main('<span class="usd-out-card-names"><span class="usd-out-card-name" data-usd-el="' + o.nameEl + '">' + esc(shortLabel) + '</span></span>')
+				+ '<span class="usd-out-card-side"></span></div>';
+		}
+		return '<div class="usd-out-card usd-roster-tile' + (o.selected ? ' usd-out-card--pinned' : '') + '" data-usd-el="' + o.tileEl + '" data-index="' + i + '" data-no="' + (i + 1) + '"'
+			+ (o.cardIdAttr ? ' data-card-id="' + esc(cardId) + '"' : '')
+			+ (slotOrder !== null && slotOrder !== undefined ? ' data-type-order="' + slotOrder + '"' : '') + (slotCard && slotCard.rarity ? ' data-rarity="' + esc(slotCard.rarity) + '"' : '') + '>'
+			+ '<span class="usd-out-card-lead">' + (slotKnown ? cardIconBoxHtml(slotOrder) : '') + '</span>'
+			+ main('<span class="usd-out-card-names">' + (nick ? '<span class="usd-out-card-nick" data-usd-el="' + o.nickEl + '">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="' + o.nameEl + '">' + esc(shortLabel) + '</span></span>')
+			+ '<span class="usd-out-card-side">' + (slotCard ? cardRarityIconHtml(slotCard.rarity, CARD_PLACE_ROSTER) : '')
+			+ '<span class="usd-out-card-sub usd-out-card-sub--x"><button type="button" class="usd-out-card-btn usd-out-card-x" data-usd-act="' + o.clearAct + '" data-index="' + i + '" data-usd-el="' + o.clearEl + '" aria-label="' + esc((i + 1) + '枚目を外す') + '" title="外す"><span class="usd-out-card-xg" aria-hidden="true">×</span></button></span></span></div>';
 	}
 	/* ------------------------------------------------------------
 	 * スキル → そのスキルが得られるサポートカードの逆引き（C-243。オススメサポの小窓の中のスキル名の小窓の「このスキルが得られるサポートカード」）
@@ -3685,6 +3717,12 @@
 	function outsideCommonSourceOf(charaName) {
 		return characterEventStatusOf(charaName) === 'done' ? outsideEventsOf(findCharacterEventRow(charaName), 'events') : [];
 	}
+	/** 指定のカードのキャラクター（T53）。グループのカードはメンバー全員（charactersOfCard）、それ以外は charaName の1人（グループの印が無いカードも charaName） */
+	function outsideCharasOfCard(card) {
+		if (!card) return [];
+		if (card.isGroup === true) return charactersOfCard(card);
+		return card.charaName ? [card.charaName] : [];
+	}
 
 	/**
 	 * 問題を組み立てる（母集団・候補・評価の土台・グループ）。
@@ -3700,15 +3738,22 @@
 		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
 		// 段13・C1: 残りの枠に指定したカード（pinnedCardIds）。そのカードで得られるスキルは「得られる」として扱い（探索の出発点の被覆）、
 		// 同じキャラクターのカードはオススメの候補から外す。種類の指定・友人の上限は、オススメで選ぶカードにだけ効く（指定したカードは数えない）
+		// T53（C-262 の (3)）: グループのカードも指定できる（①と同じ扱い）。キャラクターの重なりと共通イベントは、①と同じくメンバー全員（outsideCharasOfCard）で見る。
+		// グループでないカードは今までと同じ（charaName の1人）
 		const pinnedCards = [];
-		(Array.isArray(a.pinnedCardIds) ? a.pinnedCardIds : []).forEach(id => { const c = typeof id === 'string' ? findCard(id) : null; if (c && !pinnedCards.some(x => x.id === c.id || x.charaName === c.charaName)) pinnedCards.push(c); });
-		const pinnedCharas = new Set(pinnedCards.map(c => c.charaName));
+		(Array.isArray(a.pinnedCardIds) ? a.pinnedCardIds : []).forEach(id => {
+			const c = typeof id === 'string' ? findCard(id) : null;
+			if (c && !pinnedCards.some(x => x.id === c.id || outsideCharasOfCard(x).some(n => outsideCharasOfCard(c).indexOf(n) !== -1))) pinnedCards.push(c);
+		});
+		const pinnedCharas = new Set();
+		pinnedCards.forEach(c => outsideCharasOfCard(c).forEach(n => pinnedCharas.add(n)));
 		const cands = outsideCandidatesOf(roster, a.excludedCardIds).filter(c => !pinnedCharas.has(c.charaName));
 		const ancestors = outsideAncestorsFn();
 		const cardSrc = new Map(cands.concat(pinnedCards).map(c => [c.id, outsideCardSourceOf(c)]));
 		const charaOf = (c) => c.charaName;
 		const commonSrc = new Map();
-		cands.concat(pinnedCards).forEach(c => { if (!commonSrc.has(charaOf(c))) commonSrc.set(charaOf(c), outsideCommonSourceOf(charaOf(c))); });
+		cands.forEach(c => { if (!commonSrc.has(charaOf(c))) commonSrc.set(charaOf(c), outsideCommonSourceOf(charaOf(c))); });
+		pinnedCards.forEach(c => outsideCharasOfCard(c).forEach(n => { if (!commonSrc.has(n)) commonSrc.set(n, outsideCommonSourceOf(n)); }));
 		// 得られうるスキルの全体から、評価に数える金スキル（前段の鎖のどこかに母集団の白を持つもの）を集める
 		const obtainable = new Set();
 		const eachId = (events, fn) => events.forEach(ev => ev.alts.forEach(al => al.forEach(fn)));
@@ -3733,7 +3778,7 @@
 		const hasTypeMin = Object.keys(typeMin).some(k => typeMin[k] > 0);
 		const canDom = hasTypeMin ? (x, o) => x.type === o.type : (x, o) => !(x.type === OUTSIDE_FRIEND_TYPE && o.type !== OUTSIDE_FRIEND_TYPE);
 		// カードごとの選択肢。イベントごとに選択肢（部分集合になるものは落とす）の直積を取る。picks は選んだ選択肢（2つ以上あるイベントだけ）
-		const foldEvents = (opts, events, scope) => {
+		const foldEvents = (opts, events, scope, chara) => {
 			events.forEach(ev => {
 				if (ev.alts.length === 1) {
 					const am = mk(ev.alts[0]);
@@ -3744,7 +3789,7 @@
 				if (alts.every(x => outsideMaskPop(x.m) === 0)) return;
 				const next = [];
 				opts.forEach(o => alts.forEach(x => next.push(Object.assign({}, o, { m: outsideMaskOr(o.m, x.m),
-					picks: outsideMaskPop(x.m) > 0 ? o.picks.concat([{ scope: scope, eventIndex: ev.idx, choiceIndex: x.ci }]) : o.picks }))));
+					picks: outsideMaskPop(x.m) > 0 ? o.picks.concat([Object.assign({ scope: scope, eventIndex: ev.idx, choiceIndex: x.ci }, chara ? { chara: chara } : {})]) : o.picks }))));
 				opts = outsidePareto(next, canDom);
 			});
 			return opts;
@@ -3775,7 +3820,9 @@
 		pinnedCards.forEach(c => {
 			const src = cardSrc.get(c.id);
 			let opts = foldEvents([{ m: mk(src.hint), card: c.id, ssr: 0, picks: [], type: null }], src.events, 'card');
-			opts = foldEvents(opts, commonSrc.get(c.charaName) || [], 'chara');
+			// T53: グループのカードは、メンバーごとの共通イベント（選んだ選択肢にはキャラクター名 chara を付ける）。グループでないカードは今までと同じ
+			if (c.isGroup === true) outsideCharasOfCard(c).forEach(n => { opts = foldEvents(opts, commonSrc.get(n) || [], 'chara', n); });
+			else opts = foldEvents(opts, commonSrc.get(c.charaName) || [], 'chara');
 			const next = [];
 			bases.forEach(b => opts.forEach(o => next.push({ m: outsideMaskOr(b.m, o.m), picks: b.picks.concat(o.picks.map(p => Object.assign({ card: c.id }, p))) })));
 			bases = outsidePareto(next);
@@ -3939,10 +3986,11 @@
 		const pinned = prob.pinned || [];
 		const pinnedIds = pinned.map(c => c.id);
 		const cardBy = new Map(prob.cands.concat(pinned).map(c => [c.id, c]));
-		const used = new Set(chosen.map(o => cardBy.get(o.card).charaName).concat(pinned.map(c => c.charaName)));
+		const used = new Set(chosen.map(o => cardBy.get(o.card).charaName));
+		pinned.forEach(c => outsideCharasOfCard(c).forEach(n => used.add(n)));   // T53: グループのカードはメンバー全員
 		const picksOf = new Map(chosen.map(o => [o.card, o.picks || []]));
 		const base = (prob.bases && prob.bases[search && search.base ? search.base : 0]) || { picks: [] };
-		pinnedIds.forEach(id => picksOf.set(id, base.picks.filter(p => p.card === id).map(p => ({ scope: p.scope, eventIndex: p.eventIndex, choiceIndex: p.choiceIndex }))));
+		pinnedIds.forEach(id => picksOf.set(id, base.picks.filter(p => p.card === id).map(p => Object.assign({ scope: p.scope, eventIndex: p.eventIndex, choiceIndex: p.choiceIndex }, p.chara ? { chara: p.chara } : {}))));
 		const order = chosen.map(o => o.card);
 		const typeOfCard = (id) => cardTypeOrderOf(cardBy.get(id));
 		const need = [];
@@ -4102,7 +4150,7 @@
 	}
 
 	/**
-	 * 組み合わせを探す。args: { roster, addedSkillIds, count（4・5・6）, typeMin（{ 種類: 枚数 }）, filter（{ 軸: [値…] }）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
+	 * 組み合わせを探す。args: { roster, addedSkillIds, count（1〜6）, typeMin（{ 種類: 枚数 }）, filter（{ 軸: [値…] }）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
 	 * count・typeMin・filter は、無ければセットの指定（roster.outsideOptions。それも無ければ5枚・指定なし）。
 	 * 非同期版 outsideSolve は区切りごとに画面へ譲り、締め切りに達したら、そのときの最良に partial:true を付けて返す。
 	 * 結果の形は outsideAssemble を参照。元データが読めていないときは { ok:false, reason }。
@@ -7547,6 +7595,15 @@
 		'.usd-setbody .usd-ptneed { padding: 0; background: transparent; border: 0; border-radius: 0; }',
 		// C-244: 合計の行と入口の行の間の絞り込みの選択欄（中身は①の .usd-roster-filterrow と同じ部品・同じ見た目）
 		'.usd-factor-filter { min-width: 0; }',
+		// T53（C-262 の (3)）: ②のカードのパネル（①の .usd-roster-lower／.usd-roster-sub／.usd-roster-slots と同じ部品。モック lab/factor-mock.html の形）。
+		// 育成ウマ娘の枠は無い。①が2段組みになる 720px 以上だけ、①の育成ウマ娘の枠と同じ位置・大きさの空白の領域（何も描かない）。719px 以下は置かない
+		'.usd-factor-cards { min-width: 0; }',
+		'.usd-factor-cards[hidden] { display: none; }',
+		'.usd-factor-cards .usd-roster-lower { padding: 0; }',
+		'.usd-factor-cards .usd-factor-cards-blank { display: none; }',
+		'@media (min-width: 720px) { .usd-factor-cards .usd-factor-cards-blank { display: flex; visibility: hidden; } }',
+		// 719px 以下は空白の領域を出さないので、隣の枠の上の余白（≤640px の .usd-roster-lower .usd-roster-sub + .usd-roster-sub）も当てない（後ろの規則より強い形にする）
+		'@media (max-width: 719px) { .usd-factor-cards .usd-roster-lower .usd-factor-cards-blank + .usd-roster-sub { margin-top: 0; } }',
 		'.usd-bandbox { background: var(--uma-band); border-radius: 10px; padding: 8px 10px; }',
 		'.usd-band-sum { display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--uma-text-heading); }',
 		'.usd-band-pt { font-size: 22px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }',
@@ -12755,7 +12812,8 @@
 				.filter(e => !type || cardTypeOf(e) === type)
 				.filter(e => !query || normalizeSkillText(formatEntryLabel(e)).indexOf(query) !== -1)
 				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1,
-					sameChara: !!ext && used.indexOf(e.id) === -1 && ext.charas.indexOf(e.charaName) !== -1,
+					// T53: ②のカードのパネルから開いたとき（ext.members）は、グループのカードのメンバー全員で重なりを見る（①と同じ）
+					sameChara: !!ext && used.indexOf(e.id) === -1 && (ext.members ? outsideCharasOfCard(e).some(n => ext.charas.indexOf(n) !== -1) : ext.charas.indexOf(e.charaName) !== -1),
 					typeOrder: kind === 'card' ? cardTypeOrderOf(e) : null, rarity: kind === 'card' ? e.rarity : '' }));
 		}
 
@@ -12928,31 +12986,11 @@
 			h += '<div class="usd-roster-sub"><div class="usd-roster-slots" data-usd-el="card-slots">';
 			// ①の6枚は、②のオススメサポの小窓のカードと同じタイル（無彩色の面・2px の縁・種別アイコン・名前12px〔2列表示は11px〕・二つ名10px〔同9px〕・×）。番号の丸バッジと種類色の塗りは使わない。
 			// レアリティの印は SR だけ（SSR の印は出さない）。空きの枠は破線の「サポカを選ぶ」
+			// T53: タイルは②因子周回のカードのパネルと共通の部品（rosterCardTileHtml。描く中身は今までと同じ）
 			for (let i = 0; i < ROSTER_CARD_SLOTS; i++) {
-				const cardId = roster.cardIds[i];
-				const slotCard = cardId ? findCard(cardId) : null;
-				const slotOrder = slotCard ? cardTypeOrderOf(slotCard) : null;
-				const fullLabel = fullLabelOfCard(i);
-				const slotKnown = cardTypeKnown(slotOrder);
-				let kind = slotCard ? cardKindText(slotOrder, slotCard.rarity, CARD_PLACE_ROSTER) : '';
-				if (cardId && !slotKnown) kind = ['種別不明'].concat(kind ? [kind] : []).join('・');   // 正常なデータでは出ない（読み込めないカード・種別が 1〜6 の外）
-				const aria = (i + 1) + '枚目：' + fullLabel + (kind ? '（' + kind + '）' : '');
-				const nick = slotCard && slotCard.title ? '[' + slotCard.title + ']' : '';
-				const main = (inner) => '<button type="button" class="usd-out-card-main" data-usd-act="pick-card" data-usd-el="pick-card" data-index="' + i + '" title="' + esc(fullLabel) + '" aria-label="' + esc(aria) + '">' + inner + '</button>';
-				if (!cardId) {
-					h += '<div class="usd-out-card usd-roster-tile usd-roster-tile--empty" data-usd-el="roster-tile" data-index="' + i + '" data-no="' + (i + 1) + '">'
-						+ '<span class="usd-out-card-lead"></span>'
-						+ main('<span class="usd-out-card-names"><span class="usd-out-card-name" data-usd-el="roster-tile-name">' + esc(labelOfCard(i)) + '</span></span>')
-						+ '<span class="usd-out-card-side"></span></div>';
-					continue;
-				}
 				// 段G(6): ①のタイルは通常は細い枠。太い枠（--pinned）は、いま選んでいる（カードの選択の窓を開いている）タイルだけ
-				h += '<div class="usd-out-card usd-roster-tile' + (picking && picking.kind === 'card' && picking.index === i ? ' usd-out-card--pinned' : '') + '" data-usd-el="roster-tile" data-index="' + i + '" data-no="' + (i + 1) + '"'
-					+ (slotOrder !== null && slotOrder !== undefined ? ' data-type-order="' + slotOrder + '"' : '') + (slotCard && slotCard.rarity ? ' data-rarity="' + esc(slotCard.rarity) + '"' : '') + '>'
-					+ '<span class="usd-out-card-lead">' + (slotKnown ? cardIconBoxHtml(slotOrder) : '') + '</span>'
-					+ main('<span class="usd-out-card-names">' + (nick ? '<span class="usd-out-card-nick" data-usd-el="roster-tile-nick">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="roster-tile-name">' + esc(labelOfCard(i)) + '</span></span>')
-					+ '<span class="usd-out-card-side">' + (slotCard ? cardRarityIconHtml(slotCard.rarity, CARD_PLACE_ROSTER) : '')
-					+ '<span class="usd-out-card-sub usd-out-card-sub--x"><button type="button" class="usd-out-card-btn usd-out-card-x" data-usd-act="clear-card" data-index="' + i + '" data-usd-el="clear-card" aria-label="' + esc((i + 1) + '枚目を外す') + '" title="外す"><span class="usd-out-card-xg" aria-hidden="true">×</span></button></span></span></div>';
+				h += rosterCardTileHtml(i, roster.cardIds[i], { pickAct: 'pick-card', pickEl: 'pick-card', clearAct: 'clear-card', clearEl: 'clear-card', tileEl: 'roster-tile',
+					nameEl: 'roster-tile-name', nickEl: 'roster-tile-nick', emptyName: labelOfCard(i), selected: !!(picking && picking.kind === 'card' && picking.index === i) });
 			}
 			h += '</div></div>';
 			h += '</div>';
@@ -13696,7 +13734,7 @@
 		};
 		/**
 		 * 「種類」「除外」「枚数」と残りの枠の指定（④・段10・段13。roster.outsideOptions）。patch に入れた項目だけを置き換える
-		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／exclude: { 軸: [値…] }／pinned: [カードID…]）。既定と同じ（5枚・空・除外は初期値）なら、その項目を消し、全部消えたら項目ごと消す。
+		 * （count: 1〜6／typeMin: { 種類の番号: 枚数 }／exclude: { 軸: [値…] }／pinned: [カードID…]）。既定と同じ（5枚・空・除外は初期値）なら、その項目を消し、全部消えたら項目ごと消す。
 		 * 中身が変わらなければ書かない。①の表には効かないので、①は描き直さない。
 		 */
 		rosterOutsideSink.setOptions = function (patch) {
@@ -13754,10 +13792,12 @@
 		 * オススメサポの残りの枠のカードを選ぶ（段13・C1）。①のカード選択の小窓と同じ部品を、オススメサポの小窓の上に出す。
 		 * o.used … 指定済みのカードID（「この編成に入っています」）／o.charas … 同じキャラクターを選べないキャラクター名／o.onPick(cardId) … 選んだとき。
 		 * ①の編成には書かない（選んだIDを返すだけ）。
+		 * T53（②のカードのパネル）: o.members … true なら同じキャラクターの判定をグループのメンバー全員で見る（①の判定と同じ）。
 		 */
 		rosterOutsideSink.pickCard = function (o) {
 			const x = o || {};
-			picking = { kind: 'card', index: -1, external: { used: (x.used || []).slice(), charas: (x.charas || []).slice(), onPick: typeof x.onPick === 'function' ? x.onPick : null } };
+			picking = { kind: 'card', index: -1, external: { used: (x.used || []).slice(), charas: (x.charas || []).slice(), onPick: typeof x.onPick === 'function' ? x.onPick : null,
+				members: !!x.members } };
 			pickQuery = ''; pickType = '';
 			pickFocusOnce = openedByMouse();
 			render(); renderHits();
@@ -14110,6 +14150,12 @@
 			filterEl.setAttribute('data-usd-el', 'factor-filter');
 			filterEl.hidden = true;
 			body.insertBefore(filterEl, group);
+			// T53（C-262 の (3)）: 合計の行と距離／脚質／バ場の行の間に、①と同じ様式のサポートカード6枚のパネル（育成ウマ娘の枠は無い）。中身は renderFactorCards()
+			const cardsEl = global.document.createElement('div');
+			cardsEl.className = 'usd-roster usd-factor-cards';
+			cardsEl.setAttribute('data-usd-el', 'factor-cards');
+			cardsEl.hidden = true;
+			body.insertBefore(cardsEl, filterEl);
 			// C-235: 合計の行と入口の行の文字の段（入らない幅だけ小さくする）。描き直しと幅の変化（タブを開いて見えたときを含む）で測り直す
 			if (typeof ResizeObserver === 'function') {
 				new ResizeObserver(() => fitSetHead()).observe(q(container, 'pt-need'));
@@ -14186,6 +14232,9 @@
 			// 入口の行の右端の「削除」（段9 のパレットの名残。C-226 でアイコンは無くした）
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
+			// T53（C-262 の (3)）: ②のカードのパネル。名前・空きの枠で①と同じカード選択の小窓、× で外す
+			else if (act === 'factor-card-pick' && setBased) pickFactorCard(Number(btn.getAttribute('data-index')));
+			else if (act === 'factor-card-clear' && setBased) clearFactorCard(Number(btn.getAttribute('data-index')));
 			// T52（C-262 の (2)）: 合計の行の「X種」「LvX」。押すたびに1つ増える（最大の次は最小）。描き直したあとも同じ部品にフォーカスを戻す
 			else if (act === 'uniq-count-next' || act === 'uniq-level-next' || act === 'pt-parent-level-next') {
 				const v = Number(btn.getAttribute('data-next'));
@@ -15468,9 +15517,84 @@
 			el.hidden = false;
 			if (axis) focusNoScroll(el.querySelector('select[data-axis="' + axis + '"]'));
 		}
+		/**
+		 * ②因子周回のサポートカード6枚のパネル（T53・C-262 の (3)。モック lab/factor-mock.html の形）。①のカードのタイルと同じ部品（rosterCardTileHtml）で、
+		 * 中身は同じセットの①に保存してあるカード（roster.outsideOptions.cards。②の星取表の列と同じ並び。空きは後ろ）。育成ウマ娘の枠は無く、
+		 * ①が2段組みになる幅（720px 以上）だけ、①の育成ウマ娘の枠と同じ位置・大きさの空白の領域を置く（何も描かない・押せない。CSS）。
+		 * 描く中身が変わらなければ描き直さない
+		 */
+		let factorCardsHtml = '';
+		function renderFactorCards() {
+			const el = q(container, 'factor-cards');
+			if (!el) return;
+			if (!rosterOutsideSink || typeof rosterOutsideSink.pickCard !== 'function') { el.hidden = true; el.innerHTML = ''; factorCardsHtml = ''; return; }
+			const cards = outsideOptionsOf(linkedRosterOf(currentTarget()) || {}).cards;
+			let tiles = '';
+			for (let i = 0; i < ROSTER_CARD_SLOTS; i++) {
+				tiles += rosterCardTileHtml(i, cards[i] || '', { pickAct: 'factor-card-pick', pickEl: 'factor-card-pick', clearAct: 'factor-card-clear', clearEl: 'factor-card-clear', tileEl: 'factor-card-tile',
+					nameEl: 'factor-card-name', nickEl: 'factor-card-nick', emptyName: 'サポートカード', emptyAria: (i + 1) + '枚目：サポートカードを選ぶ', cardIdAttr: true });
+			}
+			const html = '<div class="usd-roster-lower"><div class="usd-roster-sub usd-factor-cards-blank" data-usd-el="factor-cards-blank" aria-hidden="true"></div>'
+				+ '<div class="usd-roster-sub"><div class="usd-roster-slots" data-usd-el="factor-card-slots" role="group" aria-label="②因子周回のサポートカード">' + tiles + '</div></div></div>';
+			if (html === factorCardsHtml && !el.hidden) return;
+			factorCardsHtml = html;
+			el.innerHTML = html;
+			el.hidden = false;
+		}
+		/**
+		 * ②のパネルのカードを直接選ぶ（T53）。①のカード選択の小窓（rosterOutsideSink.pickCard。オススメサポの残りの枠と同じ一覧＝SSR・SR）を開く。
+		 * 選べないもの: ①と同じカード・②のほかの枠のカードと同じキャラクター（グループのカードはメンバー全員で見る）・育成ウマ娘と同じキャラクター（選ぶ小窓が知らせる）。
+		 * ①と同じキャラクターの別のカードは選べる（オススメサポの候補と同じ決まり）
+		 */
+		function pickFactorCard(index) {
+			if (!rosterOutsideSink || typeof rosterOutsideSink.pickCard !== 'function') return;
+			const r = rosterOutsideSink.getRoster();
+			const cards = outsideOptionsOf(r).cards;
+			const others = cards.filter((id, k) => k !== index);
+			const charas = [];
+			others.forEach(id => outsideCharasOfCard(findCard(id)).forEach(n => { if (charas.indexOf(n) === -1) charas.push(n); }));
+			rosterOutsideSink.pickCard({ used: ((r && r.cardIds) || []).filter(Boolean).concat(others), charas: charas, members: true, onPick: (id) => setFactorCard(index, id) });
+		}
+		/**
+		 * ②のパネルの枠 index にカード id を入れる（T53・C-262 の (3)）。直接選んだカードは残りの枠の指定（outsideOptions.pinned）にまとめ、
+		 * 列のカード（outsideOptions.cards）のその位置に入れる（空きなら後ろに足す）。②のスキルは変えない（星取表の列と除外の段だけが変わる）。
+		 * 指定の枚数が増えて「6 − 指定の枚数」を枚数が超えるときは、枚数をそこまで下げる（C-262 の (4)。枚数は 1 より下げないので、指定は5枚まで。6枚目は列のカードだけに入る）
+		 */
+		function setFactorCard(index, id) {
+			const r = rosterOutsideSink.getRoster();
+			const opt = outsideOptionsOf(r);
+			const cards = opt.cards.slice();
+			const old = cards[index] || '';
+			if (old !== id) {
+				if (index < cards.length) cards[index] = id; else cards.push(id);
+				const pinned = opt.pinned.filter(x => x !== old && x !== id);
+				if (pinned.length < ROSTER_CARD_SLOTS - OUTSIDE_COUNT_CHOICES[0]) pinned.push(id);
+				const patch = { cards: cards, pinned: pinned };
+				const cap = ROSTER_CARD_SLOTS - pinned.length;
+				if (opt.count > cap) patch.count = cap;
+				rosterOutsideSink.setOptions(patch);
+				afterFactorCardsChange();
+			}
+			focusNoScroll(container.querySelector('[data-usd-el="factor-card-pick"][data-index="' + Math.min(cards.indexOf(id), ROSTER_CARD_SLOTS - 1) + '"]'));
+		}
+		/** ②のパネルの × （T53）。そのカードを列のカードと指定から外す（後ろの枠は詰める）。枚数は変えない。②のスキルは変えない */
+		function clearFactorCard(index) {
+			if (!rosterOutsideSink) return;
+			const opt = outsideOptionsOf(rosterOutsideSink.getRoster());
+			const old = opt.cards[index];
+			if (!old) return;
+			rosterOutsideSink.setOptions({ cards: opt.cards.filter((x, k) => k !== index), pinned: opt.pinned.filter(x => x !== old) });
+			afterFactorCardsChange();
+			focusNoScroll(container.querySelector('[data-usd-el="factor-card-pick"][data-index="' + index + '"]'));
+		}
+		/** ②のカードを変えたあと: パネルと、カードから作るもの（星取表の列・印・除外の段・マーカー）を描き直す */
+		function afterFactorCardsChange() {
+			renderFactorCards();
+			renderSelectedList();
+		}
 		function renderPtNeed() {
 			// C-244: 選択欄は Pt のデータの読み込みに関係なく出す
-			if (setBased) renderFactorFilter();
+			if (setBased) { renderFactorCards(); renderFactorFilter(); }
 			const el = q(container, 'pt-need');
 			if (!el) return;
 			// 段8: 帯の合計も同じ数字から出すので、ここで描き直す（継承固有・ヒントLv・ランクの ON/OFF の変更でも追随する）
@@ -16572,7 +16696,7 @@
 			const c = r && r.ok ? r.cards.find(x => x.cardId === cardId) : null;
 			const label = card ? formatEntryLabel(card) : cardId;
 			const eventChoices = {};
-			if (c && card) c.picks.forEach(pk => { eventChoices[(pk.scope === 'chara' ? 'chara:' + card.charaName : 'card:' + cardId) + '#' + pk.eventIndex] = pk.choiceIndex; });
+			if (c && card) c.picks.forEach(pk => { eventChoices[(pk.scope === 'chara' ? 'chara:' + (pk.chara || card.charaName) : 'card:' + cardId) + '#' + pk.eventIndex] = pk.choiceIndex; });
 			const wanted = filterPredicateOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
 			const res = computeRosterSkills({ cardIds: [cardId] }, { eventChoices: eventChoices, autoChoose: true, isWanted: wanted });
 			const m = res.members.find(x => x.kind === 'card' && x.label);
@@ -16607,7 +16731,7 @@
 			} });
 		}
 		/**
-		 * 「5枚 ▾」の選択欄（④・段10）。4枚・5枚・6枚の3つのチップ。押したらすぐ閉じ、セットの指定（roster.outsideOptions.count）に書いて計算し直す。
+		 * 「5枚 ▾」の選択欄（④・段10）。1〜6枚の6つのチップ（T53 で 1〜3 を足した）。押したらすぐ閉じ、セットの指定（roster.outsideOptions.count）に書いて計算し直す。
 		 * 種類の指定の合計より少ない枚数は選べない（押せない）。段13・C1: 指定したカードの枚数を残りの枠が下回る枚数も選べない。
 		 */
 		function openOutsideCountPopover(btn) {
@@ -16953,11 +17077,16 @@
 			if (ids.length === 0) return;
 			// C-225: 提案のカードを、このセットの①（roster.outsideOptions.cards）に保存する（②の星取表の列と無効の段の材料）。書くのはここ（「追加」）だけで、計算が終わるたびには書かない。
 			// 並びは小窓のカードの並び（増分の順。指定したカードは除く）のあとに、残りの枠に指定したカード（枠の順）。前の保存は置き換える
+			// T53（C-262 の (3)）: 「元に戻す」でカードも戻すので、書く前のカードを覚えておく
+			let cardsBefore = null, cardsWritten = null;
 			if (rosterOutsideSink) {
-				const pinnedNow = outsideOptionsOf(rosterOutsideSink.getRoster()).pinned;
+				const optNow = outsideOptionsOf(rosterOutsideSink.getRoster());
+				const pinnedNow = optNow.pinned;
 				const by = new Map(r.cards.map(c => [c.cardId, c]));
 				const order = (r.kindOrder || r.cards.map(c => c.cardId)).filter(id => by.has(id) && !by.get(id).pinned);
+				cardsBefore = optNow.cards.slice();
 				rosterOutsideSink.setOptions({ cards: order.concat(pinnedNow.filter(id => by.has(id))) });
+				cardsWritten = outsideOptionsOf(rosterOutsideSink.getRoster()).cards;
 			}
 			const sink = pickerSinkFor(currentTarget(), 'list');
 			const baseline = sink.probe();
@@ -16971,7 +17100,14 @@
 					notice: 'オススメサポ ' + added.length + '種を追加しました',
 					undoneLabel: '追加した' + added.length + '種を取り消しました',
 					probe: () => sink.probe(),
-					apply: () => sink.remove(added.slice())
+					apply: () => {
+						// T53: カード（outsideOptions.cards）も「追加」の前に戻す。追加のあとにパネルでカードを変えていたら、カードは今のまま（スキルだけ戻す）
+						if (rosterOutsideSink && cardsBefore && JSON.stringify(outsideOptionsOf(rosterOutsideSink.getRoster()).cards) === JSON.stringify(cardsWritten)) {
+							rosterOutsideSink.setOptions({ cards: cardsBefore });
+							renderFactorCards();
+						}
+						return sink.remove(added.slice());
+					}
 				});
 			}
 		}

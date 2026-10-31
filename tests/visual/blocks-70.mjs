@@ -299,12 +299,13 @@ export async function register70(env) {
 			const r = await sp.page.evaluate((T) => {
 				const R = (s) => { const b = document.querySelector(T + s).getBoundingClientRect(); return { t: b.top, b: b.bottom, h: b.height, l: b.left, r: b.right }; };
 				const sels = Array.from(document.querySelectorAll(T + '[data-usd-el="factor-filter"] select')).map((s) => s.getBoundingClientRect());
-				return { band: R('[data-usd-el="set-head"]'), filter: R('[data-usd-el="factor-filter"]'), group: R('[data-usd-el="skill-group"]'), head: R('.usd-skillgroup-head'),
+				return { band: R('[data-usd-el="set-head"]'), cards: R('[data-usd-el="factor-cards"]'), filter: R('[data-usd-el="factor-filter"]'), group: R('[data-usd-el="skill-group"]'), head: R('.usd-skillgroup-head'),
 					selH: sels.map((b) => Math.round(b.height)), oneLine: sels.every((b) => Math.abs(b.top - sels[0].top) < 0.5), hx: document.documentElement.scrollWidth > innerWidth + 1 };
 			}, T);
 			assert(Math.round(r.band.h) === band && Math.round(r.head.h) === head, tag + '合計の帯 ' + band + '・入口の行 ' + head + '（変更前と同じ）', { band: r.band.h, head: r.head.h });
-			assert(Math.round(r.filter.h) === 28 && r.selH.every((x) => x === 28) && r.oneLine && Math.round(r.filter.t - r.band.b) === 8 && Math.round(r.group.t - r.filter.b) === 8,
-				tag + '選択欄は帯と白い枠の間・1行・高さ28・上下の間 8', { filter: r.filter, band: r.band.b, group: r.group.t, sel: r.selH });
+			// T53（C-262 の (3)）: 帯と選択欄の間に②のカードのパネルが入った（帯 → パネル → 選択欄 → 白い枠。間はどれも 8）
+			assert(Math.round(r.filter.h) === 28 && r.selH.every((x) => x === 28) && r.oneLine && Math.round(r.cards.t - r.band.b) === 8 && Math.round(r.filter.t - r.cards.b) === 8 && Math.round(r.group.t - r.filter.b) === 8,
+				tag + '選択欄はカードのパネルと白い枠の間（帯 → パネル → 選択欄 → 白い枠。T53）・1行・高さ28・間はどれも 8', { cards: r.cards, filter: r.filter, band: r.band.b, group: r.group.t, sel: r.selH });
 			assert(!r.hx, tag + '横スクロールなし');
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

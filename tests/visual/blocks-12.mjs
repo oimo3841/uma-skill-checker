@@ -608,7 +608,7 @@ export async function register12(env) {
 		assert((await countOf(sp.page)) === 5, 'オススメサポ④段10 指定の無いセットは5枚から', await countOf(sp.page));
 		await sp.page.click(M + '[data-usd-el="outside-count-btn"]');
 		const chips = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-count-list"] button')).map((b) => ({ t: b.textContent, on: b.getAttribute('aria-pressed') === 'true', dis: b.disabled })));
-		assert(chips.map((c) => c.t).join() === '4枚,5枚,6枚' && chips.map((c) => c.on).join() === 'false,true,false' && chips.every((c) => !c.dis), 'オススメサポ④段10 選択欄は「4枚」「5枚」「6枚」の3つで、いまの枚数に印', chips);
+		assert(chips.map((c) => c.t).join() === '1枚,2枚,3枚,4枚,5枚,6枚' && chips.map((c) => c.on).join() === 'false,false,false,false,true,false' && chips.every((c) => !c.dis), 'オススメサポ④段10→T53 選択欄は「1枚」〜「6枚」の6つ（T53・C-262 の (4)）で、いまの枚数に印', chips);
 		await sp.page.click('[data-usd-el="outside-count-list"] [data-usd-el="outside-count-4"]');
 		const closed = await sp.page.evaluate(() => { const l = document.querySelector('[data-usd-el="outside-count-list"]'); return !l || !l.offsetParent; });
 		await settle(sp.page);
@@ -621,7 +621,7 @@ export async function register12(env) {
 		await open(sp.page);
 		await sp.page.click(M + '[data-usd-el="outside-count-btn"]');
 		const chips2 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-count-list"] button')).map((b) => b.disabled));
-		assert(chips2.join() === 'true,false,false', 'オススメサポ④段10 種類の指定の合計（5枚）より少ない「4枚」は押せない', chips2);
+		assert(chips2.join() === 'true,true,true,true,false,false', 'オススメサポ④段10→T53 種類の指定の合計（5枚）より少ない「1枚」〜「4枚」は押せない', chips2);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段10 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});

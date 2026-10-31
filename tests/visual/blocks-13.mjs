@@ -496,7 +496,7 @@ export async function register13(env) {
 		// 枚数: 指定が1枚なら 6枚は選べない
 		await sp.page.click(M + '[data-usd-el="outside-count-btn"]');
 		const chips = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-count-list"] button')).map((b) => b.disabled));
-		assert(chips.join() === 'false,false,true', 'オススメサポ段13C1 指定が1枚のとき、枚数は 4・5 まで（6枚は押せない）', chips);
+		assert(chips.join() === 'false,false,false,false,false,true', 'オススメサポ段13C1→T53 指定が1枚のとき、枚数は 1〜5 まで（6枚は押せない。T53 で 1〜3 を足した）', chips);
 		await sp.page.keyboard.press('Escape');
 		// 追加: 指定したカードのスキル（母集団に入るもの）も入る。①の本育成のスキルは入らない
 		const r = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); return Array.from(m.querySelectorAll('[data-usd-el="outside-check"]')).map((i) => i.value); });

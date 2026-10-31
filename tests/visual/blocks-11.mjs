@@ -255,7 +255,7 @@ export async function register11(env) {
 		const sp = await openSp({ roster: FULL });
 		const d0 = await sp.page.evaluate(() => ({ choices: UmaSkillDeckCore.outside.COUNT_CHOICES, def: UmaSkillDeckCore.outside.COUNT_DEFAULT }));
 		const def = await solveIn(sp.page, { roster: {}, addedSkillIds: [] });
-		assert(d0.def === 5 && d0.choices.join() === '4,5,6' && def.count === 5 && def.cards.length === 5, 'オススメサポ(B) 既定の枚数は5枚（count も指定も無い計算が5枚）・選択肢は4・5・6', { d0, count: def.count, n: def.cards.length });
+		assert(d0.def === 5 && d0.choices.join() === '1,2,3,4,5,6' && def.count === 5 && def.cards.length === 5, 'オススメサポ(B)→T53 既定の枚数は5枚（count も指定も無い計算が5枚）・選択肢は1〜6（T53・C-262 の (4) で 1〜3 を足した）', { d0, count: def.count, n: def.cards.length });
 		const raw0 = { ud: await rawUd(sp.page), sc: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special')) };
 		await open(sp.page);
 		const a = await snap(sp.page);

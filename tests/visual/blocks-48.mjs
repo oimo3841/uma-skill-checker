@@ -81,7 +81,8 @@ export async function register48(env) {
 			// C-244: 合計の行と入口の行の間に②の絞り込みの選択欄が入った。選択欄が見えていると、Chromium がボタンの文字を描く画素が変わる
 			// （ボタンの位置・計算された見た目は同じ。選択欄を visibility: hidden にして同じ位置で撮ると、変更前と全画素が一致することを確かめた）。
 			// ボタン自身の画素を 0530272 と比べるため、切り出す間だけ選択欄を見えなくする（場所は取ったまま）
-			await sp.page.addStyleTag({ content: '#deck-template-panel [data-usd-el="factor-filter"] { visibility: hidden; }' });
+			// T53（C-262 の (3)）: 合計の行と選択欄の間に②のカードのパネルが入った。同じ理由で、切り出す間だけパネルも見えなくする（場所は取ったまま）
+			await sp.page.addStyleTag({ content: '#deck-template-panel [data-usd-el="factor-filter"], #deck-template-panel [data-usd-el="factor-cards"] { visibility: hidden; }' });
 			const ph = await cropHash(sp.page, SEL.outside);
 			// ②因子周回 段1（2026-10-27）: ボタンの上端が整数の位置にあるときは、0530272 で上端を整数の位置にそろえて測った値（pixelSha256IntY）と比べる
 			// （0530272 の 390・360px は上端が小数の位置で、にじみの分だけ画素が違う。値の出どころは f0-baseline-0530272.json の _noteIntY）

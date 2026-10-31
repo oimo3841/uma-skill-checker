@@ -110,6 +110,7 @@ import { register80 } from './blocks-80.mjs';
 import { register81 } from './blocks-81.mjs';
 import { register82 } from './blocks-82.mjs';
 import { register83 } from './blocks-83.mjs';
+import { register84 } from './blocks-84.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15522,6 +15523,8 @@ await register81({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register82({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T52（2026-11-01）: ②因子周回の調和の前半（合計の行・並べ替えの入口・除外の段の＋の位置。見出しは「T52②因子周回の前半」）
 await register83({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T53（2026-11-01）: ②因子周回の調和の後半（カードのパネル・オススメサポの枚数 1〜6。見出しは「T53②因子周回の後半」）
+await register84({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
