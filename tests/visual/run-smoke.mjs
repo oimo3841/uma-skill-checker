@@ -8611,9 +8611,11 @@ await block('special と exam の操作感を揃える（59セッション目・
 		return { off: off, w: on.width, h: on.height, white: white, note: note, red: red, total: d.length / 4 };
 	});
 	assert(legend.off === null, '段3: 印を1つも付けていなければ凡例の帯を置かない', legend.off);
-	assert(legend.w === 1200 && legend.h > 0, '段3: 帯は結合画像と同じ幅で作られる', { w: legend.w, h: legend.h });
-	assert(legend.white > legend.total * 0.8, '段3: 帯の地は白', legend);
-	assert(legend.note > 100, '段3: 説明文が補助テキストの色（#555555）で入っている', legend.note);
+	// T36: 凡例は1行（高さ 40）。幅は中身に詰める（渡した幅は上限）。断りの文は無くなったので、色は見出しと種類の名前で見る
+	assert(legend.w > 0 && legend.w <= 1200 && legend.h === 40, '段3 → T36: 帯は1行（高さ 40）で、渡した幅（1200）を超えない', { w: legend.w, h: legend.h });
+	// T36: 1行の帯は中身に詰めた幅なので白の割合が下がる（実測 953×40 で 72.7%。3行＋断りの帯は 80% 超）
+	assert(legend.white > legend.total * 0.6, '段3: 帯の地は白', legend);
+	assert(legend.note > 100, '段3 → T36: 見出し・種類の名前が補助テキストの色（#555555）で入っている', legend.note);
 	assert(legend.red > 0, '段3 → 段5(C-227): 周回サポカの枠の見本が枠の色（#008070）で入っている', legend.red);
 
 	/* C-63 の (7): 分類の印が付くのは「OCR処理＋画像結合を開始する」からだけ。

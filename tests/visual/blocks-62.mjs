@@ -7,7 +7,8 @@
 //    位置の比は行の間隔（step）基準（上端 cy−0.295 step・下端 cy+0.42 step・左端 colX−0.67 step・右端は次の列の左端 −0.67−0.10 step）。
 //  ・枠の色: 周回サポカ #008070／サポカ外 #9C6A00／その他 #7A3FB0。塗り（薄め・乗算）: #E2F6F0／#FFF6CD／#F0E6FA。
 //    塗りはパネルの内側の白・灰色の地だけ（文字・丸のアイコン・★の黄は元の色）。パネルの外の隙間は塗らない。
-//  ・凡例（D9）: 見出し「枠の見かた：」・3行をいつも全部・断りの1行。「遺伝子」の語を使わない。枠0 なら帯なし。
+//  ・凡例（D9）: 見出し「枠の見かた：」・3種をいつも全部。「遺伝子」の語を使わない。枠0 なら帯なし。
+//    T36 から1行（3種を横に並べる）・断りの文なし（それまでは3行＋断りの1行）。
 //  ・D7: 結合画像の ◎○▲・◆◇ は描かない。
 // 合成の画像（灰色のパネル・茶の文字・黄の★・青紫の丸）で、位置と色を画素で確かめる。スキル名は検査の側に書かない（恒久ルール1）。
 
@@ -204,23 +205,17 @@ export async function register62(env) {
 		await ctx.close();
 	});
 
-	await block('結合画像の枠(4) 凡例: 見出し「枠の見かた：」・3行（周回サポカ・サポカ外・その他）をいつも全部・断りの1行・「遺伝子」の語なし・帯の骨格は stitch.js／枠が0 なら帯を置かない（結合画像はスキルパネルだけ）', async () => {
+	// T36（おいもさんの決定）: 凡例は1行（「枠の見かた：」＋3種）。断りの文（「枠の無いパネルは…」「数字は★の数…」）は無し。
+	// それまでは stitch.js の帯の骨格（stitchDrawNoteBar）で3行＋断りの1行だった
+	await block('結合画像の枠(4) 凡例: 1行に「枠の見かた：」＋3種（周回サポカ・サポカ外・その他）をいつも全部・断りの文なし・「遺伝子」の語なし／枠が0 なら行を置かない（結合画像はスキルパネルだけ）', async () => {
 		const { ctx, page, errors } = await openSp();
 		const r = await page.evaluate(async () => {
-			const texts = [];
+			const texts = [], ys = [];
 			const origFill = CanvasRenderingContext2D.prototype.fillText;
-			CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { texts.push(String(t)); return origFill.apply(this, arguments); };
-			let barCalls = 0;
-			const origBar = window.stitchDrawNoteBar;
-			window.stitchDrawNoteBar = function () { barCalls++; return origBar.apply(this, arguments); };
+			CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { texts.push(String(t)); ys.push(y); return origFill.apply(this, arguments); };
 			const bar = buildFactorFrameLegendBar(1200, 1200, true);
-			window.stitchDrawNoteBar = origBar;
 			CanvasRenderingContext2D.prototype.fillText = origFill;
 			const off = buildFactorFrameLegendBar(1200, 1200, false);
-			// 期待の高さ: 同じ骨格に4行（3行＋断りの1行。1200px なら折り返さない）
-			const c2 = document.createElement('canvas').getContext('2d');
-			const m = stitchNoteMetrics(c2, 1200, 1200, FACTOR_LEGEND_NOTE);
-			const ref = stitchDrawNoteBar(1200, m, [0, 1, 2, 3].map(() => stitchNoteTextRow(c2, 'x')));
 			const d = bar.getContext('2d').getImageData(0, 0, bar.width, bar.height).data;
 			const count = (hex) => { const v = parseInt(hex.slice(1), 16), R = (v >> 16) & 255, G = (v >> 8) & 255, B = v & 255; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] === R && d[i + 1] === G && d[i + 2] === B) n++; return n; };
 			const colors = {};
@@ -238,14 +233,15 @@ export async function register62(env) {
 			personResults[0] = { detectedSkills: new Set(['②に無い名前', '②に無い名前2']), skillSources: { '②に無い名前': [0], '②に無い名前2': [1] }, skillStars: {}, matchReasons: {} };
 			const zero = await buildStitchedSetImage(0, null, true);
 			window.stitchOnePerson = keep.s; persons[0].files = keep.f; personGeometry[0] = keep.g; personLines[0] = keep.l; personResults[0] = keep.r;
-			return { texts, barCalls, off, w: bar.width, h: bar.height, refH: ref.height, colors, labels: UmaSkillDeckCore.markers.list.map((mk) => mk.label),
+			return { texts, ys, off, w: bar.width, h: bar.height, lineH: FACTOR_LEGEND_LINE_H, font: bar._fontSize, colors, labels: UmaSkillDeckCore.markers.list.map((mk) => mk.label),
 				zeroLegend: !!zero._layout.legend, zeroTable: !!zero._layout.table, zeroParent: !!zero._layout.parent, red: count('#d81f26') };
 		});
-		assert(r.off === null, '結合画像の枠(4): 枠が0 なら凡例の帯を作らない', r.off);
-		assert(!r.zeroLegend && !r.zeroTable && r.zeroParent, '結合画像の枠(4): 枠を1つも置かず表も無い（OCR の写しが無い）結合画像には凡例が付かない（段6 の構成では右の画像だけ）', r);
-		assert(r.barCalls === 1 && r.w === 1200 && r.h === r.refH, '結合画像の枠(4): 帯は stitch.js の骨格（stitchDrawNoteBar）で、4行ぶん（3行＋断りの1行）の高さ', { calls: r.barCalls, h: r.h, ref: r.refH });
-		const want = ['枠の見かた：', ' 周回サポカスキル', '', ' サポカ外スキル', '', ' その他（親から継承）', '枠の無いパネルは、因子周回スキルに入れていないスキルです。'];
-		assert(JSON.stringify(r.texts) === JSON.stringify(want), '結合画像の枠(4): 凡例の文字（見出し・3行の名前・断りの1行）が決定のとおり', r.texts);
+		assert(r.off === null, '結合画像の枠(4): 枠が0 なら凡例の行を作らない', r.off);
+		assert(!r.zeroLegend && !r.zeroTable && r.zeroParent, '結合画像の枠(4): 枠を1つも置かず表も無い（OCR の写しが無い）結合画像には凡例が付かない（人の画像だけ）', r);
+		assert(r.h === 40 && r.lineH === 40 && r.w > 400 && r.w < 1200 && r.font === 22, '結合画像の枠(4): 凡例は高さ 40 の1行・幅は中身に詰める（1200 の上限より狭い）・字は 22px', { w: r.w, h: r.h, font: r.font });
+		const want = ['枠の見かた：', ' 周回サポカスキル', ' サポカ外スキル', ' その他（親から継承）'];
+		assert(JSON.stringify(r.texts) === JSON.stringify(want), '結合画像の枠(4): 凡例の文字（見出し・3種の名前）が決定のとおり・断りの文なし', r.texts);
+		assert(r.ys.length === 4 && r.ys.every((y) => y === r.ys[0]), '結合画像の枠(4): 文字はすべて同じ行（折り返さない）', r.ys);
 		assert(!r.texts.concat(r.labels).some((t) => t.includes('遺伝子')), '結合画像の枠(4): 凡例に「遺伝子」の語が無い', r.texts);
 		Object.entries(r.colors).forEach(([k, c]) => {
 			assert(c.frame > 0 && c.edge > 0 && c.panel > 0, '結合画像の枠(4): ' + k + ' の行に、枠の見本（枠の色・塗りの色）とマーカー（外枠の色）が描かれている', c);

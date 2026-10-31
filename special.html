@@ -2540,6 +2540,13 @@
 			// 塗りを先に全部、枠をあとに全部（塗りが隣の枠の外側の半分に掛からないように）
 			boxes.forEach(b => tintFactorPanel(ctx, b, factorFrameStyleOf(b.kind).tint));
 			boxes.forEach(b => strokeFactorFrame(ctx, b, factorFrameStyleOf(b.kind).frame));
+			// 枠の左右の端（線の外側）。両側を削るとき（stitchPanelRange）に、枠が範囲の内側にあるかを確かめる
+			if (boxes.length) {
+				canvas._frameSpan = {
+					left: Math.min(...boxes.map(b => b.left - b.line / 2)),
+					right: Math.max(...boxes.map(b => b.right + b.line / 2))
+				};
+			}
 			if (boxes.length < want) {
 				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] + ': 枠を置いた ' + boxes.length +
 					' / 置きたかった行 ' + want + '（結合後のCanvasに収まらなかった行があります）');
@@ -2548,21 +2555,18 @@
 		}
 
 		/* ------------------------------------------------------------
-		 * 結合画像の下に敷く、枠の凡例の帯（段5・C-227。それまでは印の凡例＝C-59 の段3）
+		 * 結合画像の「枠の見かた」の行（段5・C-227。T36 で1行に。それまでは3行＋断りの文の帯）
 		 *
-		 * 帯の骨格（白い矩形・区切り線・折り返し・文字の大きさの詰め方）は
-		 * js/stitch.js の stitchNoteMetrics / stitchDrawNoteBar が持つ（exam と共通。呼ぶだけ）。
-		 * 1行は「枠と塗りの見本＋②の自動のマーカー（core と同じ SVG のパスを Path2D で）＋種類の名前」。
-		 * **3行をいつも全部出す**（D9。その画像に出ていない種類も含める。「その種類が無い」こと自体が
-		 * 読み手の情報になり、帯の高さもセットで変わらない）。最後に断りの1行。
+		 * 1行に「枠の見かた：」＋種類ごとに「枠と塗りの見本＋②の自動のマーカー（core と同じ SVG のパスを Path2D で）＋種類の名前」。
+		 * **種類はいつも全部出す**（D9。その画像に出ていない種類も含める。「その種類が無い」こと自体が読み手の情報になる）。
+		 * 「枠の無いパネルは…」「数字は★の数…」の断りの文は置かない（T36・おいもさんの決定）。
 		 * 呼び名に「遺伝子」の語は使わない（②の「遺伝子」のチェックと紛れるため。D10）。
+		 * 画像に描く文字列には、画面の部品の番号（①②③）を使わない（段6・C-228。何も知らない人には意味が分からないため）。
 		 * ------------------------------------------------------------ */
 		const FACTOR_LEGEND_HEAD = '枠の見かた：';
-		// 画像に描く文字列には、画面の部品の番号（①②③）を使わない（段6・C-228。何も知らない人には意味が分からないため）。
-		// ②は「因子周回スキル」と呼ぶ
-		const FACTOR_LEGEND_NOTE = '枠の無いパネルは、因子周回スキルに入れていないスキルです。';
-		// 表（段6）を置いたときだけ足す1行
-		const FACTOR_LEGEND_TABLE_NOTE = '数字は★の数・種数は★1以上';
+		// 行の高さ・字の大きさの上限（T32 のモックの値）。幅に入らなければ字を縮める
+		const FACTOR_LEGEND_LINE_H = 40;
+		const FACTOR_LEGEND_FONT_MAX = 22;
 		// 見本の塗りは、ゲームの画面のパネルの灰（226）に掛けた色で見せる
 		const FACTOR_LEGEND_PANEL_GRAY = 226;
 
@@ -2603,54 +2607,94 @@
 			ctx.restore();
 		}
 
-		// totalWidth     … 帯の幅（段6 からは右下の欄の幅）
-		// referenceWidth … 文字の大きさの基準にする幅（exam と同じ考え方）
-		// 枠を1つも置いていないときは null（帯そのものを置かない）。
-		// opts.withTable … 表（段6）を置いたとき。断りの下に FACTOR_LEGEND_TABLE_NOTE を足す
-		// opts.wrapNotes … 断りの文は折り返す（字の大きさは見本の行で決める。右下の狭い欄に置くため）
+		// totalWidth     … 行の幅の上限（Canvas の幅は中身に合わせて詰め、これを超えない。超えるなら字を縮める）
+		// referenceWidth … 使わない（T36 までの呼び方のまま受け取る）
+		// 枠を1つも置いていないときは null（行そのものを置かない）。opts も使わない（T36 で断りの文をやめた）
+		// 文字の色は補助テキストの色（js/stitch.js の STITCH_NOTE_COLOR。これまでの帯と同じ）
 		function buildFactorFrameLegendBar(totalWidth, referenceWidth, hasFrames, opts) {
 			if (!hasFrames) return null;
-			const o = opts || {};
 			const list = ((UmaSkillDeckCore.markers && UmaSkillDeckCore.markers.list) || []).filter(mk => factorFrameStyleOf(mk.id));
 			if (list.length === 0) return null;
-			const ctx = document.createElement('canvas').getContext('2d');
-			const notes = [FACTOR_LEGEND_NOTE].concat(o.withTable ? [FACTOR_LEGEND_TABLE_NOTE] : []);
-			// 字の大きさの基準は、この帯でいちばん長い行（断りの1行）。狭い欄では見本の行の長さ（見出し＋見本＋いちばん長い名前）
-			const longest = list.map(mk => mk.label).sort((a, b) => b.length - a.length)[0] || '';
-			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth, o.wrapNotes ? FACTOR_LEGEND_HEAD + '　　　 ' + longest : FACTOR_LEGEND_NOTE);
-			const headW = ctx.measureText(FACTOR_LEGEND_HEAD).width;
-			const sampleW = m.fontSize * 2.9;   // 見本（枠 1.5＋隙間 0.3＋マーカー 1 文字ぶん）＋左右の余白
-			const rows = list.map((mk, i) => {
-				const label = ' ' + mk.label;
-				// 2行目からは見出しの幅だけ空けて、見本の左端を1行目とそろえる
-				return [
-					{ type: 'text', text: i === 0 ? FACTOR_LEGEND_HEAD : '', w: headW },
-					{ type: 'mark', w: sampleW, draw: (c, cx, cy, d) => drawFactorLegendSample(c, mk.id, cx, cy, d) },
-					{ type: 'text', text: label, w: ctx.measureText(label).width }
-				];
+			const font = (px) => 'bold ' + px + 'px sans-serif';
+			const ctx0 = document.createElement('canvas').getContext('2d');
+			// 部品の並び: 見出し → 種類ごとに［見本（枠 1.5＋隙間 0.3＋マーカー 1 文字ぶん＋左右の余白）・名前・次までの空き］
+			const segsAt = (d) => {
+				ctx0.font = font(d);
+				const segs = [{ text: FACTOR_LEGEND_HEAD, w: ctx0.measureText(FACTOR_LEGEND_HEAD).width }];
+				list.forEach((mk, i) => {
+					segs.push({ mark: mk.id, w: d * 2.9 });
+					const label = ' ' + mk.label;
+					segs.push({ text: label, w: ctx0.measureText(label).width + (i < list.length - 1 ? d * 1.2 : 0) });
+				});
+				return segs;
+			};
+			const padX = 2;
+			const widthAt = (d) => padX * 2 + segsAt(d).reduce((s, g) => s + g.w, 0);
+			let d = FACTOR_LEGEND_FONT_MAX;
+			while (d > 6 && widthAt(d) > totalWidth) d--;
+			const c = document.createElement('canvas');
+			c.width = Math.max(1, Math.min(Math.floor(totalWidth), Math.ceil(widthAt(d))));
+			c.height = FACTOR_LEGEND_LINE_H;
+			const ctx = c.getContext('2d');
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, c.width, c.height);
+			ctx.textBaseline = 'middle';
+			ctx.textAlign = 'left';
+			const cy = c.height / 2;
+			let x = padX;
+			segsAt(d).forEach(g => {
+				if (g.mark) {
+					drawFactorLegendSample(ctx, g.mark, x + g.w / 2, cy, d * 0.95);
+				} else {
+					ctx.font = font(d);
+					ctx.fillStyle = STITCH_NOTE_COLOR;
+					ctx.fillText(g.text, x, cy);
+				}
+				x += g.w;
 			});
-			notes.forEach(note => stitchWrapText(ctx, note, m.maxTextWidth)
-				.forEach(line => rows.push(stitchNoteTextRow(ctx, line))));
-			return stitchDrawNoteBar(totalWidth, m, rows);
+			c._fontSize = d;
+			return c;
 		}
 
 		/* ------------------------------------------------------------
-		 * 結合画像の構成（②因子周回 段6・C-228。親A の家系で1枚・親B の家系で1枚）
+		 * 結合画像の構成（②因子周回 段6・C-228。T36 で中段を作り直した。親A の家系で1枚・親B の家系で1枚）
 		 *
 		 *  ┌ タイトルのバー（全幅・高さ70・両端が丸い。色はゲームの「ウマ娘詳細」の帯から読んだ値）「セット名｜レース条件」┐
-		 *  │ 左上: 親の継承画面の上部（ステータスの部分） │ 右: 親の結合画像（大きく） │ 祖1・祖2（小さく縦に）│
-		 *  │ 左下: 表（行＝因子周回スキル・列＝親・祖1・祖2・合計・最下行＝種数） │                │ 右下: 凡例 │
+		 *  │ 表（星取表）│ ［顔］親A          │ ［顔］祖A1        │ ［顔］祖A2        │
+		 *  │            │ 親の結合画像        │ 祖1の結合画像      │ 祖2の結合画像      │
+		 *  │            │（両側を削ったもの）  │                   │                   │
+		 *  │            │ 枠の見かた：…（親A の左端から1行）                            │
 		 *  └──────────────────────────────────────────────────┘
-		 * 寸法の初期値は Step 0 の試し描き（family_A_heatA-blue_30rows.png）のもの。
-		 * **右の高さ（親の結合画像）を基準にする**（D8）。表は行の高さを 26〜54px で伸び縮みさせて収め、
-		 * 収まらなければ全体を下へ伸ばす（2段組みにしない）。余れば表の下が余白。
-		 * 祖2人は、親の高さから凡例を引いた残りに縦に収まる幅（上限は親の半分。D11）。
+		 * 中段（T36・おいもさんの決定。T32 の案B）:
+		 *  ・左から 星取表 → 親 → 祖1 → 祖2。3人の高さをそろえ、祖の縮小率は親の縮小率を超えない（祖が短いと下が空く）。
+		 *    親の幅に上限は無い。全体の幅の下限は minW。
+		 *  ・人の画像は両側を削る（stitchSideCrop。パネルの範囲を画像の中身から見つける。見つからなければ削らない）。
+		 *  ・人の上に見出しの行（顔のアイコン＋ラベル）。因子一覧の画面（顔が画像の中に残る）はラベルだけ。
+		 *  ・表は内容に見合う幅。行は消さずに全部描く。行の高さは rowMin〜rowMax（40行を超えれば rowMinOver まで縮める）。
+		 *    入らなければ中段を高くして（その分だけ幅が広がる）入れる。画像の画素数が maxPixels に届くときは高くせず、行をさらに縮める。
+		 *  ・「枠の見かた」の行は、親（いちばん左の人）の左端の下から。表の列はこの行の高さのぶんも下まで使う。
 		 * 画像に描く文字列に、画面の部品の番号（①②③）は使わない（②は「因子周回スキル」）。
 		 * ------------------------------------------------------------ */
 		const STITCH_LAYOUT = {
-			margin: 28, gap: 24, barH: 70, barGap: 20,
-			leftW: 820, parentW: 860, innerGap: 16, rightW: 430,
-			rowMin: 26, rowMax: 54, legendRef: 450
+			margin: 28, gap: 24, barH: 70, barGap: 20, innerGap: 16,
+			minW: 2206,
+			// 表の行の高さ（px）。rowMinOver は行が rowCap を超えるときの下限
+			rowMin: 26, rowMax: 40, rowCap: 40, rowMinOver: 16, numW: 66,
+			// 人の見出しの行: 顔のアイコンの高さ・パネルとの間・ラベルの字・アイコンとラベルの間・アイコンの切り出しを広げる幅
+			headIcon: 64, headGap: 6, headFont: 24, headLabelGap: 8, iconPad: 8,
+			// 枠の見かたの行（人の下）: 人との間・行の幅の上限（行の高さは FACTOR_LEGEND_LINE_H）
+			legendGap: 16, legendMaxW: 1600, legendRef: 450,
+			// 画像の画素数の上限。iOS の Safari が作れる Canvas の面積の上限 16,777,216（4096×4096）の手前
+			maxPixels: 16000000
+		};
+		// 両側を削る範囲の見つけ方（T32 の detectPanelRange・T34 §5 で 3つの幅と因子一覧を確かめた値）
+		const STITCH_CROP = {
+			bg: 242, bgTol: 6, white: 248,   // 地の灰（242±6）と白（248 以上）は中身に数えない
+			fill: 0.15, sd: 10,              // 中身の列: 地でも白でもない画素が 15% 以上・明るさのばらつき 10 以上
+			minRun: 0.02, joinGap: 0.03,     // 幅 2% 未満の塊は捨てる・3% 未満の隙間はつなぐ（幅の比）
+			pad: 0.006,                      // いちばん広い塊の両端に足す余白（幅の比）
+			minKeep: 0.6,                    // いちばん広い塊が幅の 60% 未満なら「見つからない」として削らない
+			frameSlack: 0.02                 // OCR の枠が範囲の外にはみ出す幅がこれ以下なら範囲を広げて含める。超えたら削らない
 		};
 		// タイトルのバーの色（test-images の 2026-09-16_1・2026-09-15_5 の「ウマ娘詳細」の帯 y 282〜382 を、
 		// 左端から 22〜32%・68〜78% の範囲で読んだ中央値。2枚で同じ値。上から下へのグラデーション）。文字は白（元の帯の文字に縁・影は無い）
@@ -2666,12 +2710,6 @@
 		const STITCH_TABLE_TOTAL_HEAD = '合計';
 		const STITCH_TABLE_KINDS_HEAD = '種数';
 		const STITCH_TABLE_NO_IMAGE = '（画像なし）';
-		// 継承画面の上部の切り出し（D1・Step 0 の §1-2）: 下端＝ステータスの見出しの上端 + 0.305 W
-		const STITCH_TOP_BOTTOM_OVER_W = 0.305;
-		// ステータスの見出しが、タイトル帯の下端からこの範囲（W 比）にあれば継承画面とみなす（実測 0.295）
-		const STITCH_TOP_STATS_FROM_OVER_W = 0.27;
-		const STITCH_TOP_STATS_TO_OVER_W = 0.32;
-
 		// OCR を押した時点の②の選択と結果の写し（D10）。表の行・★・種類・バーの文字は、この写しから描く
 		let stitchSnapshot = null;
 
@@ -2705,64 +2743,100 @@
 		}
 
 		/**
-		 * 継承画面の上部（キャラのステータスの部分）の範囲（元画像の座標）。継承画面でなければ null。
-		 * タイトル帯（全幅の緑の1本目）の下端+1 〜 ステータスの見出し（全幅の緑の2本目）の上端 + 0.305 W。
-		 * 左右はタイトル帯の横の範囲。緑の判定と帯の定義は common.js（detectSkillRows・stitchDetectProfileHeader と同じ）。
+		 * 人の結合画像のうち、因子のパネルがある横の範囲 [L, R)（T36。T32 の案B の detectPanelRange・数値は STITCH_CROP）。
+		 * アイコンより下の行（2行おき）で、列ごとに「地（242 の灰）でも白でもない画素」の割合と明るさのばらつきを見る。
+		 * 割合・ばらつきが基準以上の列を「中身」とし、細い塊（ツリーの線・スクロールの帯・背景の端）を捨て、
+		 * 狭い隙間（左右のパネルの間）はつなぐ。いちばん広い塊の両端に余白を足す。
+		 * いちばん広い塊が幅の minKeep 未満なら ok=false（削らない）。
+		 * OCR の枠の左右の端（drawFactorFramesOnPerson が _frameSpan に残す）があれば、範囲の内側にあるかを確かめる:
+		 * はみ出しが frameSlack 以内なら範囲を広げて枠を含め、超えたら ok=false（削らない）。
+		 * 画像を変えない（読むだけ）。返り値 { L, R, ok, reason?, frameChecked }
 		 */
-		function stitchStatusTopBox(canvas) {
+		function stitchPanelRange(canvas, icon) {
+			const C = STITCH_CROP;
 			const W = canvas.width, H = canvas.height;
-			const scanH = Math.min(H, Math.round(W * 1.4));
-			const imageData = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, scanH);
-			const green = greenMaskOf(imageData);
-			const rows = rowCountsOf(green, W, scanH);
-			const wide = findRuns(rows, Math.round(W * 0.12), 4, 0, scanH)
-				.filter(b => (b.b - b.a) >= H * 0.008)
-				.filter(b => {
-					const cols = colCountsOf(green, W, b.a, b.b);
-					let covered = 0;
-					for (let x = 0; x < W; x++) if (cols[x] > 0) covered++;
-					return covered / W > 0.7;
-				});
-			if (wide.length < 2) return null;
-			const title = wide[0], stats = wide[1];
-			const rel = (stats.a - title.b) / W;
-			if (rel < STITCH_TOP_STATS_FROM_OVER_W || rel > STITCH_TOP_STATS_TO_OVER_W) return null;
-			const cols = colCountsOf(green, W, title.a, title.b);
-			let x0 = -1, x1 = -1;
-			for (let x = 0; x < W; x++) if (cols[x] > 0) { if (x0 < 0) x0 = x; x1 = x; }
-			const y0 = title.b + 1;
-			const y1 = Math.min(H, stats.a + Math.round(STITCH_TOP_BOTTOM_OVER_W * W));
-			if (x0 < 0 || y1 <= y0) return null;
-			return { x0: x0, x1: x1, y0: y0, y1: y1 };
+			const none = (reason) => ({ L: 0, R: W, ok: false, reason: reason, frameChecked: false });
+			const y0 = Math.min(H - 1, icon ? Math.ceil(icon.y1) + 4 : 0);
+			const rows = H - y0;
+			if (W < 10 || rows < 2) return none('画像が小さい');
+			const d = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, y0, W, rows).data;
+			const on = new Array(W);
+			for (let x = 0; x < W; x++) {
+				let n = 0, far = 0, s = 0, s2 = 0;
+				for (let y = 0; y < rows; y += 2) {
+					const i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+					n++;
+					const white = r >= C.white && g >= C.white && b >= C.white;
+					if (!white && (Math.abs(r - C.bg) > C.bgTol || Math.abs(g - C.bg) > C.bgTol || Math.abs(b - C.bg) > C.bgTol)) far++;
+					const v = (r + g + b) / 3;
+					s += v;
+					s2 += v * v;
+				}
+				const sd = Math.sqrt(Math.max(0, s2 / n - (s / n) * (s / n)));
+				on[x] = far / n >= C.fill && sd >= C.sd;
+			}
+			const runs = [];
+			for (let x = 0; x < W;) {
+				if (!on[x]) { x++; continue; }
+				let e = x;
+				while (e + 1 < W && on[e + 1]) e++;
+				if (e - x + 1 >= W * C.minRun) runs.push([x, e]);
+				x = e + 1;
+			}
+			const merged = [];
+			runs.forEach(r => {
+				const last = merged[merged.length - 1];
+				if (last && r[0] - last[1] - 1 < W * C.joinGap) last[1] = r[1]; else merged.push(r.slice());
+			});
+			if (!merged.length) return none('パネルの範囲が見つからない');
+			const best = merged.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
+			if (best[1] - best[0] + 1 < W * C.minKeep) return none('パネルの範囲が狭すぎる（幅の ' + Math.round((best[1] - best[0] + 1) / W * 100) + '%）');
+			const pad = Math.round(W * C.pad);
+			let L = Math.max(0, best[0] - pad), R = Math.min(W, best[1] + 1 + pad);
+			const span = canvas._frameSpan;
+			if (span) {
+				const slack = W * C.frameSlack;
+				if (span.left < L - slack || span.right > R + slack) return none('OCR の枠がパネルの範囲の外にある');
+				if (span.left < L) L = Math.max(0, Math.floor(span.left) - 2);
+				if (span.right > R) R = Math.min(W, Math.ceil(span.right) + 2);
+			}
+			return { L: L, R: R, ok: true, frameChecked: !!span };
 		}
 
-		/** 上部を切り出した Canvas（取れなければ null） */
-		function stitchCropStatusTop(canvas) {
-			const b = stitchStatusTopBox(canvas);
-			if (!b) return null;
+		/**
+		 * 両側を削った Canvas（範囲は stitchPanelRange。削らないときは元の Canvas をそのまま返す）。
+		 * 返す Canvas に _sideCrop（{ L, R, ok, reason?, frameChecked, srcW }）を添える。枠を描いた後の Canvas に使う（旧UI・OCRしない結合でも）。
+		 */
+		function stitchSideCrop(canvas, icon) {
+			const r = Object.assign({ srcW: canvas.width }, stitchPanelRange(canvas, icon));
+			if (!r.ok || (r.L <= 0 && r.R >= canvas.width)) {
+				canvas._sideCrop = r;
+				return canvas;
+			}
 			const out = document.createElement('canvas');
-			out.width = b.x1 - b.x0 + 1;
-			out.height = b.y1 - b.y0;
-			out.getContext('2d').drawImage(canvas, b.x0, b.y0, out.width, out.height, 0, 0, out.width, out.height);
-			out._topBox = b;
+			out.width = r.R - r.L;
+			out.height = canvas.height;
+			out.getContext('2d').drawImage(canvas, r.L, 0, out.width, canvas.height, 0, 0, out.width, canvas.height);
+			out._sideCrop = r;
+			out._profileHeader = canvas._profileHeader;
 			return out;
 		}
 
 		/**
-		 * 家系の上部（D1・D3・D4）。親の画像があれば親の1枚目、無いときだけ祖の1枚目（祖の画像の上部は親の上部と同じ画面）。
-		 * 上部を取る人の画面が因子一覧（ステータスが無い。stitchDetectProfileHeader の kept）なら null。
+		 * 人の見出しの行に置く顔のアイコン（削る前の結合画像から切り出す）。ランクの札が箱から数px はみ出すので iconPad 広げる。
+		 * 因子一覧の画面（icon.kept。顔が画像の中の情報の欄に残る）とアイコンが無いときは null（見出しはラベルだけ。顔が2つにならないように）。
 		 */
-		async function stitchFamilyTop(idxs, stitched) {
-			const src = persons[idxs[0]].files.length > 0 ? idxs[0] : idxs.slice(1).find(i => persons[i].files.length > 0);
-			if (src === undefined) return null;
-			const sc = stitched[src];
-			if (sc && sc._profileHeader && sc._profileHeader.kept) return null;
-			try {
-				const img = await loadImage(persons[src].files[0]);
-				const top = stitchCropStatusTop(stitchImgToCanvas(img));
-				if (!top) devGeometry.push('[結合画像] ' + PERSON_LABELS[src] + ': 継承画面の上部を見つけられなかったため、左上に置きませんでした');
-				return top;
-			} catch (e) { return null; }
+		function stitchHeadIconOf(canvas, icon) {
+			if (!canvas || !icon || icon.kept) return null;
+			const p = STITCH_LAYOUT.iconPad;
+			const x0 = Math.max(0, Math.floor(icon.x0) - p), x1 = Math.min(canvas.width, Math.ceil(icon.x1) + p);
+			const y0 = Math.max(0, Math.floor(icon.y0)), y1 = Math.min(canvas.height, Math.ceil(icon.y1) + 2);
+			if (x1 <= x0 || y1 <= y0) return null;
+			const out = document.createElement('canvas');
+			out.width = x1 - x0;
+			out.height = y1 - y0;
+			out.getContext('2d').drawImage(canvas, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+			return out;
 		}
 
 		/**
@@ -2869,30 +2943,47 @@
 		}
 
 		/**
-		 * 表を描いた Canvas（幅 width・行の高さは availH に収まるよう 26〜54px）。
-		 * 返す Canvas には _rowH（行の高さ）と _tableData を添える（検査が使う）。
+		 * 表の寸法（T36: 幅は内容に見合う幅に詰める）。字は行の高さに合わせる（名前・マスは行の 0.56 倍・見出しは 0.5 倍。
+		 * 下限は設けない＝行が小さいときも字が行からはみ出さない）。
+		 * 名前の列＝いちばん長い名前（太字）＋左右の余白 28。人と合計の列＝いちばん広い中身（見出し・数・「N種」）＋16（下限は行の 1.65 倍）。
 		 */
-		function stitchDrawTable(width, availH, data) {
-			const L = STITCH_LAYOUT;
-			const n = data.rows.length + 2;
-			const rh = Math.max(L.rowMin, Math.min(L.rowMax, Math.floor(availH / n)));
+		function stitchTableMetrics(data, rh) {
+			const fs = Math.max(1, Math.round(rh * 0.56));
+			const hs = Math.max(1, Math.round(rh * 0.5));
+			const ctx = document.createElement('canvas').getContext('2d');
+			const w = (t, px) => { ctx.font = 'bold ' + px + 'px sans-serif'; return ctx.measureText(t).width; };
+			let nameMax = Math.max(w(STITCH_TABLE_SKILL_HEAD, hs), w(STITCH_TABLE_KINDS_HEAD, hs));
+			data.rows.forEach(r => { nameMax = Math.max(nameMax, w(r.name, fs)); });
+			let cellMax = 0;
+			data.people.map(p => p.label).concat([STITCH_TABLE_TOTAL_HEAD]).forEach(t => { cellMax = Math.max(cellMax, w(t, hs)); });
+			data.rows.forEach(r => { cellMax = Math.max(cellMax, w(r.unknown ? r.total + '+?' : String(r.total), fs)); });
+			data.kinds.concat([data.totalKinds]).forEach(k => { if (k !== undefined && k !== null) cellMax = Math.max(cellMax, w(k + '種', fs)); });
+			const nameW = Math.ceil(nameMax) + 28;
+			const cw = Math.max(Math.ceil(cellMax) + 16, Math.round(rh * 1.65));
+			return { rowH: rh, fontSize: fs, headSize: hs, nameW: nameW, cw: cw, width: nameW + cw * (data.people.length + 1), height: rh * (data.rows.length + 2) };
+		}
+
+		/**
+		 * 表を描いた Canvas（行の高さ rh・幅は stitchTableMetrics）。行は全部描く（T36: 合計0 の行も消さない）。
+		 * 返す Canvas には _rowH（行の高さ）・_metrics・_tableData を添える（検査が使う）。
+		 */
+		function stitchDrawTable(data, rh) {
+			const m = stitchTableMetrics(data, rh);
+			const { nameW, cw, fontSize: fs, headSize: hs, width } = m;
 			const c = document.createElement('canvas');
 			c.width = width;
-			c.height = rh * n;
+			c.height = m.height;
 			const ctx = c.getContext('2d');
 			ctx.fillStyle = '#FFFFFF';
 			ctx.fillRect(0, 0, c.width, c.height);
-			const nameW = Math.round(width * 0.46);
-			const cw = Math.floor((width - nameW) / 4);
-			const fs = Math.max(14, Math.round(rh * 0.56));
-			const hs = Math.max(13, Math.round(rh * 0.5));
+			const minOf = (px, ratio) => Math.max(1, Math.round(px * ratio));
 			ctx.textBaseline = 'middle';
 			// 見出し
 			ctx.fillStyle = STITCH_TABLE_HEAD_BG;
 			ctx.fillRect(0, 0, width, rh);
 			ctx.fillStyle = '#FFFFFF';
 			ctx.textAlign = 'left';
-			const head = stitchFitText(ctx, STITCH_TABLE_SKILL_HEAD, nameW - 20, hs, 10);
+			const head = stitchFitText(ctx, STITCH_TABLE_SKILL_HEAD, nameW - 20, hs, minOf(hs, 0.75));
 			ctx.fillText(head.text, 10, rh / 2);
 			ctx.textAlign = 'center';
 			data.people.map(p => p.label).concat([STITCH_TABLE_TOTAL_HEAD]).forEach((lb, j) => {
@@ -2900,13 +2991,13 @@
 				const p = data.people[j];
 				if (p && !p.present) {
 					// 人がいない列: 見出しに「（画像なし）」（2段）
-					let t = stitchFitText(ctx, lb, cw - 6, Math.round(hs * 0.8), 9);
+					let t = stitchFitText(ctx, lb, cw - 6, Math.round(hs * 0.8), minOf(hs, 0.6));
 					ctx.fillText(t.text, cx, rh * 0.3);
-					t = stitchFitText(ctx, STITCH_TABLE_NO_IMAGE, cw - 6, Math.round(hs * 0.62), 8);
+					t = stitchFitText(ctx, STITCH_TABLE_NO_IMAGE, cw - 6, Math.round(hs * 0.62), minOf(hs, 0.45));
 					ctx.fillText(t.text, cx, rh * 0.72);
 					return;
 				}
-				const t = stitchFitText(ctx, lb, cw - 6, hs, 9);
+				const t = stitchFitText(ctx, lb, cw - 6, hs, minOf(hs, 0.7));
 				ctx.fillText(t.text, cx, rh / 2);
 			});
 			const lineW = Math.max(2, Math.round(rh / 14));
@@ -2921,7 +3012,7 @@
 				ctx.strokeRect(lineW / 2, y + lineW / 2, nameW - 2 - lineW, rh - 2 - lineW);
 				ctx.fillStyle = STITCH_INK;
 				ctx.textAlign = 'left';
-				const nm = stitchFitText(ctx, r.name, nameW - 20, fs, 11);
+				const nm = stitchFitText(ctx, r.name, nameW - 20, fs, minOf(fs, 0.75));
 				ctx.fillText(nm.text, 10, y + rh / 2);
 				ctx.textAlign = 'center';
 				r.vals.concat([r.total]).forEach((v, j) => {
@@ -2946,7 +3037,7 @@
 			ctx.fillRect(0, fy, width - 2, 2);
 			ctx.fillStyle = STITCH_INK;
 			ctx.textAlign = 'left';
-			const kh = stitchFitText(ctx, STITCH_TABLE_KINDS_HEAD, nameW - 20, hs, 10);
+			const kh = stitchFitText(ctx, STITCH_TABLE_KINDS_HEAD, nameW - 20, hs, minOf(hs, 0.75));
 			ctx.fillText(kh.text, 10, fy + rh / 2);
 			ctx.textAlign = 'center';
 			data.kinds.concat([data.totalKinds]).forEach((k, j) => {
@@ -2955,6 +3046,7 @@
 				ctx.fillText(k === undefined ? '−' : k + '種', nameW + cw * j + cw / 2, fy + rh / 2);
 			});
 			c._rowH = rh;
+			c._metrics = m;
 			c._tableData = data;
 			return c;
 		}
@@ -2989,39 +3081,27 @@
 		}
 
 		/**
-		 * 人のラベル（親A など）を、結合画像に写っているキャラのアイコンの直下に置く（アイコンもパネルも隠さない）。
-		 * place … { x, y, scale, canvas（元の大きさの結合画像）, icon（stitchPersonIconBox の値か null） }
-		 * 置ける幅はパネルより左の帯（元画像の幅の 18%）。アイコンが無ければ画像の上端（帯の左上）。返り値は置いた矩形
+		 * 人の見出しの行（T36）: 顔のアイコン（高さ headIcon）と、その右にラベル（「親A」など。3人とも同じ大きさ）。
+		 * icon が null（因子一覧の画面・アイコンが見つからない）ならラベルだけを左端に置く。返り値は置いた矩形
 		 */
-		function stitchDrawPersonLabel(ctx, label, place) {
-			const s = place.scale;
-			const icon = place.icon;
-			// 置ける幅: 継承画面はパネルより左の帯。因子一覧（キャラクターの情報の欄）はアイコンの右端まで
-			const stripW = (icon && icon.kept) ? (icon.x1 + 1) * s : place.canvas.width * 0.18 * s;
-			let size = Math.max(12, Math.min(24, Math.round(place.canvas.width * s * 0.028)));
-			// アイコンの下の空きに収める（字の高さ×1.45 が空き−2px 以内）
-			if (icon && isFinite(icon.freeBelow)) size = Math.min(size, Math.floor((icon.freeBelow * s - 2 - Math.max(2, Math.round(3 * s))) / 1.45));
-			size = Math.max(9, size);
-			ctx.save();
-			const font = (px) => 'bold ' + px + 'px sans-serif';
-			ctx.font = font(size);
-			const padX = () => Math.round(size * 0.45);
-			const widthAt = () => ctx.measureText(label).width + padX() * 2;
-			while (size > 9 && widthAt() > stripW - 4) { size -= 1; ctx.font = font(size); }
-			const lw = widthAt(), lh = Math.round(size * 1.45);
-			let cx, top;
+		function stitchDrawPersonHead(ctx, x, y, icon, label) {
+			const L = STITCH_LAYOUT;
+			const out = { icon: null, label: null };
+			let iw = 0;
 			if (icon) {
-				cx = place.x + (icon.x0 + icon.x1) / 2 * s;
-				top = place.y + icon.y1 * s + Math.max(2, Math.round(3 * s));
-			} else {
-				cx = place.x + 2 + lw / 2;
-				top = place.y + 2;
+				iw = Math.max(1, Math.round(icon.width * L.headIcon / icon.height));
+				ctx.drawImage(icon, x, y, iw, L.headIcon);
+				out.icon = { x: x, y: y, w: iw, h: L.headIcon };
 			}
-			// 帯の中に収める（パネルに掛からないように）
-			cx = Math.max(place.x + 2 + lw / 2, Math.min(cx, place.x + stripW - 2 - lw / 2));
-			const left = Math.round(cx - lw / 2);
-			ctx.fillStyle = 'rgba(51,51,51,0.92)';
+			const size = L.headFont;
+			ctx.save();
+			ctx.font = 'bold ' + size + 'px sans-serif';
+			const padX = Math.round(size * 0.45);
+			const lw = Math.round(ctx.measureText(label).width + padX * 2), lh = Math.round(size * 1.45);
+			const left = x + iw + (iw ? L.headLabelGap : 0);
+			const top = y + Math.round((L.headIcon - lh) / 2);
 			const r = Math.round(lh / 3);
+			ctx.fillStyle = 'rgba(51,51,51,0.92)';
 			ctx.beginPath();
 			ctx.moveTo(left + r, top);
 			ctx.arcTo(left + lw, top, left + lw, top + lh, r);
@@ -3035,43 +3115,125 @@
 			ctx.textBaseline = 'middle';
 			ctx.fillText(label, left + lw / 2, top + lh / 2 + 1);
 			ctx.restore();
-			return { x: left, y: top, w: Math.round(lw), h: lh, size: size };
+			out.label = { x: left, y: top, w: lw, h: lh, size: size };
+			return out;
+		}
+
+		/**
+		 * パネルの高さ ph のときの3人の大きさ（T36）。親は高さ ph、祖も高さ ph（ただし祖の縮小率は親の縮小率を超えない。
+		 * 親がいなければ上限なし）。元の大きさより大きくはしない（縮小率 1 まで。人が少なく幅が余るときは右が空く）。
+		 * people … [{ k（0=親・1,2=祖）, c（Canvas） }]
+		 */
+		function stitchPersonSizesAt(people, ph) {
+			const parent = people.find(p => p.k === 0);
+			const sp = parent ? Math.min(1, ph / parent.c.height) : 1;
+			return people.map(p => {
+				const s = p.k === 0 ? sp : Math.min(ph / p.c.height, sp);
+				return { k: p.k, scale: s, w: Math.max(1, Math.floor(p.c.width * s)), h: Math.max(1, Math.round(p.c.height * s)) };
+			});
+		}
+
+		/** 幅 avail に収まる、いちばん高いパネルの高さで3人を並べる（二分法）。親の幅に上限は無い */
+		function stitchFitPersons(people, avail) {
+			const L = STITCH_LAYOUT;
+			const total = (ws) => ws.reduce((s, w) => s + w.w, 0) + L.innerGap * Math.max(0, ws.length - 1);
+			let lo = 1, hi = 60000;
+			for (let it = 0; it < 64 && hi - lo > 0.25; it++) {
+				const mid = (lo + hi) / 2;
+				if (total(stitchPersonSizesAt(people, mid)) <= avail) lo = mid; else hi = mid;
+			}
+			const ws = stitchPersonSizesAt(people, Math.max(1, Math.floor(lo)));
+			return { ws: ws, width: total(ws), height: Math.max(1, ...ws.map(w => w.h)) };
+		}
+
+		/**
+		 * 中段の寸法（T36）。表の行の規則:
+		 *  ・行が rowCap 以下: 行の高さ rowMin〜rowMax。全部の行が rowMin で入る高さまで中段を高くする（その分だけ幅が広がる）。
+		 *  ・rowCap を超える: 行を rowMinOver まで縮めて中段に収める。それでも入らなければ中段を高くする。
+		 *  ・画像の画素数が maxPixels に届くときは、中段を高くするのを止め、行を rowMinOver より小さくして収める。
+		 * 表が使える高さ（room）＝人の見出し＋人の高さ＋枠の見かたの行（表の列は下まで使う）。
+		 * 返り値 { fit, room, rowH, metrics, tableW, width, height, grown, capped }
+		 */
+		function stitchMidLayout(people, data, legendH) {
+			const L = STITCH_LAYOUT;
+			const headH = L.headIcon + L.headGap;
+			const below = legendH ? L.legendGap + legendH : 0;
+			const midY = L.margin + L.barH + L.barGap;
+			const n = data ? data.rows.length : 0;
+			const floorRh = n > L.rowCap ? L.rowMinOver : L.rowMin;
+			const need = (n + 2) * floorRh;
+			const at = (avail, tableW) => {
+				const fit = stitchFitPersons(people, avail);
+				const room = fit.height + headH + below;
+				const width = Math.max(L.minW, L.margin * 2 + (data ? tableW + L.gap : 0) + fit.width);
+				return { fit: fit, room: room, width: width };
+			};
+			const heightOf = (g, rowH) => midY + Math.max(g.room, data ? (n + 2) * rowH : 0) + L.margin;
+			// 表の幅 tableW のときの人の幅と行の高さ
+			const solve = (tableW) => {
+				const base = L.minW - L.margin * 2 - (data ? tableW + L.gap : 0);
+				let g = at(base, tableW), grown = false, capped = false, hi = base;
+				if (data && g.room < need) {
+					// 中段を高くする: 表の全部の行が floorRh で入る、いちばん狭い人の幅（人は元の大きさまでしか大きくしないので、届かないこともある）
+					let lo = base;
+					hi = base * 2;
+					while (at(hi, tableW).room < need && hi < base * 64) hi *= 2;
+					if (at(hi, tableW).room >= need) {
+						for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (at(mid, tableW).room >= need) hi = mid; else lo = mid; }
+						hi = Math.ceil(hi);
+					}
+					g = at(hi, tableW);
+					grown = g.room > at(base, tableW).room;
+				}
+				let rowH = data ? Math.min(L.rowMax, Math.max(floorRh, Math.floor(g.room / (n + 2)))) : 0;
+				if (data && g.width * heightOf(g, rowH) > L.maxPixels) {
+					// 画素数の上限: 上限に収まるいちばん広い人の幅で止め、行を上限の高さに入るまで縮める（rowMinOver より小さくなってよい）。
+					// 人は元の大きさまでしか大きくしないので、人が届かない高さは表の列だけが下へ伸びる（上限まで）
+					let lo = base;
+					for (let k = 0; k < 40; k++) {
+						const mid = (lo + hi) / 2;
+						const t = at(mid, tableW);
+						if (t.width * (midY + t.room + L.margin) <= L.maxPixels) lo = mid; else hi = mid;
+					}
+					g = at(Math.floor(lo), tableW);
+					const allowH = Math.floor(L.maxPixels / g.width) - midY - L.margin;
+					rowH = Math.max(1, Math.min(L.rowMax, floorRh - 1, Math.floor(Math.max(g.room, allowH) / (n + 2))));
+					capped = true;
+				}
+				return Object.assign(g, { rowH: rowH, grown: grown, capped: capped });
+			};
+			if (!data) { const s0 = solve(0); return Object.assign(s0, { metrics: null, tableW: 0, height: heightOf(s0, 0) }); }
+			// 表の幅は字の大きさ（＝行の高さ）で変わるので、行の高さが落ち着くまで繰り返す
+			let m = stitchTableMetrics(data, L.rowMax), s = solve(m.width), reserve = m.width;
+			for (let it = 0; it < 8; it++) {
+				const m2 = stitchTableMetrics(data, s.rowH);
+				if (m2.width === reserve) { m = m2; break; }
+				reserve = m2.width;
+				m = m2;
+				s = solve(reserve);
+			}
+			m = stitchTableMetrics(data, s.rowH);
+			const tableW = Math.max(m.width, reserve);
+			const width = Math.max(s.width, L.margin * 2 + tableW + L.gap + s.fit.width);
+			return Object.assign(s, { metrics: m, tableW: tableW, width: width, height: midY + Math.max(s.room, m.height) + L.margin });
 		}
 
 		/**
 		 * 家系の1枚を組み立てる（同期。検査はここを直接呼ぶ）。
-		 * parts = { idxs: [親, 祖1, 祖2], canvases: [Canvas|null ×3], icons: [box|null ×3], top: Canvas|null,
-		 *           table: stitchTableData の値|null, legend: 凡例の Canvas|null, barText }
-		 * 返す Canvas には _layout（各部品の矩形・行の高さ・ラベル）を添える。
+		 * parts = { idxs: [親, 祖1, 祖2], canvases: [Canvas|null ×3]（両側を削った後の人の結合画像）,
+		 *           heads: [Canvas|null ×3]（見出しの顔のアイコン。null ならラベルだけ）,
+		 *           table: stitchTableData の値|null, legend: 枠の見かたの行の Canvas|null, barText }
+		 * 返す Canvas には _layout（各部品の矩形・行の高さ・見出し）を添える。
 		 */
 		function composeFamilyImage(parts) {
 			const L = STITCH_LAYOUT;
-			const [pc, g1, g2] = parts.canvases;
-			const grands = [g1, g2].map((c, k) => ({ c: c, k: k + 1 })).filter(o => o.c);
+			const people = [0, 1, 2].map(k => ({ k: k, c: parts.canvases[k] })).filter(p => p.c);
+			const data = parts.table || null;
 			const legendH = parts.legend ? parts.legend.height : 0;
-			// 右の高さ: 親の結合画像を幅 parentW に縮めた高さ。親がいなければ祖を上限の幅で縦に並べた高さ
-			const ratio = (c) => c.height / c.width;
-			let parentH = pc ? Math.round(pc.height * L.parentW / pc.width) : 0;
-			let gW;
-			if (pc) {
-				const avail = parentH - (legendH ? legendH + L.gap : 0) - L.gap * Math.max(0, grands.length - 1);
-				const sumR = grands.reduce((s, o) => s + ratio(o.c), 0);
-				gW = grands.length ? Math.max(1, Math.min(Math.floor(L.parentW / 2), Math.floor(avail / sumR))) : 0;
-			} else {
-				gW = Math.floor(L.parentW / 2);
-			}
-			const gHs = grands.map(o => Math.round(o.c.height * gW / o.c.width));
-			const rightColH = gHs.reduce((s, h) => s + h, 0) + L.gap * Math.max(0, grands.length - 1) + (legendH ? (grands.length ? L.gap : 0) + legendH : 0);
-			const rightH = Math.max(parentH, rightColH);
-			// 左: 上部（幅 leftW に縮める）と表
-			const topH = parts.top ? Math.round(parts.top.height * L.leftW / parts.top.width) : 0;
-			const tableTop = topH ? topH + L.gap : 0;
-			const tableCanvas = parts.table ? stitchDrawTable(L.leftW, Math.max(0, rightH - tableTop), parts.table) : null;
-			const leftH = tableTop + (tableCanvas ? tableCanvas.height : 0) - (tableCanvas ? 0 : (topH ? L.gap : 0));
-			const bodyH = Math.max(rightH, leftH, 1);
-			const W = L.margin + L.leftW + L.gap + L.parentW + L.innerGap + L.rightW + L.margin;
-			const bodyY = L.margin + L.barH + L.barGap;
-			const H = bodyY + bodyH + L.margin;
+			const mid = stitchMidLayout(people, data, legendH);
+			const W = mid.width, H = mid.height;
+			const midY = L.margin + L.barH + L.barGap;
+			const headH = L.headIcon + L.headGap;
 			const out = document.createElement('canvas');
 			out.width = W;
 			out.height = H;
@@ -3080,55 +3242,45 @@
 			ctx.fillRect(0, 0, W, H);
 			ctx.imageSmoothingEnabled = true;
 			ctx.imageSmoothingQuality = 'high';
-			const layout = { width: W, height: H, bodyY: bodyY, rightH: rightH, parentH: parentH, gW: gW, labels: [] };
+			const layout = { width: W, height: H, bodyY: midY, room: mid.room, grown: mid.grown, capped: mid.capped,
+				persons: [], heads: [], grands: [] };
 			layout.bar = { x: L.margin, y: L.margin, w: W - L.margin * 2, h: L.barH };
 			layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W - L.margin * 2, L.barH, parts.barText || '');
-			const leftX = L.margin;
-			if (parts.top) {
-				ctx.drawImage(parts.top, leftX, bodyY, L.leftW, topH);
-				layout.top = { x: leftX, y: bodyY, w: L.leftW, h: topH };
+			if (data) {
+				const tc = stitchDrawTable(data, mid.rowH);
+				ctx.drawImage(tc, L.margin, midY);
+				layout.table = { x: L.margin, y: midY, w: tc.width, h: tc.height, rowH: mid.rowH, rows: data.rows.length, fontSize: tc._metrics.fontSize };
 			}
-			if (tableCanvas) {
-				ctx.drawImage(tableCanvas, leftX, bodyY + tableTop);
-				layout.table = { x: leftX, y: bodyY + tableTop, w: tableCanvas.width, h: tableCanvas.height, rowH: tableCanvas._rowH, rows: parts.table.rows.length };
-			}
-			const px = leftX + L.leftW + L.gap;
-			const places = [];
-			if (pc) {
-				ctx.drawImage(pc, px, bodyY, L.parentW, parentH);
-				layout.parent = { x: px, y: bodyY, w: L.parentW, h: parentH };
-				places.push({ k: 0, x: px, y: bodyY, scale: L.parentW / pc.width, canvas: pc });
-			}
-			const gx = px + L.parentW + L.innerGap;
-			let gy = bodyY;
-			layout.grands = [];
-			grands.forEach((o, i) => {
-				ctx.drawImage(o.c, gx, gy, gW, gHs[i]);
-				layout.grands.push({ k: o.k, x: gx, y: gy, w: gW, h: gHs[i] });
-				places.push({ k: o.k, x: gx, y: gy, scale: gW / o.c.width, canvas: o.c });
-				gy += gHs[i] + L.gap;
+			let x = L.margin + (data ? mid.tableW + L.gap : 0);
+			const px0 = x;
+			people.forEach((p, i) => {
+				const s = mid.fit.ws[i];
+				const head = stitchDrawPersonHead(ctx, x, midY, (parts.heads || [])[p.k] || null, PERSON_LABELS[parts.idxs[p.k]]);
+				ctx.drawImage(p.c, x, midY + headH, s.w, s.h);
+				const rect = { k: p.k, x: x, y: midY + headH, w: s.w, h: s.h, scale: s.w / p.c.width, crop: p.c._sideCrop || null };
+				layout.persons.push(rect);
+				layout.heads.push(Object.assign({ k: p.k }, head));
+				if (p.k === 0) layout.parent = rect; else layout.grands.push(rect);
+				x += s.w + L.innerGap;
 			});
 			if (parts.legend) {
-				// 右下: 親の結合画像の下端（親がいなければ祖の下）にそろえる
-				const ly = bodyY + Math.max(rightH - legendH, grands.length ? gy - bodyY : 0);
-				ctx.drawImage(parts.legend, gx, ly);
-				layout.legend = { x: gx, y: ly, w: parts.legend.width, h: legendH };
+				// 枠の見かたの行: いちばん左の人（親）の左端から。幅が足りなければ縮めて置く
+				const ly = midY + headH + mid.fit.height + L.legendGap;
+				const room = W - L.margin - px0;
+				const k = Math.min(1, room / parts.legend.width);
+				const lw = Math.round(parts.legend.width * k), lh = Math.round(parts.legend.height * k);
+				ctx.drawImage(parts.legend, px0, ly, lw, lh);
+				layout.legend = { x: px0, y: ly, w: lw, h: lh };
 			}
-			places.forEach(p => {
-				const rect = stitchDrawPersonLabel(ctx, PERSON_LABELS[parts.idxs[p.k]], Object.assign({ icon: parts.icons[p.k] }, p));
-				layout.labels.push(Object.assign({ k: p.k, icon: parts.icons[p.k] ? {
-					x0: p.x + parts.icons[p.k].x0 * p.scale, x1: p.x + parts.icons[p.k].x1 * p.scale,
-					y0: p.y + parts.icons[p.k].y0 * p.scale, y1: p.y + parts.icons[p.k].y1 * p.scale } : null,
-					stripRight: p.x + p.canvas.width * 0.18 * p.scale }, rect));
-			});
 			out._layout = layout;
 			return out;
 		}
 
 		// 指定セット（0=親A, 1=親B）の家系の1枚を返す（段6・C-228）。セット内の誰もアップロードしていない場合は null。
 		// onPersonStart(label)：1人分の結合に着手する直前に呼ばれる進捗通知コールバック（任意）。
-		// withMarks：OCR の結果を使うか（C-63 の (7)）。**「画像を結合する（OCRしない）」からは false**＝枠・表・凡例なし
-		// （タイトルのバー・上部・右の3人だけ）。true のときは、OCR を押した時点の写し（stitchSnapshot）から表を作る（D10）。
+		// withMarks：OCR の結果を使うか（C-63 の (7)）。**「画像を結合する（OCRしない）」からは false**＝枠・表・枠の見かたなし
+		// （タイトルのバーと3人だけ）。true のときは、OCR を押した時点の写し（stitchSnapshot）から表を作る（D10）。
+		// 人の画像は、枠を描いた後に両側を削る（T36。旧UI・OCRしない結合でも）。顔のアイコンは削る前に切り出して見出しへ。
 		async function buildStitchedSetImage(setIdx, onPersonStart, withMarks) {
 			const baseIdx = setIdx * 3;
 			const idxs = [0, 1, 2].map(r => baseIdx + r);
@@ -3136,7 +3288,7 @@
 			if (activeIndexes.length === 0) return null;
 
 			const stitched = {};
-			const icons = {};
+			const heads = {};
 			const allWarnings = [];
 			let markCount = 0;   // セット内で実際に付けた枠の数
 
@@ -3146,10 +3298,13 @@
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
 				// アイコンの位置は枠を描く前に測る（枠・塗りはパネルの上だけだが、念のため元の画素で）
-				icons[idx] = stitchPersonIconBox(contentCanvas);
+				const icon = stitchPersonIconBox(contentCanvas);
 				// 枠は**結合の後**に付ける（C-58 の作業C。前に描くと継ぎ目の判定が狂う）
 				if (withMarks) markCount += drawFactorFramesOnPerson(contentCanvas, idx);
-				stitched[idx] = contentCanvas;
+				heads[idx] = stitchHeadIconOf(contentCanvas, icon);
+				const cropped = stitchSideCrop(contentCanvas, icon);
+				if (!cropped._sideCrop.ok) devGeometry.push('[結合画像] ' + label + ': 両側を削りませんでした（' + cropped._sideCrop.reason + '）');
+				stitched[idx] = cropped;
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
 				}
@@ -3158,15 +3313,13 @@
 
 			const snap = (withMarks && stitchSnapshot && stitchSnapshot.results && stitchSnapshot.entries.length) ? stitchSnapshot : null;
 			const table = snap ? stitchTableData(snap, idxs) : null;
-			const legend = buildFactorFrameLegendBar(STITCH_LAYOUT.rightW, STITCH_LAYOUT.legendRef, !!table || markCount > 0,
-				{ withTable: !!table, wrapNotes: true });
-			const top = await stitchFamilyTop(idxs, stitched);
+			const legend = buildFactorFrameLegendBar(STITCH_LAYOUT.legendMaxW, STITCH_LAYOUT.legendRef, !!table || markCount > 0);
 			const barSnap = snap || (withMarks ? stitchSnapshot : null) || captureStitchSnapshot();
 			const result = composeFamilyImage({
 				idxs: idxs,
 				canvases: idxs.map(i => stitched[i] || null),
-				icons: idxs.map(i => icons[i] || null),
-				top: top, table: table, legend: legend, barText: stitchBarText(barSnap)
+				heads: idxs.map(i => heads[i] || null),
+				table: table, legend: legend, barText: stitchBarText(barSnap)
 			});
 			result._stitchWarnings = allWarnings;
 			result._markCount = markCount;
