@@ -100,6 +100,22 @@ export async function routeScenarioPendingOff(target) {
  * 塊（blocks-51「履歴」）は、逆向きに on を true にした合成の状態で見る。setScenarioPendingOn(true) の間に開くページだけが対象。 */
 let scenarioPendingOn = false;
 export function setScenarioPendingOn(v) { scenarioPendingOn = !!v; }
+/* 2026-10-31（C-260 の (a)）: お知らせは「お知らせの日から30日目まで」だけ自動で開く。お知らせの塊は、日付を固定して開く
+ * （Playwright の clock.setFixedTime。Date だけを固定し、タイマーは普通に進む）。固定するのはお知らせの塊だけ（ほかの塊は今日の日付のまま）。
+ * NOTICE_FIXED_TIME は、今のお知らせ（NOTICE_LIST の 2026/09/11〜2026/10/24）がどれも自動で出る範囲に入る日（2026/09/11 がちょうど30日目。
+ * 2026/10/24 の新シナリオはまだ先の日付で、範囲に入る）。これで、日付の規則より前に書いた塊は今までの意味のまま回る。日付の規則そのものは blocks-51 の 履歴(9)〜(11) が見る。 */
+export const NOTICE_FIXED_TIME = '2026-10-11T12:00:00+09:00';
+let noticeClock = null;
+/** 以後 openPage で開くページの日付を固定する（null で戻す） */
+export function setNoticeClock(t) { noticeClock = t || null; }
+/** いま固定している日付（無ければ null） */
+export function currentNoticeClock() { return noticeClock; }
+/** 日付を固定して fn を回す（終われば戻す） */
+export async function withNoticeClock(t, fn) {
+	const prev = noticeClock;
+	setNoticeClock(t);
+	try { return await fn(); } finally { setNoticeClock(prev); }
+}
 /** page か context に、announce.js の SCENARIO_PENDING.on を true にして返す route を足す（読み込みの前に呼ぶ） */
 export async function routeScenarioPendingOn(target) {
 	await target.route('**/js/announce.js*', async (route) => {
@@ -112,6 +128,7 @@ export async function routeScenarioPendingOn(target) {
 /** 保存データを仕込んだページを開く。userData を渡すと USER_DATA の代わりにそれを仕込む（2026-09-27・C-100）。 */
 export async function openPage(browser, base, file, viewport = { width: 1280, height: 900 }, userData = USER_DATA) {
 	const ctx = await browser.newContext({ viewport });
+	if (noticeClock) await ctx.clock.setFixedTime(new Date(noticeClock));
 	const page = await ctx.newPage();
 	// **Playwright の既定は30秒。** 在るはずの要素は5秒あれば必ず揃うので、そこまで待つ意味は無い。
 	// 一方、壊して「在るはずのものが無い」状態を作ったときは、30秒待たれると破壊確認が進まない

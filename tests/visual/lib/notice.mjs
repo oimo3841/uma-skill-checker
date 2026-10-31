@@ -21,6 +21,8 @@ export async function waitNoticeSettled(page, timeout = 10000) {
 			const ua = window.UmaAnnounce;
 			const page = location.pathname.indexOf('special') !== -1 ? 'special' : 'exam';
 			if (!ua || typeof NOTICE_KINDS === 'undefined') return true;
+			// 2026-10-31（C-260 の (a)）: 自動で開くかは日付でも決まる。ページと同じ判定（UmaAnnounce.autoOpenKind）をそのまま使う
+			if (typeof ua.autoOpenKind === 'function') return !ua.autoOpenKind(page, (k) => NOTICE_KINDS[k].seen());
 			let unseen = ua.history(page).some((h) => !NOTICE_KINDS[h.kind].seen());
 			if (ua.isForced() && ua.history(page).length) unseen = true;
 			return !unseen;

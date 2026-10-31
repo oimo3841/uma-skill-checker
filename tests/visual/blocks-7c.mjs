@@ -507,7 +507,8 @@ export async function register7c(env) {
 				if (oldMode) {
 					// 告知を閉じて既読にしたあとなら、保存値 'old' が効く（新UIから旧UIへ入る手順はもう無い）
 					for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
-					await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+					// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+					await page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 					reqs.length = 0;
 					await reloadReady(page);
 					await page.waitForTimeout(800);

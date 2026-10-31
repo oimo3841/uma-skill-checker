@@ -58,7 +58,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-26b"></script>
+	<script src="js/announce.js?v=2026-10-31a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -4219,11 +4219,11 @@
 			}
 			document.documentElement.removeAttribute('data-boot');
 			/* 告知は「お知らせの履歴」（js/announce.js の history。このツールの新しい3件）を1件ずつ出す（exam の initUiMode と同じ扱い）。
-			   履歴の3件に未読があれば、最新の1件で開く。閉じると、このツールの告知はすべて既読になる（古い告知の既読の印も含む）。
+			   履歴の3件に、お知らせの日から30日目までの未読があれば、最新の1件で開く（C-260 の (a)。日付は開くかどうかだけに使う＝js/announce.js の autoOpenKind）。
+			   閉じると、このツールの告知はすべて既読になる（古い告知の既読の印も含む）。
 			   ?notice=force: 文面の確認用。既読でも最新の1件から開き、何も書かない。 */
-			const hist = UmaAnnounce.history('special');
-			if (!hist.length) return;
-			if (UmaAnnounce.isForced() || hist.some(h => !noticeSeen(h.kind))) openUiNotice(hist[0].kind);
+			const autoKind = UmaAnnounce.autoOpenKind('special', noticeSeen);
+			if (autoKind) openUiNotice(autoKind);
 		}
 		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ----------
 		   枠（背景・✕・OK・Esc）は1つで、中身だけ差し替える。**1件ずつ**出す。小窓の上にツール名と日付、本文と OK の間に ‹ n / N ›（js/announce.js の decorate）。

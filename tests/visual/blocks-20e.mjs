@@ -6,8 +6,11 @@
 // E7 文面と画像のパスは js/announce.js の1か所だけ／E8 見た目（ライト・ダーク・375・393・1280px。小窓の中でスクロール）
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { withNoticeClock, NOTICE_FIXED_TIME } from './lib/fixtures.mjs';
 export async function register20e(env) {
-	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
+	// お知らせの塊なので、日付を固定して回す（C-260 の (a)・2026-10-31。lib/fixtures.mjs の NOTICE_FIXED_TIME）
+	const block = (title, fn) => env.block(title, () => withNoticeClock(NOTICE_FIXED_TIME, fn));
+	const { assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	// C-142（微調整4・E）: 告知は exam だけに出す（UmaStar の告知は完成後）。special には出ないことは 微調整4E1 が見る
 	const TOOLS_ALL = [

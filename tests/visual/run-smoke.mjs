@@ -18,7 +18,7 @@ import { startServer, REPO_ROOT } from './lib/serve.mjs';
 // 件数は data/ の実ファイルから数える（行・種を足すたびに手で付け替えない。受け入れの標準手順）
 const MELOP_ROWS_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/melop-sheet-rows.json'), 'utf8')).rows.length;
 const EFF_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-efficiency.json'), 'utf8')).entries.length;
-import { openPage as openPageRaw, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
+import { openPage as openPageRaw, withNoticeClock, currentNoticeClock, NOTICE_FIXED_TIME, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf, tokRgb } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
@@ -290,6 +290,11 @@ async function block(title, fn) {
 	}
 }
 
+/** お知らせの塊（C-260 の (a)・2026-10-31）: 日付を NOTICE_FIXED_TIME に固定して block を回す（lib/fixtures.mjs の withNoticeClock） */
+function noticeBlock(title, fn) {
+	return block(title, () => withNoticeClock(NOTICE_FIXED_TIME, fn));
+}
+
 if (ONLY.length > 0) console.log('--only=' + ONLY.join(',') + ' に当たる塊だけを回す\n');
 if (SHARD) console.log('--shard=' + SHARD.k + '/' + SHARD.n + ': ' + (SHARD_PLAN
 	? '時間で均した割り振り（重み ' + (SHARD_PLAN.source || '—') + '）のうちシャード' + SHARD.k + 'の ' + Object.values(SHARD_PLAN.assign).filter((k) => k === SHARD.k).length + '塊・重みの合計 ' + SHARD_PLAN.loads[SHARD.k - 1] + '秒'
@@ -305,6 +310,8 @@ const browser = await chromium.launch();
 	const newContext = browser.newContext.bind(browser);
 	browser.newContext = async (o) => {
 		const ctx = await newContext(o);
+		// お知らせの塊（noticeBlock・withNoticeClock の間）は、openPage を通さず自前で作る context も日付を固定する（C-260 の (a)・2026-10-31）
+		if (currentNoticeClock()) await ctx.clock.setFixedTime(new Date(currentNoticeClock()));
 		await ctx.addInitScript(() => {
 			try {
 				if (!sessionStorage.getItem('__fxStepTab')) {
@@ -342,7 +349,8 @@ await block('special.html（UmaStar OCR）', async () => {
 	await page.waitForTimeout(2500);
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
-	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+	await page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2000);
 
@@ -972,7 +980,8 @@ await block('special.html（UmaStar OCR）', async () => {
 	// Deck まわりはここまで。以降は旧UIに戻して確かめる。
 	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直す
 	// （ここから先の検査は仕込んだ結果に依存しない）。
-	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+	await page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2000);
 
@@ -1083,7 +1092,8 @@ await block('special.html（UmaStar OCR）', async () => {
 	assert(newUi.title === '因子周回', 'special: 新UIの①の見出しが短縮されている', newUi.title);
 	assert((await stepState()).panel1, 'special: 新UIへ切り替えると①が開いた状態になる');
 	// 往復（新UI →「旧UIへ」）は片道化で無くなった。保存値 'old' で開き直して同じ表示を見る
-	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+	await page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2000);
 	const backUi = await uiState();
@@ -1134,7 +1144,8 @@ await block('special.html（UmaStar OCR）', async () => {
 	assert(tabW.clipped[0] === false && tabW.clipped[1] === false,
 		'special(375px): バッジを持つ①②の名前が「…」で切れない（バッジは名前の下へ回る）', tabW);
 	assert(!tabW.overflow, 'special(375px): タブを折り返しても横スクロールは出ない', tabW);
-	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+	await page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 
 	assert(errors.length === 0, 'special: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
@@ -1819,7 +1830,7 @@ await block('special.html — ステップ①の入口「スキルセット画�
  * まっさらな文脈を使って通しで見る。閉じ方が4通りあり、どれで閉じても既読に
  * なることが仕様の肝なので、そこは文脈を分けて1通りずつ確かめる。
  * ============================================================ */
-await block('special.html — 既定は新UI／切り替えの告知モーダル', async () => {
+await noticeBlock('special.html — 既定は新UI／切り替えの告知モーダル', async () => {
 {
 	// 画面の状態をまとめて読む。どのUIで開いたかは①の見出しで判る。
 	const uiState = (page) => page.evaluate(() => ({
@@ -4574,7 +4585,7 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
  * 置き場の間を移る。「どちらのUIで開くか」と「既読か」が localStorage に残るので、
  * まっさらな文脈を使って通しで見る。閉じ方4通りは文脈を分けて1通りずつ確かめる。
  * ============================================================ */
-await block('exam.html — 既定は新UI／切り替えの告知モーダル／旧UIとの往復', async () => {
+await noticeBlock('exam.html — 既定は新UI／切り替えの告知モーダル／旧UIとの往復', async () => {
 {
 	const uiState = (page) => page.evaluate(() => ({
 		notice: !document.getElementById('ui-notice').hidden,
@@ -9114,7 +9125,7 @@ await block('C-62 の (9): 結合画像への導線（引き出しの中のタ�
  *   - layout を既読の人 … 改修中のほうが1度だけ出る
  *   - 閉じたあと … もう出ない
  * ============================================================ */
-await block('C-62 の (11): 改修中の告知', async () => {
+await noticeBlock('C-62 の (11): 改修中の告知', async () => {
 {
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 	// layout の告知だけ既読にして開く＝改修中の告知が出るはずの状態
@@ -9175,7 +9186,7 @@ await block('C-62 の (11): 改修中の告知', async () => {
 /* ============================================================
  * C-62 の (11・裏）: 初めて開く人には layout だけ
  * ============================================================ */
-await block('C-62 の (11・裏）: 初めて開く人には layout だけ', async () => {
+await noticeBlock('C-62 の (11・裏）: 初めて開く人には layout だけ', async () => {
 {
 	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた状態で、初めて開く人には履歴の最新の1件（収録の告知）が出る。閉じると改修中の告知・画面の告知も既読になる
 	setScenarioPendingOff(true);
@@ -10275,7 +10286,7 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
  *   (3b) alpha だけ未読なら、alpha の下に並ぶ
  *   (4) exam を開いても出ない
  * ============================================================ */
-await block('収録の告知 ―― special のお知らせのモーダルにだけ1度出る（C-100）', async () => {
+await noticeBlock('収録の告知 ―― special のお知らせのモーダルにだけ1度出る（C-100）', async () => {
 {
 	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた状態で見る。special の履歴は 収録・改修中・画面（1件ずつ・最新が先頭）
 	setScenarioPendingOff(true);

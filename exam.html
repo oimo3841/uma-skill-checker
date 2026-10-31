@@ -38,7 +38,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-26b"></script>
+	<script src="js/announce.js?v=2026-10-31a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -7935,10 +7935,10 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			} catch (e) {
 				console.error('[UmaExam OCR] UIの初期化に失敗しました', e);
 			}
+			// 履歴の3件に、お知らせの日から30日目までの未読があれば開く（C-260 の (a)。日付は開くかどうかだけに使う＝js/announce.js の autoOpenKind）
 			// ?notice=force: 文面の確認用。既読でも最新の1件から開き、何も書かない（C-140・微調整2・E）
-			const hist = UmaAnnounce.history('exam');
-			if (!hist.length) return;
-			if (UmaAnnounce.isForced() || hist.some(h => !noticeSeen(h.kind))) openUiNotice(hist[0].kind);
+			const autoKind = UmaAnnounce.autoOpenKind('exam', noticeSeen);
+			if (autoKind) openUiNotice(autoKind);
 		}
 
 		/* 中身の要素を、新UIの置き場（タブ・引き出し・ダイアログ）と旧UIの置き場（本文のカード）の間で移す。

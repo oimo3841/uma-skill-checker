@@ -49,7 +49,8 @@ async function shot(page, name, opts = {}) {
 	await page.waitForTimeout(300);
 	await shot(page, 'special-01-top');
 	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直して仕込む
-	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+	await page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2000);
 	await seedSpecialResults(page);

@@ -8,6 +8,7 @@
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { withNoticeClock, NOTICE_FIXED_TIME } from './lib/fixtures.mjs';
 export async function register22(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -170,7 +171,9 @@ export async function register22(env) {
 	 * ==================================================================== */
 	const WANT_LEAD = '新機能「効率を指定」モードを追加し、文面含め全体的な調整を行いました。';
 	const WANT_LINES = ['評価点÷SPの「効率」で対象スキルを区別します。', '蹄鉄をドラッグして区間を調整、バーをタップすると区間が対象から外れます。', '結合画像には、検出数と、★の数に応じて補正された合計評価点が入ります。'];
-	await block('微調整4E1 告知の文面はおいもさんの文面どおり（見出し「2nd Edition になりました」は無い・最初の行は「UmaExam OCR」・本文・箇条書き3つ・UmaStar の節は無い・読み上げの名前は「お知らせ」）／exam だけに出す（special には自動表示も ?notice=force もメニューの「お知らせ」も無い）', async () => {
+	// お知らせの塊なので、日付を固定して回す（C-260 の (a)・2026-10-31。lib/fixtures.mjs の NOTICE_FIXED_TIME）
+	const noticeBlock = (title, fn) => block(title, () => withNoticeClock(NOTICE_FIXED_TIME, fn));
+	await noticeBlock('微調整4E1 告知の文面はおいもさんの文面どおり（見出し「2nd Edition になりました」は無い・最初の行は「UmaExam OCR」・本文・箇条書き3つ・UmaStar の節は無い・読み上げの名前は「お知らせ」）／exam だけに出す（special には自動表示も ?notice=force もメニューの「お知らせ」も無い）', async () => {
 		{
 			const r = await openPage(browser, base, 'exam.html?notice=force', { width: 375, height: 800 });
 			await r.page.waitForTimeout(1500);

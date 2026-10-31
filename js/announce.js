@@ -18,7 +18,7 @@
  * このファイルは DOM を作るだけで、保存や開閉の処理は持たない（各ページの openUiNotice / closeUiNotice が持つ）。
  * 公開するグローバルは UmaAnnounce の1つだけ。
  * ============================================================ */
-const ANNOUNCE_JS_VERSION = '2026-10-26b';
+const ANNOUNCE_JS_VERSION = '2026-10-31a';
 
 (function () {
 	'use strict';
@@ -92,6 +92,43 @@ const ANNOUNCE_JS_VERSION = '2026-10-26b';
 			if (n.kind === 'edition') return isFor(page);
 			return true;
 		}).slice(0, HISTORY_MAX).map(function (n) { return { kind: n.kind, date: n.date }; });
+	}
+
+	/* ---------- 自動で開くかどうか（C-260 の (a)・2026-10-31） ----------
+	 * 日付は「読み込みのときに自動で開くか」だけに使う。‹ n / N › でめくれる件数は、自動で開いたときもメニューから開いたときも同じ（history の3件）。
+	 * お知らせの日（NOTICE_LIST の date・日本時間）を0日目として、AUTO_OPEN_DAYS 日目まで自動で出す。
+	 * 履歴の3件のうち、その範囲の中で未読のものがあれば、最新の1件で開く（履歴は新しい順なので、最新の1件も範囲の中）。
+	 * 未読が範囲の外（古いもの）しか無ければ、自動では何も出さない（既読も書かない＝開いていないので）。
+	 * ?notice=force は日付に関係なく最新の1件から開く（文面の確認用）。 */
+	const AUTO_OPEN_DAYS = 30;
+	const DAY_MS = 86400000;
+
+	/** 日本時間の日付の通し番号（1970-01-01 を 0）。時刻の端数・夏時間が入らないよう、日付だけで数える */
+	function jstDayNumber(ms) {
+		return Math.floor((ms + 9 * 3600000) / DAY_MS);
+	}
+
+	/** お知らせの日（'YYYY/MM/DD'）から今日（日本時間）までの日数。お知らせの日が0。読めない日付は null */
+	function noticeAgeDays(date, nowMs) {
+		const m = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(String(date || ''));
+		if (!m) return null;
+		const day = Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY_MS);
+		return jstDayNumber(nowMs === undefined ? Date.now() : nowMs) - day;
+	}
+
+	/** そのお知らせが、自動で出す範囲（0日目〜AUTO_OPEN_DAYS 日目）か。未来の日付も範囲に入れる */
+	function isFresh(date, nowMs) {
+		const age = noticeAgeDays(date, nowMs);
+		return age !== null && age <= AUTO_OPEN_DAYS;
+	}
+
+	/** 読み込みのときに自動で開くお知らせの種類（無ければ null）。seen(kind) は各ページの既読の読み方 */
+	function autoOpenKind(page, seen) {
+		const hist = history(page);
+		if (!hist.length) return null;
+		if (isForced()) return hist[0].kind;
+		const now = Date.now();
+		return hist.some(function (h) { return isFresh(h.date, now) && !seen(h.kind); }) ? hist[0].kind : null;
 	}
 
 	/** そのツールの全お知らせの種類（履歴の外のものも含む。閉じたときに既読にする範囲） */
@@ -254,5 +291,6 @@ const ANNOUNCE_JS_VERSION = '2026-10-26b';
 		ANNOUNCE: ANNOUNCE, TITLE_ID: TITLE_ID, fill: fill, isFor: isFor, isForced: isForced, version: ANNOUNCE_JS_VERSION,
 		SCENARIO_PENDING: SCENARIO_PENDING, SCENARIO_TITLE_ID: SCENARIO_TITLE_ID, fillScenario: fillScenario, isScenarioFor: isScenarioFor,
 		NOTICE_LIST: NOTICE_LIST, HISTORY_MAX: HISTORY_MAX, TOOL_NAME: TOOL_NAME, history: history, allKinds: allKinds, decorate: decorate, mountChrome: ensureChrome,
+		AUTO_OPEN_DAYS: AUTO_OPEN_DAYS, noticeAgeDays: noticeAgeDays, isFresh: isFresh, autoOpenKind: autoOpenKind,
 	};
 })();

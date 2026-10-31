@@ -318,7 +318,8 @@ export async function register18(env) {
 		const old = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
 		// 告知を閉じて既読にしたあとなら、保存値 'old' が効く（恒久ルール20）
 		for (let i = 0; i < 2; i++) if (await old.page.isVisible('#ui-notice')) await old.page.click('[data-act="notice-ok"]');
-		await old.page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+		// 画面のお知らせの既読も入れる（2026-10-31・C-260 の (a): お知らせは日付で自動で出ないことがあり、閉じて既読にする手順を通らなくても 'old' が効くように）
+		await old.page.evaluate(() => { localStorage.setItem(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID); localStorage.setItem('uma-special-ui-mode', 'old'); });
 		await reloadReady(old.page);
 		await old.page.waitForTimeout(400);
 		const o = await old.page.evaluate(() => ({ inHome: !!document.querySelector('#ocr-dict-home #ocr-dict-box') }));
