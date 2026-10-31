@@ -109,6 +109,8 @@ import { register79 } from './blocks-79.mjs';
 import { register80 } from './blocks-80.mjs';
 import { register81 } from './blocks-81.mjs';
 import { register82 } from './blocks-82.mjs';
+import { register83 } from './blocks-83.mjs';
+import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -9816,7 +9818,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	};
 
 	// C-235: 入口の行に残るのは「オススメサポ」「脚質オススメ」の2つ（右端に削除・↺・虫眼鏡・◎・表の塊）。入らない幅は文字を小さくし、それでも入らない 320px だけ横に送る
-	const WIDTHS = [[1280, 900], [768, 1024], [375, 812], [300, 812]];
+	// T52（C-262 の (1)）: ↺ を合計の行へ移したので右端の塊が 28px＋間 短くなり、300px でも収まるようになった。収まらない幅として 260px を足した
+	const WIDTHS = [[1280, 900], [768, 1024], [375, 812], [300, 812], [260, 812]];
 
 	for (const バッジ of ['無し', '有り']) {
 		if (バッジ === '有り') {
@@ -13666,7 +13669,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		// 段8・D（C-120）: 親由来のレベル（「共通スキルのヒントLv」）の選択は、pt-need の外の②の2行目（roster-link-row）へ移った
 		const sel = document.querySelector('#deck-template-panel [data-usd-el="pt-parent-level"]');
 		return { hidden: el.hidden, empty: el.innerHTML === '', chips: [chip(1), chip(2), chip(3)], roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), error: t('pt-need-error'),
-			theory: t('pt-need-theory'), F: sel ? Number(sel.value) : null, options: sel ? Array.from(sel.options).map((o) => o.value) : [] };
+			// T52（C-262 の (2)）: 共通スキルのヒントLv は select ではなく押すたびに1つ増える部品（値は data-value・次の値は data-next）
+			theory: t('pt-need-theory'), F: sel ? Number(sel.getAttribute('data-value')) : null, next: sel ? sel.getAttribute('data-next') : null };
 	});
 	const readScope = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{"skillIds":[]}'));
 	const sameNeed = (v, e) => v.chips[0] && v.chips[0].n === e.A && v.chips[1].n === e.B && v.chips[2].n === e.C;
@@ -13703,8 +13707,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		'段5(1)→C-226: ②に分類を変えるボタン（パレット・行のアイコン）は無く、tiers は保存のまま（数は分類どおり）', { noPal, got: v.chips.map((c) => c.n), want: [e.A, e.B, e.C] });
 
 	/* ② F ・保存 ／ ④ 状態 */
-	assert(v.F === 5 && v.options.join() === '5,4,3,2,1', '段5(2): 親由来のレベルは 5・4・3・2・1 から選べ、既定は 5（0 は無い）', { F: v.F, options: v.options });
-	await sp.page.selectOption('[data-usd-el="pt-parent-level"]', '3');
+	assert(v.F === 5 && v.next === '1', '段5(2)→T52: 親由来のレベル（共通スキルのヒントLv）の既定は 5、押すと 1（最大の次は最小。範囲 1〜5 の回り方は blocks-83）', { F: v.F, next: v.next });
+	await setBandStep(sp.page, '#deck-template-panel ', 'pt-parent-level', 3);
 	v = await readNeed(sp.page);
 	const ex3 = expectedNeed(Object.assign({}, base0, { tiers: tiers2, F: 3 }));
 	assert(sameNeed(v, ex3) && ex3.C !== e.C && v.F === 3, '段5(2): F を 3 に替えると、因子セットだけのスキルは L=3（35%引き）で計算され、合計が変わる', { got: v.chips.map((c) => c.n), want: [ex3.A, ex3.B, ex3.C] });
@@ -13783,7 +13787,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	const diff3 = (F) => lvTotal(x(6), Math.min(5, 2 + F)) - lvTotal(x(6), 2);
 	assert(sameNeed(v, e3(5)) && v.chips[0].n === roster0.C && v.chips[2].n === roster0.C + diff3(5) && roster0.levels[x(6)] === 2 && takenText && !takenText.taken && takenText.pt === '−' + Math.abs(diff3(5)) + ' Pt',
 		'段5(3)→C-223: 本育成のイベント（Lv2）で得る X6 は②でも数える（優先まで・通常までは①だけ − ' + Math.abs(diff3(5)) + '・②の行は差）', { got: v.chips.map((c) => c.n), want: [e3(5).A, e3(5).B, e3(5).C], rosterOnly: roster0.C, takenText });
-	await sp.page.selectOption('[data-usd-el="pt-parent-level"]', '1');
+	await setBandStep(sp.page, '#deck-template-panel ', 'pt-parent-level', 1);
 	v = await readNeed(sp.page);
 	assert(sameNeed(v, e3(1)) && v.chips[2].n === roster0.C + diff3(1) && diff3(1) !== diff3(5), '段5(3)→C-223: F を 1 に替えると、X6 は L3 で数え直す（差 ' + diff3(1) + '）', { got: v.chips.map((c) => c.n), want: [e3(1).A, e3(1).B, e3(1).C] });
 	await sp.ctx.close();
@@ -15516,6 +15520,8 @@ await register80({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register81({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T51（2026-11-01）: 結合画像の次の直し（理論値SP の欄の6行・遺伝子の枠と「名前：★N」・凡例の「遺伝子」。見出しは「T51結合画像の次の直し」）
 await register82({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T52（2026-11-01）: ②因子周回の調和の前半（合計の行・並べ替えの入口・除外の段の＋の位置。見出しは「T52②因子周回の前半」）
+await register83({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

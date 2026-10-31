@@ -290,7 +290,8 @@ export async function register65(env) {
 				const kids = Array.from(main.children).map((e) => e.getAttribute('data-usd-el'));
 				const r = (e) => { const b = e.getBoundingClientRect(); return { y: Math.round(b.y), h: Math.round(b.height), x: Math.round(b.x), r: Math.round(b.right) }; };
 				const uniq = Array.from(band.querySelectorAll('.usd-uniq')).map((e) => ({ el: e.getAttribute('data-usd-el'), label: e.querySelector('.usd-uniq-label').textContent, ...r(e), fs: getComputedStyle(e).fontSize }));
-				const sels = Array.from(band.querySelectorAll('.usd-uniq-sel')).map((e) => Math.round(e.getBoundingClientRect().height));
+				// T52: select（.usd-uniq-sel）をやめ、押すたびに1つ増える部品（.usd-uniq-step・見た目の高さ 26px）
+				const sels = Array.from(band.querySelectorAll('.usd-uniq-step')).map((e) => Math.round(e.getBoundingClientRect().height));
 				const help = band.querySelector('[data-usd-act="pt-need-help"]');
 				const link = document.querySelector('#deck-template-panel [data-usd-el="roster-link"]');
 				return { kids, uniq, sels, band: r(band), sum: r(band.querySelector('[data-usd-el="factor-sum"]')), fit: band.getAttribute('data-usd-fit'), wrap: band.hasAttribute('data-usd-wrap'),
@@ -298,17 +299,19 @@ export async function register65(env) {
 					linkShown: !!(link && !link.hidden && link.getClientRects().length), sumFs: getComputedStyle(band.querySelector('.usd-band-pt')).fontSize };
 			});
 			const tag = String(w);
-			assert(m.kids.join(',') === 'factor-sum,pt-need-help-btn,band-cfg' && m.uniq.map((u) => u.label).join('|') === '継承固有|共通スキルのヒントLv',
-				'タイトルと帯(7) ' + tag + ': 合計の行は［N Pt／N種］［?］［継承固有｜種数▾｜Lv▾］［共通スキルのヒントLv｜Lv▾］', m.kids);
-			assert(m.uniq.every((u) => u.h === 28) && m.sels.every((h) => h === 26) && !m.linkShown && !m.reset && !m.stats && !m.dot,
-				'タイトルと帯(7) ' + tag + ': 部品 28px・セレクト 26px・設定の枠の行は無い・↺ と2行は行から外した・? に赤い点は無い（①で取得するスキルがあっても）', m);
-			if (w === 1280) assert(!m.fit && !m.wrap && m.band.h === 44 && m.uniq[1].r <= m.band.r, 'タイトルと帯(7) 1280: 1行・文字はそのまま（帯 44px）', m);
-			if (w === 480) assert(m.fit && !m.wrap && m.band.h === 36, 'タイトルと帯(7) 480: 文字を小さくして1行に入る（帯 36px）', m);
-			if (w === 390) assert(!m.fit && m.wrap && m.uniq[0].y > m.sum.y + 10 && m.uniq[0].fs === '12px' && m.band.h === 66, 'タイトルと帯(7) 390: 入らない幅は部品2つを2行目に（文字は元の大きさ・帯 66px）', m);
-			if (w === 320) assert(m.wrap && m.sumFs === '22px', 'タイトルと帯(7) 320: 2行目（数字は元の大きさ）', m);
+			// T52（C-262 の (1)(2)・案d）: 合計の行は［N Pt／N種（押すと小窓。「?」は無い）］［継承固有｜X種｜LvX］［共通スキル｜LvX］［↺］
+			assert(m.kids.join(',') === 'pt-need-help-btn,band-cfg' && m.uniq.map((u) => u.label).join('|') === '継承固有|共通スキル',
+				'タイトルと帯(7) ' + tag + ': 合計の行は［N Pt／N種（押すボタン）］［継承固有｜X種｜LvX］［共通スキル｜LvX］［↺］', m.kids);
+			assert(m.uniq.every((u) => u.h === 28) && m.sels.length === 3 && m.sels.every((h) => h === 26) && !m.linkShown && m.reset && !m.stats && !m.dot,
+				'タイトルと帯(7) ' + tag + ': 部品 28px・押す部品 26px・設定の枠の行は無い・↺ は合計の行の右端・2行は行から外した・赤い点は無い（①で取得するスキルがあっても）', m);
+			// 字は 11px・合計の Pt は 20px（モックの実測）。375px 以上はどの幅も1行。375px 未満は字を段階的に小さくして1行（320px は data-usd-fit 3・字 9px・Pt 18px）
+			if (w === 1280) assert(!m.fit && !m.wrap && m.band.h === 44 && m.uniq[1].r <= m.band.r && m.uniq[0].fs === '11px' && m.sumFs === '20px', 'タイトルと帯(7) 1280: 1行（帯 44px・字 11px・Pt 20px）', m);
+			if (w === 480) assert(!m.fit && !m.wrap && m.band.h === 36 && m.uniq[0].fs === '11px', 'タイトルと帯(7) 480: 1行（帯 36px・字 11px）', m);
+			if (w === 390) assert(!m.fit && !m.wrap && m.band.h === 36 && m.uniq[0].fs === '11px' && m.sumFs === '20px', 'タイトルと帯(7) 390: 1行（帯 36px・字 11px・Pt 20px。それまでは部品が2行目で 66px）', m);
+			if (w === 320) assert(m.fit === '3' && !m.wrap && m.band.h === 36 && m.uniq[0].fs === '9px' && m.sumFs === '18px', 'タイトルと帯(7) 320: 字を小さくして1行（帯 36px）', m);
 			assert(await noHScroll(page), 'タイトルと帯(7) ' + tag + ': 横スクロールなし');
 			if (w === 390) {
-				await page.click('#deck-template-panel [data-usd-act="pt-need-help"]');
+				await page.click('#deck-template-panel [data-usd-act="pt-need-help"]');   // T52: 合計の数字のボタン
 				await page.waitForTimeout(200);
 				const h = await page.evaluate(() => ({ title: document.querySelector('[data-usd-el="info-pop"] .uma-popover-title').textContent, lines: Array.from(document.querySelectorAll('[data-usd-el="info-body"] > *')).map((e) => ({ el: e.getAttribute('data-usd-el'), text: e.textContent })) }));
 				assert(h.title === '②の Pt' && h.lines.length === 2 && h.lines[0].el === 'pt-need-uniq' && /^継承固有 [\d,]+ Pt／\d+種$/.test(h.lines[0].text) && h.lines[1].el === 'pt-need-common' && /^共通スキル [\d,]+ Pt／\d+種$/.test(h.lines[1].text),
@@ -333,15 +336,20 @@ export async function register65(env) {
 			});
 			const tag = String(w);
 			const order = m.tools.map((t) => t.el).join(',');
-			assert(m.left.join(',') === 'outside-open,style-open' && /^palette-delete,factor-reset,entry-search,(factor-circle-mode,)?factor-view$/.test(order) && m.picks === 0,
-				'タイトルと帯(8) ' + tag + ': 入口の行は［オススメサポ］［脚質オススメ］…［削除］［↺］［虫眼鏡］［◎］［表］（4つの入口は行に無い）', { left: m.left, order });
-			const del = m.tools.find((t) => t.el === 'palette-delete'), srch = m.tools.find((t) => t.el === 'entry-search'), rst = m.tools.find((t) => t.el === 'factor-reset');
-			assert(del.w === 28 && del.h === 28 && del.text === '' && del.aria === '削除' && srch.w === 28 && srch.h === 28 && srch.radius === rst.radius && del.radius !== '0px',
-				'タイトルと帯(8) ' + tag + ': 削除はゴミ箱のアイコンだけの 28px の丸（読み上げ「削除」）・虫眼鏡は ↺ と同じ 28px の丸', { del, srch, rst });
+			// （T52・C-262 の (1): ↺ は合計の行の右端へ移した）
+			assert(m.left.join(',') === 'outside-open,style-open' && /^palette-delete,entry-search,(factor-circle-mode,)?factor-view$/.test(order) && m.picks === 0,
+				'タイトルと帯(8) ' + tag + ': 入口の行は［オススメサポ］［脚質オススメ］…［削除］［虫眼鏡］［◎］［表］（4つの入口は行に無い）', { left: m.left, order });
+			const del = m.tools.find((t) => t.el === 'palette-delete'), srch = m.tools.find((t) => t.el === 'entry-search');
+			const rstR = await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="set-head"] [data-usd-el="factor-reset"]'); return b ? getComputedStyle(b).borderTopLeftRadius : null; });
+			assert(del.w === 28 && del.h === 28 && del.text === '' && del.aria === '削除' && srch.w === 28 && srch.h === 28 && srch.radius === rstR && del.radius !== '0px',
+				'タイトルと帯(8) ' + tag + ': 削除はゴミ箱のアイコンだけの 28px の丸（読み上げ「削除」）・虫眼鏡は ↺（合計の行）と同じ 28px の丸', { del, srch, rstR });
 			assert(m.tools[m.tools.length - 1].r <= m.head.r + 1, 'タイトルと帯(8) ' + tag + ': 右端の塊は行の右端に寄る', m);
 			if (w === 1280) assert(!m.fit && !m.fade && m.fs === '11px', 'タイトルと帯(8) 1280: 文字はそのまま・横送りなし', m);
-			if (w === 390 || w === 360) assert(m.fit && Number(m.fit) >= 1 && !m.fade && /^(9|10)px$/.test(m.fs), 'タイトルと帯(8) ' + tag + ': 入らない幅はオススメサポ・脚質オススメの文字を小さくして1行に入る（横送りなし）', m);
-			if (w === 320) assert(m.fit === '3' && m.fade === 'right', 'タイトルと帯(8) 320: それでも入らない幅だけ今の横送り（端のフェード）', m);
+			// T52（C-262 の (1)）: ↺ を合計の行へ移して右端の塊が短くなったので、390px は文字を小さくしなくても1行に入る
+			if (w === 390) assert(!m.fit && !m.fade && m.fs === '11px', 'タイトルと帯(8) 390: 文字はそのままで1行に入る（横送りなし。T52 で ↺ が行から出たため）', m);
+			if (w === 360) assert(m.fit && Number(m.fit) >= 1 && !m.fade && /^(9|10)px$/.test(m.fs), 'タイトルと帯(8) ' + tag + ': 入らない幅はオススメサポ・脚質オススメの文字を小さくして1行に入る（横送りなし）', m);
+			// T52: ↺ が行から出たので、320px も文字を最小の段（data-usd-fit 3）にすれば横送りなしで入る（それまでは横送り＋右のフェード）
+			if (w === 320) assert(m.fit === '3' && !m.fade, 'タイトルと帯(8) 320: 文字を最小の段にして1行に入る（横送りなし）', m);
 			assert(await noHScroll(page), 'タイトルと帯(8) ' + tag + ': 横スクロールなし');
 			if (w === 390) {
 				await page.click(ENTRY_SEARCH_BTN);
@@ -363,11 +371,11 @@ export async function register65(env) {
 					await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 					await page.waitForTimeout(300);
 				}
-				// ↺ は入口の行で今と同じリセットの小窓を開く
-				await page.click('#deck-template-panel .usd-factor-tools [data-usd-act="factor-reset"]');
+				// ↺ は今と同じリセットの小窓を開く（T52: ↺ は合計の行の右端）
+				await page.click('#deck-template-panel [data-usd-el="set-head"] [data-usd-act="factor-reset"]');
 				await page.waitForTimeout(200);
 				const rs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-body"] button')).map((b) => b.textContent.trim()));
-				assert(rs.length === 2 && /をすべて消す$/.test(rs[0]) && rs[1] === 'やめる', 'タイトルと帯(8): ↺ は入口の行から今と同じリセットの小窓を開く', rs);
+				assert(rs.length === 2 && /をすべて消す$/.test(rs[0]) && rs[1] === 'やめる', 'タイトルと帯(8): ↺ は合計の行から今と同じリセットの小窓を開く', rs);
 				await page.keyboard.press('Escape');
 			}
 			assert(jsErrors(errors).length === 0, 'タイトルと帯(8) ' + tag + ': エラー 0', errors);

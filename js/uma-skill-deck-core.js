@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01b';
 
 	/* ============================================================
 	 * 定数
@@ -4632,6 +4632,11 @@
 	const INHERITED_UNIQUE_COUNT_MIN = 2, INHERITED_UNIQUE_COUNT_MAX = 6, INHERITED_UNIQUE_COUNT_DEFAULT = 6;
 	const INHERITED_UNIQUE_LEVEL_MIN = 1, INHERITED_UNIQUE_LEVEL_DEFAULT = 3;
 	function inheritedUniqueLevelMax(rules) { return rules && isNonNegInt(rules.hintLevelMax) ? rules.hintLevelMax : 5; }
+	/** 押すたびに1つ増える部品（T52）の次の値。list は小さい順。最大の次は最小に戻る。list に無い値は最小 */
+	function cycleNext(list, cur) {
+		const i = list.indexOf(cur);
+		return list[(i + 1) % list.length];
+	}
 	function inheritedUniqueCountChoices() {
 		const out = [];
 		for (let n = INHERITED_UNIQUE_COUNT_MIN; n <= INHERITED_UNIQUE_COUNT_MAX; n++) out.push(n);
@@ -4797,6 +4802,63 @@
 		{ key: 'passive', label: '緑スキル', icon: 'sprout' },
 		{ key: 'debuff', label: 'デバフスキル', icon: 'sparkles' }
 	];
+	/**
+	 * T52（C-262 の (5)(6)・モック T48）: スキル名の列見出しの「4つのアイコン（回復・◎・緑・デバフ）と漏斗1つ」と、その範囲全体の並べ替えの入口（①の表・②の星取表で同じ形）。
+	 * アイコンは今の大きさ・位置のまま（今まで4つ並んでいた漏斗の場所は、見えない形で残す）。漏斗は1つだけ、4つのアイコンの幅の真ん中の下の段に置く。
+	 * 入口（.usd-roster-toneentry）はアイコンの範囲の幅 × 列見出しのセルの高さいっぱい。どこを押しても同じ並べ替えの小窓（openToneSortPopover）。
+	 * active＝並べている種類の key（無ければ null）。並べているときは漏斗を塗りつぶし、その種類のアイコンにベースカラーの枠。where は 'roster'（①）か 'factor'（②）
+	 */
+	const TONE_FUNNEL_SVG = '<svg class="usd-roster-funnel" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 2.5h12L9.8 8v4.7L6.2 14.5V8z"/></svg>';
+	const TONE_CIRCLE_SVG = '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg>';
+	function toneIconHtml(t, on) {
+		return '<span class="usd-roster-toneicon usd-roster-toneicon--' + t.key + (on ? ' usd-roster-toneicon--on' : '') + '" role="img" aria-label="' + esc(t.label) + '">'
+			+ (t.icon ? '<i data-lucide="' + t.icon + '" class="usd-roster-tonesvg"></i>' : TONE_CIRCLE_SVG) + '</span>';
+	}
+	function toneSortLabelOf(key) {
+		const t = ROW_TONE_SORTS.find(x => x.key === key);
+		return t ? t.label + 'を上に寄せる' : '並べ替えない';
+	}
+	function toneSortHeadHtml(active, where) {
+		const label = '並べ替え（今: ' + toneSortLabelOf(active) + '）';
+		return '<span class="usd-roster-tonebox">'
+			+ '<button type="button" class="usd-roster-toneentry" data-usd-act="tone-sort-open" data-usd-el="tone-sort-entry" data-usd-where="' + where + '"'
+			+ (active ? ' data-sorted="1"' : '') + ' aria-haspopup="dialog" aria-expanded="false" aria-label="' + esc(label) + '" title="並べ替え"></button>'
+			+ '<span class="usd-roster-tones" data-usd-el="tone-sorts">'
+			+ ROW_TONE_SORTS.map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">' + toneIconHtml(t, active === t.key)
+				+ '<span class="usd-roster-ghbtn usd-roster-tonebtn usd-roster-tonegap" aria-hidden="true"></span></span>').join('')
+			+ '<span class="usd-roster-ghbtn usd-roster-tonebtn usd-roster-tonefunnel" data-usd-el="tone-sort-funnel" data-on="' + (active ? '1' : '0') + '" aria-hidden="true">' + TONE_FUNNEL_SVG + '</span>'
+			+ '</span></span>';
+	}
+	/**
+	 * 並べ替えの小窓（T52）。「回復／◎／緑／デバフを上に寄せる」「並べ替えない」から1つ。active＝今の種類（null＝並べ替えない。
+	 * noneChecked＝false なら「並べ替えない」にも印を付けない〔ほかの並べ替え（メンバーの列など）が有効なとき〕）。disabled＝選べない種類の key の集合。onPick(key|null)
+	 */
+	function openToneSortPopover(btn, key, active, noneChecked, disabled, onPick) {
+		openPopover({
+			key: key, title: '並べ替え', btn: btn, opener: btn, refocus: '[data-usd-el="tone-sort-entry"][data-usd-where="' + btn.getAttribute('data-usd-where') + '"]',
+			build: (body) => {
+				const list = infoEl('div', 'usd-sort-list');
+				list.setAttribute('role', 'radiogroup');
+				list.setAttribute('aria-label', '並べ替え');
+				list.setAttribute('data-usd-el', 'tone-sort-list');
+				const name = uid('usdsort');
+				ROW_TONE_SORTS.map(t => ({ key: t.key, t: t })).concat([{ key: null, t: null }]).forEach(o => {
+					const on = o.key === null ? (active === null && noneChecked !== false) : active === o.key;
+					const dis = o.key !== null && !!disabled && disabled.has(o.key);
+					const lab = infoEl('label', 'usd-sort-opt');
+					lab.setAttribute('data-on', on ? '1' : '0');
+					if (dis) lab.setAttribute('data-disabled', '1');
+					lab.innerHTML = '<input type="radio" name="' + name + '" value="' + (o.key || '') + '" data-usd-el="tone-sort-pick" data-tone="' + (o.key || '') + '"' + (on ? ' checked' : '') + (dis ? ' disabled' : '') + '>'
+						+ (o.t ? toneIconHtml(o.t, false) : '<span class="usd-roster-toneicon" aria-hidden="true"></span>')
+						+ '<span class="usd-sort-optlabel">' + esc(toneSortLabelOf(o.key)) + '</span>';
+					lab.querySelector('input').addEventListener('change', () => { closeSkillInfo(); onPick(o.key); });
+					list.appendChild(lab);
+				});
+				body.appendChild(list);
+				refreshIcons();
+			}
+		});
+	}
 	function rowToneOf(skillId) {
 		const tags = getSkillTags(skillId) || {};
 		const eff = Array.isArray(tags.effect) ? tags.effect : [];
@@ -7287,6 +7349,28 @@
 		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// 漏斗の押せる範囲はメンバーの列と同じ 24px 以上（段7c）。3つを名前の右に収めるため、隣どうしを少し重ねて並べる（間隔 22px。320px は 18px）
 		'.usd-roster-tones { flex: none; display: flex; align-items: flex-end; margin-left: auto; }',
+		// T52（C-262 の (5)(6)・モック T48）: アイコンと漏斗の塊（.usd-roster-tonebox）の範囲全体が並べ替えの入口。入口は塊の左端（静的な位置）から、
+		// アイコンの範囲の幅（--usd-tones-w。漏斗の場所4つ分: 375px 24×4−7×3＝75・641px 以上 28×4＝112・374px 以下 24×4−8×3＝72）× 列見出しのセル（sticky＝入口の基準）の上下いっぱい
+		'.usd-roster-tonebox { flex: none; display: flex; margin-left: auto; --usd-tones-w: 75px; }',
+		'.usd-roster-tonebox > .usd-roster-tones { margin-left: 0; position: relative; }',
+		'.usd-roster-toneentry { position: absolute; top: 0; bottom: 0; z-index: 1; width: var(--usd-tones-w); margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 6px; }',
+		'.usd-roster-toneentry:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
+		// 今まで4つ並んでいた漏斗の場所は見えない形で残す（アイコンの位置を変えない）。見える漏斗は1つだけ、4つのアイコンの幅の真ん中の下の段
+		'.usd-roster-tonegap { visibility: hidden; }',
+		'.usd-roster-tonefunnel { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }',
+		'.usd-roster-tonefunnel[data-on="1"] .usd-roster-funnel path { fill: currentColor; }',
+		// 並べている種類のアイコンの印（ベースカラーの枠。アイコンの色の地は今のまま）
+		'.usd-roster-toneicon.usd-roster-toneicon--on { outline: 2px solid var(--uma-control-mark); outline-offset: 1px; border-radius: 3px; }',
+		// 並べ替えの小窓（T52）。選択肢は高さ 44px。アイコンの色は列見出しと同じ変数
+		'.usd-sort-list { display: flex; flex-direction: column; gap: 6px;',
+		'  --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); --usd-tone-icon-circle: var(--uma-text-heading); }',
+		':root[data-theme="dark"] .usd-sort-list { --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
+		'.usd-sort-opt { display: flex; align-items: center; gap: 8px; min-height: 44px; box-sizing: border-box; padding: 6px 12px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-md);',
+		'  background: var(--uma-surface); cursor: pointer; color: var(--uma-text-heading); font-weight: 600; }',
+		'.usd-sort-opt input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--uma-control); }',
+		'.usd-sort-opt[data-on="1"] { border-color: var(--uma-control-mark); box-shadow: inset 0 0 0 1px var(--uma-control-mark); background: var(--uma-control-soft); }',
+		'.usd-sort-opt[data-disabled="1"] { color: var(--uma-text-faint); cursor: not-allowed; }',
+		'.usd-sort-opt .usd-roster-toneicon { flex: none; }',
 		'.usd-roster-tone { display: flex; flex-direction: column; align-items: center; gap: 2px; }',
 		'.usd-roster-tone + .usd-roster-tone { margin-left: -7px; }',
 		'.usd-roster-toneicon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px; }',
@@ -7299,11 +7383,11 @@
 		'.usd-roster-toneicon--circle .usd-roster-tonesvg { width: 14px; height: 14px; stroke-width: 2.2; }',
 		'.usd-roster-ghbtn.usd-roster-tonebtn { width: 24px; }',
 		// スマホより広い幅（641px 以上）は、メンバーの列の漏斗と同じ 28px（重ねない）
-		'@media (min-width: 641px) { .usd-roster-ghbtn.usd-roster-tonebtn { width: 28px; } .usd-roster-tone + .usd-roster-tone { margin-left: 0; } }',
+		'@media (min-width: 641px) { .usd-roster-ghbtn.usd-roster-tonebtn { width: 28px; } .usd-roster-tone + .usd-roster-tone { margin-left: 0; } .usd-roster-tonebox { --usd-tones-w: 112px; } }',
 		// 320px（360px 未満）: 「スキル名」が切れないように、漏斗どうしの重なり・左右の余白・文字を少し詰める
 		// C-168: ◎のボタンを足して4つになったので、重なりを -7px（それまでは 320px だけ）にし、360px 台は余白と文字を詰める。
 		// 359px 以下は4つ分と「スキル名」が並ばないので、見出しの文字は省く（列の見出しの aria-label は「スキル名」のまま。ボタンは4つとも24px）
-		'@media (max-width: 374px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -8px; } .usd-roster-ghtitle { font-size: 10px; } }',
+		'@media (max-width: 374px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -8px; } .usd-roster-tonebox { --usd-tones-w: 72px; } .usd-roster-ghtitle { font-size: 10px; } }',
 		'@media (max-width: 359px) { .usd-roster-ghtitle { display: none; } }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); color: var(--uma-gold-row-text, inherit); }',
@@ -7477,12 +7561,31 @@
 		'.usd-band-cfg { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex: none; }',
 		'.usd-band-cfg .usd-uniq { min-height: 28px; }',
 		'.usd-band-cfg .usd-uniq-sel { min-height: 26px; }',
-		'.usd-setband[data-usd-fit="1"] .usd-band-cfg .usd-uniq { font-size: 11px; padding-inline: 8px 2px; }',
-		'.usd-setband[data-usd-fit="2"] .usd-band-cfg .usd-uniq { font-size: 10px; padding-inline: 6px 1px; }',
-		'.usd-setband[data-usd-fit="2"]:not([data-usd-wrap]) .usd-band-pt { font-size: 20px; }',
-		'.usd-setband[data-usd-fit="3"] .usd-band-cfg .usd-uniq { font-size: 10px; padding-inline: 5px 0; }',
-		'.usd-setband[data-usd-fit="3"] .usd-band-cfg { gap: 4px; }',
-		'.usd-setband[data-usd-fit="3"] .usd-band-main { gap: 4px; }',
+		// T52（C-262 の (1)(2)・モック T45 の案d）: 合計の行は［N Pt／N種（押すと「②の Pt」の小窓）］［継承固有｜X種｜LvX］［共通スキル｜LvX］［↺］の1行。
+		// 「?」は無くし、合計の数字を押す（①の合計と同じ形・点線の下線）。X種・LvX は押すたびに1つ増える部品（select をやめた）。
+		// 字は 11px・合計の Pt は 20px・間隔 3px（モックの実測。375px で 345／345px・行の高さ 36px。1280px は行の高さ 44px）。押せる範囲は ::before で上下に 9px ずつ広げて 44px
+		'.usd-setband .usd-band-main, .usd-setband .usd-band-cfg { gap: 3px; }',
+		'.usd-setband .usd-band-pt { font-size: 20px; }',
+		'.usd-setband .usd-band-cfg .usd-uniq { font-size: 11px; padding-inline: 7px 1px; }',
+		'.usd-band-sumbtn { position: relative; flex: none; display: inline-flex; align-items: baseline; padding: 0; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer;',
+		'  text-decoration: underline dotted var(--uma-text-subtle); text-underline-offset: 3px; }',
+		'.usd-band-sumbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
+		'.usd-uniq-step { position: relative; font: inherit; color: inherit; background: transparent; border: 0; border-left: 1px solid var(--uma-border); border-radius: 0; margin: 0;',
+		'  padding: 0 4px; min-height: 26px; cursor: pointer; font-variant-numeric: tabular-nums; white-space: nowrap; }',
+		'.usd-uniq-step:last-child { border-radius: 0 var(--uma-r-full) var(--uma-r-full) 0; padding-right: 6px; }',
+		'.usd-uniq-step:hover { background: var(--uma-surface-muted); }',
+		'.usd-uniq-step:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-uniq-step::before, .usd-band-sumbtn::before, .usd-band-cfg .usd-reset-btn::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; bottom: -9px; }',
+		'.usd-band-cfg .usd-reset-btn { position: relative; }',
+		// T52: 1行の既定が 11px（上）になったので、375px 未満で入らないときの段は、そこからさらに詰める
+		'.usd-setband[data-usd-fit="1"] .usd-band-cfg .usd-uniq { font-size: 10px; padding-inline: 6px 1px; }',
+		'.usd-setband[data-usd-fit="2"] .usd-band-cfg .usd-uniq { font-size: 10px; padding-inline: 5px 0; }',
+		'.usd-setband[data-usd-fit="2"] .usd-uniq-step { padding: 0 3px; }',
+		'.usd-setband[data-usd-fit="2"]:not([data-usd-wrap]) .usd-band-pt { font-size: 18px; }',
+		'.usd-setband[data-usd-fit="3"] .usd-band-cfg .usd-uniq { font-size: 9px; padding-inline: 4px 0; }',
+		'.usd-setband[data-usd-fit="3"] .usd-uniq-step { padding: 0 2px; }',
+		'.usd-setband[data-usd-fit="3"] .usd-band-cfg { gap: 2px; }',
+		'.usd-setband[data-usd-fit="3"] .usd-band-main { gap: 2px; }',
 		'.usd-setband[data-usd-fit="3"]:not([data-usd-wrap]) .usd-band-pt { font-size: 18px; }',
 		'.usd-setband[data-usd-fit="3"]:not([data-usd-wrap]) :is(.usd-band-slash, .usd-band-kinds) { font-size: 13px; }',
 		'.usd-setband[data-usd-wrap] .usd-band-main { flex-wrap: wrap; row-gap: 4px; }',
@@ -12929,18 +13032,12 @@
 				const rows = [].concat.apply([], units);
 				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="本育成で得られるスキル"'
 					+ ' style="--usd-roster-cols:' + members.length + '">';
-				// スキル名の列見出し（段13・B3）: 名前の右に3つのアイコン（回復・緑〔パッシブ〕・デバフ）、それぞれの下に漏斗。
-				// 漏斗はその種類のスキルを上へ寄せる（行は減らさない。もう一度押すと元の並び）。メンバーの列の漏斗と同じ sortKey を使うので、有効なのは全部で1つだけ
-				// ◎のボタンのアイコン（C-168）。二重丸の線画。色は currentColor（CSS の --usd-tone-icon-circle＝既存のトークン）
-				const circleIconSvg = '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg>';
-				const toneHead = ROW_TONE_SORTS.map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">'
-					+ '<span class="usd-roster-toneicon usd-roster-toneicon--' + t.key + '" role="img" aria-label="' + esc(t.label) + '" title="' + esc(t.label) + '">' + (t.icon ? '<i data-lucide="' + t.icon + '" class="usd-roster-tonesvg"></i>' : circleIconSvg) + '</span>'
-					+ '<button type="button" class="usd-roster-ghbtn usd-roster-tonebtn" data-usd-act="sort-tone" data-tone="' + t.key + '" data-usd-el="tone-sort-btn"'
-					+ ' aria-pressed="' + (sortKey === 'tone:' + t.key ? 'true' : 'false') + '" aria-label="' + esc(t.label + 'を上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button></span>').join('');
+				// スキル名の列見出し（段13・B3。T52 で入口を1つに）: 名前の右に4つのアイコン（回復・◎・緑〔パッシブ〕・デバフ）と漏斗1つ。範囲全体が並べ替えの入口（toneSortHeadHtml）。
+				// 小窓で選んだ種類のスキルを上へ寄せる（行は減らさない）。メンバーの列の漏斗と同じ sortKey を使うので、有効なのは全部で1つだけ
 				// C-131: C-129 で「スキル名」の下に置いた「低効果を除外」は削除した（低効果の除外が要るのは②の場面で、①では不要）
 				h += '<div class="usd-roster-grow" role="row">'
 					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-roster-gh--skill" role="columnheader" aria-label="スキル名"><span class="usd-roster-ghtitle" aria-hidden="true">スキル名</span>'
-					+ '<span class="usd-roster-tones" data-usd-el="tone-sorts">' + toneHead + '</span></div>'
+					+ toneSortHeadHtml(toneSort, 'roster') + '</div>'
 					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m)
 						+ (m.label ? '' : ' usd-roster-gh--empty') + '"'
 						+ ' role="columnheader" aria-label="' + colName(m) + '"' + (m.kind === 'card' && m.typeOrder !== null && m.typeOrder !== undefined ? ' data-type-order="' + m.typeOrder + '"' : '') + '>' + colHead(m) + '</div>').join('')
@@ -13293,12 +13390,15 @@
 				gridScrollReset = true;
 				render();
 			}
-			else if (act === 'sort-tone') {
-				// 段13・B3: 種類の漏斗。メンバーの列の漏斗と同じ sortKey（有効なのは全部で1つだけ・保存しない）
-				const key = 'tone:' + btn.getAttribute('data-tone');
-				sortKey = sortKey === key ? null : key;
-				gridScrollReset = true;
-				render();
+			else if (act === 'tone-sort-open') {
+				// T52（C-262 の (6)）: 列見出しの入口。小窓で種類を1つ選ぶ（メンバーの列の漏斗と同じ sortKey。有効なのは全部で1つだけ・保存しない）
+				const cur = typeof sortKey === 'string' && sortKey.indexOf('tone:') === 0 ? sortKey.slice(5) : null;
+				openToneSortPopover(btn, 'tone-sort:' + uidBase, cur, sortKey === null, null, (k) => {
+					sortKey = k === null ? null : 'tone:' + k;
+					gridScrollReset = true;
+					render();
+					focusNoScroll(container.querySelector('[data-usd-el="tone-sort-entry"]'));
+				});
 			}
 			else if (act === 'col-menu') {
 				const key = memberKeyOf(btn.getAttribute('data-member-key'));
@@ -13803,6 +13903,16 @@
 		// 画面の中だけの状態で保存しない（リロードでカード一覧に戻る）。切り替えのボタンを押すたびに FACTOR_VIEWS の順に回る
 		let factorView = 'cards';
 		let factorTableSort = null;
+		// T52（C-262 の (5)(6)）: 星取表の種類の並べ替え（'heal'・'passive'・'debuff'。null＝なし。保存しない）。◎は factorCircleMode と同じ状態（◎を選ぶ＝モードの入り）。
+		// 星取表の列見出しのメニューの並べ替え（factorTableSort）・種類の並べ替え・◎は、有効なのは全部で1つだけ（setFactorSort で切り替える）
+		let factorToneSort = null;
+		function factorToneActive() { return factorCircleMode ? 'circle' : factorToneSort; }
+		/** 並べ替えを1つに切り替える。kind＝'tone'（key＝種類。'circle' は◎のモード）／'col'（key＝列）／null（並べ替えない） */
+		function setFactorSort(kind, key) {
+			factorTableSort = kind === 'col' ? key : null;
+			factorCircleMode = kind === 'tone' && key === 'circle';
+			factorToneSort = kind === 'tone' && key !== 'circle' ? key : null;
+		}
 		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
 		const tabNoun = opts.tabNoun || setLabel;
 		let nameEdit = null;       // 選んでいるタブの名前を編集中なら { value }（確定するまで保存しない）
@@ -14035,7 +14145,8 @@
 			// 「…は10件までです」の知らせは、次の操作で消す
 			if (limitNotice && act !== 'template-tab') limitNotice = false;
 			// 描き直しで押したボタンが画面の中で動かないようにする（段7b の ⑥。special の②だけ）
-			const anchor = grouped ? captureAnchor(btn) : null;
+			// T52（C-262 の (7)）: 除外の段の＋は押したボタンが描き直しで消える（同じ手がかりの別の＋を探して位置を戻してしまう）ので、onTmAct の中で「次の＋」を基準に戻す
+			const anchor = grouped && act !== 'factor-enable' ? captureAnchor(btn) : null;
 			try { onTmAct(btn, act); } finally { if (anchor) restoreAnchor(anchor, [container]); }
 		});
 		function onTmAct(btn, act) {
@@ -14075,11 +14186,30 @@
 			// 入口の行の右端の「削除」（段9 のパレットの名残。C-226 でアイコンは無くした）
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
+			// T52（C-262 の (2)）: 合計の行の「X種」「LvX」。押すたびに1つ増える（最大の次は最小）。描き直したあとも同じ部品にフォーカスを戻す
+			else if (act === 'uniq-count-next' || act === 'uniq-level-next' || act === 'pt-parent-level-next') {
+				const v = Number(btn.getAttribute('data-next'));
+				const el = btn.getAttribute('data-usd-el');
+				if (act === 'uniq-count-next') setInheritedUnique('count', v);
+				else if (act === 'uniq-level-next') setInheritedUnique('hintLevel', v);
+				else setParentHintLevel(v);
+				focusNoScroll(container.querySelector('button[data-usd-el="' + el + '"]'));
+			}
 			else if (act === 'factor-circle-mode') {
-				// ②因子周回 段2: 「◎を○に変えるモード」の入り・切り（保存しない）
-				factorCircleMode = !factorCircleMode;
+				// ②因子周回 段2: 「◎を○に変えるモード」の入り・切り（保存しない）。T52: 並べ替えの小窓の◎と同じ状態（入れると、ほかの並べ替えは切れる）
+				if (factorCircleMode) setFactorSort(null); else setFactorSort('tone', 'circle');
 				render();
 				focusNoScroll(container.querySelector('button[data-usd-act="factor-circle-mode"]'));
+			}
+			else if (act === 'tone-sort-open') {
+				// T52（C-262 の (5)(6)）: 星取表の列見出しの並べ替えの入口。◎の候補が無いときは◎を選べない（操作の行の◎のボタンも出ていない）
+				const cst = factorPtState(currentTarget());
+				const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
+				openToneSortPopover(btn, 'tone-sort:' + draftScopeKey, factorTableSort === null ? factorToneActive() : null, factorTableSort === null, hasCircle ? null : new Set(['circle']), (k) => {
+					setFactorSort(k === null ? null : 'tone', k);
+					render();
+					focusNoScroll(container.querySelector('[data-usd-el="tone-sort-entry"][data-usd-where="factor"]'));
+				});
 			}
 			else if (act === 'factor-view') {
 				// ②因子周回 段3: 表示の切り替え（保存しない）。T29: カード一覧 → 表 → 分類 → カード一覧 と回る。押したボタンにフォーカスを戻す
@@ -14095,7 +14225,31 @@
 			}
 			else if (act === 'factor-enable') {
 				// 無効の行（C-225）: 左の＋のボタンを押すと②に足して有効にする（C-238 から＋のボタンだけ。名前は説明の小窓）
+				// T52（C-262 の (7)・T45 の A-3 の (ア)）: 押したボタンは描き直しで消えるので、「次の除外の行の＋」（無ければ除外の段の見出し）の画面上の位置を覚え、
+				// 描き直した後に同じ位置へ戻す。フォーカスはその＋へ（無ければ1つ前の＋）。タイルの表示・星取表の表示で同じ
+				const offBtns = Array.from(container.querySelectorAll('button[data-usd-act="factor-enable"]'));
+				const at = offBtns.indexOf(btn);
+				const nextBtn = at >= 0 ? offBtns[at + 1] || null : null;
+				const prevId = at > 0 ? offBtns[at - 1].getAttribute('data-off-skill-id') : null;
+				const head = container.querySelector('[data-usd-el="factor-off-head"]');
+				const anchor = nextBtn ? captureAnchor(nextBtn) : (head ? { sel: '[data-usd-el="factor-off-head"]', top: head.getBoundingClientRect().top } : null);
+				const nextId = nextBtn ? nextBtn.getAttribute('data-off-skill-id') : null;
+				if (anchor && nextId) anchor.sel = 'button[data-usd-act="factor-enable"][data-off-skill-id="' + String(nextId).replace(/"/g, '\\"') + '"]';
 				enableFactorOffSkill(btn.getAttribute('data-off-skill-id'));
+				// 広い幅の星取表は表の箱（.usd-roster-grid-wrap）の中でもスクロールし、描き直すと箱のスクロールが先頭に戻る。ずれは箱の中 → ページの順に打ち消す
+				const moved = anchor ? container.querySelector(anchor.sel) : null;
+				if (moved) {
+					let d = moved.getBoundingClientRect().top - anchor.top;
+					for (let n = moved.parentElement; n && n !== container && Math.abs(d) > 0.5; n = n.parentElement) {
+						if (!/(auto|scroll)/.test(global.getComputedStyle(n).overflowY) || n.scrollHeight <= n.clientHeight) continue;
+						const was = n.scrollTop;
+						n.scrollTop = was + d;
+						d -= n.scrollTop - was;
+					}
+					if (Math.abs(d) > 0.5 && typeof global.scrollBy === 'function') global.scrollBy(0, d);
+				}
+				const focusId = nextId || prevId;
+				if (focusId) focusNoScroll(container.querySelector('button[data-usd-act="factor-enable"][data-off-skill-id="' + String(focusId).replace(/"/g, '\\"') + '"]'));
 			}
 			else if (act === 'factor-circle-toggle') {
 				// ②の◎／○の切り替え（②因子周回 段2）。押したボタンにフォーカスを戻す（位置は上の captureAnchor で保つ）
@@ -15366,9 +15520,9 @@
 		}
 
 		/**
-		 * ②の帯（段9・C-121。段8・D の1行目を置き換えた）。C-235: 薄い帯の中に「X Pt／N種」「?」と、右寄せの部品2つ
-		 * ［継承固有｜種数▾｜Lv▾］［共通スキルのヒントLv｜Lv▾］（設定の枠の行から移した）。収まらない幅は文字を小さくし、それでも入らない幅だけ部品が2段目へ（fitSetHead）。
-		 * 「?」の小窓には「継承固有 720 Pt／6種」「共通スキル 7,693 Pt／98種」の2行だけ。↺ は入口の行の右端の塊（renderPalette）。
+		 * ②の帯（段9・C-121。段8・D の1行目を置き換えた）。T52（C-262 の (1)(2)）: 薄い帯の中に「X Pt／N種」（押すと「②の Pt」の小窓）と、右寄せの部品
+		 * ［継承固有｜X種｜LvX］［共通スキル｜LvX］［↺］。収まらない幅（375px 未満）は文字を小さくし、それでも入らない幅だけ部品が2段目へ（fitSetHead）。
+		 * 小窓には「継承固有 720 Pt／6種」「共通スキル 7,693 Pt／98種」の2行だけ。
 		 */
 		function renderSetHead(el, st) {
 			const r = st.r;
@@ -15381,34 +15535,39 @@
 			const cuts = JSON.stringify(r.cuts.map(c => ({ tier: c.tier, own: c.own, total: c.total })));
 			// C-235: 右寄せの部品2つ［継承固有｜6種▾｜Lv3▾］［共通スキルのヒントLv｜5▾］（設定の枠の行から移した。保存は今のまま）。
 			// 継承固有・共通スキルの「Pt／種」の2行は ? の小窓の中だけ。? の赤い点（①で取得するスキル）は無くした。↺ は入口の行の右端の塊へ
+			// T52（C-262 の (1)(2)）: select をやめ、「X種」「LvX」は押すたびに1つ増える部品（最大の次は最小）。↺ は合計の行の右端へ戻した（操作の行からは無くした）。
+			// 保存の形（inheritedUnique・parentHintLevel）と範囲・既定は今のまま。読み上げ名は今の値と、押すと何になるか
 			const rules = skillPtData.rules;
 			const uq0 = resolveInheritedUnique(inheritedUniqueOf(target), rules);
-			const opt = (list, cur, fmt) => list.map(v => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + fmt(v) + '</option>').join('');
+			const step = (act, el, name, list, cur, fmt) => {
+				const nx = cycleNext(list, cur);
+				const label = name + '：' + fmt(cur) + '（押すと' + fmt(nx) + '）';
+				return '<button type="button" class="usd-uniq-step" data-usd-act="' + act + '" data-usd-el="' + el + '" data-value="' + cur + '" data-next="' + nx + '"'
+					+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '">' + fmt(cur) + '</button>';
+			};
 			let cfg = '<span class="usd-band-cfg" data-usd-el="band-cfg">'
 				+ '<span class="usd-uniq" role="group" aria-label="継承固有" data-usd-el="uniq">'
 				+ '<span class="usd-uniq-label">継承固有</span>'
-				+ '<select class="usd-uniq-sel" data-usd-act="uniq-count" data-usd-el="uniq-count" aria-label="継承固有の種類">' + opt(inheritedUniqueCountChoices(), uq0.count, v => v + '種') + '</select>'
-				+ '<select class="usd-uniq-sel" data-usd-act="uniq-level" data-usd-el="uniq-level" aria-label="継承固有のヒントレベル">' + opt(inheritedUniqueLevelChoices(rules), uq0.hintLevel, v => 'Lv' + v) + '</select>'
+				+ step('uniq-count-next', 'uniq-count', '継承固有の種類', inheritedUniqueCountChoices(), uq0.count, v => v + '種')
+				+ step('uniq-level-next', 'uniq-level', '継承固有のヒントLv', inheritedUniqueLevelChoices(rules), uq0.hintLevel, v => 'Lv' + v)
 				+ '</span>';
 			if (rules) {
 				const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
-				cfg += '<span class="usd-uniq" role="group" aria-label="共通スキルのヒントLv" data-usd-el="parent-level-group">'
-					+ '<span class="usd-uniq-label">共通スキルのヒントLv</span>'
-					+ '<select class="usd-uniq-sel" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="共通スキルのヒントLv">'
-					+ opt(parentHintLevelChoices(rules), F, v => String(v)) + '</select></span>';
+				cfg += '<span class="usd-uniq" role="group" aria-label="共通スキル" data-usd-el="parent-level-group">'
+					+ '<span class="usd-uniq-label">共通スキル</span>'
+					+ step('pt-parent-level-next', 'pt-parent-level', '共通スキルのヒントLv', parentHintLevelChoices(rules).slice().sort((a, b) => a - b), F, v => 'Lv' + v)
+					+ '</span>';
 			}
-			cfg += '</span>';
+			cfg += resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(target)) + '</span>';
 			el.innerHTML = '<div class="usd-setband usd-bandbox" data-usd-el="set-head" data-cuts="' + esc(cuts) + '">'
 				+ '<div class="usd-band-main">'
-				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span>'
-				+ '<button type="button" class="uma-help-btn usd-band-help" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
-				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明" title="②の Pt の説明">?</button>'
+				// 案d: 「?」は無く、合計の数字を押すと「②の Pt」の小窓（今の「?」と同じ中身。①の合計の行と同じ形）
+				+ '<button type="button" class="usd-band-sumbtn" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
+				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明を開く" title="②の Pt の説明を開く">'
+				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span></button>'
 				+ cfg
 				+ '</div></div>';
 			el.hidden = false;
-			// ↺ は入口の行の右端の塊（renderPalette）。押せるか（消すスキルがあるか）はここで合わせる
-			const reset = q(container, 'factor-reset');
-			if (reset) reset.disabled = !canResetFactor(target);
 			renderPanelPts();
 			fitSetHead();
 			scanEntryRows();
@@ -15741,8 +15900,17 @@
 			let offRows = offIds.slice();
 			// ソート（列見出しのメニュー）: その列が持つ（●か○）スキルのまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）。もう一度で元の並び。無効の段の中も同じ決まりで並べる
 			if (factorTableSort !== null && !cards.some(m => m.key === factorTableSort && m.label)) factorTableSort = null;
-			if (factorTableSort !== null) {
-				const hasId = (id) => { const m = src.marks.get(id); return !!m && (m.sure.indexOf(factorTableSort) !== -1 || m.maybe.indexOf(factorTableSort) !== -1); };
+			// T52: 種類の並べ替え（列見出しの入口の小窓）。①の表と同じ基準（rowToneOf）で、その種類を持つまとまりを上へ（安定ソート）。
+			// ◎（factorCircleMode）は◎／○の2つの状態を持つ行（②の候補と、①に関わる○の行）を上へ。無効の段の中も同じ決まりで並べる
+			const tone = factorToneActive();
+			let hasId = null;
+			if (factorTableSort !== null) hasId = (id) => { const m = src.marks.get(id); return !!m && (m.sure.indexOf(factorTableSort) !== -1 || m.maybe.indexOf(factorTableSort) !== -1); };
+			else if (tone === 'circle') {
+				const cst = factorPtState(currentTarget());
+				const a = cst && cst.circleCandidates, b = cst && cst.rosterCircle && cst.rosterCircle.candidates;
+				hasId = (id) => !!((a && a.has(id)) || (b && b.has(id)));
+			} else if (tone) hasId = (id) => !!rowToneOf(id)[tone];
+			if (hasId) {
 				const hit = (u) => u.some(it => hasId(it.skillId));
 				units = units.filter(hit).concat(units.filter(u => !hit(u)));
 				offRows = offRows.filter(hasId).concat(offRows.filter(id => !hasId(id)));
@@ -15774,7 +15942,9 @@
 			};
 			let h = '<div class="usd-roster-grid-wrap usd-fstar" data-usd-el="factor-table"><div class="usd-roster-grid" role="table" aria-label="②のスキルとオススメサポのサポートカード" style="--usd-roster-cols:' + cards.length + '">';
 			h += '<div class="usd-roster-grow" role="row">'
-				+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-fstar-gh" role="columnheader">スキル名</div>'
+				// T52: ①の表と同じ「スキル名」＋4つのアイコンと漏斗1つ（範囲全体が並べ替えの入口。星取表の表示だけ）
+				+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-roster-gh--skill usd-fstar-gh" role="columnheader" aria-label="スキル名"><span class="usd-roster-ghtitle" aria-hidden="true">スキル名</span>'
+				+ toneSortHeadHtml(factorTableSort === null ? factorToneActive() : null, 'factor') + '</div>'
 				+ cards.map(m => '<div class="usd-roster-gc usd-roster-gh usd-fstar-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '" role="columnheader"'
 					+ ' aria-label="' + esc(m.no + (m.label ? '：' + m.label : '（空き）')) + '"' + (m.typeOrder !== null && m.typeOrder !== undefined ? ' data-type-order="' + m.typeOrder + '"' : '') + '>' + colHead(m) + '</div>').join('')
 				+ '</div>';
@@ -15828,8 +15998,10 @@
 					if (hasEvents) add('colmenu-events', 'イベント/スキル', () => { openFactorEvents(key); });
 					add('colmenu-sort', 'ソート', () => {
 						closeSkillInfo();
-						factorTableSort = factorTableSort === key ? null : key;
-						renderSelectedList();
+						// T52: 種類の並べ替え・◎と合わせて、有効なのは全部で1つだけ（◎のモードも切れるので、操作の行も描き直す）
+						const wasCircle = factorCircleMode;
+						if (factorTableSort === key) setFactorSort(null); else setFactorSort('col', key);
+						if (wasCircle !== factorCircleMode) render(); else renderSelectedList();
 						const again = container.querySelector('[data-usd-act="factor-col-menu"][data-member-key="' + key + '"]');
 						if (again) focusNoScroll(again);
 					}, factorTableSort === key);
@@ -16806,7 +16978,7 @@
 
 		/**
 		 * 入口の行の右端の固定の塊（②因子周回 段4・C-226。段9 のパレット「削除 │ ◎ ○ △ ◇ ★ ✕」の行を無くした＝D5）。
-		 * C-235: 並びは「削除・↺・虫眼鏡・◎（◎を○に変えるモード。候補が無いときは出さない）・表の切り替え（カード一覧／星取表）」で、**表が一番右**。
+		 * C-235: 並びは「削除・虫眼鏡・◎（◎を○に変えるモード。候補が無いときは出さない）・表の切り替え（カード一覧／星取表）」で、**表が一番右**（T52: ↺ は合計の行へ戻した）。
 		 * 塊は横に送らない（入口のボタンだけが横に送られる）ので、狭い幅でも常に見える。
 		 * 「削除」はブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）のまま。選んでいるときは 2px の枠（aria-pressed）
 		 */
@@ -16820,10 +16992,9 @@
 			const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
 			if (!hasCircle) factorCircleMode = false;
 			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
-			// C-235: 並びは［削除（ゴミ箱のアイコンだけ・28px の丸）］［↺（合計の行から移した）］［虫眼鏡（4つの入口の小窓）］［◎］［表］
+			// C-235: 並びは［削除（ゴミ箱のアイコンだけ・28px の丸）］［虫眼鏡（4つの入口の小窓）］［◎］［表］（T52・C-262 の (1): ↺ は合計の行の右端へ戻した）
 			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
 					+ ' aria-label="削除" title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-4 h-4" aria-hidden="true"></i></button>'
-				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
 				+ '<button type="button" class="usd-reset-btn usd-search-btn" data-usd-act="entry-search" data-usd-el="entry-search" aria-haspopup="dialog" aria-expanded="false" aria-label="スキルを探して追加" title="スキルを探して追加">'
 					+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>'
 				+ (hasCircle ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'

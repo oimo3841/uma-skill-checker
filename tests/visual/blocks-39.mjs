@@ -1,5 +1,6 @@
 import { reloadReady } from './lib/page-ready.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
+import { pickToneSort } from './lib/tone-sort.mjs';
 // ①の本育成編成の表（2026-10-18・作業4。Step 0 main-roster-step0.md の案 (B)＋(C)）の検査。run-smoke.mjs の末尾から register39() で呼ばれる
 // （塊の見出しはすべて「本育成表」で始まる。`npm run test:visual -- --only=本育成表` で回せる）。
 //
@@ -174,8 +175,8 @@ export async function register39(env) {
 			const tb = await readTable(sp.page);
 			results.push({ k, ok: derivedFollowGold(tb.rows) && tb.rows.filter((r) => r.derived).length === 3 });
 		}
-		await sp.page.click(T + '[data-usd-act="sort-tone"][data-tone="heal"]');
-		await sp.page.waitForTimeout(300);
+		await pickToneSort(sp.page, T, 'heal');
+		await sp.page.waitForTimeout(100);
 		const tb2 = await readTable(sp.page);
 		results.push({ k: 'tone:heal', ok: derivedFollowGold(tb2.rows) && tb2.rows.filter((r) => r.derived).length === 3 });
 		assert(results.every((r) => r.ok), '本育成表(5) 並べ替え（列・種類）のあとも、合成の行は金の直下に付いたまま（3行）', results);

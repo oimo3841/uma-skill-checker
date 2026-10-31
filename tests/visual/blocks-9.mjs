@@ -13,6 +13,7 @@ import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 //   (F) 3つのまとまりの見分け（ライト・ダーク）
 //   375px の高さ
 import { contrastRatio, deltaE, tokRgb } from './lib/pixels.mjs';
+import { setBandStep } from './lib/band-step.mjs';
 
 export async function register9(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA } = env;
@@ -237,7 +238,7 @@ export async function register9(env) {
 				tag + '?の中：継承固有・共通スキルの2行だけ', help);
 			await sp.page.keyboard.press('Escape');
 			// 継承固有の種類を変えると、継承固有の Pt・種だけが変わる（共通スキルは変わらない）
-			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '3');
+			await setBandStep(sp.page, T, 'uniq-count', 3);
 			await sp.page.waitForTimeout(150);
 			const n3 = await nums(sp.page);
 			assert(n3.uniq.kinds === 3 && n3.uniq.pt < n.uniq.pt && JSON.stringify(n3.common) === JSON.stringify(n.common) && n3.fKinds === 3 + free.length && n3.total === n3.rPt + n3.fPt,
@@ -351,14 +352,15 @@ export async function register9(env) {
 			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '10px' && o.grp.bg === await tokRgb(sp.page, 'var(--uma-group-bg)') &&   /* C-144: まとまりの面はトークンの値（UmaStar は #fffdf8） */ o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い枠・線あり・角丸10px・横8px', o.grp);
 			assert(o.order[0] !== null && o.order[2] !== null && o.order[2] > o.order[0] && o.inGroup.every(Boolean), tag + '上から 帯 → スキルのまとまり（入口・右端の塊・一覧はまとまりの中）', o);
 			// C-235: 継承固有・共通スキルの「Pt／種」の2行は帯から消し、? の小窓の中だけに出す（小窓の中身は 段9(C)）
-			assert(o.tagTexts[0] === null && o.tagTexts[1] === null && /Pt／\d+種$/.test(o.sumText) && o.sumFs.join() === '22px,800',
+			// T52（C-262 の (2)）: 合計の Pt の字は 20px（モックの案d。375px も 1280px も）
+			assert(o.tagTexts[0] === null && o.tagTexts[1] === null && /Pt／\d+種$/.test(o.sumText) && o.sumFs.join() === '20px,800',
 				tag + '帯の1段目「X Pt／N種」。継承固有・共通スキルの2行は帯に無い（C-235）', o);
 			// どの幅でも1行目: 合計 → ? → 2行（右寄せ）→ ↺。2行は縦に重なり、↺ の左に接する。帯の高さは 375px で①と同じ 36px（1280px は 44px）
 			const tb = o.tagBand;
-			// C-235: 合計 → ? → 右寄せの部品2つ。入らない幅（375px）は部品2つが2行目（帯 66px）、1280px は1行（44px）。↺ は入口の行へ
-			assert(o.cfgBox && tb.resetInBand === false && (w === 375 ? (o.cfgBox.top >= tb.sum.bottom - 1 && tb.band.h === 66) : (o.cfgBox.top < tb.sum.bottom && o.cfgBox.left > tb.help.right && tb.band.h === 44)),
-				tag + w + 'px: 部品2つは ' + (w === 375 ? '2行目' : '1行目の右寄せ') + '・帯の高さ ' + tb.band.h + 'px・↺ は帯に無い', { tb, cfg: o.cfgBox });
-			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '合計の行の部品は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
+			// T52（C-262 の (1)(2)）: 合計（押すと小窓。「?」は無い）→ 右寄せの部品（継承固有・共通スキル・↺）。375px も1行（帯 36px）、1280px は1行（44px）。↺ は合計の行の右端
+			assert(o.cfgBox && tb.resetInBand === true && o.cfgBox.top < tb.sum.bottom && o.cfgBox.left > tb.sum.right && tb.band.h === (w === 375 ? 36 : 44),
+				tag + w + 'px: 部品は1行目の右寄せ・帯の高さ ' + tb.band.h + 'px・↺ は合計の行の右端', { tb, cfg: o.cfgBox });
+			assert(/^継承固有\s*6種\s*Lv3\s*共通スキル\s*Lv5\s*↺$/.test(o.cfgText), tag + '合計の行の部品は「継承固有｜6種｜Lv3」「共通スキル｜Lv5」「↺」', o.cfgText);
 			// C-235: 4つの入口は虫眼鏡の小窓へ。行に残るのは「オススメサポ」「脚質オススメ」
 			assert(o.entries.join() === '脚質オススメ' && o.entryRowOverflow === 'auto', tag + '入口の行のボタンはオススメサポと脚質オススメだけ（横スクロールの作りは残る）', o.entries);
 			assert(o.gone.length === 0, tag + '超優先／優先／通常・再分類・削除（ランク）・ランク別の見出し・ランクのチップは無い', o.gone);
@@ -660,8 +662,8 @@ export async function register9(env) {
 			const t = '段1 ' + w + 'px（' + g.common + '）: ';
 			assert(/共通スキル \d{2},\d{3} Pt／\d{2,3}種/.test(g.common || ''), t + '桁の多い例（共通スキル 1万 Pt 台）', g.common);
 			assert(g.page <= 0 && !g.headShown && g.tabsToBand === 4, t + '横にはみ出さない・②の空の見出しの行は隠れ、タブの下から帯まで 4px（タブの下の余白だけ）', g);
-			// C-235: スマホの幅では部品2つが2行目に折り返す（帯 66px）。横にははみ出さない
-			assert(g.wrap && g.cfg && g.cfg.top >= g.sum.bottom - 1 && g.cfg.right <= g.band.right && g.band.h === 66, t + '入らない幅では部品2つ（継承固有・共通スキルのヒントLv）が2行目に折り返す（帯 ' + g.band.h + 'px）', g);
+			// C-235 → T52（C-262 の (2)）: スマホの幅でも合計の行は1行（帯 36px。375px 未満は字を小さくする）。横にははみ出さない
+			assert(!g.wrap && g.cfg && g.cfg.top < g.sum.bottom && g.cfg.right <= g.band.right && g.band.h === 36, t + '部品（継承固有・共通スキル・↺）も1行に入る（帯 ' + g.band.h + 'px）', g);
 			assert(jsErrors(s2.errors).length === 0, t + 'コンソールのエラー0', jsErrors(s2.errors).slice(0, 3));
 			await s2.ctx.close();
 		}

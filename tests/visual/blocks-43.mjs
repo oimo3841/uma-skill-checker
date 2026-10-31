@@ -158,7 +158,8 @@ export async function register43(env) {
 		});
 		// ②因子周回 段4（C-226）: パレットの行を無くし、入口の行の右端の固定の塊に「（◎）・表の切り替え・削除」。◎のボタンは②が空なので出ない
 		// C-235: 塊は「削除・↺・虫眼鏡・表の切り替え」（◎は②が空なので出ない）
-		assert(p.els.join() === 'palette-delete,factor-reset,entry-search,factor-view' && !p.recBtn && !p.outBtn && !p.word, 'C-184 右端の塊は「削除・↺・虫眼鏡・表の切り替え」だけ（脚質のボタン・サポカ外は無い。C-235）', p);
+		// （T52・C-262 の (1): ↺ は合計の行の右端へ移した）
+		assert(p.els.join() === 'palette-delete,entry-search,factor-view' && !p.recBtn && !p.outBtn && !p.word, 'C-184 右端の塊は「削除・虫眼鏡・表の切り替え」だけ（脚質のボタン・サポカ外は無い。C-235・T52）', p);
 		assert(sp.reqs.length === 0, 'C-184 ②のタブを開いている間（脚質あり）はデータを取りに行かない', sp.reqs);
 		await sp.ctx.close();
 	});

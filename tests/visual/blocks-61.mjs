@@ -222,7 +222,8 @@ export async function register61(env) {
 						sameRow: !!(tools && entry && Math.abs((tools.getBoundingClientRect().top + tools.getBoundingClientRect().bottom) / 2 - (entry.getBoundingClientRect().top + entry.getBoundingClientRect().bottom) / 2) < 6) };
 				});
 				// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右。下の del は表の切り替えのボタンの位置）
-				const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(c.k === '◎あり' ? ['factor-circle-mode'] : []).concat(['factor-view']);
+				// （T52・C-262 の (1): ↺ は合計の行の右端へ移した）
+				const want = ['palette-delete', 'entry-search'].concat(c.k === '◎あり' ? ['factor-circle-mode'] : []).concat(['factor-view']);
 				assert(JSON.stringify(r.order) === JSON.stringify(want), '②マーカー(6) ' + w + 'px ' + c.k + ': 塊の並びは ' + want.join('・'), r.order);
 				assert(r.palette === 0, '②マーカー(6) ' + w + 'px ' + c.k + ': パレット（アイコンの印・行の先頭のアイコンのボタン）は無い', r.palette);
 				assert(r.tools && r.del && r.tools.l >= 0 && r.del.r <= r.vw && r.del.r >= r.tools.r - 1 && r.entry.r <= r.tools.l + 1 && r.sameRow && !r.overflowX,

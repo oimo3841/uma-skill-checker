@@ -83,9 +83,14 @@ export async function register71(env) {
 	const toggle2 = async (page, id) => { await page.click(T + '[data-usd-el="factor-circle-toggle"][data-skill-id="' + id + '"]'); await page.waitForTimeout(300); };
 	/** ①の◎／○の切り替え（①のパネルは②のタブでは見えないので、列見出しの◎のボタンと行の切り替えを DOM の click で押す） */
 	const toggle1 = async (page, id) => {
+		// T52（C-262 の (6)）: ①の◎は、列見出しの並べ替えの入口の小窓で選ぶ（入っていなければ）
 		await page.evaluate(() => {
-			const on = document.querySelector('#deck-roster-panel [data-tone="circle"] button');
-			if (on && on.getAttribute('aria-pressed') !== 'true') on.click();
+			if (document.querySelector('#deck-roster-panel [data-tone="circle"] .usd-roster-toneicon--on')) return;
+			const entry = document.querySelector('#deck-roster-panel [data-usd-el="tone-sort-entry"]');
+			if (!entry) return;
+			entry.click();
+			const pick = document.querySelector('[data-usd-el="info-pop"] [data-usd-el="tone-sort-pick"][data-tone="circle"]');
+			if (pick) pick.click();
 		});
 		await page.waitForTimeout(150);
 		const ok = await page.evaluate((id) => { const b = document.querySelector('#deck-roster-panel [data-usd-el="circle-toggle"][data-skill-id="' + id + '"]'); if (!b) return false; b.click(); return true; }, id);

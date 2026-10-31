@@ -1,6 +1,7 @@
 import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
+import { pickToneSort } from './lib/tone-sort.mjs';
 // オススメサポ 段13（段7〜12 の確認で出た修正と、追加の改善。2026-10-04・C-127）の検査。run-smoke.mjs の末尾から register13() で呼ばれる
 // （塊の見出しはすべて「オススメサポ段13」で始まる。`npm run test:visual -- --only=オススメサポ段13` で回せる。区切りごとに「段13A」のように回せる）。
 //
@@ -342,7 +343,10 @@ export async function register13(env) {
 		const heads = Array.from(panel.querySelectorAll('.usd-roster-gh'));
 		const rows = Array.from(panel.querySelectorAll('.usd-roster-grow[data-skill-id]')).map((r) => ({ id: r.getAttribute('data-skill-id'), prev: r.classList.contains('usd-roster-grow--prev') }));
 		const icons = gh ? Array.from(gh.querySelectorAll('.usd-roster-toneicon')).map((i) => ({ label: i.getAttribute('aria-label'), bg: getComputedStyle(i).backgroundColor, fg: getComputedStyle(i).color, svg: !!i.querySelector('svg'), cls: (i.querySelector('svg') || { getAttribute: () => '' }).getAttribute('class') })) : [];
-		const btns = gh ? Array.from(gh.querySelectorAll('[data-usd-el="tone-sort-btn"]')).map((b) => ({ tone: b.getAttribute('data-tone'), on: b.getAttribute('aria-pressed') === 'true', w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height) })) : [];
+		// T52: 4つの漏斗のボタンは1つの入口（アイコンと漏斗の範囲全体）に。種類ごとの「押している」はアイコンの印で見る。押せる範囲は入口の大きさ
+		const entry = gh ? gh.querySelector('[data-usd-el="tone-sort-entry"]') : null;
+		const er = entry ? entry.getBoundingClientRect() : { width: 0, height: 0 };
+		const btns = gh ? Array.from(gh.querySelectorAll('.usd-roster-tone')).map((t) => ({ tone: t.getAttribute('data-tone'), on: !!t.querySelector('.usd-roster-toneicon--on'), w: Math.round(er.width), h: Math.round(er.height) })) : [];
 		const t = gh ? gh.querySelector('.usd-roster-ghtitle') : null;
 		return { icons, btns, titleCut: t ? t.scrollWidth > t.clientWidth + 1 : null, title: t ? t.textContent : null, ghH: gh ? Math.round(gh.getBoundingClientRect().height) : 0,
 			rowH: heads.length ? Math.round(Math.max.apply(null, heads.map((h) => h.getBoundingClientRect().height))) : 0, memberH: heads.length > 1 ? Math.round(heads[1].getBoundingClientRect().height) : 0,
@@ -369,14 +373,14 @@ export async function register13(env) {
 				tag + '4つのアイコン（回復・◎・緑・デバフ）とその下の漏斗（どれも押していない）', g0.icons.map((i) => i.label));
 			assert(/lucide-sparkles/.test(g0.icons[0].cls) && /lucide-sparkles/.test(g0.icons[3].cls) && /lucide-sprout/.test(g0.icons[2].cls) && g0.icons[0].bg !== g0.icons[3].bg && g0.icons[0].fg === 'rgb(255, 255, 255)' && g0.icons[3].fg === 'rgb(255, 255, 255)' && g0.icons[2].bg === 'rgba(0, 0, 0, 0)' && g0.icons[1].bg === 'rgba(0, 0, 0, 0)',
 				tag + '回復・デバフは光の形（オススメサポのボタンと同じ）を色の違う角丸の四角に白で、緑は葉（「緑スキル」の入口と同じ）', g0.icons);
-			assert(g0.ghH <= g0.memberH && g0.rowH === g0.memberH && !g0.titleCut && g0.title === 'スキル名' && g0.btns.every((b) => Math.min(b.w, b.h) >= 24) && g0.sw <= g0.iw,
-				tag + '列見出しの高さは他の列（' + g0.memberH + 'px）と同じで増えない・「スキル名」は切れない・漏斗の押せる範囲は 24px 以上・横にはみ出さない', g0);
+			// T52: 押せる範囲は入口（アイコンと漏斗の範囲全体・高さは列見出しいっぱい）。高さ 44px 以上（375px は 48・320px も 48）
+			assert(g0.ghH <= g0.memberH && g0.rowH === g0.memberH && !g0.titleCut && g0.title === 'スキル名' && g0.btns.every((b) => b.w >= 72 && b.h >= 44) && g0.sw <= g0.iw,
+				tag + '列見出しの高さは他の列（' + g0.memberH + 'px）と同じで増えない・「スキル名」は切れない・入口の押せる範囲は幅 72px 以上×高さ 44px 以上・横にはみ出さない', g0);
 			const ids = g0.rows.map((r) => r.id);
 			const tones = await tonesOf(sp.page, ids);
 			const u0 = unitsOf(g0.rows);
 			for (const kind of ['heal', 'passive', 'debuff']) {
-				await sp.page.click('#deck-roster-panel [data-usd-act="sort-tone"][data-tone="' + kind + '"]');
-				await sp.page.waitForTimeout(200);
+				await pickToneSort(sp.page, '#deck-roster-panel ', kind);
 				const g = await gridInfo(sp.page);
 				const hit = (u) => u.some((id) => tones[id][kind]);
 				const exp = u0.filter(hit).concat(u0.filter((u) => !hit(u)));
@@ -385,23 +389,20 @@ export async function register13(env) {
 				assert(n > 0 && n < u0.length, tag + kind + ': 前提: その種類のスキルがある（' + n + '／' + u0.length + 'まとまり。空振りしていない）', n);
 				assert(JSON.stringify(got) === JSON.stringify(exp) && g.rows.length === g0.rows.length,
 					tag + kind + ': その種類を含むまとまりが上へ（並びは元のまま＝安定）。行は減らない・金と直下の前段の白は一緒に動く', { got: got.length, exp: exp.length });
-				assert(g.btns.filter((b) => b.on).map((b) => b.tone).join() === kind && g.memberOn === 0, tag + kind + ': 押した漏斗だけが有効（同時に1つだけ）', g.btns);
+				assert(g.btns.filter((b) => b.on).map((b) => b.tone).join() === kind && g.memberOn === 0, tag + kind + ': 選んだ種類だけが有効（同時に1つだけ。アイコンの印）', g.btns);
 			}
-			// もう一度押すと元の並び
-			await sp.page.click('#deck-roster-panel [data-usd-act="sort-tone"][data-tone="debuff"]');
-			await sp.page.waitForTimeout(200);
+			// T52: 小窓の「並べ替えない」で元の並び（それまでは同じ漏斗をもう一度押す）
+			await pickToneSort(sp.page, '#deck-roster-panel ', null);
 			const g1 = await gridInfo(sp.page);
-			assert(JSON.stringify(g1.rows) === JSON.stringify(g0.rows) && g1.btns.every((b) => !b.on), tag + 'もう一度押すと元の並びに戻る', true);
+			assert(JSON.stringify(g1.rows) === JSON.stringify(g0.rows) && g1.btns.every((b) => !b.on), tag + '「並べ替えない」で元の並びに戻る', true);
 			// メンバーの列の漏斗とも同時に1つだけ
-			await sp.page.click('#deck-roster-panel [data-usd-act="sort-tone"][data-tone="heal"]');
-			await sp.page.waitForTimeout(200);
+			await pickToneSort(sp.page, '#deck-roster-panel ', 'heal');
 			await clickSort(sp.page, '#deck-roster-panel ', '1');   // メンバーの列（C-187: サポカの列はアイコンのメニューの「並べ替え」）
 			await sp.page.waitForTimeout(200);
 			const g2 = await gridInfo(sp.page);
 			assert(g2.memberOn === 1 && g2.btns.every((b) => !b.on), tag + 'メンバーの列の漏斗を押すと、種類の漏斗は外れる（全部で1つだけ）', { memberOn: g2.memberOn, btns: g2.btns });
 			// 保存しない（既存の漏斗と同じ）: 押したまま読み込み直すと元の並び
-			await sp.page.click('#deck-roster-panel [data-usd-act="sort-tone"][data-tone="passive"]');
-			await sp.page.waitForTimeout(200);
+			await pickToneSort(sp.page, '#deck-roster-panel ', 'passive');
 			await reloadSp(sp.page);
 			const g3 = await gridInfo(sp.page);
 			assert(g3.btns.every((b) => !b.on) && g3.memberOn === 0 && JSON.stringify(g3.rows) === JSON.stringify(g0.rows), tag + '漏斗の状態は保存しない（既存の漏斗と同じ。読み込み直すと元の並び）', true);

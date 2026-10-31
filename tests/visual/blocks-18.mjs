@@ -157,8 +157,8 @@ export async function register18(env) {
 					sameRow: tools.parentElement.contains(document.querySelector('#deck-template-panel .usd-entry-row')), ox: getComputedStyle(tools).overflowX };
 			});
 			const ck = r.kids.indexOf('factor-circle-mode');
-			// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右）
-			const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(ck === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
+			// C-235: 並びは 削除・虫眼鏡・（◎）・表の切り替え（表が一番右）（T52・C-262 の (1): ↺ は合計の行の右端へ移した）
+			const want = ['palette-delete', 'entry-search'].concat(ck === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
 			assert(JSON.stringify(r.kids) === JSON.stringify(want) && r.pal === 0 && r.sameRow && r.ox === 'visible', 'C132A5 塊の並びは（◎）・表の切り替え・削除。パレット（アイコン）は無い。入口のボタンと同じ行・塊は横に送らない', r);
 			await sp.ctx.close();
 		}

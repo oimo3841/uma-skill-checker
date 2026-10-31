@@ -151,8 +151,8 @@ export async function register60(env) {
 			const order = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="tier-row"] > *')).map((e) => e.getAttribute('data-usd-el') || e.className));
 			// C-226（②因子周回 段4）: 入口の行の右端の塊は「◎（候補があるときだけ）・表の切り替え・削除」（削除が一番右）
 			const iCircle = order.indexOf('factor-circle-mode');
-			// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右）
-			const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(iCircle === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
+			// C-235: 並びは 削除・↺・虫眼鏡・（◎）・表の切り替え（表が一番右）。T52（C-262 の (1)）: ↺ は合計の行へ移した
+			const want = ['palette-delete', 'entry-search'].concat(iCircle === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
 			assert(JSON.stringify(order) === JSON.stringify(want), '②星取表(1) ' + c.k + ' 切り替えのボタンは塊の一番右（' + (iCircle === -1 ? '虫眼鏡' : '◎のボタン') + 'のすぐ右。C-235）', order);
 			const a = await read(sp.page);
 			assert((await viewBtn(sp.page)) === 'cards' && !a.table, '②星取表(1) ' + c.k + ' 既定はカード一覧（ボタンの今の表示はカード一覧。T29）', null);
@@ -275,7 +275,8 @@ export async function register60(env) {
 		const sp = await openSp({ w: 1280, roster: RG, ids: GIDS });
 		await setView(sp.page, true);
 		const t0 = await readTable(sp.page);
-		assert(await sp.page.evaluate(() => document.querySelectorAll('#deck-template-panel [data-usd-el="factor-table-sort"], #deck-template-panel [data-usd-el="factor-table"] .usd-roster-funnel').length) === 0, '②星取表(5) 列の漏斗のボタンは無い', null);
+		// T52（C-262 の (5)）: スキル名の列見出しの並べ替えの入口の漏斗（tone-sorts の中）は除いて数える
+		assert(await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="factor-table-sort"], #deck-template-panel [data-usd-el="factor-table"] .usd-roster-funnel')).filter((e) => !e.closest('[data-usd-el="tone-sorts"]')).length) === 0, '②星取表(5) 列の漏斗のボタンは無い', null);
 		const units = (rows) => { const out = []; rows.forEach((r) => { if (r.prev && out.length) out[out.length - 1].push(r); else out.push([r]); }); return out; };
 		const sortBy = async (col) => {
 			await sp.page.click(T + '[data-usd-el="factor-col-menu"][data-no="' + col + '"]');

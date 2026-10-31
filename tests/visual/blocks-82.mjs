@@ -135,7 +135,8 @@ export async function register82(env) {
 			const noOcr = await buildStitchedSetImage(0, null, false);
 			deckTemplateManager.getSetSummary = keep.sum; window.stitchOnePerson = keep.s; persons[0].files = keep.f; stitchSnapshot = keep.snap;
 			return { sum: { uniqKinds: sum.uniqKinds, uniqLevel: sum.uniqLevel, commonLevel: sum.commonLevel }, before, lines, noLines: noOcr._layout.top.sp.lines.slice(),
-				ui: { uniq: uiUniq && uiUniq.value, lv: uiLv && uiLv.value, f: uiF && uiF.value } };
+				// T52: 合計の行の部品は select ではなく押すボタン（値は data-value）
+				ui: { uniq: uiUniq && (uiUniq.getAttribute('data-value') || uiUniq.value), lv: uiLv && (uiLv.getAttribute('data-value') || uiLv.value), f: uiF && (uiF.getAttribute('data-value') || uiF.value) } };
 		});
 		assert(r.sum.uniqKinds === 4 && r.sum.uniqLevel === 2 && r.sum.commonLevel === 2, 'T51(3): getSetSummary が保存したセットの継承固有 4種・Lv2・共通スキル Lv2 を返す（core に足した口）', r.sum);
 		assert(String(r.ui.uniq) === '4' && String(r.ui.lv) === '2' && String(r.ui.f) === '2', 'T51(3): 前提: 画面の選択欄も同じ値（4種・Lv2・2）', r.ui);

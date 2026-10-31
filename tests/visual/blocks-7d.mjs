@@ -1,6 +1,7 @@
 import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
+import { setBandStep } from './lib/band-step.mjs';
 // 段7d（2026-10-03・C-116）の検査。run-smoke.mjs の末尾から register7d() で呼ばれる（塊の見出しはすべて「段7d」を含むので、
 // `npm run test:visual -- --only=段7d` で全部、`--only=段7d(B)` のように括弧つきの見出しで1つずつ回せる）。
 //
@@ -361,10 +362,12 @@ export async function register7d(env) {
 			// ⑩ 「本育成編成」のボタンの文言の検査は、段8（C-120）でボタンを無くしたので外した
 			// ⑪ 継承固有: 既定 6種・Lv3。ラベルと2つのセレクトが1つの部品。段8: 「共通スキルのヒントLv」と同じ1行（②の2行目）
 			const u0 = await sp.page.evaluate(() => { const u = document.querySelector('[data-usd-el="uniq"]'); const bt = document.querySelector('[data-usd-el="parent-level-group"]'); const ur = u.getBoundingClientRect(), br = bt.getBoundingClientRect();
-				return { label: u.querySelector('.usd-uniq-label').textContent, cnt: u.querySelector('[data-usd-el="uniq-count"]').value, lv: u.querySelector('[data-usd-el="uniq-level"]').value, cntOpts: Array.from(u.querySelectorAll('[data-usd-el="uniq-count"] option')).map((o) => o.textContent), lvOpts: Array.from(u.querySelectorAll('[data-usd-el="uniq-level"] option')).map((o) => o.textContent),
+				// T52（C-262 の (2)）: select をやめ、押すたびに1つ増える部品（値は data-value・次の値は data-next。範囲と回り方は blocks-83 の T52②因子周回の前半(2)）
+				const cb = u.querySelector('[data-usd-el="uniq-count"]'), lb = u.querySelector('[data-usd-el="uniq-level"]');
+				return { label: u.querySelector('.usd-uniq-label').textContent, cnt: cb.getAttribute('data-value'), lv: lb.getAttribute('data-value'), cntNext: cb.getAttribute('data-next'), lvNext: lb.getAttribute('data-next'), tags: cb.tagName + ',' + lb.tagName,
 					sameRow: Math.abs(ur.top - br.top) <= 1, hEq: Math.abs(ur.height - br.height) <= 1, uTop: ur.top }; });
-			assert(u0.label === '継承固有' && u0.cnt === '6' && u0.lv === '3' && u0.cntOpts.join() === '2種,3種,4種,5種,6種' && u0.lvOpts.join() === 'Lv1,Lv2,Lv3,Lv4,Lv5' && u0.sameRow && u0.hEq,
-				tag + '「継承固有」は［ラベル｜種類 2〜6（既定 6）｜ヒントLv 1〜5（既定 3）］で、「共通スキルのヒントLv」と同じ行・同じ高さ', u0);
+			assert(u0.label === '継承固有' && u0.cnt === '6' && u0.lv === '3' && u0.cntNext === '2' && u0.lvNext === '4' && u0.tags === 'BUTTON,BUTTON' && u0.sameRow && u0.hEq,
+				tag + '「継承固有」は［ラベル｜種類（既定 6・押すと 2）｜ヒントLv（既定 3・押すと 4）］の押す部品で、「共通スキル」と同じ行・同じ高さ', u0);
 			n = await readNeed(sp.page);
 			const X = await rosterX(sp.page);   // ①の「X Pt/N種」の X（段8: 「本育成編成」のボタンの代わり）
 			const tiersSum = () => n.chips.reduce((t, c) => t + c.n, 0);
@@ -372,21 +375,21 @@ export async function register7d(env) {
 			assert(base6 > 0 && n.uniq.n === UNIQ(6, 3, 'kire') && n.total.n === X + n.uniq.n + base6, tag + '継承固有（6種×基礎200・Lv3・切れ者の割引 = ' + fmt(UNIQ(6, 3, 'kire')) + ' Pt）は継承固有のチップに出て、合計 = 本育成編成 ' + fmt(X) + ' ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常', { X, uniq: n.uniq.n, tiers: n.chips.map((c) => c.n), total: n.total.n });
 			let st = await draftScope(sp.page);
 			assert(!('inheritedUnique' in (st || {})), tag + '触っていないときは inheritedUnique を保存しない', st);
-			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '3');
+			await setBandStep(sp.page, T, 'uniq-count', 3);
 			await sp.page.waitForTimeout(150);
 			n = await readNeed(sp.page);
 			assert(n.uniq.n === UNIQ(3, 3, 'kire') && n.total.n === X + UNIQ(3, 3, 'kire') + base6 && tiersSum() === base6, tag + '種類を 3種 にすると、継承固有は 3種ぶん（' + fmt(UNIQ(3, 3, 'kire')) + ' Pt）。ランクのチップは変わらない', { uniq: n.uniq.n, total: n.total.n });
-			await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', '5');
+			await setBandStep(sp.page, T, 'uniq-level', 5);
 			await sp.page.waitForTimeout(150);
 			n = await readNeed(sp.page);
 			assert(n.uniq.n === UNIQ(3, 5, 'kire') && n.total.n === X + UNIQ(3, 5, 'kire') + base6, tag + 'ヒントLv を Lv5 にすると、Lv5 の割引（' + fmt(UNIQ(3, 5, 'kire')) + ' Pt）', { uniq: n.uniq.n, total: n.total.n });
 			st = await draftScope(sp.page);
 			assert(JSON.stringify(st.inheritedUnique) === JSON.stringify({ count: 3, hintLevel: 5 }), tag + '保存はセットごと（inheritedUnique: { count, hintLevel }）', st.inheritedUnique);
-			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '6');
+			await setBandStep(sp.page, T, 'uniq-count', 6);
 			await sp.page.waitForTimeout(100);
 			st = await draftScope(sp.page);
 			assert(JSON.stringify(st.inheritedUnique) === JSON.stringify({ hintLevel: 5 }), tag + '既定値（6種）に戻した側は書かない', st.inheritedUnique);
-			await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', '3');
+			await setBandStep(sp.page, T, 'uniq-level', 3);
 			await sp.page.waitForTimeout(100);
 			st = await draftScope(sp.page);
 			assert(!('inheritedUnique' in st), tag + 'どちらも既定に戻すと項目ごと消える', st);
@@ -408,7 +411,7 @@ export async function register7d(env) {
 		// ⑬ ②の行: 名前の右に Pt。名前（button）を押すと説明の小窓。ⓘ と長押しは無い。Pt は必要スキルPt に数えている値
 		{
 			const sp = await open({ w: 375, h: 812, tab: 1, roster: rosterKire, scope: { skillIds: [W[8], W[4]], name: '', tiers: { [W[4]]: 3 }, updatedAt: '' } });
-			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '2');
+			await setBandStep(sp.page, T, 'uniq-count', 2);
 			const read = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel')).map((p) => ({ id: p.getAttribute('data-skill-id'), btn: !!p.querySelector('button.usd-panel-namebtn'), info: !!p.querySelector('.usd-info-btn'), pt: (p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent, h: Math.round(p.getBoundingClientRect().height) })));
 			let rows = await read();
 			const r8 = rows.find((r) => r.id === W[8]);
@@ -418,7 +421,7 @@ export async function register7d(env) {
 			// 段9（C-121）: 分類ごとのタブは無い（すべての行が並ぶ）
 			rows = await read();
 			assert(rows.length === 2 && rows.find((r) => r.id === W[4]).pt === pay(160, 5, 'kire') + ' Pt', '通常の分類だった行も同じ（' + pay(160, 5, 'kire') + ' Pt）', rows);
-			await sp.page.selectOption(T + '[data-usd-el="pt-parent-level"]', '3');
+			await setBandStep(sp.page, T, 'pt-parent-level', 3);
 			await sp.page.waitForTimeout(150);
 			rows = await read();
 			assert(rows.find((r) => r.id === W[4]).pt === pay(160, 3, 'kire') + ' Pt', '親由来のレベルを 3 にすると行の Pt も変わる（' + pay(160, 3, 'kire') + ' Pt）', rows);
@@ -515,16 +518,16 @@ export async function register7d(env) {
 				await selectSet(sp.page, 'tpl_7da_' + st);
 				const X = await rosterX(sp.page);
 				for (const [cnt, lv] of [[2, 1], [4, 2], [5, 5]]) {
-					await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', String(cnt));
-					await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', String(lv));
+					await setBandStep(sp.page, T, 'uniq-count', cnt);
+					await setBandStep(sp.page, T, 'uniq-level', lv);
 					await sp.page.waitForTimeout(100);
 					n = await readNeed(sp.page);
 					o = own(st);
 					assert(n.uniq.n === UNIQ(cnt, lv, st) && n.total.n === X + UNIQ(cnt, lv, st) + o[0] + o[1] + o[2],
 						tag + '(c) ' + (STS.find((s) => s.id === st).label) + '・継承固有 ' + cnt + '種 Lv' + lv + ': 継承固有 ' + fmt(UNIQ(cnt, lv, st)) + '、合計 ' + fmt(X + UNIQ(cnt, lv, st) + o[0] + o[1] + o[2]), { uniq: n.uniq.n, total: n.total.n, X });
 				}
-				await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '6');
-				await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', '3');
+				await setBandStep(sp.page, T, 'uniq-count', 6);
+				await setBandStep(sp.page, T, 'uniq-level', 3);
 			}
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

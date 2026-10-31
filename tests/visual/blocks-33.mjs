@@ -12,14 +12,16 @@
 // （切り替えの保存・元に戻す・リセットの細部は blocks-29.mjs「◎切替」。ここから「入」にして回す）
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { pickToneSort, toneStates } from './lib/tone-sort.mjs';
 export async function register33(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const P = '#deck-roster-panel ';
-	const CIRCLE = P + '[data-usd-act="sort-tone"][data-tone="circle"]';
-	const HEAL = P + '[data-usd-act="sort-tone"][data-tone="heal"]';
+	// T52（C-262 の (6)）: 4つの漏斗のボタンは1つの入口（小窓で種類を選ぶ）に。CIRCLE・HEAL は種類の名前で、押す・状態は toggleTone・pressed で見る
+	const CIRCLE = 'circle';
+	const HEAL = 'heal';
 	const R2 = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };
 	const CAND = 10;   // R2 で◎／○の2つの状態を持つ行の数（blocks-29 の FIX.R2.cand）
 
@@ -41,7 +43,9 @@ export async function register33(env) {
 		id: r.getAttribute('data-skill-id'), circle: r.getAttribute('data-usd-circle'), tog: !!r.querySelector('[data-usd-el="circle-toggle"]'),
 		h: Math.round(r.querySelector('.usd-roster-gc--name').getBoundingClientRect().height), nameW: Math.round(r.querySelector('.usd-roster-namescroll').getBoundingClientRect().width) })));
 	const draft = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
-	const pressed = (page, sel) => page.getAttribute(sel, 'aria-pressed');
+	const pressed = async (page, tone) => ((await toneStates(page, P)).find((t) => t.tone === tone) || {}).on ? 'true' : 'false';
+	// それまでの「漏斗を押す」（入っていなければ入れる・入っていればもう一度で外す）を、小窓で選ぶ形で行う
+	const toggleTone = async (page, tone) => pickToneSort(page, P, (await pressed(page, tone)) === 'true' ? null : tone);
 
 	await block('◎ボタン(1) 見出し: ◎のボタンは回復の隣・同じ作り／見出しの高さは増えない／横スクロールなし／アイコンはモノトーンでコントラスト3以上（390・360・1280px × ライト／ダーク）', async () => {
 		for (const scheme of ['light', 'dark']) {
@@ -49,10 +53,13 @@ export async function register33(env) {
 				const sp = await openSp({ w, scheme });
 				const g = await sp.page.evaluate(() => {
 					const h = document.querySelector('#deck-roster-panel .usd-roster-gh--skill');
+					// T52: 種類ごとのボタンは無く、4つのアイコンの範囲全体が1つの入口（tone-sort-entry）
+					const entry = h.querySelector('[data-usd-el="tone-sort-entry"]');
+					const er = entry ? entry.getBoundingClientRect() : null;
 					const tones = Array.from(h.querySelectorAll('.usd-roster-tone')).map((t) => {
-						const b = t.querySelector('button'); const r = b.getBoundingClientRect(); const ic = t.querySelector('.usd-roster-toneicon');
-						return { key: t.getAttribute('data-tone'), cls: b.className, label: b.getAttribute('aria-label'), act: b.getAttribute('data-usd-act'), title: b.title, pressed: b.getAttribute('aria-pressed'), w: Math.round(r.width), hgt: Math.round(r.height), disabled: b.disabled,
-							icon: ic ? ic.getAttribute('aria-label') : null };
+						const ic = t.querySelector('.usd-roster-toneicon'); const r = ic.getBoundingClientRect();
+						return { key: t.getAttribute('data-tone'), icon: ic ? ic.getAttribute('aria-label') : null, on: ic.classList.contains('usd-roster-toneicon--on'),
+							inEntry: !!er && r.left >= er.left - 0.5 && r.right <= er.right + 0.5 && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === entry };
 					});
 					const heal = h.querySelector('[data-tone="heal"]'), circle = h.querySelector('[data-tone="circle"]');
 					const ic = circle ? circle.querySelector('.usd-roster-toneicon') : null;
@@ -64,6 +71,7 @@ export async function register33(env) {
 					while (bgEl) { const c = getComputedStyle(bgEl).backgroundColor; if (c && !/rgba\(\s*0,\s*0,\s*0,\s*0\)|transparent/.test(c)) { bg = c; break; } bgEl = bgEl.parentElement; }
 					const title = h.querySelector('.usd-roster-ghtitle');
 					return { tones, order: tones.map((t) => t.key), adjacent: !!heal && heal.nextElementSibling === circle, headH: Math.round(h.getBoundingClientRect().height),
+						entry: entry ? { act: entry.getAttribute('data-usd-act'), label: entry.getAttribute('aria-label'), w: Math.round(er.width), hgt: Math.round(er.height), disabled: entry.disabled } : null,
 						iconColor: ic ? getComputedStyle(ic).color : null, token, bg, svgStroke: svg ? getComputedStyle(svg).stroke : null, svgFill: svg ? getComputedStyle(svg).fill : null,
 						titleCut: title ? title.scrollWidth > title.clientWidth + 1 : null, titleShown: title ? getComputedStyle(title).display !== 'none' : null,
 						doc: document.documentElement.scrollWidth - document.documentElement.clientWidth };
@@ -71,9 +79,10 @@ export async function register33(env) {
 				const tag = '◎ボタン(1) ' + w + 'px ' + scheme;
 				const heal = g.tones.find((t) => t.key === 'heal'), circle = g.tones.find((t) => t.key === 'circle');
 				assert(g.order.join() === 'heal,circle,passive,debuff' && g.adjacent, tag + ': ◎のボタンは回復の隣（回復・◎・緑・デバフの順）', g.order);
-				assert(heal.label === '回復スキルを上に寄せる' && !!circle && circle.label === '◎と○を切り替えられるスキルを上に寄せる' && circle.act === 'sort-tone' && circle.pressed === 'false', tag + ': 回復のボタンの aria-label は「回復スキルを上に寄せる」・◎のボタンは同じ act で押していない状態から', { heal: heal.label, circle: circle && circle.label });
-				assert(circle.cls === heal.cls && circle.title === heal.title && circle.w === heal.w && circle.hgt === heal.hgt && circle.w >= 24 && circle.hgt >= 24 && !circle.disabled,
-					tag + ': 作り・大きさは回復と同じ（押せる大きさ・押せない見た目にしない）', { heal, circle });
+				assert(heal.icon === '回復スキル' && !!circle && circle.icon === '◎と○を切り替えられるスキル' && !circle.on && !heal.on, tag + ': 回復のアイコンは「回復スキル」・◎のアイコンは「◎と○を切り替えられるスキル」で、並べていない状態から', { heal: heal.icon, circle: circle && circle.icon });
+				// T52: 押すのは4つのアイコンの範囲全体の入口（どのアイコンを押しても入口。高さ 44px 以上・押せない見た目にしない）
+				assert(!!g.entry && g.entry.act === 'tone-sort-open' && g.tones.every((t) => t.inEntry) && g.entry.w >= 72 && g.entry.hgt >= 44 && !g.entry.disabled,
+					tag + ': ◎も回復も同じ入口の中（押せる範囲 幅 72px 以上×高さ 44px 以上）', { entry: g.entry, tones: g.tones });
 				assert(g.headH === headH, tag + ': 見出しの高さは増えない（' + headH + 'px のまま）', g.headH);
 				assert(g.doc <= 0, tag + ': 横スクロールが出ない', g.doc);
 				if (w >= 360) assert(g.titleShown === true && g.titleCut === false, tag + ': 「スキル名」は切れない', { shown: g.titleShown, cut: g.titleCut });
@@ -99,7 +108,7 @@ export async function register33(env) {
 		const draft0 = await draft(sp.page);
 		assert(before.length > 0 && before.every((r) => !r.tog), '◎ボタン(2) 通常の状態では、どの行にも切り替えのボタンが無い（' + before.length + '行）', before.filter((r) => r.tog).length);
 		assert(before.filter((r) => r.circle).length === CAND, '◎ボタン(2) 前提: ◎として数える行は ' + CAND + '行ある', before.filter((r) => r.circle).length);
-		await sp.page.click(CIRCLE);
+		await toggleTone(sp.page, CIRCLE);
 		await sp.page.waitForTimeout(300);
 		const on = await rowsOf(sp.page);
 		const cands = on.filter((r) => r.tog);
@@ -120,20 +129,20 @@ export async function register33(env) {
 		assert(wBefore.length > 0 && wBefore.every((w, i) => w > wOn[i]), '◎ボタン(2) 通常の状態は名前の欄が広い（切り替えのボタンの幅ぶん）', { before: wBefore.slice(0, 3), on: wOn.slice(0, 3) });
 		assert((await draft(sp.page)) === draft0, '◎ボタン(2) ◎のボタンの状態は保存しない（下書きは1バイトも変わらない）', null);
 		// 回復のボタンを押すと、◎のボタンは切れる（同時に1つだけ）。切り替えのボタンも消える
-		await sp.page.click(HEAL);
+		await toggleTone(sp.page, HEAL);
 		await sp.page.waitForTimeout(300);
 		assert(await pressed(sp.page, CIRCLE) === 'false' && await pressed(sp.page, HEAL) === 'true' && (await rowsOf(sp.page)).every((r) => !r.tog), '◎ボタン(2) 回復のボタンを押すと◎のボタンは切れ、切り替えのボタンも消える（同時に1つだけ）', null);
-		await sp.page.click(HEAL);
+		await toggleTone(sp.page, HEAL);
 		await sp.page.waitForTimeout(200);
 		// もう一度押すと元の並び
-		await sp.page.click(CIRCLE);
+		await toggleTone(sp.page, CIRCLE);
 		await sp.page.waitForTimeout(250);
-		await sp.page.click(CIRCLE);
+		await toggleTone(sp.page, CIRCLE);
 		await sp.page.waitForTimeout(300);
 		const off = await rowsOf(sp.page);
 		assert(JSON.stringify(off.map((r) => r.id)) === JSON.stringify(idsBefore) && off.every((r) => !r.tog) && await pressed(sp.page, CIRCLE) === 'false', '◎ボタン(2) もう一度押すと元の並びに戻り、切り替えのボタンも消える', null);
 		// 開き直すと切れている（保存しない）
-		await sp.page.click(CIRCLE);
+		await toggleTone(sp.page, CIRCLE);
 		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(600);
@@ -146,7 +155,7 @@ export async function register33(env) {
 		await sp0.ctx.close();
 		const spN = await openSp({ w: 390, roster: { offSkillIds: candIds } });
 		const b0 = await rowsOf(spN.page);
-		await spN.page.click(CIRCLE);
+		await toggleTone(spN.page, CIRCLE);
 		await spN.page.waitForTimeout(250);
 		const b1 = await rowsOf(spN.page);
 		assert(await pressed(spN.page, CIRCLE) === 'true' && JSON.stringify(b0.map((r) => r.id)) === JSON.stringify(b1.map((r) => r.id)) && b1.every((r) => !r.tog), '◎ボタン(2) 対象の行が無い編成でも押せて、何も変わらない', { n: b1.length, cands: candIds.length });
@@ -155,7 +164,7 @@ export async function register33(env) {
 
 	await block('◎ボタン(3) 保存: 「入」で切り替えると keepCircleIds に従来どおり書かれる／書き出し→取り込み→「元に戻す」で保存データが書き換わらない（ルール28）', async () => {
 		const sp = await openSp({ w: 390 });
-		await sp.page.click(CIRCLE);
+		await toggleTone(sp.page, CIRCLE);
 		await sp.page.waitForTimeout(300);
 		const first = (await rowsOf(sp.page)).find((r) => r.tog);
 		await sp.page.click(P + '[data-usd-el="circle-toggle"][data-skill-id="' + first.id + '"]');

@@ -292,7 +292,8 @@ export async function register70(env) {
 	});
 
 	await block('②絞り込み欄(6) ②の入口の寸法: 合計の帯 → 選択欄（28）→ 白い枠（入口の行）の順・間は 8／帯と入口の行の高さは変更前と同じ／375・320・393・1280px で横スクロールなし', async () => {
-		for (const [w, h, band, head] of [[375, 812, 66, 37], [320, 568, 66, 37], [393, 700, 66, 37], [1280, 900, 44, 36]]) {
+		// T52（C-262 の (2)）: 合計の帯はスマホの幅でも1行になったので 66 → 36（入口の行は変わらない）
+		for (const [w, h, band, head] of [[375, 812, 36, 37], [320, 568, 36, 37], [393, 700, 36, 37], [1280, 900, 44, 36]]) {
 			const tag = '②絞り込み欄(6) ' + w + 'px: ';
 			const sp = await openSp({ w, h, roster: { skillFilter: FILTER } });
 			const r = await sp.page.evaluate((T) => {
