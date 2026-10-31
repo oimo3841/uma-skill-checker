@@ -1,5 +1,5 @@
-// T44 結合画像の次の直しのモック（作業用）: special.html（製品のまま）で素材の家系を OCR → 結合し、lab/stitch-next-mock.js で
-// 「理論値SP」の欄（案A・案B）と遺伝子の表示（色の案）を差し替えた画像を作る。製品のファイルは変えない。
+// 結合画像の次の直しのモック（作業用。T44 で作り、T49 で作り直した）: special.html（製品のまま）で素材の家系を OCR → 結合し、lab/stitch-next-mock.js で
+// 「理論値SP」の欄（案B の (b)＝1行目を2行に分ける）と遺伝子の表示（G1・「名前：★N」）を差し替えた画像を作る。製品のファイルは変えない。
 // T37 の画像づくり（t37-shots.mjs）と同じ流れ: 旧UI で行を入れて OCR → 写しの行・種類・セット名・レース条件・セット（①②のカード・育成ウマ娘・SP）を入れて結合。
 // 遺伝子は、data/aptitude-genes.json の10種を OCR の行に足し、因子の照合のガード（完全一致だけ）を効かせて読む（数・表には入れない）。
 // 使い方: node scripts/stitch-next-mock-shots.mjs <素材フォルダ> <出力フォルダ> [場合の名前,...]
@@ -37,29 +37,14 @@ const FACTOR6 = ['card-0528', 'card-0517', 'card-0415', 'card-0525', 'card-0531'
 const SP = { total: 12321, totalKinds: 106, rosterPt: 8655, factorPt: 3666, statusLabel: '切れ者', uniqKinds: 6, uniqLevel: 3, commonLevel: 5 };
 const SET = (sp) => ({ umaId: 'uma-0180', rosterCards: ROSTER, factorCards: FACTOR6, sp: Object.assign({}, SP, sp || {}) });
 
-// 遺伝子の色の案（赤の系統。デバフの文字の色 #b3261e〔色相 3°〕から離すため、どれも赤紫寄り〔色相 333〜342°〕で明るさを変えた）。
-// G0 は比べのための今の --uma-mark-gene（紫）。frame＝枠・tint＝薄い塗り（乗算）・text＝見出しの字（白地とのコントラスト 4.5 以上）
-const GENE_COLORS = {
-	G0: { name: '今の --uma-mark-gene（紫）', frame: '#581C87', tint: '#F1E6FA', text: '#581C87' },
-	G1: { name: 'ラズベリー', frame: '#BE185D', tint: '#FCE7F0', text: '#BE185D' },
-	G2: { name: 'ワイン', frame: '#881337', tint: '#F8E4EA', text: '#881337' },
-	G3: { name: 'ローズピンク', frame: '#DB2777', tint: '#FDE8F2', text: '#DB2777' },
-};
-const NEAR = 'G1';   // 今の --uma-mark-gene（紫）にいちばん近い赤の案（CIE76 の ΔE: G1 58.3・G2 58.6・G3 59.1。ほぼ同じ）
+// 遺伝子の色（T49: おいもさんの決定で G1 ラズベリー。枠と字 #BE185D・塗り #FCE7F0）
+const GENE_COLOR = { frame: '#BE185D', tint: '#FCE7F0', text: '#BE185D' };
 
 const CASES = [
-	{ name: 'A-kiremono', sp: 'A', gene: NEAR, set: SET() },
-	{ name: 'B-kiremono', sp: 'B', gene: NEAR, set: SET() },
-	{ name: 'A-benkyouka', sp: 'A', gene: NEAR, set: SET({ statusLabel: '勉強家' }) },
-	{ name: 'B-benkyouka', sp: 'B', gene: NEAR, set: SET({ statusLabel: '勉強家' }) },
-	{ name: 'A-nostatus', sp: 'A', gene: NEAR, set: SET({ statusLabel: '' }) },
-	{ name: 'B-nostatus', sp: 'B', gene: NEAR, set: SET({ statusLabel: '' }) },
-	{ name: 'A-uniq0', sp: 'A', gene: NEAR, set: SET({ uniqKinds: 0 }) },
-	{ name: 'B-uniq0', sp: 'B', gene: NEAR, set: SET({ uniqKinds: 0 }) },
-	{ name: 'B-gene-G0', sp: 'B', gene: 'G0', set: SET(), crop: true },
-	{ name: 'B-gene-G1', sp: 'B', gene: 'G1', set: SET(), crop: true },
-	{ name: 'B-gene-G2', sp: 'B', gene: 'G2', set: SET(), crop: true },
-	{ name: 'B-gene-G3', sp: 'B', gene: 'G3', set: SET(), crop: true },
+	{ name: 'kiremono', set: SET(), crop: true },
+	{ name: 'benkyouka', set: SET({ statusLabel: '勉強家' }) },
+	{ name: 'nostatus', set: SET({ statusLabel: '' }) },
+	{ name: 'uniq0', set: SET({ uniqKinds: 0 }) },
 ].filter((c) => !ONLY || ONLY.includes(c.name));
 
 const toUrl = (f) => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
@@ -94,7 +79,8 @@ try {
 			const genesByLabel = {};
 			[0, 1, 2].forEach((i) => {
 				const r = personResults[i];
-				genesByLabel[PERSON_LABELS[i]] = r ? genes.filter((g) => r.detectedSkills.has(g)) : [];
+				// ★は製品の starsFor と同じ読み方（数＝★の数・null＝検出したが★を測れなかった）
+				genesByLabel[PERSON_LABELS[i]] = r ? genes.filter((g) => r.detectedSkills.has(g)).map((g) => ({ name: g, stars: starsFor(i, g) })) : [];
 			});
 			// 写しの中身（T37 と同じ）。表の行は 38行だけ（遺伝子は表・数に入れない）。枠の種類だけ遺伝子に 'gene'
 			stitchSnapshot.entries = rows.map((r) => ({ id: r[0], name: r[0] }));
@@ -102,7 +88,7 @@ try {
 			stitchSnapshot.setName = 'LoH先行';
 			stitchSnapshot.raceLabels = ['長距離', '先行', '芝'];
 			stitchSnapshot.set = cs.set;
-			window.__T44 = { spVariant: cs.sp, gene: color, geneNames: genes, genesByLabel: genesByLabel };
+			window.__T44 = { gene: color, genesByLabel: genesByLabel };
 			if (!window.__t44Loaded) { (0, eval)(mockJs); window.__t44Loaded = true; }
 			window.__T44.metrics = { sp: null, heads: [], geneBoxes: [] };
 			const keepKind = window.deckMarkerKindByName;
@@ -121,7 +107,7 @@ try {
 			});
 			return { png: canvas.toDataURL('image/png'), layout: JSON.parse(JSON.stringify(lay)), sp: M.sp, heads: M.heads, geneBoxes, genesByLabel, mark: canvas._markCount,
 				bar: stitchBarText(stitchSnapshot) };
-		}, { cs, urls: F.map((l) => l.map(toUrl)), rows: ROWS, genes: GENES, color: cs.gene ? GENE_COLORS[cs.gene] : null, mockJs: MOCK_JS });
+		}, { cs, urls: F.map((l) => l.map(toUrl)), rows: ROWS, genes: GENES, color: GENE_COLOR, mockJs: MOCK_JS });
 		if (res.error) { console.log(cs.name, 'NG', res.error); summary.push({ name: cs.name, error: res.error }); await ctx.close(); continue; }
 		const file = path.join(OUT, cs.name + '.png');
 		fs.writeFileSync(file, Buffer.from(res.png.split(',')[1], 'base64'));
@@ -130,7 +116,15 @@ try {
 			'genes=' + JSON.stringify(res.genesByLabel), 'geneBoxes=' + res.geneBoxes.length);
 		if (res.sp) res.sp.rows.forEach((r) => console.log('   ', JSON.stringify(r)));
 		if (res.sp && res.sp.overflow.length) console.log('   overflow', JSON.stringify(res.sp.overflow));
-		summary.push({ name: cs.name, sp: cs.sp, gene: cs.gene, width: L.width, height: L.height, topH: L.top && L.top.h, bodyY: L.bodyY, spMetrics: res.sp,
+		// 遺伝子の名前と★が隣の人の列にかからないか（右端と、次の人の左端の差）
+		const persons = L.persons.slice().sort((a, b) => a.x - b.x);
+		const gap = res.heads.filter((h) => h.box).map((h) => {
+			const nx = persons.find((p) => p.x > h.x + 1);
+			const right = h.box.x + h.box.w;
+			return { label: h.label, texts: h.box.texts, widths: h.box.widths, right: Math.ceil(right), nextLeft: nx ? nx.x : L.width - 28, room: Math.floor((nx ? nx.x : L.width - 28) - right) };
+		});
+		gap.forEach((g) => console.log('   gene', JSON.stringify(g)));
+		summary.push({ name: cs.name, width: L.width, height: L.height, topH: L.top && L.top.h, bodyY: L.bodyY, spMetrics: res.sp, geneHeads: gap,
 			heads: res.heads, genesByLabel: res.genesByLabel, geneBoxes: res.geneBoxes, legend: L.legend, persons: L.persons.map((p) => ({ k: p.k, x: p.x, y: p.y, w: p.w, h: p.h, scale: p.scale })), mark: res.mark });
 		// 色の案の切り出し（等倍）: 遺伝子のある人の見出しの行〜その人の遺伝子の枠の下端
 		if (cs.crop && res.geneBoxes.length) {
