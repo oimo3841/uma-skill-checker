@@ -133,8 +133,9 @@ export async function register68(env) {
 			act: document.activeElement && document.activeElement.getAttribute('data-usd-act'), expanded: document.querySelector('#deck-template-panel [data-usd-el="panel-ptbtn"][data-skill-id="' + id + '"]').getAttribute('aria-expanded') }), AOHARU);
 		assert(!after.open && after.focus === AOHARU && after.act === 'factor-overlap-info' && after.expanded === 'false', 'マイナスの小窓(2) Esc で閉じ、押したボタンにフォーカスが戻る', after);
 		// 星取表（C-224）でも同じ行の部品
-		const pv = await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('aria-pressed') : null; });
-		if (pv !== 'true') { await sp.page.click(T + '[data-usd-el="factor-view"]'); await sp.page.waitForTimeout(300); }
+		// T29: 今の表示はボタンの data-usd-view で読む（aria-pressed は無くなった）。表になるまで押す
+		const pv = () => sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('data-usd-view') : null; });
+		for (let i = 0; i < 3 && (await pv()) !== 'table'; i++) { await sp.page.click(T + '[data-usd-el="factor-view"]'); await sp.page.waitForTimeout(300); }
 		const q = await openRow(sp.page, PASS);
 		assert(q.title === N(PASS) && q.kind === 'level' && q.diffText === '−32 Pt', 'マイナスの小窓(2) 星取表の行の Pt からも同じ小窓が開く', q);
 		await closePop(sp.page);

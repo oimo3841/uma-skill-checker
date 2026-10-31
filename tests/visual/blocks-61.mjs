@@ -61,8 +61,10 @@ export async function register61(env) {
 		return sp;
 	};
 	const setView = async (page, table) => {
-		const on = await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('aria-pressed') === 'true' : false; });
-		if (on !== table) { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
+		// T29: 表示は3つを回す。今の表示はボタンの data-usd-view で読む（aria-pressed は無くなった）
+		const want = table ? 'table' : 'cards';
+		const cur = () => page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('data-usd-view') : null; });
+		for (let i = 0; i < 3 && (await cur()) !== want; i++) { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
 	};
 	/** ②の行のマーカー（カード一覧・星取表のどちらでも）と、無効の行・金の行の印の数 */
 	const readMarkers = (page) => page.evaluate(() => {

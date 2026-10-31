@@ -105,6 +105,7 @@ import { register75 } from './blocks-75.mjs';
 import { register76 } from './blocks-76.mjs';
 import { register77 } from './blocks-77.mjs';
 import { register78 } from './blocks-78.mjs';
+import { register79 } from './blocks-79.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -15492,6 +15493,7 @@ await register76({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register77({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T28（2026-10-31）: 「テキストで検索」の新設と入口の並び（見出しは「T28テキストで検索」）
 await register78({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register79({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

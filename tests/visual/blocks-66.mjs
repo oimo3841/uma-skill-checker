@@ -55,8 +55,9 @@ export async function register66(env) {
 		return sp;
 	};
 	const setTable = async (page) => {
-		const p = await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('aria-pressed') : null; });
-		if (p !== 'true') { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
+		// T29: 今の表示はボタンの data-usd-view で読む（aria-pressed は無くなった）。表になるまで押す
+		const cur = () => page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('data-usd-view') : null; });
+		for (let i = 0; i < 3 && (await cur()) !== 'table'; i++) { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
 	};
 	const popTitle = (page) => page.evaluate(() => { const p = document.querySelector('[data-usd-el="info-pop"]'); return p && !p.hidden ? p.querySelector('.uma-popover-title').textContent : null; });
 	const sel = (page) => page.evaluate(() => deckTemplateManager.getSelection().skillIds.slice());

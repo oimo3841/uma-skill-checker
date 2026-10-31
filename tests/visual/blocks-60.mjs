@@ -62,9 +62,11 @@ export async function register60(env) {
 		await sp.page.waitForTimeout(500);
 		return sp;
 	};
-	const viewBtn = (page) => page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('aria-pressed') : null; });
+	// T29: 表示は3つ（カード一覧 → 表 → 分類）を回す。aria-pressed は無くなり、今の表示はボタンの data-usd-view（と読み上げの文）で読む
+	const viewBtn = (page) => page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('data-usd-view') : null; });
 	const setView = async (page, table) => {
-		if (((await viewBtn(page)) === 'true') !== table) { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
+		const want = table ? 'table' : 'cards';
+		for (let i = 0; i < 3 && (await viewBtn(page)) !== want; i++) { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
 	};
 	/** 製品の数（②の帯・見出し・①の帯）と保存データ・②の行（名前・Pt・◎・重なり）・無効の行 */
 	const read = (page) => page.evaluate(() => {
@@ -153,22 +155,22 @@ export async function register60(env) {
 			const want = ['palette-delete', 'factor-reset', 'entry-search'].concat(iCircle === -1 ? [] : ['factor-circle-mode']).concat(['factor-view']);
 			assert(JSON.stringify(order) === JSON.stringify(want), '②星取表(1) ' + c.k + ' 切り替えのボタンは塊の一番右（' + (iCircle === -1 ? '虫眼鏡' : '◎のボタン') + 'のすぐ右。C-235）', order);
 			const a = await read(sp.page);
-			assert((await viewBtn(sp.page)) === 'false' && !a.table, '②星取表(1) ' + c.k + ' 既定はカード一覧（ボタンは押していない状態）', null);
+			assert((await viewBtn(sp.page)) === 'cards' && !a.table, '②星取表(1) ' + c.k + ' 既定はカード一覧（ボタンの今の表示はカード一覧。T29）', null);
 			await setView(sp.page, true);
 			const b = await read(sp.page);
-			assert((await viewBtn(sp.page)) === 'true' && b.table, '②星取表(1) ' + c.k + ' 押すと星取表（aria-pressed=true）', null);
+			assert((await viewBtn(sp.page)) === 'table' && b.table, '②星取表(1) ' + c.k + ' 押すと星取表（ボタンの今の表示は表。T29 で aria-pressed をやめた）', null);
 			assert(strip(a) === strip(b), '②星取表(1) ' + c.k + ' 切り替えても②の帯・見出しの合計・種数・②の id・localStorage は同じ', { a: strip(a).slice(0, 200), b: strip(b).slice(0, 200) });
 			const focused = await sp.page.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-usd-el'));
 			assert(focused === 'factor-view', '②星取表(1) ' + c.k + ' 押したあともフォーカスは切り替えのボタン', focused);
 			await setView(sp.page, false);
 			const a2 = await read(sp.page);
-			assert(!a2.table && strip(a2) === strip(a), '②星取表(1) ' + c.k + ' もう一度押すとカード一覧に戻る（数・保存データは同じ）', null);
+			assert(!a2.table && strip(a2) === strip(a), '②星取表(1) ' + c.k + ' 表 → 分類 → カード一覧と押すとカード一覧に戻る（数・保存データは同じ。T29）', null);
 			await setView(sp.page, true);
 			await reloadReady(sp.page);
 			await sp.page.waitForSelector(BAR + '[data-usd-el="set-total"]', { timeout: 20000 });
 			await sp.page.waitForTimeout(800);
 			const r = await read(sp.page);
-			assert((await viewBtn(sp.page)) === 'false' && !r.table, '②星取表(1) ' + c.k + ' 読み込み直すとカード一覧（切り替えは保存しない）', null);
+			assert((await viewBtn(sp.page)) === 'cards' && !r.table, '②星取表(1) ' + c.k + ' 読み込み直すとカード一覧（切り替えは保存しない）', null);
 			assert(jsErrors(errors).length === 0, '②星取表(1) ' + c.k + ' コンソールのエラー0', jsErrors(errors));
 			await sp.ctx.close();
 		}
@@ -385,7 +387,7 @@ export async function register60(env) {
 			assert(b.sel.indexOf(id) !== -1 && b.sel.length === a.sel.length + 1 && b.off.indexOf(id) === -1 && b.off.length === a.off.length - 1,
 				'②星取表(8) ' + view + ': 無効の行の＋を押すと②に入り、無効の段から消える', { id, sel: b.sel.length, off: b.off.length });
 			assert(b.sum.factorPt > a.sum.factorPt && b.sum.total > a.sum.total && b.panels.some((p) => p.id === id), '②星取表(8) ' + view + ': 合計が増え、有効の行に出る', { a: a.sum.factorPt, b: b.sum.factorPt });
-			assert((await viewBtn(sp.page)) === (view === 'table' ? 'true' : 'false'), '②星取表(8) ' + view + ': 表示は切り替わらない', null);
+			assert((await viewBtn(sp.page)) === view, '②星取表(8) ' + view + ': 表示は切り替わらない', null);
 			// 外すと無効の段に戻る（「削除」で行を押す）
 			await sp.page.click(T + '[data-usd-el="palette-delete"]');
 			await sp.page.waitForTimeout(200);

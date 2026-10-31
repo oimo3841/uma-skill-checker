@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-31g';
 
 	/* ============================================================
 	 * 定数
@@ -5469,6 +5469,72 @@
 		return [...new Set((values || []).map(v => tagLabel(axisKey, v)))];
 	}
 
+	/**
+	 * ②因子周回の「分類」の表示の分類（T29・おいもさんの決定 2026-10-30。T24 のモックの classify() を土台にした）。
+	 * タグの値をまとめず・読み替えずに置く（まとめた値〔mergedInto〕だけは tagLabel と同じくまとめ先として読む＝掛かり時間はデバフ）:
+	 *   パッシブ（1つの分類）→ デバフ（効果タイプにデバフ。1つの分類）→ フェーズ（コース位置も持てば中分類）→ フェーズの無いものはコース位置
+	 *   → どちらも無いものは「フェーズ・コース位置の指定なし」→ タグを持たないもの（母集団の外の id）は「その他」。
+	 *   フェーズ・コース位置・指定なしの分類は、最後を効果タイプで細分類する。
+	 * 複数の値は、選択肢（TAG_AXES）の順に「＋」でつないだ1つの値。並びは組の最初の値の直後（鍵を選択肢の添字の列にし、区切りを「.」、段の区切りを空白にして文字列で比べる）。
+	 * 同じフェーズの中は、コース位置の無い細分類（'0'）が先、コース位置の中分類（'1…'）が後。
+	 * 返り値: { key（並べる鍵。文字列の大小で並べる）, levels（1行の見出しの各段の名前）, passive }
+	 */
+	const FACTOR_GROUP_JOIN = '＋';
+	function factorGroupOf(tags) {
+		if (!tags) return { key: 'Z', levels: ['その他'], passive: false };
+		const valsOf = (axisKey) => {
+			const axis = TAG_AXES.find(a => a.key === axisKey);
+			const opts = axis ? axis.options : [];
+			const out = [];
+			(Array.isArray(tags[axisKey]) ? tags[axisKey] : []).forEach(v => {
+				const o = opts.find(x => x.v === v);
+				const w = o && o.mergedInto ? o.mergedInto : v;
+				if (out.indexOf(w) === -1) out.push(w);
+			});
+			const pos = (v) => { const i = opts.findIndex(x => x.v === v); return i === -1 ? 99 : i; };
+			return out.map(v => ({ v: v, i: pos(v) })).sort((a, b) => a.i - b.i || (a.v < b.v ? -1 : a.v > b.v ? 1 : 0));
+		};
+		const labelOf = (axisKey, list) => list.map(x => tagLabel(axisKey, x.v)).join(FACTOR_GROUP_JOIN);
+		const orderOf = (list) => list.map(x => String(x.i).padStart(2, '0')).join('.');
+		if (Array.isArray(tags.passive) && tags.passive.length > 0) return { key: 'A', levels: ['パッシブ（緑スキル）'], passive: true };
+		const e = valsOf('effect');
+		if (e.some(x => x.v === 'debuff')) return { key: 'B', levels: ['デバフ'], passive: false };
+		const p = valsOf('phase'), c = valsOf('coursePos');
+		const eLabel = e.length > 0 ? labelOf('effect', e) : '効果タイプの指定なし';
+		const eOrder = e.length > 0 ? orderOf(e) : '99';
+		if (p.length > 0) {
+			return c.length > 0
+				? { key: 'C' + orderOf(p) + ' 1' + orderOf(c) + ' ' + eOrder, levels: [labelOf('phase', p), labelOf('coursePos', c), eLabel], passive: false }
+				: { key: 'C' + orderOf(p) + ' 0 ' + eOrder, levels: [labelOf('phase', p), eLabel], passive: false };
+		}
+		if (c.length > 0) return { key: 'D' + orderOf(c) + ' 0 ' + eOrder, levels: [labelOf('coursePos', c), eLabel], passive: false };
+		return { key: 'E 0 ' + eOrder, levels: ['フェーズ・コース位置の指定なし', eLabel], passive: false };
+	}
+
+	/**
+	 * ②の表示の切り替えのボタン（T29）。押すたびに カード一覧 → 表 → 分類 → カード一覧。aria-pressed は使わず、
+	 * aria-label と title で今の表示と押したあとの表示を言う。絵は今の表示（タイル／表の線画／見出しつきのリスト）。
+	 * カード一覧以外のときの 2px の枠は data-usd-view の値で付ける（CSS）
+	 */
+	const FACTOR_VIEWS = ['cards', 'table', 'group'];
+	const FACTOR_VIEW_NAMES = { cards: 'カード一覧', table: '表', group: '分類' };
+	function nextFactorView(v) { const i = FACTOR_VIEWS.indexOf(v); return FACTOR_VIEWS[(i === -1 ? 0 : i + 1) % FACTOR_VIEWS.length]; }
+	function factorViewLabel(v) { return '表示：' + FACTOR_VIEW_NAMES[v] + '（押すと ' + FACTOR_VIEW_NAMES[nextFactorView(v)] + '）'; }
+	const FACTOR_VIEW_SVG_HEAD = '<svg class="usd-factor-viewsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">';
+	const FACTOR_VIEW_SVGS = {
+		// カード一覧: タイル（2×2 の角丸の四角）
+		cards: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+		// 表: 今までの表の線画のまま
+		table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 4v16"/>',
+		// 分類: 見出しつきのリスト（太い短い線＝見出し・細い線＝行。2段）
+		group: '<path d="M3 5h8" stroke-width="3" stroke-linecap="round"/><path d="M7 9h14M7 12.5h14" stroke-width="1.6" stroke-linecap="round"/><path d="M3 17h8" stroke-width="3" stroke-linecap="round"/><path d="M7 21h14" stroke-width="1.6" stroke-linecap="round"/>'
+	};
+	function factorViewBtnHtml(v) {
+		const label = factorViewLabel(v);
+		return '<button type="button" class="usd-factor-circlebtn usd-factor-viewbtn" data-usd-act="factor-view" data-usd-el="factor-view" data-usd-view="' + v + '"'
+			+ ' aria-label="' + label + '" title="' + label + '">' + FACTOR_VIEW_SVG_HEAD + FACTOR_VIEW_SVGS[v] + '</svg></button>';
+	}
+
 	/* ============================================================
 	 * 一括貼り付けテキストのスキル名マッチング
 	 *
@@ -7505,7 +7571,9 @@
 		'.usd-factor-circlebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--uma-r-sm);',
 		'  background: transparent; color: var(--uma-text-heading); cursor: pointer; }',
 		'.usd-factor-circlebtn:hover { background: rgba(0,0,0,.08); }',
-		'.usd-factor-circlebtn[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
+		'.usd-factor-circlebtn[aria-pressed="true"],',
+		// T29: 表示の切り替えは aria-pressed を持たないので、カード一覧以外（表・分類）のときに data-usd-view で同じ枠
+		'.usd-factor-viewbtn[data-usd-view="table"], .usd-factor-viewbtn[data-usd-view="group"] { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
 		'.usd-factor-circlebtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
 		'.usd-factor-circlebtn .usd-roster-toneicon--circle { color: inherit; }',
 		// ②因子周回 段3: カード一覧と星取表の切り替え（◎のボタンと同じ 28px の押せる範囲・同じ選択の枠）と、星取表。
@@ -7539,6 +7607,14 @@
 		'.usd-panel--taken .usd-icon { opacity: .4; }',
 		// C-225: 無効の段（オススメサポのカードで得られるのに②に無いスキル）。見出しは一覧の幅いっぱい。行は①の表の「取得しない」の行と同じ見た目（薄い地・薄い文字・取り消しの線）で、押すと②に足す
 		'.usd-factor-offhead { grid-column: 1 / -1; margin: var(--uma-sp-2) 0 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-muted); }',
+		// T29: 分類の表示の1行の見出し（グリッドの1行を使う。除外の段の見出しと同じ作り）。色は今の文字の色と線だけ・パッシブの見出しだけ緑の文字
+		'.usd-factor-grouphead { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 6px; min-width: 0; margin: var(--uma-sp-3) 0 0; padding-bottom: 2px; border-bottom: 1px solid var(--uma-border);',
+		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-factor-grouphead--first { margin-top: 0; }',
+		'.usd-factor-grouphead-name { min-width: 0; overflow-wrap: anywhere; }',
+		'.usd-factor-grouphead--passive .usd-factor-grouphead-name { color: var(--usd-skill-passive-text); }',
+		'.usd-factor-groupsep { padding: 0 1px; font-weight: 400; color: var(--uma-text-muted); }',
+		'.usd-factor-grouphead-n { flex: none; font-weight: 400; color: var(--uma-text-muted); }',
 		// C-238: 追加できるのは左の＋のボタンだけ（パネルのほかの部分を押しても追加しない）。＋の押せる範囲は ×・◎ と同じ 44px（見た目は 22px の丸）。
 		// 名前は説明の小窓のボタン（下線・取り消し線なし）。文字の色は今の薄い色のまま（分類の色は付けない）
 		'.usd-panel--off { background: var(--uma-surface-sunken); }',
@@ -13525,8 +13601,8 @@
 		let paletteSel = null;
 		// ②因子周回 段2: 「◎を○に変えるモード」（入口の◎のボタン）。画面の中だけの状態で保存しない（①の並べ替えと同じ）
 		let factorCircleMode = false;
-		// ②因子周回 段3: ②の表示（'cards'＝カード一覧／'table'＝星取表）と、星取表の列の漏斗（①の列のキー。null＝並べ替えなし）。
-		// 画面の中だけの状態で保存しない（リロードでカード一覧に戻る）
+		// ②因子周回 段3: ②の表示（'cards'＝カード一覧／'table'＝星取表／'group'＝分類〔T29〕）と、星取表の列の漏斗（①の列のキー。null＝並べ替えなし）。
+		// 画面の中だけの状態で保存しない（リロードでカード一覧に戻る）。切り替えのボタンを押すたびに FACTOR_VIEWS の順に回る
 		let factorView = 'cards';
 		let factorTableSort = null;
 		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
@@ -13808,8 +13884,8 @@
 				focusNoScroll(container.querySelector('button[data-usd-act="factor-circle-mode"]'));
 			}
 			else if (act === 'factor-view') {
-				// ②因子周回 段3: カード一覧と星取表の切り替え（保存しない）。押したボタンにフォーカスを戻す
-				factorView = factorView === 'table' ? 'cards' : 'table';
+				// ②因子周回 段3: 表示の切り替え（保存しない）。T29: カード一覧 → 表 → 分類 → カード一覧 と回る。押したボタンにフォーカスを戻す
+				factorView = nextFactorView(factorView);
 				render();
 				focusNoScroll(container.querySelector('button[data-usd-act="factor-view"]'));
 			}
@@ -15581,6 +15657,34 @@
 				btn: btn, opener: btn, refocus: sel
 			});
 		}
+		/**
+		 * 分類の表示（T29・おいもさんの決定 2026-10-30）。分類（factorGroupOf）ごとに1行の見出し「中盤／直線／持久力回復 N件」を置き、
+		 * その下に②の行（カード一覧と同じ factorPanelHtml の行。並びは compareGameOrder のまま）を並べる。
+		 * 「“オススメサポ”で除外されたスキル」の行は、当たる分類の最後尾（今の行の見た目と＋のまま。段の見出しは出さない）。
+		 * 件数は②のスキルの数（除外の行は数えない）。0件の分類は出さないが、除外の行だけが当たる分類は見出しを出して「0件」。
+		 * タグを持たない id（母集団の外）は最後の「その他」。パッシブの見出しだけ緑の文字
+		 */
+		function factorGroupedHtml(sortedIds, panelOf, offIds) {
+			const tagsById = new Map(taggedSkillPool().map(s => [s.id, s.tags]));
+			const groups = new Map();
+			const put = (id, off) => {
+				const g = factorGroupOf(tagsById.has(id) ? tagsById.get(id) || {} : null);
+				if (!groups.has(g.key)) groups.set(g.key, { g: g, on: [], off: [] });
+				groups.get(g.key)[off ? 'off' : 'on'].push(id);
+			};
+			sortedIds.forEach(id => put(id, false));
+			offIds.forEach(id => put(id, true));
+			const keys = Array.from(groups.keys()).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+			const sep = '<span class="usd-factor-groupsep">／</span>';
+			return keys.map((k, i) => {
+				const x = groups.get(k);
+				const name = x.g.levels.map(esc).join(sep);
+				return '<p class="usd-factor-grouphead' + (i === 0 ? ' usd-factor-grouphead--first' : '') + (x.g.passive ? ' usd-factor-grouphead--passive' : '') + '"'
+					+ ' data-usd-el="factor-group-head" data-group-key="' + esc(k) + '" data-group-count="' + x.on.length + '">'
+					+ '<span class="usd-factor-grouphead-name">' + name + '</span><span class="usd-factor-grouphead-n">' + x.on.length + '件</span></p>'
+					+ x.on.map(panelOf).join('') + x.off.map(factorOffTileHtml).join('');
+			}).join('');
+		}
 		function renderSelectedList() {
 			const ids = editingSkillIds();
 			const target = currentTarget();
@@ -15623,6 +15727,7 @@
 				const offHtml = offIds.length > 0
 					? '<p class="usd-factor-offhead" data-usd-el="factor-off-head">' + esc(factorOffHeadText(offIds.length)) + '</p>' + offIds.map(factorOffTileHtml).join('') : '';
 				el.innerHTML = factorView === 'table' ? factorTableHtml(sorted, panelOf, fsrc, offIds)
+					: factorView === 'group' ? factorGroupedHtml(sorted, panelOf, offIds)
 					: (ids.length === 0 ? emptyNote : sorted.map(panelOf).join('')) + offHtml;
 				attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
 				renderPanelPts();
@@ -16522,10 +16627,8 @@
 				+ (hasCircle ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
 					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
 					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
-				// ②因子周回 段3: カード一覧と星取表の切り替え。押している＝星取表（◎のボタンと同じ選択の枠）
-				+ '<button type="button" class="usd-factor-circlebtn usd-factor-viewbtn" data-usd-act="factor-view" data-usd-el="factor-view" aria-pressed="' + (factorView === 'table' ? 'true' : 'false') + '"'
-					+ ' aria-label="星取表で見る" title="' + (factorView === 'table' ? 'カード一覧に戻す' : '星取表で見る') + '">'
-					+ '<svg class="usd-factor-viewsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 4v16"/></svg></button>';
+				// ②因子周回 段3: 表示の切り替え（T29: カード一覧 → 表 → 分類。カード一覧以外のときは◎のボタンと同じ選択の枠）
+				+ factorViewBtnHtml(factorView);
 			// 削除の状態は、スキルのまとまりの印でタイルの見た目にも出す（控えめな破線の枠と、名前の取り消しの線）
 			const group = q(container, 'skill-group');
 			if (group) group.classList.toggle('usd-skillgroup--delete', del);
@@ -18197,6 +18300,9 @@
 		getRaceDistancesMeta: function () { return raceDistancesMeta; },
 		tagLabel: tagLabel,
 		tagLabels: tagLabels,
+		// ②因子周回の「分類」の表示の分類（T29）。検査が母集団の分類の鍵を数えるのに使う（taggedSkillPool は読むだけ）
+		factorGroupOf: factorGroupOf,
+		taggedSkillPool: function () { return taggedSkillPool().map(s => ({ id: s.id, name: s.name, tags: s.tags })); },
 		expandMergedValues: expandMergedValues,
 
 		// 一括貼り付けテキストのマッチング（UIを持たない純粋なロジック）
