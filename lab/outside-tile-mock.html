@@ -18,7 +18,7 @@
 		Y（対象Y種）は、そのとき計算した結果（オススメサポのカード名の小窓で「対象」の札が付くスキル。金と、その下位の白は1種に数える）。
 		検索の候補（白・金）と選べない理由は、ピン止めの計算（母集団に候補の全部をピンとして渡し、入れ直せない理由を読む）を同じ状態で回した結果。
 
-		引数: ?tile=now|1|2|3（(4) タイルの案。既定 1）・?scene=tiles|search|pinned（既定 tiles）・?q=…（検索の語）・?excl=auto|full|short|long（除外中の表記。long は数の多い場合の試し）
+		引数: ?tile=now|1|2|3（(4) タイルの案。既定 2〔T71〕）・?scene=tiles|search|pinned（既定 tiles）・?q=…（検索の語）・?excl=auto|full|short|long|none（除外中の表記。long は数の多い場合の試し・none は除外が1件も無い場面〔T71〕）
 		      ?theme=light|dark・?shot=1（案内を隠す）
 	-->
 	<style id="cap-css">
@@ -2363,6 +2363,10 @@ html[data-t66-tile="2"] :is([data-usd-el="outside-card"], [data-usd-el="outside-
 /* ---- (5) 除外中の左のアイコン（虫眼鏡＋ピン止め）。見た目は行のピンのボタン（.usd-out-pin）と同じ部品・押せる範囲 44×44 ---- */
 .usd-out-pin.t66-pinsearch { width: 24px; height: 24px; flex: none; }
 .t66-pinsearch-ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* T71: アイコンと「除外中…」の間の区切り（縦の線。色は今の線のトークン）。アイコンが除外の一部に見えないように */
+.t66-pinsep { flex: none; width: 1px; height: 16px; margin-inline: 2px; background: var(--uma-border-strong); }
+/* T71: 除外が無い場面のアイコンだけの行。高さは除外中の行（28px）にそろえる（下の一覧の位置を変えない） */
+.t66-excl-none .usd-out-exhead { min-height: 28px; }
 /* ピン止めの検索の小窓: テキストで検索の小窓のうち、検索の欄と候補の一覧だけ（追加候補の欄・「追加（N種）」は使わない。押すとすぐピン止め） */
 .t66-pinpicker [data-usd-el="search-tray"], .t66-pinpicker [data-usd-el="picker-footer"] { display: none; }
 
@@ -2388,7 +2392,7 @@ html[data-t66-shot="1"] .t66-guide { display: none; }
 	<button type="button" class="t66-guide-toggle" id="t66-guide-toggle" aria-expanded="true">モック T66 (4)(5) オススメサポ</button>
 	<div class="t66-guide-body">
 		<label>(4) タイルの案<select id="t66-tile"><option value="now">今のまま</option><option value="1">案1 SSR を二つ名の側へ・× を右上・小さい字</option><option value="2">案2 SSR を種別アイコンの下・2段</option><option value="3">案3 今の配置で「＋X/Y種」</option></select></label>
-		<label>(5) 除外中の表記<select id="t66-excl"><option value="auto">入らない幅でだけ短く</option><option value="full">今の表記</option><option value="short">短い表記</option><option value="long">数の多い場合の試し（自動）</option></select></label>
+		<label>(5) 除外中の表記<select id="t66-excl"><option value="auto">入らない幅でだけ短く</option><option value="full">今の表記</option><option value="short">短い表記</option><option value="long">数の多い場合の試し（自動）</option><option value="none">除外が無い場面（アイコンだけの行）</option></select></label>
 		<label>色<select id="t66-theme"><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
 		<p>(5) は「除外中」の左のアイコンを押すと検索の小窓。モックで結果まで描けるのは「<span id="t66-pinname"></span>」だけ（ほかの白スキルは選べるが、結果は写していない）。</p>
 	</div>
@@ -2400,10 +2404,10 @@ html[data-t66-shot="1"] .t66-guide { display: none; }
 	const D = JSON.parse(document.getElementById('t66-data').textContent);
 	const P = new URLSearchParams(location.search);
 	const st = {
-		tile: ['now', '1', '2', '3'].indexOf(P.get('tile')) !== -1 ? P.get('tile') : '1',
+		tile: ['now', '1', '2', '3'].indexOf(P.get('tile')) !== -1 ? P.get('tile') : '2',
 		scene: ['tiles', 'search', 'pinned'].indexOf(P.get('scene')) !== -1 ? P.get('scene') : 'tiles',
 		q: P.get('q') || '',
-		excl: ['auto', 'full', 'short', 'long'].indexOf(P.get('excl')) !== -1 ? P.get('excl') : 'auto',
+		excl: ['auto', 'full', 'short', 'long', 'none'].indexOf(P.get('excl')) !== -1 ? P.get('excl') : 'auto',
 		theme: P.get('theme') === 'dark' ? 'dark' : 'light'
 	};
 	if (P.get('shot') === '1') document.documentElement.setAttribute('data-t66-shot', '1');
@@ -2487,6 +2491,19 @@ html[data-t66-shot="1"] .t66-guide { display: none; }
 		b.innerHTML = PINSEARCH_SVG;
 		b.addEventListener('click', () => openPicker(b));
 		left.insertBefore(b, left.firstChild);
+		// T71: 除外が1件も無い場面は、同じ位置にアイコンだけの行（除外中の文・？・すべて戻す・除外の一覧は出さない）
+		if (st.excl === 'none') {
+			root.querySelector('[data-usd-el="outside-excl"]').classList.add('t66-excl-none');
+			tg.remove();
+			left.querySelectorAll('[data-usd-el="outside-excl-help"]').forEach((x) => x.remove());
+			root.querySelectorAll('[data-usd-el="outside-restore-all"], [data-usd-el="outside-excl-list"]').forEach((x) => x.remove());
+			return;
+		}
+		const sep = document.createElement('span');
+		sep.className = 't66-pinsep';
+		sep.setAttribute('data-usd-el', 't66-pinsep');
+		sep.setAttribute('aria-hidden', 'true');
+		b.after(sep);
 		const full = tg.textContent;   // 例「除外中 カード1枚・スキル2種（長距離） ▴」
 		const m = /^除外中 (?:カード(\d+)枚)?・?(?:スキル(\d+)種（(.+?)）)? ([▴▾])$/.exec(full);
 		const parts = m ? { c: m[1], s: m[2], d: m[3], a: m[4] } : null;
@@ -2574,7 +2591,7 @@ html[data-t66-shot="1"] .t66-guide { display: none; }
 	}
 	function sync() {
 		const q = new URLSearchParams();
-		if (st.tile !== '1') q.set('tile', st.tile);
+		if (st.tile !== '2') q.set('tile', st.tile);
 		if (st.scene !== 'tiles') q.set('scene', st.scene);
 		if (st.scene === 'search' && st.q) q.set('q', st.q);
 		if (st.excl !== 'auto') q.set('excl', st.excl);
@@ -2607,7 +2624,7 @@ html[data-t66-shot="1"] .t66-guide { display: none; }
 		}));
 		const tg = document.querySelector('#t66-stage [data-usd-el="outside-excl-toggle"]');
 		const excl = { text: tg ? tg.textContent : '', short: !!(tg && tg.getAttribute('data-t66-short')), head: box(document.querySelector('#t66-stage .usd-out-exhead')), left: box(document.querySelector('#t66-stage .usd-out-exleft')),
-			icon: box(document.querySelector('#t66-stage [data-usd-el="t66-pinsearch"]')), toggle: box(tg), restore: box(document.querySelector('#t66-stage [data-usd-el="outside-restore-all"]')) };
+			icon: box(document.querySelector('#t66-stage [data-usd-el="t66-pinsearch"]')), sep: box(document.querySelector('#t66-stage [data-usd-el="t66-pinsep"]')), toggle: box(tg), restore: box(document.querySelector('#t66-stage [data-usd-el="outside-restore-all"]')) };
 		const ic = document.querySelector('#t66-stage [data-usd-el="t66-pinsearch"]');
 		if (ic) { const s = getComputedStyle(ic, '::before'); excl.iconHit = [s.width, s.height]; }
 		return { w: window.innerWidth, scrollX: document.documentElement.scrollWidth > document.documentElement.clientWidth, tiles, excl };
