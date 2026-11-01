@@ -463,8 +463,7 @@ const INTENTIONALLY_REMOVED = {
 	// → 段7c の commit（db56879）で HEAD から消えたので、免除は空に戻した（残すと本当の事故を見逃す口になる）。
 	// 2026-11-01（T55・C-260 の (b)）: 古いお知らせ（special の layout・alpha・catalog／exam の layout・target）を外したので、その本文と見出しの id が消えた。
 	// commit が進んだら免除は空に戻す。
-	'special.html': ['ui-notice-body-layout', 'ui-notice-title', 'ui-notice-body-alpha', 'ui-notice-title-alpha', 'ui-notice-body-catalog', 'ui-notice-title-catalog'],
-	'exam.html': ['ui-notice-body-layout', 'ui-notice-title', 'ui-notice-body-target', 'ui-notice-title-target'],
+	// → T55 の commit（7ab2763）で HEAD から消えたので、免除は空に戻した。
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
