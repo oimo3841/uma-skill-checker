@@ -52,7 +52,7 @@ export async function register8(env) {
 		const q = (s) => document.querySelector(s);
 		const tot = q('#deck-set-bar [data-usd-el="set-total"]');
 		return { total: tot ? Number(tot.getAttribute('data-total')) : null, totalText: (q('#deck-set-bar [data-usd-el="set-total-num"]') || {}).textContent || null,
-			sub: (q('#deck-set-bar [data-usd-el="set-total-sub"]') || {}).textContent || null, name: (q('#deck-set-bar [data-usd-el="set-name"]') || {}).textContent || null,
+			sub: (q('#deck-set-bar [data-usd-el="set-total-sub"]') || {}).textContent || null, name: (q('#deck-set-bar [data-usd-el="set-name-text"]') || {}).textContent || null,
 			// C-235: 帯の「3／10」は無くした。保存数はセット名のボタンの読み上げの名前「セットの一覧（N／10件）」から読む
 			count: (((q('#deck-set-bar [data-usd-el="set-name"]') || { getAttribute: () => '' }).getAttribute('aria-label') || '').match(/（(\d+／\d+)件）/) || [])[1] || null };
 	});

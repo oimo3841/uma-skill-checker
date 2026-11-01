@@ -542,12 +542,12 @@ fs.rmSync(tmp, { recursive: true, force: true });
 		const m = new RegExp('<p class="mt-1\\.5 text-\\[11px\\] text-slate-400 text-center">(' + head + '[^<]*)</p>').exec(read(p));
 		return m ? m[1] : null;
 	};
-	const sp = noteOf('special.html', '※画像結合は、');
+	// → T57（C-258 の T56 への回答 3）: special と exam を同じ短い文面にした。両方がその文面であることを見る
+	const NOTE = '※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。';
+	const sp = noteOf('special.html', '※親Aセット・親Bセット');
 	const ex = noteOf('exam.html', '※親Aセット・親Bセット');
-	check(sp !== null && sp.includes('1枚だけのときはエラー') && sp.includes('時間がかかります'),
-		'special の結合の注記には「1枚だけならエラー」と「枚数が多いほど時間がかかる」の両方がある（従来のまま）', sp);
-	check(ex === '※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。',
-		'exam の結合の注記は、決めた短い文面（C-139・C(8)）', ex);
+	check(sp === NOTE, 'special の結合の注記は、決めた短い文面（T57）', sp);
+	check(ex === NOTE, 'exam の結合の注記は、決めた短い文面（T57）', ex);
 }
 
 console.log('\n=== 6. 共通CSSの !important（詳細度で解決する方針） ===');

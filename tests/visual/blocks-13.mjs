@@ -288,7 +288,7 @@ export async function register13(env) {
 		rosters: [
 			{ rosterId: 'r1', name: 'S1', umaId: 'uma-0001', star: 3, awakeningLevel: 5, cardIds: CARDS6.slice(), skillFilter: FILTER, createdAt: 'x', updatedAt: 'x' },
 			{ rosterId: 'r2', name: 'S2', umaId: 'uma-0002', star: 3, awakeningLevel: 5, cardIds: CARDS6.slice(), skillFilter: FILTER, createdAt: 'x', updatedAt: 'x' }] };
-	const setName = (page) => page.evaluate(() => document.querySelector('#deck-set-bar [data-usd-el="set-name"]').textContent);
+	const setName = (page) => page.evaluate(() => document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]').textContent);
 	const reloadSp = async (page) => {
 		await reloadReady(page);
 		for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -309,7 +309,7 @@ export async function register13(env) {
 		await sp.page.waitForTimeout(300);
 		const um2 = await umaLabel();
 		await reloadSp(sp.page);
-		const r1 = await sp.page.evaluate(() => ({ name: document.querySelector('#deck-set-bar [data-usd-el="set-name"]').textContent,
+		const r1 = await sp.page.evaluate(() => ({ name: document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]').textContent,
 			key: localStorage.getItem('umaSkillDeck:lastSet:special'), ud: localStorage.getItem('umaSkillDeck:userData') }));
 		assert(r1.name === 'S2' && r1.key === 't2', 'オススメサポ段13B2 S2 を選んで読み込み直すと、S2 が開く（帯の名前）', r1);
 		const um = await umaLabel();

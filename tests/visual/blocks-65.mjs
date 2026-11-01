@@ -162,13 +162,15 @@ export async function register65(env) {
 		await ctx.close();
 	});
 
-	await block('タイトルと帯(4) 帯と小窓: 「無題（新規）」・セット名に下線・押すと「編成セット N/10」・読み上げの名前・「✎｜3／10 ▾」は無い・右下「＋」の「セット」「レース」は新しい場所を呼ぶ', async () => {
+	await block('タイトルと帯(4) 帯と小窓: 「無題（新規）」・セット名のボタン・押すと「編成セット N/10」・読み上げの名前・「✎｜3／10 ▾」は無い・右下「＋」の「セット」「レース」は新しい場所を呼ぶ', async () => {
 		const { ctx, page, errors } = await openSp({ w: 390, h: 780, sets: 3 });
 		const bar = await page.evaluate(() => { const n = document.querySelector('#deck-set-bar [data-usd-el="set-name"]'); const cs = getComputedStyle(n);
-			return { tag: n.tagName, text: n.textContent, act: n.getAttribute('data-usd-act'), aria: n.getAttribute('aria-label'), deco: cs.textDecorationLine, pill: !!document.querySelector('#deck-set-bar [data-usd-el="set-pill"], #deck-set-bar [data-usd-act="name-edit"], #deck-set-bar [data-usd-el="set-list-btn"]'),
+			// T57（C-258 の (1)・案C）: 下線をやめ、ボタンの中に「名前 → 丸の中の鉛筆 → 3/10」。名前は set-name-text から読む
+			const nm = n.querySelector('[data-usd-el="set-name-text"]');
+			return { tag: n.tagName, text: nm ? nm.textContent : null, all: n.textContent, pen: !!n.querySelector('[data-usd-el="set-name-pen"] svg'), act: n.getAttribute('data-usd-act'), aria: n.getAttribute('aria-label'), deco: cs.textDecorationLine + '/' + (nm ? getComputedStyle(nm).textDecorationLine : ''), pill: !!document.querySelector('#deck-set-bar [data-usd-el="set-pill"], #deck-set-bar [data-usd-act="name-edit"], #deck-set-bar [data-usd-el="set-list-btn"]'),
 				snap: typeof captureStitchSnapshot === 'function' ? captureStitchSnapshot().setName : null }; });
-		assert(bar.tag === 'BUTTON' && bar.text === '無題（新規）' && bar.act === 'set-list' && bar.aria === 'セットの一覧（3／10件）' && /underline/.test(bar.deco) && !bar.pill,
-			'タイトルと帯(4): 帯は「無題（新規）」（下線のボタン・読み上げは「セットの一覧（3／10件）」）だけで、✎・「3／10 ▾」は無い', bar);
+		assert(bar.tag === 'BUTTON' && bar.text === '無題（新規）' && bar.all === '無題（新規）3/10' && bar.pen && bar.act === 'set-list' && bar.aria === 'セットの一覧（3／10件）' && bar.deco === 'none/none' && !bar.pill,
+			'タイトルと帯(4): 帯は「無題（新規）」＋丸の中の鉛筆＋「3/10」の1つのボタン（下線なし・T57。読み上げは「セットの一覧（3／10件）」）で、「✎｜3／10 ▾」の札は無い', bar);
 		assert(bar.snap === '無題（新規）', 'タイトルと帯(4): 結合画像のバーのセット名も「無題（新規）」', bar.snap);
 		await page.click('#deck-set-bar [data-usd-el="set-name"]');
 		await page.waitForTimeout(200);
@@ -221,7 +223,7 @@ export async function register65(env) {
 			await page.keyboard.press('Enter');
 			await page.waitForTimeout(500);
 			const s5 = await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData')); const t = d.templates.find((x) => x.name === '新しいセット');
-				return { open: !document.querySelector('[data-usd-el="info-pop"]').hidden, bar: document.querySelector('#deck-set-bar [data-usd-el="set-name"]').textContent, n: d.templates.length, skills: t ? t.skillIds.length : -1,
+				return { open: !document.querySelector('[data-usd-el="info-pop"]').hidden, bar: document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]').textContent, n: d.templates.length, skills: t ? t.skillIds.length : -1,
 					draft: (JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || []).length }; });
 			assert(!s5.open && s5.bar === '新しいセット' && s5.n === 4 && s5.skills === 6 && s5.draft === 6,
 				'タイトルと帯(5): Enter で①②の中身ごと新しいセットとして保存し、そのセットを選んで小窓を閉じる（無題の中身は残る）', s5);
@@ -275,7 +277,7 @@ export async function register65(env) {
 		await page.click('[data-usd-el="set-name-save"]');
 		await page.waitForTimeout(500);
 		const r = await page.evaluate(() => { const dd = JSON.parse(localStorage.getItem('umaSkillDeck:userData')); const t = dd.templates.find((x) => x.name === '変えた後'); const ro = t && (dd.rosters || []).find((x) => x.rosterId === t.baseRosterId);
-			return { open: !document.querySelector('[data-usd-el="info-pop"]').hidden, bar: document.querySelector('#deck-set-bar [data-usd-el="set-name"]').textContent, t: !!t, roster: ro ? ro.name : null }; });
+			return { open: !document.querySelector('[data-usd-el="info-pop"]').hidden, bar: document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]').textContent, t: !!t, roster: ro ? ro.name : null }; });
 		assert(!r.open && r.bar === '変えた後' && r.t && r.roster === '変えた後', 'タイトルと帯(6): 保存で名前が変わり、付いている①の編成の名前も同じになる（小窓は閉じる）', r);
 		assert(jsErrors(errors).length === 0, 'タイトルと帯(6): エラー 0', errors);
 		await ctx.close();

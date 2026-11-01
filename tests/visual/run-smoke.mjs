@@ -113,6 +113,7 @@ import { register83 } from './blocks-83.mjs';
 import { register84 } from './blocks-84.mjs';
 import { register85 } from './blocks-85.mjs';
 import { register86 } from './blocks-86.mjs';
+import { register87 } from './blocks-87.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -589,7 +590,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	// （新しい仕様は blocks-8.mjs の段8(B)）
 	const draftTab = await page.evaluate(() => {
 		const p = document.getElementById('deck-template-panel');
-		const nameEl = document.querySelector('#deck-set-bar [data-usd-el="set-name"]');
+		const nameEl = document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]');   // T57: ボタンの中の名前の部分（鉛筆と N/10 を除く）
 		return {
 			label: nameEl ? nameEl.textContent : null, selected: String([null, '__draft__'].includes(deckTemplateManager.getSelectedTemplateId())),
 			tabs: p.querySelectorAll('.uma-subtab').length,
@@ -6603,7 +6604,7 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 			inputs: Array.from(panel.querySelectorAll('input[data-stitch-show]')).map((i) => i.id),
 			noWire: !panel.querySelector('.stitch-wire'),
 			noNote: !panel.querySelector('.stitch-show-note'),
-			step2Note: document.querySelector('#stitch-show-panel .stitch-show-note').textContent,
+			step2NoteGone: !document.querySelector('#stitch-show-panel .stitch-show-note'),
 			btnDisabled: document.getElementById('stitch-refresh-btn').disabled,
 			noteHidden: document.getElementById('stitch-refresh-note').hidden,
 			drawerScenarioDisabled: document.getElementById('drawer-stitch-show-scenario').disabled,
@@ -6617,7 +6618,8 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 	assert(shape.oldFoldGone && shape.noWire && shape.noNote, '表示を変更: 「表示を変更」の折りたたみは無くなり、パネルに模式図と②の注記は出さない', shape);
 	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-stitch-show-scenario,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
 		'表示を変更: チェック5つの id は drawer- で分かれ、②の id と重複しない', shape);
-	assert(shape.step2Note.includes('「結合画像の表示」の画面からも表示を変えて更新できます'), '表示を変更: ②の注記が③の道も示す', shape.step2Note);
+	// T57（C-258 の T56 への回答 3）: ②の結合画像の設定の欄の下の注記（「ここで変えた表示は、…」）は文ごと消した
+	assert(shape.step2NoteGone, '表示を変更: ②の結合画像の設定の欄の下に注記は無い（T57 で消した）', shape.step2NoteGone);
 	assert(shape.btnDisabled && shape.noteHidden, '表示を変更: 結果が無いうちは「画像を更新」は押せず、案内も出ない', shape);
 
 	// 結果ができると出る（setSectionReady に乗っている）／消えると隠れる。「照合結果」のタブでは出ない
@@ -15430,6 +15432,8 @@ await register84({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register85({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T56（2026-11-01）: 画像アップロードの画面の直し（C-258 の (2)。見出しは「T56画像アップロード」）
 await register86({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T57（2026-11-01）: セット名と文言の直し（C-258 の (1)・T56 の報告への回答。見出しは「T57セット名と文言」）
+await register87({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

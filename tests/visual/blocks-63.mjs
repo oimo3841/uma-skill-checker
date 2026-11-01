@@ -351,7 +351,7 @@ export async function register63(env) {
 		await page.waitForTimeout(500);
 		await prep(page);
 		const r = await page.evaluate(() => {
-			const shown = document.querySelector('#deck-set-bar [data-usd-el="set-name"]').textContent.trim();
+			const shown = document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]').textContent.trim();
 			const snap = captureStitchSnapshot();
 			const text = stitchBarText(snap);
 			const filterTexts = Array.from(document.querySelectorAll('[data-usd-act="filter"]')).map((s) => s.selectedOptions[0] ? s.selectedOptions[0].textContent : '');

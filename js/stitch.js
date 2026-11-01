@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-26a';
+const STITCH_JS_VERSION = '2026-11-01a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -359,8 +359,9 @@ function stitchBuildAbortNotice(kind, groupLabel, names) {
 				'加工していないスクリーンショットをそのままアップロードしてください。' +
 				'タブレットなど、画面の形が違う端末で撮った画像も結合できないことがあります。';
 		case 'single':
+			// T57: 「OCR処理を開始する」（#process-btn）があるページ（UmaExam）だけ案内する。UmaStar には無い
 			return groupLabel + ' は画像が1枚だけです。結合には、少しずつスクロールして撮った2枚以上の画像が必要です。' +
-				'読み取りだけなら「OCR処理を開始する」で行えます。';
+				((typeof document !== 'undefined' && document.getElementById('process-btn')) ? '読み取りだけなら「OCR処理を開始する」で行えます。' : '');
 		case 'width-mismatch':
 			return target + 'は、ほかの画像と横幅がそろっていません。' +
 				'同じ端末・同じウィンドウの大きさで撮った画像をまとめて選んでください。';

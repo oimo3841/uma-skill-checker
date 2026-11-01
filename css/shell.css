@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-10-13a";
+	--uma-shell-css-version: "2026-11-01a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -578,16 +578,6 @@
  * ============================================================ */
 .notice-dialog { width: min(92vw, 420px); max-height: min(88vh, 640px); max-height: min(88dvh, 640px); }
 .notice-body { padding: var(--uma-sp-6) var(--uma-sp-5) var(--uma-sp-4); text-align: center; overflow-y: auto; }
-.notice-icon {
-	width: 48px; height: 48px; margin: 0 auto var(--uma-sp-3);
-	display: flex; align-items: center; justify-content: center;
-	border-radius: var(--uma-r-full);
-	background: var(--uma-accent-soft); color: var(--uma-accent);
-}
-.notice-title {
-	margin: 0 0 var(--uma-sp-2-5);
-	font-size: var(--uma-fs-lg); line-height: var(--uma-lh-lg); font-weight: 700; color: var(--uma-text-heading);
-}
 .notice-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }
 .notice-text + .notice-text { margin-top: var(--uma-sp-3); }
 .notice-foot {

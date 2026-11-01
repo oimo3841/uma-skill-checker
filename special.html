@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-13a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-13a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-13a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-01a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -54,9 +54,9 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-01c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-01d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-26a"></script>
+	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -307,11 +307,6 @@
 		.old-ui-end-note-nb { white-space: nowrap; }  /* 「新UIへ」の途中で折り返さない（375px） */
 		/* 告知の文面の改行位置を整える（exam.html と同じ .nb。C-62 の (11)） */
 		.nb { white-space: nowrap; }
-		/* 収録の告知（C-100）が layout／alpha の告知と同じモーダルに並ぶときは、線で区切って印を出さない。
-		   special だけの節なので共通CSS（shell.css）には置かない。 */
-		.notice-catalog--with { margin-top: var(--uma-sp-4); padding-top: var(--uma-sp-4); border-top: 1px solid var(--uma-border); }
-		.notice-catalog--with .notice-icon { display: none; }
-		.notice-catalog--with .notice-title { margin-bottom: 0; font-size: var(--uma-fs-md); }
 
 		/* ===== C-144（2026-10-12）: UmaStar の配色（ライト＝暖色・ダーク＝ほぼモノトーン）。ライト・ダークのメリハリ =====
 		   面は4層（ページ → カード → パネル → オプション）。内側ほど明るく、層の区切りは塗りの明度差と枠線の両方で取る（ゲート G3）。
@@ -924,7 +919,7 @@
 			<!-- 結合の注記。**exam.html と同じ文面**にしてある（段1）。
 			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、1人につき2枚以上のスクリーンショットを縦につなぎ、親Aセット・親Bセットそれぞれで、画像のある人を1枚にまとめてSNS投稿用に出力します。1人分が1枚だけのときはエラーになります。画像の枚数が多いほど時間がかかります。</p>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。</p>
 
 			<!-- 分類の印を結合画像に付けるかの切り替え（C-58 の作業C。段5〔C-227〕から印ではなく種類の枠。保存キー・id は同じ）。結果画像の見た目が変わる設定なので、
 			     切り替えてもその場では何も変わらない引き出しの中ではなく、**結合を始める場所**に置く
@@ -1077,7 +1072,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-10-13a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-01a';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -1475,7 +1470,9 @@
 			const anyFiles = persons.some(p => p.files.length > 0);
 			// 一体のボタンの押せる条件は **special の前提** に合わせる（対象スキルセットが空でなく、
 			// 画像が1枚以上）。exam は対象が常に133種で選ぶ段が無いので条件が違う（C-59 の 2-2）。
-			const canOcr = (skillList.length > 0 && anyFiles);
+			// T57（C-258 の T56 への回答 2）: 新UIでは遺伝子がいつも辞書に入るので、辞書ではなく②のスキルの数で見る
+			const hasSkills = deckMode ? !!(deckScope && deckScope.skillIds && deckScope.skillIds.length > 0) : skillList.length > 0;
+			const canOcr = (hasSkills && anyFiles);
 			const comboBtn = document.getElementById('process-stitch-btn');
 			if (comboBtn) comboBtn.disabled = !canOcr;
 			const stitchBtn = document.getElementById('stitch-btn');
@@ -2745,7 +2742,8 @@
 			const entries = (deckMode && deckScope) ? UmaSkillDeckCore.getSkillEntries(deckScope.skillIds)
 				.map(e => ({ id: e.id, name: e.name }))
 				.sort((a, b) => UmaSkillDeckCore.compareGameOrder(a.id, b.id)) : [];
-			const nameEl = document.querySelector('#deck-set-bar [data-usd-el="set-name"]');
+			// T57: ボタンの中に鉛筆と N/10 もあるので、名前の部分だけを読む
+			const nameEl = document.querySelector('#deck-set-bar [data-usd-el="set-name-text"]');
 			const setName = nameEl ? nameEl.textContent.trim() : ((deckScope && deckScope.name) || '');
 			// レース条件: ①の絞り込みの距離・脚質・バ場の今の選択（レースで固定した値を含む）。言い方は①の選択欄と同じ（tagLabel）
 			let raceLabels = [];
@@ -4981,7 +4979,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-31a';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-11-01a';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

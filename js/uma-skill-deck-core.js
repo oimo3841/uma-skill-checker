@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01d';
 
 	/* ============================================================
 	 * 定数
@@ -7848,9 +7848,16 @@
 		'.usd-setbar-r { display: flex; align-items: center; gap: var(--uma-sp-1); flex: none; }',
 		'.usd-setbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 1.25; font-weight: 800; color: var(--uma-text-heading); }',
 		'.usd-setbar-name--new { color: var(--uma-text-muted); }',
-		// C-235: セット名そのものが一覧の小窓のボタン（下線）。押せる高さは帯のボタンと同じ 28px
-		'button.usd-setbar-name { display: block; max-width: 100%; min-height: 28px; padding: 0; border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer;',
-		'  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }',
+		// C-235: セット名そのものが一覧の小窓のボタン。T57（C-258 の (1)・T46 の案C）: 下線なし・名前の右に丸 28px の中の鉛筆 16px・N/10 は 12px の薄い字。
+		// 見た目の高さは 28px のまま、上下の負の余白で押せる高さを 44px にする（帯の高さは変えない）
+		'button.usd-setbar-name { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; min-height: 44px; margin: -8px 0; padding: 0 4px 0 0;',
+		'  border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; overflow: visible; align-self: center; }',
+		'.usd-setbar-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		'.usd-setbar-name-pen { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; box-sizing: border-box;',
+		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
+		'.usd-setbar-name-pen svg { display: block; width: 16px; height: 16px; flex: none; }',
+		'button.usd-setbar-name:hover .usd-setbar-name-pen { background: var(--uma-surface); }',
+		'.usd-setbar-name-meta { flex: none; font-size: 12px; line-height: 1; font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; letter-spacing: .02em; }',
 		'button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; border-radius: var(--uma-r-sm); }',
 		'.usd-setbar-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
 		'.usd-setbar-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
@@ -14640,15 +14647,22 @@
 			const t = b.querySelector('.usd-setbar-race-text');
 			if (t && t.scrollWidth > t.clientWidth + 1) b.setAttribute('data-usd-tight', '');
 		}
+		// セット名の鉛筆（lucide の pencil・16px。字の ✎ はフォントで形と大きさが変わるので線画にする。T46）
+		const SET_NAME_PEN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+			+ '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></svg>';
 		function renderSetBar() {
 			if (!setBarEl) return;
 			const target = currentTarget();
 			const list = ensureUserData().templates;
 			const sum = setSummaryOf(target);
 			const name = setNameOf(target);
-			// C-235: セット名（16px・太字・下線）がそのまま一覧の小窓のボタン。読み上げの名前は「セットの一覧（3／10件）」（名前は title に）
+			// C-235: セット名（16px・太字）がそのまま一覧の小窓のボタン。読み上げの名前は「セットの一覧（3／10件）」（名前は title に）
+			// T57（C-258 の (1)・案C）: 名前 → 丸の中の鉛筆（lucide の pencil）→ N/10。どこを押しても同じ1つのボタン
 			let left = '<button type="button" class="usd-setbar-name' + (target.kind === 'template' ? '' : ' usd-setbar-name--new') + '" data-usd-act="set-list" data-usd-el="set-name"'
-				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）" title="' + esc(name) + '">' + esc(name) + '</button>';
+				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）" title="' + esc(name) + '">'
+				+ '<span class="usd-setbar-name-text" data-usd-el="set-name-text">' + esc(name) + '</span>'
+				+ '<span class="usd-setbar-name-pen" data-usd-el="set-name-pen" aria-hidden="true">' + SET_NAME_PEN_SVG + '</span>'
+				+ '<span class="usd-setbar-name-meta" data-usd-el="set-name-count" aria-hidden="true">' + list.length + '/' + TEMPLATE_LIMIT + '</span></button>';
 			if (rosterOutsideSink) {
 				if (raceSlotEl) raceSlotEl.innerHTML = setRaceBtnHtml();
 				else left += setRaceBtnHtml();

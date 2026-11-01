@@ -577,7 +577,7 @@ export async function register19(env) {
 				const ps = [...h.querySelectorAll('.header-tagline')].map((p) => p.textContent.replace(/\s+/g, ''));   // 見出しの一言（C-140・微調整2・D で、見出しの下の <p> から「2nd Edition」の脇へ移した）
 				const p1 = document.querySelector('#step-panel-1 > p:not(#melop-scenario-note)');   // 2026-10-26: 上に「新シナリオへの対応が未完了です。」の1行が入った（blocks-53 が見る）
 				const p2 = [...document.querySelectorAll('#step-panel-2 > p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
-				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
+				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('結合画像を生成します'));   // T57: 注記の文を変えた
 				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), ps, badge: !!document.getElementById('ui-mode-badge'),
 					headerText: h.innerText.replace(/\s+/g, ' ').trim(), p1: p1 && p1.textContent, p2: p2 && p2.innerText, p2html: p2 && p2.innerHTML, foot: foot && foot.textContent,
 					body: document.body.innerText };
@@ -595,7 +595,7 @@ export async function register19(env) {
 			await page.evaluate(() => selectStepTab(2));
 			const r2 = await page.evaluate(() => {
 				const p2 = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
-				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
+				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('結合画像を生成します'));   // T57: 注記の文を変えた
 				const panel = document.getElementById('step-panel-2').textContent;
 				return { p2: p2 ? p2.innerText : null, gone: ['親Aセットのみでも判定できます', '親Bセットを追加すると', '1-2行重なるように撮影してください'].filter((t) => panel.includes(t)),
 					foot: foot.textContent, body: document.body.innerText };
@@ -604,8 +604,8 @@ export async function register19(env) {
 			// （それまでは (7)(8) の「…比較できます。」に続けて改行し「スキルが1-2行…」を見ていた）
 			assert(r2.p2 === null && r2.gone.length === 0,
 				'微調整1C1(' + w + 'px): ②の上の文3つは無い（T56）', r2);
-			assert(r2.foot === '※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。' && !r2.body.includes('1人につき2枚以上') && !r2.body.includes('1人分が1枚だけのときはエラー'),
-				'微調整1C1(' + w + 'px): ②の※は「※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。」に短縮', r2.foot);
+			assert(r2.foot === '※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。' && !r2.body.includes('SNS投稿用に出力') && !r2.body.includes('1人につき2枚以上') && !r2.body.includes('1人分が1枚だけのときはエラー'),
+				'微調整1C1(' + w + 'px): ②の※は「※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。」（T57 で UmaStar と同じ文に）', r2.foot);
 			assert(jsErrors(errors).length === 0, '微調整1C1(' + w + 'px): コンソールエラーなし', errors.slice(0, 3));
 			await ctx.close();
 		}

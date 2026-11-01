@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-13a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-13a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-13a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-01a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -36,7 +36,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-26a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-26a"></script>
+	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -232,11 +232,6 @@
 		/* 告知の文面: 語の途中で折れないよう、文節を .nb（改行しない）で括る。文言は変えない */
 		.nb { white-space: nowrap; }
 		.notice-text { text-wrap: pretty; }
-		.notice-new { margin-top: var(--uma-sp-4); text-align: left; }
-		.notice-new-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; }
-		.notice-new .notice-text + .notice-text { margin-top: var(--uma-sp-2); }
-		/* ＜新機能＞の段でツール名を強調する。色は枠の中の本文と同じ（Deck の色の濃い方）で読みやすい */
-		.notice-deck-name { font-weight: 700; color: var(--uma-deco-strong); }
 		/* ★の数のコピー元。「スプレッドシート貼り付け用データ」の窓としては出さないが、
 		   値をコピーするために DOM には残す。display:none だと選択できなくなるので、
 		   画面の外へ追い出す形で隠す。 */
@@ -1259,7 +1254,7 @@
 			<!-- 結合の注記。**special.html と同じ文面**にしてある（段1）。
 			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。</p>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。</p>
 			<!-- 画像結合の進捗バー（段2。special.html と同じ作り・同じ見た目）。
 			     結合のほうが OCR より重い（バナー・印・凡例を描く）のに、それまでは OCR の進捗バーが
 			     消えたあと完了まで何も出ず、止まったように見えていた。OCR のバーとは別に持つのは、
@@ -1292,7 +1287,7 @@
 					<input id="opt-melop" type="checkbox" onchange="setMelopMode(this.checked)" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
 					<div>
 						<span class="text-xs font-semibold text-slate-800">めろっぷ！【LTC】専用拡張モード（βテスト）</span>
-						<p class="text-[11px] text-slate-500 mt-0.5">入れてから判定すると、判定の結果に、めろっぷ！【LTC】さんの因子管理シートへそのまま貼れる★の数のコピーボタンが出ます（親Aセット・親Bセットごと）。</p>
+						<p class="text-[11px] text-slate-500 mt-0.5">めろっぷ！【LTC】さんの因子管理シートへ★数の判定結果を貼り付けるためのボタンが出ます。</p>
 					</div>
 				</label>
 			</div>
@@ -2684,7 +2679,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-10-13a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-01a';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -2756,9 +2751,9 @@
 			// 「結合画像の表示」のパネルは復元より先に作る（復元が状態をパネルへ映すため）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel'));
 			// 結合画像の引き出しにも同じパネル（模式図・注記なし。id は drawer- で分ける）
-			renderStitchShowPanel(document.getElementById('stitch-show-panel-drawer'), { idPrefix: 'drawer-', wire: false, note: false, title: false });
+			renderStitchShowPanel(document.getElementById('stitch-show-panel-drawer'), { idPrefix: 'drawer-', wire: false, title: false });
 			// 右下のボタン群から開く「結合画像の設定」にも（模式図・注記・見出しなし。id は fab- で分ける）
-			renderStitchShowPanel(document.getElementById('stitch-show-panel-fab'), { idPrefix: 'fab-', wire: false, note: false, title: false });
+			renderStitchShowPanel(document.getElementById('stitch-show-panel-fab'), { idPrefix: 'fab-', wire: false, title: false });
 			restoreAttrIcons();
 			restoreMelopMode();
 			restoreStitchShow();
@@ -6215,12 +6210,10 @@
 		 * ------------------------------------------------------------ */
 		// opts.idPrefix … チェックの id の接頭辞（置き場所ごとに変える。②は ''、引き出しは 'drawer-'）
 		// opts.wire     … false なら模式図を出さない（引き出しでは実物の画像が見本になる）
-		// opts.note     … false なら「反映のしかた」の注記を出さない（引き出しには「画像を更新」がある）
 		function renderStitchShowPanel(container, opts) {
 			if (!container) return;
 			const prefix = (opts && opts.idPrefix) || '';
 			const withWire = !(opts && opts.wire === false);
-			const withNote = !(opts && opts.note === false);
 			// opts.title … false なら見出し「結合画像の設定」を出さない（見出しを持つパネルの中に置くとき）
 			const withTitle = !(opts && opts.title === false);
 			const ids = {
@@ -6280,14 +6273,11 @@
 					'</div>' +
 				'</div></div>';
 
-			// ②の注記。結果画像の引き出しからも変えて更新できるようになった（③）ので、その道も示す
-			const note = '<p class="stitch-show-note">ここで変えた表示は、次に「OCR処理＋画像結合を開始する」を押したときに反映されます。「結合画像の表示」の画面からも表示を変えて更新できます。</p>';
 			container.innerHTML =
 				'<div class="stitch-show' + (withWire ? '' : ' stitch-show--plain') + '" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
 						(withTitle ? '<p class="stitch-show-title"><i data-lucide="sliders-horizontal"></i><span>結合画像の設定</span></p>' : '') +
 						'<div class="stitch-show-list">' + list + '</div>' +
-						(withNote ? note : '') +
 					'</div>' +
 					(withWire ? wire : '') +
 				'</div>';
@@ -8489,7 +8479,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-10-31a';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-11-01a';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;
