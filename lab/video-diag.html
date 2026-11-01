@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（fetch・XHR・WebSocket・フォームの送信を、ブラウザの側で禁止する）。読むのは同じ場所の js だけ -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>動画の取り込みの診断（作業用）</title>
+	<!--
+		iPhone の Safari で、③の動画の取り込み（js/video-frames.js）がどの段で止まるか・どれだけかかるかを調べるページ（T68・2026-11-02）。
+		αテスト（iPhone 15・iOS 27.0.1・Safari）で、24秒の画面収録が「動画の読み込み」の段で10分近く進まなかったため。
+		**ツール本体には組み込まない**（lab/capture-test.html と同じ扱い。どのページからもリンクしない）。
+		おいもさんが iPhone で開いて動画を選び、画面のスクリーンショットを返す。
+
+		■ 外へ何も送らない
+		- 動画はこの端末の中だけで読む。上の Content-Security-Policy で通信（connect-src）とフォームの送信を禁止している。
+
+		■ 何をするか（動画を選ぶと、上から順に自動で進む。ページは止まらない）
+		- 端末: user agent と、使えるもの（WebCodecs・requestVideoFrameCallback など）の有無。
+		- A. 今の取り込み: UmaVideoFrames.videoSource → selectFrames を、製品と同じ js で通す。各段の時刻（選んでからの秒）と、
+		  シーク1回ごとの時間を出す。video の中の出来事（loadedmetadata・loadeddata・suspend など）も、製品の js を変えずに
+		  document.createElement を一時的に包んで拾う。10秒進まない段は「止まった」と出し、60秒進まなければ打ち切って B へ進む。
+		- B. 別のやり方: 同じ動画で、読み込み方・シークのしかた・フレームの取り方を変えて順に試し、動いたか・何秒かかったかを出す。
+		  各やり方の待ちには時間の上限があり、超えたら「止まった」として次のやり方へ進む。
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4; --chip: #e9eef6; --chip2: #f6ece0; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #232323; --chip: #26303d; --chip2: #3a2f22; } }
+		body { margin: 0; padding: 8px 10px 40px; background: var(--bg); color: var(--fg); font: 11px/1.4 -apple-system, system-ui, sans-serif; }
+		main { max-width: 760px; margin: 0 auto; }
+		h1 { font-size: 15px; margin: 0 0 6px; }
+		h2 { font-size: 12px; margin: 8px 0 2px; display: flex; gap: 8px; align-items: baseline; }
+		h2 small { font-weight: 400; color: var(--sub); }
+		.box { background: var(--box); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+		.ua { word-break: break-all; font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
+		.kv { margin: 2px 0 0; word-break: break-all; }
+		.kv i { font-style: normal; color: var(--sub); }
+		table { border-collapse: collapse; width: 100%; }
+		td { border-top: 1px solid var(--line); padding: 1px 3px; vertical-align: top; }
+		td.t { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; color: var(--sub); width: 1%; }
+		td.s { word-break: break-all; }
+		.ok { color: var(--ok); font-weight: 700; }
+		.ng { color: var(--ng); font-weight: 700; }
+		.warn { color: var(--warn); font-weight: 700; }
+		.now { margin: 4px 0; font-weight: 700; }
+		.chips { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+		.chips span { background: var(--chip); border-radius: 3px; padding: 0 3px; font-size: 10px; font-variant-numeric: tabular-nums; }
+		.chips span.full { background: var(--chip2); }
+		.chips span.slow { outline: 1px solid var(--ng); }
+		.m { border-top: 1px solid var(--line); padding: 2px 0; }
+		.m .d { color: var(--sub); }
+		input[type=file] { font-size: 14px; margin: 2px 0; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>動画の取り込みの診断（作業用・T68）</h1>
+	<div class="box">
+		<div class="ua" id="ua"></div>
+		<p class="kv" id="env"></p>
+	</div>
+	<h2>動画を選ぶ</h2>
+	<input id="file" type="file" accept="video/*" />
+	<div id="file-info"></div>
+	<h2>A. 今の取り込み <small id="a-sum"></small></h2>
+	<div class="now" id="a-now"></div>
+	<table><tbody id="a-log"></tbody></table>
+	<div class="chips" id="a-seeks"><small>シーク1回ごとの ms（順に・薄茶＝等倍の取り直し）</small></div>
+	<h2>B. 別のやり方 <small id="b-sum"></small></h2>
+	<div class="now" id="b-now"></div>
+	<div id="b-list"></div>
+</main>
+
+<script src="../js/common.js?v=2026-09-26a"></script>
+<script src="../js/stitch.js?v=2026-11-01a"></script>
+<script src="../js/video-frames.js?v=2026-11-02a"></script>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sec = (ms) => (ms / 1000).toFixed(2) + '秒';
+const STALL_MS = 10000;        // これだけ進まない段は「止まった」
+const A_GIVEUP_MS = 60000;     // A がこれだけ進まなければ打ち切って B へ
+const B_LOAD_MS = 15000, B_SEEK_MS = 8000, B_PLAY_MS = 8000, B_RVFC_MS = 60000;
+
+/* ── 端末と、使えるもの ─────────────────────── */
+function renderEnv() {
+	$('ua').textContent = navigator.userAgent;
+	const has = (b) => (b ? '<span class="ok">あり</span>' : '<span class="ng">なし</span>');
+	const v = document.createElement('video');
+	const cp = (t) => esc(v.canPlayType(t) || '（空）');
+	const rows = [
+		['画面', screen.width + '×' + screen.height + '・dpr ' + devicePixelRatio + '・表示幅 ' + innerWidth],
+		['CPU・メモリ', (navigator.hardwareConcurrency || '?') + 'コア・' + (navigator.deviceMemory ? navigator.deviceMemory + 'GB' : '（不明）')],
+		['js の版', 'video-frames ' + (window.UmaVideoFrames ? UmaVideoFrames.VERSION : '<span class="ng">読めない</span>') + '・stitch ' + (typeof STITCH_JS_VERSION !== 'undefined' ? STITCH_JS_VERSION : '?') + '・common ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '?')],
+		['WebCodecs', 'VideoDecoder ' + has(typeof VideoDecoder !== 'undefined') + '・VideoFrame ' + has(typeof VideoFrame !== 'undefined') + '・ImageDecoder ' + has(typeof ImageDecoder !== 'undefined')],
+		['H.264 / HEVC の復号器', '<span id="env-vd">（調べています）</span>'],
+		['requestVideoFrameCallback', has('requestVideoFrameCallback' in HTMLVideoElement.prototype)],
+		['fastSeek', has('fastSeek' in HTMLMediaElement.prototype)],
+		['ほか', 'createImageBitmap ' + has(typeof createImageBitmap === 'function') + '・OffscreenCanvas ' + has(typeof OffscreenCanvas !== 'undefined') + '・MediaSource ' + has(typeof MediaSource !== 'undefined') + '・ManagedMediaSource ' + has(typeof ManagedMediaSource !== 'undefined') + '・MessageChannel ' + has(typeof MessageChannel !== 'undefined')],
+		['canPlayType', 'mp4 ' + cp('video/mp4') + '・mov ' + cp('video/quicktime') + '・avc1 ' + cp('video/mp4; codecs="avc1.640028"') + '・hvc1 ' + cp('video/mp4; codecs="hvc1.1.6.L123.B0"')]
+	];
+	$('env').innerHTML = rows.map(([k, val]) => '<i>' + esc(k) + ':</i> ' + val).join('／');
+	if (typeof VideoDecoder !== 'undefined' && VideoDecoder.isConfigSupported) {
+		const q = (codec) => VideoDecoder.isConfigSupported({ codec, codedWidth: 1170, codedHeight: 2532 }).then((r) => r.supported, () => false);
+		Promise.all([q('avc1.640028'), q('hvc1.1.6.L123.B0')]).then(([a, h]) => { $('env-vd').innerHTML = 'H.264 ' + has(a) + '・HEVC ' + has(h); });
+	} else $('env-vd').innerHTML = '<span class="ng">VideoDecoder なし</span>';
+}
+
+/* ── 記録（段ごとの時刻・止まった段） ─────────────────────── */
+// stage(名前) で「今の段」を変える。log(…) は1行足す。STALL_MS 進まない段は「止まった」の行を足し、秒数を更新し続ける
+function makeLog(tbody, nowEl, t0) {
+	let last = performance.now(), stage = '', stallRow = null, timer = null, peek = null;
+	const add = (what, detail, cls) => {
+		const tr = document.createElement('tr');
+		tr.innerHTML = '<td class="t">' + sec(performance.now() - t0) + '</td><td class="s">' + (cls ? '<span class="' + cls + '">' : '') + esc(what) + (cls ? '</span>' : '') + (detail ? '　' + esc(detail) : '') + '</td>';
+		tbody.appendChild(tr);
+		return tr;
+	};
+	const L = {
+		log(what, detail, cls) { last = performance.now(); stallRow = null; return add(what, detail, cls); },
+		stage(name) { stage = name; last = performance.now(); stallRow = null; },
+		quiet() { return performance.now() - last; },
+		peek(fn) { peek = fn; },
+		start() {
+			timer = setInterval(() => {
+				const q = performance.now() - last;
+				nowEl.textContent = stage ? 'いま: ' + stage + '（' + (q / 1000).toFixed(0) + '秒）' : '';
+				if (q >= STALL_MS) {
+					const d = '止まった: ' + stage + '（' + (q / 1000).toFixed(0) + '秒 進まない）' + (peek ? '　' + peek() : '');
+					if (!stallRow) stallRow = add(d, '', 'ng');
+					else stallRow.lastChild.innerHTML = '<span class="ng">' + esc(d) + '</span>';
+				}
+			}, 500);
+		},
+		stop() { clearInterval(timer); nowEl.textContent = ''; }
+	};
+	return L;
+}
+// rs=readyState・ns=networkState・t=currentTime
+const vState = (v) => v ? 'rs=' + v.readyState + ' ns=' + v.networkState + ' t=' + v.currentTime.toFixed(2) + (v.error ? ' error=' + v.error.code + ' ' + (v.error.message || '') : '') : '（video はまだ無い）';
+const MEDIA_EVENTS = ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'suspend', 'stalled', 'waiting', 'emptied', 'abort', 'error'];
+// video の出来事を、それぞれ最初の1回だけ記録する（error は毎回）
+function watchMedia(v, L) {
+	const seen = new Set();
+	for (const ev of MEDIA_EVENTS) {
+		v.addEventListener(ev, () => {
+			if (ev !== 'error' && seen.has(ev)) return;
+			seen.add(ev);
+			const cls = ev === 'error' ? 'ng' : (ev === 'suspend' || ev === 'stalled' || ev === 'waiting' || ev === 'emptied' || ev === 'abort' ? 'warn' : '');
+			L.log('video: ' + ev, vState(v), cls);
+		});
+	}
+}
+
+/* ── A. 今の取り込み ─────────────────────── */
+async function runA(file) {
+	const t0 = performance.now();
+	const L = makeLog($('a-log'), $('a-now'), t0);
+	L.start();
+	L.log('ファイルを選んだ', (file.type || '（type なし）') + '・' + (file.size / 1048576).toFixed(1) + 'MB');
+	const ctrl = new AbortController();
+	let video = null, gaveUp = false;
+	L.peek(() => vState(video));
+	const giveUp = setInterval(() => { if (L.quiet() >= A_GIVEUP_MS) { gaveUp = true; ctrl.abort(); } }, 1000);
+	const orig = document.createElement;
+	document.createElement = function (tag, o) {
+		const el = orig.call(document, tag, o);
+		if (!video && String(tag).toLowerCase() === 'video') { video = el; watchMedia(el, L); }
+		return el;
+	};
+	let src = null, verdict = '';
+	const seeks = [];
+	const chips = $('a-seeks');
+	try {
+		L.stage('動画の読み込み（loadeddata を待つ）');
+		try { src = await UmaVideoFrames.videoSource(file, { signal: ctrl.signal }); }
+		finally { document.createElement = orig; }
+		L.log('動画の情報が読めた', src.width + '×' + src.height + '・長さ ' + src.duration.toFixed(2) + '秒', 'ok');
+		let phase = '';
+		const wrapped = Object.assign({}, src, {
+			async drawAt(t, ctx, dw, dh, signal) {
+				L.stage('シーク ' + (seeks.length + 1) + '回目（' + t.toFixed(2) + '秒の位置）');
+				const s = performance.now();
+				await src.drawAt(t, ctx, dw, dh, signal);
+				const ms = performance.now() - s;
+				seeks.push(ms);
+				const c = document.createElement('span');
+				c.textContent = Math.round(ms);
+				c.title = '#' + seeks.length + ' ' + t.toFixed(2) + 's';
+				if (dw === src.width) c.className = 'full';
+				if (ms >= 1000) c.className += ' slow';
+				chips.appendChild(c);
+				if (seeks.length === 1) L.log('最初のフレームが取れた', '1回目のシーク ' + Math.round(ms) + 'ms', 'ok');
+				else if (seeks.length % 20 === 0) L.log(seeks.length + '枚目まで', '直近20回の平均 ' + Math.round(seeks.slice(-20).reduce((a, b) => a + b, 0) / 20) + 'ms');
+			}
+		});
+		const PH = { read: '読む（4枚/秒で縮小して取る）', select: '選ぶ', grab: '選んだ時刻を等倍で取り直す' };
+		const sel = await UmaVideoFrames.selectFrames(wrapped, {
+			labels: ['親', '祖1', '祖2'], signal: ctrl.signal,
+			onProgress: (p) => { if (p.phase !== phase) { phase = p.phase; L.log('段: ' + (PH[p.phase] || p.phase), Math.round(p.ratio * 100) + '%'); } }
+		});
+		const avg = seeks.length ? Math.round(seeks.reduce((a, b) => a + b, 0) / seeks.length) : 0;
+		L.log('終わった', '選んだ ' + sel.picks.length + '枚・人 ' + sel.persons.length + '人（' + sel.persons.map((p) => p.files.length).join('／') + '）・シーク ' + seeks.length + '回（平均 ' + avg + 'ms・最大 ' + Math.round(Math.max(0, ...seeks)) + 'ms）', 'ok');
+		L.log('内訳', '読む ' + sec(sel.tm.sampleMs) + '・選ぶ ' + sec(sel.tm.selectMs) + '・取り直す ' + sec(sel.tm.grabMs) + '・捨てた白黒 ' + sel.stats.blankSkipped + '・取り直しのやり直し ' + sel.stats.grabRetries);
+		verdict = '<span class="ok">動いた</span>・' + sec(performance.now() - t0);
+	} catch (e) {
+		if (gaveUp) { L.log('打ち切った', (A_GIVEUP_MS / 1000) + '秒 進まないので B へ進む。' + vState(video), 'ng'); verdict = '<span class="ng">止まった</span>'; }
+		else { L.log('失敗', e.name + (e.code ? ' code=' + e.code : '') + '・' + e.message + '　' + vState(video), 'ng'); verdict = '<span class="ng">失敗</span>（' + esc(e.code || e.name) + '）'; }
+	} finally {
+		clearInterval(giveUp);
+		L.stop();
+		if (src) try { src.close(); } catch (e) { /* 閉じられなくてもよい */ }
+	}
+	$('a-sum').innerHTML = verdict;
+}
+
+/* ── B. 別のやり方 ─────────────────────── */
+// p を ms まで待つ。{ ok, ms, value } か { ok:false, timeout:true } か { ok:false, error }
+async function timed(p, ms) {
+	const s = performance.now();
+	let tm = null;
+	try {
+		const value = await Promise.race([p, new Promise((_, rej) => { tm = setTimeout(() => rej({ __timeout: true }), ms); })]);
+		return { ok: true, ms: performance.now() - s, value };
+	} catch (e) {
+		return e && e.__timeout ? { ok: false, timeout: true, ms: performance.now() - s } : { ok: false, error: e, ms: performance.now() - s };
+	} finally { clearTimeout(tm); }
+}
+const once = (v, ev) => new Promise((res, rej) => {
+	const ok = () => { v.removeEventListener('error', ng); res(); };
+	const ng = () => { v.removeEventListener(ev, ok); rej(new Error('video の error ' + (v.error ? v.error.code + ' ' + (v.error.message || '') : ''))); };
+	v.addEventListener(ev, ok, { once: true });
+	v.addEventListener('error', ng, { once: true });
+});
+const res2txt = (r) => r.ok ? Math.round(r.ms) + 'ms' : (r.timeout ? '止まった（' + Math.round(r.ms / 1000) + '秒）' : '失敗（' + (r.error && r.error.message || r.error) + '）');
+function makeVideo(url, o) {
+	const v = document.createElement('video');
+	v.muted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+	v.preload = o.preload || 'auto';
+	if (o.inDom) { v.style.cssText = 'position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;pointer-events:none'; document.body.appendChild(v); }
+	v.src = url;
+	if (o.load) v.load();
+	return v;
+}
+function dropVideo(v) { try { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); } catch (e) { /* 何もしない */ } }
+// 縮小の画に描いて、ほぼ真っ白か真っ黒か（製品と同じ 0.985）
+function drawCheck(source, w, h) {
+	const c = document.createElement('canvas');
+	c.width = Math.max(16, Math.round(w / 6)); c.height = Math.round(h / 6);
+	const x = c.getContext('2d', { willReadFrequently: true });
+	x.drawImage(source, 0, 0, c.width, c.height);
+	const d = x.getImageData(0, 0, c.width, c.height).data;
+	let tot = 0, wh = 0, bl = 0;
+	for (let i = 0; i < d.length; i += 28) { const g = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8; tot++; if (g >= 250) wh++; else if (g <= 5) bl++; }
+	return !(wh / tot >= 0.985 || bl / tot >= 0.985);
+}
+function seekPoints(D) {
+	const pts = [0, 0.25, 0.5, 0.75, 1, D * 0.25, D * 0.5, D * 0.75, D - 0.3];
+	return pts.filter((t) => t >= 0 && t < D).map((t) => +t.toFixed(3));
+}
+// 読み込み → シークして描く、を共通で。o.how: 'seek' | 'fast' | 'bitmap'
+async function trySeeks(v, o, out, L) {
+	const pts = seekPoints(v.duration);
+	const times = [];
+	let drawn = 0, blank = 0, fails = 0, offs = [];
+	for (const t of pts) {
+		L.stage(o.title + ': シーク ' + t.toFixed(2) + '秒');
+		const p = once(v, 'seeked');
+		if (o.how === 'fast') v.fastSeek(t); else v.currentTime = t;
+		const r = await timed(p, B_SEEK_MS);
+		if (!r.ok) { fails++; out.push('シーク ' + t.toFixed(2) + '秒: ' + res2txt(r)); if (r.timeout) break; continue; }
+		if (o.how === 'fast') offs.push(Math.abs(v.currentTime - t));
+		let ok;
+		try {
+			if (o.how === 'bitmap') { const b = await createImageBitmap(v); ok = drawCheck(b, v.videoWidth, v.videoHeight); b.close(); }
+			else ok = drawCheck(v, v.videoWidth, v.videoHeight);
+		} catch (e) { out.push('描く: 失敗（' + e.message + '）'); fails++; continue; }
+		times.push(r.ms);
+		drawn++; if (!ok) blank++;
+	}
+	const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+	out.push('シーク ' + times.length + '/' + pts.length + '回（平均 ' + avg + 'ms・最大 ' + Math.round(Math.max(0, ...times)) + 'ms）・描けた ' + (drawn - blank) + '枚・白黒 ' + blank + '枚'
+		+ (offs.length ? '・行き先のずれ 最大 ' + Math.max(...offs).toFixed(2) + '秒' : ''));
+	return fails === 0 && drawn === pts.length && blank === 0;
+}
+const METHODS = [
+	{ id: 'B1', title: '今と同じ（DOM の外・preload=auto・loadeddata）', make: { preload: 'auto' }, wait: 'loadeddata', how: 'seek' },
+	{ id: 'B2', title: 'DOM に入れる＋load()', make: { preload: 'auto', inDom: true, load: true }, wait: 'loadeddata', how: 'seek' },
+	{ id: 'B3', title: 'preload=metadata・一度 play() して pause()', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'seek' },
+	{ id: 'B4', title: 'B3＋fastSeek', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'fast', need: () => 'fastSeek' in HTMLMediaElement.prototype },
+	{ id: 'B5', title: 'B3＋createImageBitmap', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'bitmap', need: () => typeof createImageBitmap === 'function' },
+	{ id: 'B6', title: '2倍速で再生・requestVideoFrameCallback で4枚/秒', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', how: 'rvfc', need: () => 'requestVideoFrameCallback' in HTMLVideoElement.prototype },
+	{ id: 'B7', title: 'WebCodecs: video から new VideoFrame', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'videoframe', need: () => typeof VideoFrame !== 'undefined' }
+];
+async function runB(file) {
+	const t0 = performance.now();
+	const list = $('b-list');
+	const L = makeLog(document.createElement('tbody'), $('b-now'), t0);
+	L.start();
+	let okN = 0;
+	for (const m of METHODS) {
+		const box = document.createElement('div');
+		box.className = 'm';
+		box.innerHTML = '<b>' + esc(m.id + ' ' + m.title) + '</b> <span class="r">試しています…</span><div class="d"></div>';
+		list.appendChild(box);
+		const out = [];
+		let verdict;
+		const s = performance.now();
+		if (m.need && !m.need()) { box.querySelector('.r').innerHTML = '<span class="warn">使えない（この端末に無い）</span>'; continue; }
+		const url = URL.createObjectURL(file);
+		let v = null;
+		try {
+			L.stage(m.id + ': 読み込み');
+			v = makeVideo(url, m.make);
+			const r = await timed(once(v, m.wait), B_LOAD_MS);
+			out.push(m.wait + ' ' + res2txt(r) + (r.ok ? '' : '（' + vState(v) + '）'));
+			if (!r.ok) { verdict = r.timeout ? 'stall' : 'ng'; throw null; }
+			out.push(v.videoWidth + '×' + v.videoHeight + '・長さ ' + (isFinite(v.duration) ? v.duration.toFixed(2) + '秒' : String(v.duration)));
+			if (m.play) {
+				L.stage(m.id + ': play()');
+				const rp = await timed(v.play(), B_PLAY_MS);
+				v.pause();
+				out.push('play() ' + res2txt(rp));
+			}
+			if (m.how === 'rvfc') verdict = (await tryRvfc(v, out, L)) ? 'ok' : 'ng';
+			else if (m.how === 'videoframe') {
+				L.stage(m.id + ': シーク 1秒');
+				const rs = await timed((() => { const p = once(v, 'seeked'); v.currentTime = Math.min(1, v.duration / 2); return p; })(), B_SEEK_MS);
+				out.push('シーク ' + res2txt(rs));
+				if (!rs.ok) { verdict = rs.timeout ? 'stall' : 'ng'; throw null; }
+				const f = new VideoFrame(v, { timestamp: 0 });
+				out.push('VideoFrame ' + f.codedWidth + '×' + f.codedHeight + '・形式 ' + f.format + '・描けた ' + (drawCheck(f, f.displayWidth, f.displayHeight) ? 'はい' : '白黒'));
+				f.close();
+				verdict = 'ok';
+			} else verdict = (await trySeeks(v, Object.assign({ title: m.id }, m), out, L)) ? 'ok' : 'ng';
+		} catch (e) {
+			if (e) { out.push('失敗: ' + (e.message || e)); verdict = 'ng'; }
+		} finally {
+			if (v) dropVideo(v);
+			URL.revokeObjectURL(url);
+		}
+		if (verdict === 'ok') okN++;
+		const head = verdict === 'ok' ? '<span class="ok">動いた</span>' : verdict === 'stall' ? '<span class="ng">止まった</span>' : '<span class="ng">うまくいかない</span>';
+		box.querySelector('.r').innerHTML = head + '・' + sec(performance.now() - s);
+		box.querySelector('.d').textContent = out.join('／');
+	}
+	L.stop();
+	$('b-sum').textContent = METHODS.length + '通り中 ' + okN + '通りが動いた・' + sec(performance.now() - t0);
+}
+// 2倍速で再生しながら、mediaTime が 0.25秒進むごとに縮小の画へ描く
+function tryRvfc(v, out, L) {
+	return new Promise((resolve) => {
+		const D = v.duration, s = performance.now();
+		let next = 0, got = 0, blank = 0, cbs = 0, finished = false;
+		const finish = (why) => {
+			if (finished) return; finished = true;
+			clearTimeout(cap); clearInterval(watch); v.pause();
+			const want = Math.ceil(D * 4);
+			out.push(why + '・コールバック ' + cbs + '回・取れた ' + got + '/' + want + '枚（白黒 ' + blank + '）・' + sec(performance.now() - s) + '（目安は動画の長さ ' + D.toFixed(1) + '秒の半分）');
+			resolve(got >= want * 0.9 && blank === 0);
+		};
+		let lastCb = performance.now();
+		const watch = setInterval(() => { if (performance.now() - lastCb > STALL_MS) finish('止まった（コールバックが ' + (STALL_MS / 1000) + '秒来ない）'); }, 500);
+		const cap = setTimeout(() => finish('時間の上限（' + B_RVFC_MS / 1000 + '秒）'), B_RVFC_MS);
+		const cb = (now, meta) => {
+			if (finished) return;
+			cbs++; lastCb = performance.now();
+			L.stage('B6: 再生中 ' + meta.mediaTime.toFixed(2) + '秒');
+			if (meta.mediaTime >= next) { got++; if (!drawCheck(v, v.videoWidth, v.videoHeight)) blank++; next = Math.floor(meta.mediaTime * 4 + 1) / 4; }
+			v.requestVideoFrameCallback(cb);
+		};
+		v.addEventListener('ended', () => finish('最後まで再生した'), { once: true });
+		v.requestVideoFrameCallback(cb);
+		v.playbackRate = 2;
+		v.play().catch((e) => finish('play() が失敗（' + e.message + '）'));
+	});
+}
+
+/* ── 動画を選んだら A → B ─────────────────────── */
+$('file').addEventListener('change', async (ev) => {
+	const f = ev.target.files && ev.target.files[0];
+	if (!f) return;
+	ev.target.disabled = true;
+	['a-log', 'b-list'].forEach((id) => { $(id).innerHTML = ''; });
+	$('a-seeks').querySelectorAll('span').forEach((e) => e.remove());
+	$('a-sum').textContent = ''; $('b-sum').textContent = '';
+	$('file-info').textContent = f.name + '・' + (f.type || '（type なし）') + '・' + (f.size / 1048576).toFixed(1) + 'MB';
+	try { await runA(f); } catch (e) { $('a-sum').textContent = '想定外の失敗: ' + e.message; }
+	try { await runB(f); } catch (e) { $('b-sum').textContent = '想定外の失敗: ' + e.message; }
+	ev.target.disabled = false;
+});
+renderEnv();
+</script>
+</body>
+</html>
