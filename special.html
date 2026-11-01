@@ -2073,6 +2073,8 @@
 		// opts.quiet      … 完了のトーストを出さない（同上。まとめて1回だけ知らせる）
 		// 戻り値: 判定まで進めたか（true / false）。呼び出し元が開き先を決めるのに使う。
 		async function processImages(opts) {
+			// T60: 対象の遺伝子は押した時点の①の距離・脚質・バ場の指定で決める（辞書をここで作り直す。結合画像の写しの geneNames も同じ時点）
+			if (deckMode && deckTemplateManager) onDeckScopeSelected(deckTemplateManager.getSelection());
 			if (skillList.length === 0) {
 				// 足りないのは①側なので、案内だけ出して放置せずタブごと連れて行く
 				// （②のタブから押すボタンなので、①は隠れている）。
@@ -2129,8 +2131,10 @@
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
 					// 因子は照合の後で絞る（言い切れないものを落とす。C-2b）。スキルの判定には触らない
+					// T60: レース条件で外した遺伝子の行は照合に回さない（行の番号は保つ。写しの行〔personLines〕はそのまま）
+					const matchLines = maskOutOfScopeFactorLines(result.lines);
 					personResults[p] = applyFactorStrictMatch(
-						matchAllSkillsWithStars(result.lines, skillList, skillIndex, ocrErrorDictionary), result.lines);
+						matchAllSkillsWithStars(matchLines, skillList, skillIndex, ocrErrorDictionary), matchLines);
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
 				}
@@ -4460,6 +4464,24 @@
 		// 遺伝子はいつも対象・シナリオ因子は対象外。セットに保存した節の ON/OFF（template.scopes）は読まない
 		// （チェックの行は画面に出さない。保存の形は変えないので、保存済みの scopes はそのまま残る）。
 		const FACTOR_SCOPE_OCR = { scenarioFactors: false, genes: true };
+		// 節の中で OCR の対象にする因子（T60・C-258 の (2)-1 の続き。おいもさんの決定 2026-11-01）。
+		// 遺伝子は①の距離・脚質・バ場の指定（レースで固定した値を含む）に合うものだけ。指定の無い項目は、その項目の遺伝子を全部。
+		// 遺伝子の id の ap- の後ろの語は、その項目の値と同じ綴り（data/aptitude-genes.json の idNote）。どの項目の値でもない遺伝子は外さない。
+		function ocrFactorEntries(s) {
+			const all = UmaSkillDeckCore.getCatalogEntries(s.category);
+			if (s.key !== 'genes') return all;
+			let sel = {};
+			try {
+				const roster = deckRosterPanel ? deckRosterPanel.getRoster() : null;
+				sel = roster ? UmaSkillDeckCore.outside.resolvedFilterOf(roster) : {};
+			} catch (e) { sel = {}; }
+			const axes = UmaSkillDeckCore.ROSTER_FILTER_AXIS_KEYS.map(k => UmaSkillDeckCore.TAG_AXES.find(a => a.key === k)).filter(Boolean);
+			return all.filter(e => {
+				const tail = String(e.id || '').replace(/^ap-/, '');
+				const axis = axes.find(a => a.options.some(o => o.v === tail));
+				return !axis || !sel[axis.key] || sel[axis.key] === tail;
+			});
+		}
 
 		/* ------------------------------------------------------------
 		 * 因子の数え分け ―― **合算せず、節ごとに並べて書く**（段F-2）
@@ -4582,6 +4604,28 @@
 			}
 			if (best === null || bestD > guard.limit || tie > 1) return null;
 			return best;
+		}
+
+		/**
+		 * 対象の節の中で、対象から外した因子（T60: レース条件に合わない遺伝子）の名前を含む行の文字を空にした写し。
+		 * 辞書に無い遺伝子の行は、あいまい一致で一字違いの対象の遺伝子（「中距離の遺伝子」→「長距離の遺伝子」）に当たり、
+		 * ★と枠の行がずれるため。行の番号（skillSources が指す）は変えない。外したものが無ければ元の配列のまま
+		 */
+		function maskOutOfScopeFactorLines(lines) {
+			if (!deckMode || !Array.isArray(lines)) return lines;
+			const outNorms = [];
+			FACTOR_SCOPES.forEach(s => {
+				if (FACTOR_SCOPE_OCR[s.key] !== true) return;
+				UmaSkillDeckCore.getCatalogEntries(s.category).forEach(e => {
+					const n = normalizeText(e.name);
+					if (n && !factorNormSet.has(n)) outNorms.push(n);
+				});
+			});
+			if (outNorms.length === 0) return lines;
+			return lines.map(l => {
+				const n = l ? normalizeText(l.text) : '';
+				return (n && outNorms.some(x => n.indexOf(x) !== -1)) ? Object.assign({}, l, { text: '' }) : l;
+			});
 		}
 
 		/** 照合結果から、言い切れない因子の検出を落とす。スキルの判定には一切触らない。 */
@@ -5038,12 +5082,13 @@
 			// 対象の節の因子を足す（C-2b）。並びは「スキル → 因子」で、
 			// **数えるときは分ける**（因子はスキルではないので、対象スキル数・検出数に入れない）
 			// T56: 節は FACTOR_SCOPE_OCR で決まる（遺伝子だけ。セットの scopes は見ない）
+			// T60: 節の中の因子は ocrFactorEntries（遺伝子は①の距離・脚質・バ場の指定に合うものだけ）
 			const skillNames = entries.map(e => e.name);
 			const scopes = FACTOR_SCOPE_OCR;
 			const factorNames = [];
 			FACTOR_SCOPES.forEach(s => {
 				if (scopes[s.key] !== true) return;
-				UmaSkillDeckCore.getCatalogEntries(s.category).forEach(e => factorNames.push(e.name));
+				ocrFactorEntries(s).forEach(e => factorNames.push(e.name));
 			});
 			const dict = buildSkillDictionary(skillNames.concat(factorNames));
 			setActiveSkillDictionary(dict);
@@ -5060,7 +5105,7 @@
 			FACTOR_SCOPES.forEach(s => {
 				const m = CATALOG_MARKS[s.key];
 				if (!m || scopes[s.key] !== true) return;
-				UmaSkillDeckCore.getCatalogEntries(s.category).forEach(e => {
+				ocrFactorEntries(s).forEach(e => {
 					const n = normalizeText(e.name);
 					if (factorNormSet.has(n)) factorMarkByNorm.set(n, m.mark);
 				});

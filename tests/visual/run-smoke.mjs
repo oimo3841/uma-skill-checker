@@ -116,6 +116,7 @@ import { register86 } from './blocks-86.mjs';
 import { register87 } from './blocks-87.mjs';
 import { register88 } from './blocks-88.mjs';
 import { register89 } from './blocks-89.mjs';
+import { register90 } from './blocks-90.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15441,6 +15442,8 @@ await register87({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register88({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T59（2026-11-01）: 動画V1-2 ③の動画の入口と流れ（C-258 の (3)・C-259。見出しは「T59動画」）
 await register89({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T60（2026-11-01）: 遺伝子をレース条件で絞る（C-258 の (2)-1 の続き。見出しは「T60遺伝子の絞り込み」）
+await register90({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
