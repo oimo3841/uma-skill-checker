@@ -464,6 +464,10 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-11-01（T55・C-260 の (b)）: 古いお知らせ（special の layout・alpha・catalog／exam の layout・target）を外したので、その本文と見出しの id が消えた。
 	// commit が進んだら免除は空に戻す。
 	// → T55 の commit（7ab2763）で HEAD から消えたので、免除は空に戻した。
+	// 2026-11-01（T56・C-258 の (2)）: 画像アップロードの画面の直しで、special の「OCR処理を開始する」（#process-btn）と、
+	// exam の「＋ 親Bセットも追加する」（#setb-toggle-btn / #setb-toggle-label。タブに置き換えた）を消した。commit が進んだら免除は空に戻す。
+	'special.html': ['process-btn'],
+	'exam.html': ['setb-toggle-btn', 'setb-toggle-label'],
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

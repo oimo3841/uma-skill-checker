@@ -112,6 +112,7 @@ import { register82 } from './blocks-82.mjs';
 import { register83 } from './blocks-83.mjs';
 import { register84 } from './blocks-84.mjs';
 import { register85 } from './blocks-85.mjs';
+import { register86 } from './blocks-86.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15408,6 +15409,8 @@ await register83({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register84({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T55（2026-11-01）: お知らせ段2＋3（(b) 古いお知らせを外す・E3 の文面・(c) 結合画像のリニューアルのお知らせ。見出しは「T55お知らせ」）
 await register85({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T56（2026-11-01）: 画像アップロードの画面の直し（C-258 の (2)。見出しは「T56画像アップロード」）
+await register86({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

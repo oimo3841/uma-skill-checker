@@ -185,6 +185,22 @@
 		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
 		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
 			--uma-subtab-tint-bg: var(--person-bg); --uma-subtab-tint-fg: var(--person-fg); --uma-subtab-tint-line: var(--person-border-strong); }
+		/* ③ 画像をアップロード（T56・C-258 の (2)。モック T43 の形。exam.html と同じ値）
+		   (2)-2: セットの見出しを消し、「セットをクリア」はパネルの右上に重ねる */
+		.upload-set-panel { position: relative; }
+		.upload-set-clear { position: absolute; top: 10px; right: 14px; margin: 0 !important; z-index: 1; }
+		/* (2)-6: タブの帯を行いっぱいに広げる（「＋親Bセット」が帯の半分の幅〔.uma-subtab の max-width〕で「…」に切れないように。モックと同じ） */
+		.uma-subtabs-row > #personset-tabs { flex: 1 1 0; min-width: 0; }
+		/* (2)-8: いちばん下の左の「!」（高度な解析オプション）。丸の線（--uma-border-strong）の中に灰の「!」（--uma-text-faint）・押せる範囲 44px */
+		.adv-opts { margin-top: var(--uma-sp-3); }
+		.adv-opts-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -11px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+		.adv-opts-btn > span { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);
+			background: transparent; color: var(--uma-text-faint); font-size: 12px; font-weight: 700; line-height: 1; }
+		.adv-opts-btn:hover > span, .adv-opts-btn[aria-expanded="true"] > span { color: var(--uma-text-heading); border-color: var(--uma-text-subtle); }
+		.adv-opts-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -8px; border-radius: var(--uma-r-full); }
+		.adv-opts-panel { margin-top: var(--uma-sp-1); padding: var(--uma-sp-2); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-sunken); }
+		.adv-opts-panel[hidden] { display: none; }
+		.adv-opts-title { margin: 0 0 var(--uma-sp-1); font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); }
 
 		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
 		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
@@ -844,7 +860,9 @@
 			     画像は保持される。OCR と画像結合は「画像のあるセット」を対象にし、どちらのタブを見ているかは関係ない。
 			     タブの色は結果の表と同じ（親A＝青 .person-col-blue／親B＝赤 .person-col-red）。 -->
 			<!-- 段8・E（C-120）: シナリオ因子／遺伝子のチェック（節の ON/OFF）とそれぞれの「?」。②から③のパネルの先頭の1行へ移した。
-			     中身は core の createTemplateManager（scopesBar）が描く。新UIだけ（旧UIでは hidden） -->
+			     中身は core の createTemplateManager（scopesBar）が描く。
+			     T56（C-258 の (2)-1）: この行は画面に出さない（いつも hidden）。遺伝子はいつも OCR の対象・シナリオ因子は対象外（FACTOR_SCOPE_OCR）。
+			     置き場は core が節のチェックを②へ戻さないために残す（保存の形〔template.scopes〕は変えない） -->
 			<div id="deck-scopes-bar" class="deck-scopes-bar" hidden></div>
 			<div class="uma-subtabs-row mb-3">
 				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
@@ -852,34 +870,7 @@
 			<div id="personset-A-wrap" class="mb-3"></div>
 			<div id="personset-B-wrap" class="mb-3" hidden></div>
 
-			<!-- オプション設定（デフォルトで折りたたみ） -->
-			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
-				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-					<span class="flex items-center gap-2">
-						<i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
-						<span>高度な解析オプション</span>
-					</span>
-					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
-				</summary>
-
-				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
-						</div>
-					</label>
-
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
-						</div>
-					</label>
-				</div>
-			</details>
+			<!-- 「高度な解析オプション」は T56（C-258 の (2)-8）で、このパネルのいちばん下の「!」へ移した（#adv-opts） -->
 
 			<!-- プログレスバー -->
 			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-green-50 border border-green-200">
@@ -915,15 +906,12 @@
 			     3つ目の「画像を結合する」は special だけの操作で、**残す**（スキルリスト未入力でも
 			     押せることを special が保ってきた仕様で、やめると退行になる）。
 			     文言は「（SNS投稿用）」から「（OCRしない）」へ変えた ―― このボタンの他との違いは
-			     出力の用途ではなく「OCRを走らせないこと」なので、そこを言う。 -->
-			<button id="process-btn" type="button" onclick="processImages()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
-				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
-				<span>OCR処理を開始する</span>
-			</button>
-
-			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2" disabled>
+			     出力の用途ではなく「OCRを走らせないこと」なので、そこを言う。
+			     T56（C-258 の (2)-9）: special は「OCR処理を開始する」を消し、一体のボタンを先頭の主なボタン（黒塗り）にした。
+			     名前の「（高負荷）」も外した（exam も同じ）。ボタンは2つ（一体のボタン → 画像を結合する）。 -->
+			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span>OCR処理＋画像結合を開始する（高負荷）</span>
+				<span>OCR処理＋画像結合を開始する</span>
 			</button>
 
 			<!-- 画像結合だけ。OCR処理とは独立した機能で、スキルリスト未入力でも
@@ -996,6 +984,33 @@
 					</button>
 				</div>
 				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
+			</div>
+
+			<!-- 高度な解析オプション（T56・C-258 の (2)-8。モック T43 の形）。パネルのいちばん下の左に、丸の線の中の灰色の「!」だけを置く
+			     （押せる範囲 44px。画質の警告・エラーの「!」は三角・黄／赤なので、丸・灰の線で分ける）。押すとすぐ下に今の2つが開く。
+			     2つのチェックの id（opt-devlog・opt-preview）と中身は今までどおり。exam.html と同じ作り -->
+			<div id="adv-opts" class="adv-opts">
+				<button type="button" id="adv-opts-btn" class="adv-opts-btn" aria-expanded="false" aria-controls="adv-opts-panel" aria-label="高度な解析オプション" title="高度な解析オプション" onclick="toggleAdvancedOptions()"><span aria-hidden="true">!</span></button>
+				<div id="adv-opts-panel" class="adv-opts-panel" hidden>
+					<p class="adv-opts-title">高度な解析オプション</p>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+						<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+							<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
+							<div>
+								<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
+								<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
+							</div>
+						</label>
+
+						<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+							<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
+							<div>
+								<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
+								<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
+							</div>
+						</label>
+					</div>
+				</div>
 			</div>
 
 			</div><!-- /#step-panel-2 -->
@@ -1279,12 +1294,6 @@
 		/* ============================================================
 		 * 親A/祖A1/祖A2（親Bセットも同様）のアップロード欄
 		 * ============================================================ */
-		// idx%3===0が親、それ以外が祖1/祖2（Examと同じ役割グリフ）
-		function personRoleGlyph(idx) {
-			const r = idx % 3;
-			return r === 0 ? '親' : '祖' + r;
-		}
-
 		// 親＝濃い色・白文字／祖父母＝薄い色・濃い文字で世代差を表す（Examと同じ配色ルール）
 		function personBadgeClasses(idx) {
 			const hue = PERSON_COLORS[idx];
@@ -1292,13 +1301,13 @@
 			return isParent ? ('bg-' + hue + '-600 text-white') : ('bg-' + hue + '-100 text-' + hue + '-800');
 		}
 
+		// 人の欄の見出しは、上の図と同じ「親A」「祖A1」「祖A2」を文字だけで出す（T56・C-258 の (2)-3 の (ア)。
+		// それまでの丸の印〔親・祖1・祖2〕は消した。高さは丸のあったときと同じ 24px）
 		function buildPersonUploadCard(idx) {
 			const label = PERSON_LABELS[idx];
-			const badgeCls = personBadgeClasses(idx);
 			return `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
-					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-						<span class="w-6 h-6 rounded-full ${badgeCls} text-[9px] font-bold flex items-center justify-center shrink-0">${personRoleGlyph(idx)}</span>
+					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5 min-h-6">
 						${label}
 					</p>
 					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-green-50/40 hover:border-green-400 transition-all p-4 text-center mb-2" data-person="${idx}">
@@ -1337,16 +1346,10 @@
 			const set = PERSON_SETS[setIdx];
 			const baseIdx = setIdx * 3;
 			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
+			// T56（C-258 の (2)-2）: 見出し「親Aセット（1人分だけでもOK）」は消した（図と入力欄で分かるため）。「セットをクリア」はパネルの右上に重ねる
 			return `
-				<div class="rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
-					<div class="flex items-center justify-between mb-1">
-						<p class="text-xs font-bold text-${set.hue}-800 flex items-center gap-1.5">
-							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>
-							<!-- 括弧の中は「何を入れる枠か」ではなく「どこまで入れれば動くか」を書く。
-							     3人ぶん揃っていないと使えない、と誤解されるのを防ぐため。
-							     枠の構成（親＋祖1＋祖2）はすぐ下の図で見て分かる。 -->
-							<span>${set.label}（1人分だけでもOK）</span>
-						</p>
+				<div class="upload-set-panel rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
+					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
 					${buildSetTreeDiagram(setIdx)}
@@ -1397,7 +1400,9 @@
 			if (!slot || !window.UmaSkillDeckCore) return;
 			const items = PERSON_SETS.map((set, i) => {
 				const n = [0, 1, 2].reduce((s, r) => s + persons[i * 3 + r].files.length, 0);
-				return { id: String(i), label: set.label, count: n > 0 ? n + '枚' : null, selected: i === activePersonSet,
+				// T56（C-258 の (2)-6）: 親Bセットは画像が1枚も無いあいだ「＋親Bセット」（入れると「親Bセット」）
+				const label = i > 0 && n === 0 ? '＋' + set.label : set.label;
+				return { id: String(i), label: label, count: n > 0 ? n + '枚' : null, selected: i === activePersonSet,
 					className: 'uma-subtab--tinted ' + HUE_CLASS[set.hue], title: set.label };
 			});
 			slot.innerHTML = UmaSkillDeckCore.tabStrip.html(items, { act: 'personset-tab', ariaLabel: '因子元のセット' });
@@ -1417,6 +1422,13 @@
 			const btn = e.target.closest && e.target.closest('#personset-tabs [data-usd-act="personset-tab"]');
 			if (btn) selectPersonSet(btn.getAttribute('data-tab-id'));
 		});
+
+		// いちばん下の「!」（高度な解析オプション。T56・C-258 の (2)-8）を押すと、すぐ下に2つのチェックを開く／閉じる
+		function toggleAdvancedOptions() {
+			const panel = document.getElementById('adv-opts-panel');
+			panel.hidden = !panel.hidden;
+			document.getElementById('adv-opts-btn').setAttribute('aria-expanded', String(!panel.hidden));
+		}
 
 		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
 		function clearPersonSet(setIdx) {
@@ -1455,10 +1467,8 @@
 			if (window.lucide) lucide.createIcons();
 		}
 
-		const processBtn = document.getElementById('process-btn');
-
 		function updateProcessBtn() {
-			// 「OCR処理＋画像結合」の最中は、3つとも無効にしたまま動かさない（C-61）。
+			// 「OCR処理＋画像結合」の最中は、2つとも無効にしたまま動かさない（C-61。T56 で「OCR処理を開始する」を消して2つ）。
 			// 途中で processImages() / runImageStitching() が自分のぶんを戻そうとするので、
 			// ここで一括して押さえないと、OCRが終わった瞬間に個別のボタンが復活してしまう。
 			if (combinedInProgress) return;
@@ -1466,7 +1476,6 @@
 			// 一体のボタンの押せる条件は **special の前提** に合わせる（対象スキルセットが空でなく、
 			// 画像が1枚以上）。exam は対象が常に133種で選ぶ段が無いので条件が違う（C-59 の 2-2）。
 			const canOcr = (skillList.length > 0 && anyFiles);
-			processBtn.disabled = !canOcr;
 			const comboBtn = document.getElementById('process-stitch-btn');
 			if (comboBtn) comboBtn.disabled = !canOcr;
 			const stitchBtn = document.getElementById('stitch-btn');
@@ -1748,7 +1757,6 @@
 			errorWrap.classList.add('hidden');
 			qualityWarnWrap.classList.add('hidden');
 			progressWrap.classList.remove('hidden');
-			setOcrBtnBusy(true);
 
 			// 画像前処理・高精度多重パスは常時有効（デフォルトのまま固定）
 			const usePre = true;
@@ -1790,14 +1798,12 @@
 				errorWrap.classList.remove('hidden');
 				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
 				progressWrap.classList.add('hidden');
-				setOcrBtnBusy(false);
 				return false;
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
 			}
 
 			progressWrap.classList.add('hidden');
-			setOcrBtnBusy(false);
 
 			// 文面の組み立ては common.js の buildImageQualityNotice() に集約している
 			// （exam.html / special.html で同じ文言を二重に持たないため）。ここはDOMに入れるだけ。
@@ -1830,12 +1836,8 @@
 			return true;
 		}
 
-		// 「OCR処理を開始する」の無効化。**「OCR処理＋画像結合」の最中はここで動かさない**
-		// （一体のボタンが3つまとめて押さえているため。C-61）。
-		function setOcrBtnBusy(busy) {
-			if (combinedInProgress) return;
-			processBtn.disabled = busy;
-		}
+		// 「OCR処理を開始する」の無効化（setOcrBtnBusy）は、T56 でそのボタンを消したので一緒に消した
+		// （OCR は一体のボタンからだけ走り、その間は一体のボタンが2つまとめて押さえている。C-61）。
 
 		function setProgress(ratio, label) {
 			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
@@ -3820,9 +3822,9 @@
 		async function processImagesAndStitch() {
 			if (combinedInProgress || stitchInProgress) return; // 多重クリック防止
 			combinedInProgress = true;
-			// 3つとも押せないようにする。この間 updateProcessBtn() は何もしない（早期 return）ので、
+			// 2つとも押せないようにする。この間 updateProcessBtn() は何もしない（早期 return）ので、
 			// 途中で個別のボタンが復活することはない。
-			['process-btn', 'process-stitch-btn', 'stitch-btn'].forEach(id => {
+			['process-stitch-btn', 'stitch-btn'].forEach(id => {
 				const b = document.getElementById(id);
 				if (b) b.disabled = true;
 			});
@@ -4090,6 +4092,10 @@
 			// 「?」を開くたびに並べ直す（収録データが増減しても直さなくてよい）
 			names: () => UmaSkillDeckCore.getCatalogEntries(s.category).map(e => e.name)
 		}));
+		// どの節を OCR の対象にするか（T56・C-258 の (2)-1。おいもさんの決定 2026-10-31〔T46 の回答 6〕）。
+		// 遺伝子はいつも対象・シナリオ因子は対象外。セットに保存した節の ON/OFF（template.scopes）は読まない
+		// （チェックの行は画面に出さない。保存の形は変えないので、保存済みの scopes はそのまま残る）。
+		const FACTOR_SCOPE_OCR = { scenarioFactors: false, genes: true };
 
 		/* ------------------------------------------------------------
 		 * 因子の数え分け ―― **合算せず、節ごとに並べて書く**（段F-2）
@@ -4454,7 +4460,7 @@
 			document.getElementById('step-tab-0').hidden = false;
 			document.getElementById('deck-set-bar').hidden = false;   // 段8・B: 共通の見出しの帯
 			document.getElementById('hdr-race-slot').hidden = false;   // C-235: タイトルの行のレース条件
-			document.getElementById('deck-scopes-bar').hidden = false;   // 段8・E: ③の先頭のシナリオ因子／遺伝子
+			// 段8・E の③の先頭のシナリオ因子／遺伝子の行（#deck-scopes-bar）は、T56（C-258 の (2)-1）から出さない
 			placeOcrDict(true);   // C-132: 誤認識の読み替え辞書は「スクショで追加」の小窓の中へ
 			renumberStepTabs();
 			const btn = document.getElementById('deck-mode-btn');
@@ -4665,10 +4671,11 @@
 			const entries = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds);
 			// 分類（C-57 の (10)）。tiers に無い id は「優先」（core の tiers.of が既定を返す）
 			entries.forEach(e => { deckTierByName[e.name] = UmaSkillDeckCore.tiers.of(deckScope.tiers, e.id); });
-			// B・C で ON にした節の因子を足す（C-2b）。並びは「スキル → 因子」で、
+			// 対象の節の因子を足す（C-2b）。並びは「スキル → 因子」で、
 			// **数えるときは分ける**（因子はスキルではないので、対象スキル数・検出数に入れない）
+			// T56: 節は FACTOR_SCOPE_OCR で決まる（遺伝子だけ。セットの scopes は見ない）
 			const skillNames = entries.map(e => e.name);
-			const scopes = deckScope.scopes || {};
+			const scopes = FACTOR_SCOPE_OCR;
 			const factorNames = [];
 			FACTOR_SCOPES.forEach(s => {
 				if (scopes[s.key] !== true) return;
@@ -5480,8 +5487,8 @@
 			<div id="result-empty" class="uma-drawer-empty">
 				<i data-lucide="list-checks"></i>
 				<p class="text-sm font-bold text-slate-600">まだ照合結果がありません</p>
-				<p class="text-xs">スキルリストと画像を用意して「OCR処理を開始する」を押すと、ここに結果が出ます。</p>
-				<button type="button" onclick="backToInput('process-btn')" class="uma-btn uma-btn--secondary">
+				<p class="text-xs">スキルリストと画像を用意して「OCR処理＋画像結合を開始する」を押すと、ここに結果が出ます。</p>
+				<button type="button" onclick="backToInput('process-stitch-btn')" class="uma-btn uma-btn--secondary">
 					<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
 					<span>入力画面に戻る</span>
 				</button>

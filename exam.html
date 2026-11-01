@@ -789,6 +789,30 @@
 		/* 結果の絞り込みのボタン（「すべて」など）の選んでいる塗り（Tailwind の bg-slate-900）は、黒系ではなく操作色（C-144・B の追補） */
 		button.bg-slate-900 { background-color: var(--uma-control); color: var(--uma-control-text); box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim); }
 		:root[data-theme="dark"] button.bg-slate-900.text-white { color: var(--uma-control-text); }
+		/* ② 画像をアップロード（T56・C-258 の (2)。モック T43 の形。special.html と同じ値）
+		   親A／親Bセットのタブの色。special の <style> の .person-col-blue / .person-col-red と同じ値を、
+		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す（exam は結果の表にこの色を使っていないので、タブの分だけ持つ） */
+		.person-col-blue { --person-bg: #eff6ff; --person-fg: #193cb8; --person-border-strong: #8ec5ff; --person-border-soft: #bedbff; --person-tint: rgba(43, 127, 255, .07); }
+		.person-col-red  { --person-bg: #fef2f2; --person-fg: #9f0712; --person-border-strong: #ffa2a2; --person-border-soft: #ffc9c9; --person-tint: rgba(251, 44, 54, .07); }
+		:root[data-theme="dark"] .person-col-blue { --person-bg: #172a4a; --person-fg: #a9c9ff; --person-border-strong: #3b6fb8; --person-border-soft: #26426b; --person-tint: rgba(74, 158, 245, .10); }
+		:root[data-theme="dark"] .person-col-red  { --person-bg: #3a1a1d; --person-fg: #ffb3b3; --person-border-strong: #a3474d; --person-border-soft: #6b2d33; --person-tint: rgba(251, 44, 54, .10); }
+		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
+			--uma-subtab-tint-bg: var(--person-bg); --uma-subtab-tint-fg: var(--person-fg); --uma-subtab-tint-line: var(--person-border-strong); }
+		/* (2)-5: セットの見出しを消し、「セットをクリア」はパネルの右上に重ねる */
+		.upload-set-panel { position: relative; }
+		.upload-set-clear { position: absolute; top: 10px; right: 14px; margin: 0 !important; z-index: 1; }
+		/* (2)-6: タブの帯を行いっぱいに広げる（「＋親Bセット」が帯の半分の幅〔.uma-subtab の max-width〕で「…」に切れないように。モックと同じ） */
+		.uma-subtabs-row > #personset-tabs { flex: 1 1 0; min-width: 0; }
+		/* (2)-8: いちばん下の左の「!」（高度な解析オプション）。丸の線（--uma-border-strong）の中に灰の「!」（--uma-text-faint）・押せる範囲 44px */
+		.adv-opts { margin-top: var(--uma-sp-3); }
+		.adv-opts-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -11px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+		.adv-opts-btn > span { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);
+			background: transparent; color: var(--uma-text-faint); font-size: 12px; font-weight: 700; line-height: 1; }
+		.adv-opts-btn:hover > span, .adv-opts-btn[aria-expanded="true"] > span { color: var(--uma-text-heading); border-color: var(--uma-text-subtle); }
+		.adv-opts-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -8px; border-radius: var(--uma-r-full); }
+		.adv-opts-panel { margin-top: var(--uma-sp-1); padding: var(--uma-sp-2); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-sunken); }
+		.adv-opts-panel[hidden] { display: none; }
+		.adv-opts-title { margin: 0 0 var(--uma-sp-1); font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-[var(--uma-control)] selection:text-white">
@@ -1180,49 +1204,21 @@
 
 			<!-- ② 因子セットの画像アップロード（親Aセットのみでも判定可） -->
 			<div id="step-panel-2" class="step-panel" role="tabpanel" aria-labelledby="step-tab-2" hidden>
-			<div class="flex items-center justify-between gap-3 mb-2">
-				<p class="text-xs font-semibold text-slate-700">親Aセットのみでも判定できます</p>
-				<button type="button" id="setb-toggle-btn" onclick="toggleSetB()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0">
-					<i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
-					<span id="setb-toggle-label">＋ 親Bセットも追加する</span>
-				</button>
+			<!-- T56（C-258 の (2)-4・(2)-7）: 上の文（親Aセットのみでも判定できます・親Bセットを追加すると…・スキルが1-2行重なるように…）と
+			     「＋ 親Bセットも追加する」のボタンを消し、special.html と同じタブ（親Aセット／＋親Bセット）にした。
+			     両方のパネルは常に DOM にあり（見えていないほうは hidden）、画像は保持される。OCR と画像結合は「画像のあるセット」が対象で、
+			     どちらのタブを見ているかは関係ない（special と同じ）。タブの色は結果の表と同じ（親A＝青 .person-col-blue／親B＝赤 .person-col-red） -->
+			<div class="uma-subtabs-row mb-3">
+				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
 			</div>
-			<p class="text-[11px] text-slate-500 mb-4">親Bセットを追加すると、親Aセットとまとめて照合・比較できます。<br />スキルが1-2行重なるように撮影してください。</p>
 
-			<!-- 親Aセット（常時表示） -->
+			<!-- 親Aセット -->
 			<div id="personset-A-wrap" class="mb-4"></div>
 
-			<!-- 親Bセット（任意・デフォルト非表示） -->
-			<div id="personset-B-wrap" class="hidden mb-4"></div>
+			<!-- 親Bセット（タブで切り替える） -->
+			<div id="personset-B-wrap" class="hidden mb-4" hidden></div>
 
-			<!-- オプション設定（デフォルトで折りたたみ） -->
-			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
-				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-					<span class="flex items-center gap-2">
-						<i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
-						<span>高度な解析オプション</span>
-					</span>
-					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
-				</summary>
-
-				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
-						</div>
-					</label>
-
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
-						</div>
-					</label>
-				</div>
-			</details>
+			<!-- 「高度な解析オプション」は T56（C-258 の (2)-8）で、このパネルのいちばん下の「!」へ移した（#adv-opts） -->
 
 			<!-- プログレスバー -->
 			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-[var(--uma-deco-soft)] border border-[var(--uma-deco-border)]">
@@ -1258,7 +1254,7 @@
 			</button>
 			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2" disabled>
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span>OCR処理＋画像結合を開始する（高負荷）</span>
+				<span>OCR処理＋画像結合を開始する</span>
 			</button>
 			<!-- 結合の注記。**special.html と同じ文面**にしてある（段1）。
 			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
@@ -1329,6 +1325,33 @@
 				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
 			</div>
 			</div><!-- /#new-devlog-slot -->
+
+			<!-- 高度な解析オプション（T56・C-258 の (2)-8。モック T43 の形）。パネルのいちばん下の左に、丸の線の中の灰色の「!」だけを置く
+			     （押せる範囲 44px。画質の警告・エラーの「!」は三角・黄／赤なので、丸・灰の線で分ける）。押すとすぐ下に今の2つが開く。
+			     2つのチェックの id（opt-devlog・opt-preview）と中身は今までどおり。special.html と同じ作り -->
+			<div id="adv-opts" class="adv-opts">
+				<button type="button" id="adv-opts-btn" class="adv-opts-btn" aria-expanded="false" aria-controls="adv-opts-panel" aria-label="高度な解析オプション" title="高度な解析オプション" onclick="toggleAdvancedOptions()"><span aria-hidden="true">!</span></button>
+				<div id="adv-opts-panel" class="adv-opts-panel" hidden>
+					<p class="adv-opts-title">高度な解析オプション</p>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+						<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+							<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
+							<div>
+								<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
+								<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
+							</div>
+						</label>
+
+						<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+							<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
+							<div>
+								<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
+								<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
+							</div>
+						</label>
+					</div>
+				</div>
+			</div>
 
 			</div><!-- /#step-panel-2 -->
 			</div><!-- /#new-step-slot -->
@@ -2615,8 +2638,8 @@
 		/* ------------------------------------------------------------
 		 * 親A（親A・祖A1・祖A2）／親B（親B・祖B1・祖B2）の2セット・計6枠。
 		 * ウマ娘の因子継承画面の構成（親のセットを2つ組み合わせる）を再現するための
-		 * オプション機能。親Bセットは既定では非表示（setBVisible=false）で、
-		 * 有効化するまでは従来どおり親Aセット（3枠）のみで完結する。
+		 * オプション機能。親Bセットはタブ（親Aセット／＋親Bセット）で切り替え、画像を入れたセットだけが
+		 * OCR と画像結合の対象になる（T56 まではボタンで開閉し、開いているときだけ結合していた〔setBVisible〕）。
 		 * インデックス 0-2 = 親Aセット（親A/祖A1/祖A2）、3-5 = 親Bセット（親B/祖B1/祖B2）。
 		 *
 		 * 配色は「セット単位で色相を分け（親A=青／親B=赤）、世代で濃淡を分ける
@@ -2648,7 +2671,6 @@
 
 		const persons = PERSON_LABELS.map(() => ({ files: [] }));
 		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
-		let setBVisible = false;
 
 		// 結果テーブルに限り、親A/親B列のどちらかを一時的に隠せるようにする（スマホ対策）。
 		// コピー用データ・統計カード・緑スキルハイライトには影響しない（常に全アップロード分を含む）。
@@ -3483,19 +3505,13 @@
 		 * 親A・親B（各:親＋祖1＋祖2の3枠）のアップロード欄
 		 * インデックス0-2=親Aセット、3-5=親Bセット。親Bセットはtoggle表示。
 		 * ============================================================ */
-		// idx（0-5）から役割を判定：0=親／1=祖1／2=祖2（3で割った余り）
-		function personRoleGlyph(idx) {
-			const r = idx % 3;
-			return r === 0 ? '親' : '祖' + r;
-		}
-
+		// 人の欄の見出しは、上の図と同じ「親A」「祖A1」「祖A2」を文字だけで出す（T56・C-258 の (2)-3 の (ア)。
+		// それまでの丸の印〔親・祖1・祖2〕は消した。高さは丸のあったときと同じ 24px。special と同じ）
 		function buildPersonUploadCard(idx) {
 			const label = PERSON_LABELS[idx];
-			const badgeCls = personBadgeClasses(idx);
 			return `
 				<div class="exam-person-card rounded-xl border border-slate-200 bg-white/70 p-3">
-					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-						<span class="w-6 h-6 rounded-full ${badgeCls} text-[9px] font-bold flex items-center justify-center shrink-0">${personRoleGlyph(idx)}</span>
+					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5 min-h-6">
 						${label}
 					</p>
 					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-[var(--uma-control-soft)]/40 hover:border-[var(--uma-control-border-strong)] transition-all p-4 text-center mb-2" data-person="${idx}">
@@ -3536,13 +3552,10 @@
 			const set = PERSON_SETS[setIdx];
 			const baseIdx = setIdx * 3;
 			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
+			// T56（C-258 の (2)-5）: 見出し「親Aセット（親A＋祖A1＋祖A2）」は消した（タブと図で分かるため）。「セットをクリア」はパネルの右上に重ねる
 			return `
-				<div class="exam-set-panel rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
-					<div class="flex items-center justify-between mb-1">
-						<p class="text-xs font-bold text-${set.hue}-800 flex items-center gap-1.5">
-							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>
-							<span>${set.label}（親${set.id}＋祖${set.id}1＋祖${set.id}2）</span>
-						</p>
+				<div class="exam-set-panel upload-set-panel rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
+					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
 					${buildSetTreeDiagram(setIdx)}
@@ -3581,18 +3594,67 @@
 
 			// フルリビルド直後でも、既にアップロード済みのファイルがあればサムネイルを復元する
 			persons.forEach((_, idx) => renderPersonImageList(idx));
+			renderPersonSetTabs();
 		}
 
-		// 親Bセット（4-6枠目）の表示/非表示を切り替える。非表示にしてもアップロード済みの
-		// ファイル自体は保持される（再表示すれば残っている）。
-		function toggleSetB() {
-			setBVisible = !setBVisible;
-			const wrap = document.getElementById('personset-B-wrap');
-			wrap.classList.toggle('hidden', !setBVisible);
-			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 親Bセットを閉じる' : '＋ 親Bセットも追加する';
-			document.getElementById('setb-toggle-btn').classList.toggle('bg-red-100', setBVisible);
-			// 結合するセットの範囲が変わるので、「画像を更新」の可否も見直す
-			updateStitchRefreshUi();
+		/* 親A／親Bセットのタブ（T56・C-258 の (2)-7。それまでは「＋ 親Bセットも追加する」で B を開閉していた）。
+		   special.html の renderPersonSetTabs と同じ形・同じ動き。exam は core を読まないので、帯の HTML（core の tabStrip と同じ組み立て・
+		   css/shell.css の .uma-subtabs）とキーボードの作法（←→ Home End）をここで持つ。
+		   見えていないセットも画像は保持され、OCR と画像結合の対象になる（タブは「どちらを見せるか」だけ）。
+		   タブには画像の枚数を出す。親Bセットは画像が1枚も無いあいだ「＋親Bセット」（入れると「親Bセット」。(2)-6） */
+		const PERSON_SET_HUE_CLASS = { blue: 'person-col-blue', red: 'person-col-red' };
+		let activePersonSet = 0;
+		function renderPersonSetTabs() {
+			const slot = document.getElementById('personset-tabs');
+			if (!slot) return;
+			const items = PERSON_SETS.map((set, i) => {
+				const n = [0, 1, 2].reduce((s, r) => s + persons[i * 3 + r].files.length, 0);
+				const label = i > 0 && n === 0 ? '＋' + set.label : set.label;
+				const on = i === activePersonSet;
+				return '<button type="button" role="tab" class="uma-subtab uma-subtab--tinted ' + PERSON_SET_HUE_CLASS[set.hue] + '"'
+					+ ' data-usd-act="personset-tab" data-tab-id="' + i + '"'
+					+ ' aria-selected="' + (on ? 'true' : 'false') + '" tabindex="' + (on ? '0' : '-1') + '" title="' + set.label + '">'
+					+ '<span class="uma-subtab-label">' + label + '</span>'
+					+ (n > 0 ? '<span class="uma-subtab-count">' + n + '枚</span>' : '')
+					+ '</button>';
+			}).join('');
+			slot.innerHTML = '<div class="uma-subtabs" role="tablist" aria-label="因子元のセット">' + items + '</div>';
+			PERSON_SETS.forEach((set, i) => {
+				const wrap = document.getElementById('personset-' + set.id + '-wrap');
+				if (!wrap) return;
+				wrap.hidden = i !== activePersonSet;
+				wrap.classList.toggle('hidden', i !== activePersonSet);
+			});
+		}
+		function selectPersonSet(idx) {
+			activePersonSet = Number(idx) || 0;
+			renderPersonSetTabs();
+		}
+		// WAI-ARIA のタブの作法（←→で隣へ、Home/End で端へ）。選んだあと、選んだタブへフォーカスを戻す（core の tabStripKeydown と同じ）
+		function onPersonSetTabKeydown(ev) {
+			const strip = ev.target && ev.target.closest ? ev.target.closest('.uma-subtabs') : null;
+			if (!strip) return;
+			const tabs = Array.from(strip.querySelectorAll('.uma-subtab'));
+			const i = tabs.indexOf(ev.target.closest('.uma-subtab'));
+			if (i < 0) return;
+			const next = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i - 1 + tabs.length) % tabs.length, Home: 0, End: tabs.length - 1 }[ev.key];
+			if (next === undefined) return;
+			ev.preventDefault();
+			const id = tabs[next].getAttribute('data-tab-id');
+			selectPersonSet(id);
+			const again = document.querySelector('#personset-tabs .uma-subtab[data-tab-id="' + id + '"]');
+			if (again) { try { again.focus({ preventScroll: true }); } catch (e) { again.focus(); } }
+		}
+		document.addEventListener('click', (e) => {
+			const btn = e.target.closest && e.target.closest('#personset-tabs [data-usd-act="personset-tab"]');
+			if (btn) selectPersonSet(btn.getAttribute('data-tab-id'));
+		});
+
+		// いちばん下の「!」（高度な解析オプション。T56・C-258 の (2)-8）を押すと、すぐ下に2つのチェックを開く／閉じる（special と同じ）
+		function toggleAdvancedOptions() {
+			const panel = document.getElementById('adv-opts-panel');
+			panel.hidden = !panel.hidden;
+			document.getElementById('adv-opts-btn').setAttribute('aria-expanded', String(!panel.hidden));
 		}
 
 		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
@@ -3733,6 +3795,8 @@
 			const total = persons.reduce((n, p) => n + p.files.length, 0);
 			badge.hidden = total === 0;
 			badge.textContent = total + '枚';
+			// 親A／親Bセットのタブの枚数も同じ機会に更新する（special と同じ）
+			renderPersonSetTabs();
 		}
 
 		/* ============================================================
@@ -5998,7 +6062,7 @@
 		 *   show / attrIcons … 結合画像の表示（検出数カード・シナリオ因子・凡例・集計条件／印）
 		 *   scope / factors / genes / countMode … 集計に関わる設定
 		 *     （範囲・シナリオ因子・遺伝子（Set はどちらも複製）・集計モード）
-		 *   setB … 親Bセットを開いているか（結合するセットの範囲）
+		 *   （setB〔親Bセットを開いているか〕は T56 で無くした。結合するセットは画像のあるセット＝files で決まる）
 		 *   files … 各人物の画像（File の参照の配列を複製。枚数と並び順を固定する）
 		 *   skillList / skillIndex … 照合に使う対象スキル（rebuildSkillList は配列を作り直すので参照で足りる）
 		 *   skillOnlyList / factorOnlyList / geneOnlyList … 数える用（スキルだけ／因子だけ／遺伝子だけ）。同上
@@ -6014,7 +6078,6 @@
 				factors: new Set(selectedScenarioFactors),
 				genes: new Set(selectedGenes),
 				countMode: countMode,
-				setB: setBVisible,
 				files: persons.map(p => p.files.slice()),
 				skillList: skillList,
 				skillOnlyList: skillOnlyList,
@@ -6074,7 +6137,6 @@
 				cur.scope !== lastOcrRun.scope ||
 				!sameFactorSets(cur.factors, lastOcrRun.factors) ||
 				cur.countMode !== lastOcrRun.countMode ||
-				cur.setB !== lastOcrRun.setB ||
 				// 効率で選ぶ（C-136）：境目・区間の切り替えが変わったら OCR からやり直す
 				JSON.stringify(cur.eff) !== JSON.stringify(lastOcrRun.eff)) return 'stale';
 			const now = stitchShowEffective(cur);
@@ -7664,7 +7726,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			// 対象セット・合計人数を先に数えて進捗バーの分母にする（special と同じ形）
 			const targets = [];
 			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
-				if (setIdx === 1 && !run.setB) continue; // 親Bセットが非表示なら結合もスキップ
+				// T56: 親Bセットも画像があれば結合する（タブでどちらを見ているかは関係ない。special と同じ）
 				const baseIdx = setIdx * 3;
 				const count = [0, 1, 2].filter(r => run.files[baseIdx + r].length > 0).length;
 				if (count > 0) targets.push({ setIdx: setIdx, count: count });
