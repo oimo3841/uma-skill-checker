@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-02a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-02b';
 
 	/* ============================================================
 	 * 定数
@@ -11851,22 +11851,81 @@
 				ws.forEach(y => moved.add(y.it.skillId));
 				goldWhites.set(x.it.skillId, ws);
 			});
+			// 行のまとまり（進化の組・金と下位の白の組・1行）。head は区分と並びを決める行（進化の組は金、金の組は金）
 			const placed = new Set();
+			const units = [];
 			ordered.forEach(x => {
 				if (moved.has(x.it.skillId) || placed.has(x.it.skillId)) return;
 				const targets = evoOf.get(x.it.skillId);
 				if (!targets) {
-					ul.appendChild(rowOf(x));
-					(goldWhites.get(x.it.skillId) || []).forEach(y => { placed.add(y.it.skillId); ul.appendChild(markGoldWhiteRow(rowOf(y), x.it.skillId)); });
+					const rows = [{ x: x, make: () => rowOf(x) }];
+					(goldWhites.get(x.it.skillId) || []).forEach(y => { placed.add(y.it.skillId); rows.push({ x: y, make: () => markGoldWhiteRow(rowOf(y), x.it.skillId) }); });
+					units.push({ head: x, evo: false, rows: rows });
 					return;
 				}
-				targets.forEach(t => ul.appendChild(evolvedSkillRowEl(t)));
-				ul.appendChild(markEvoRow(rowOf(x), 1));
+				const rows = targets.map(t => ({ x: null, make: () => evolvedSkillRowEl(t) }));
+				rows.push({ x: x, make: () => markEvoRow(rowOf(x), 1) });
 				whitesOf(x.it.skillId).forEach(w => {
 					const y = ordered.find(z => z.it.skillId === w);
-					if (y && !placed.has(w)) { placed.add(w); ul.appendChild(markEvoRow(rowOf(y), 2)); }
+					if (y && !placed.has(w)) { placed.add(w); rows.push({ x: y, make: () => markEvoRow(rowOf(y), 2) }); }
 				});
+				units.push({ head: x, evo: true, rows: rows });
 			});
+			// 区分の順（C-266 の (3)・T70）。キャラ＝固有 → 進化 → 進化先の無い金（└白）→ その他の白 → イベントで得るスキル（札「イベントスキル」）、
+			// サポカ＝金（└白）→ その他の白 → 共通イベントで得るスキル（連続イベントで得る行は金・白に混ぜて札「連続イベントX回目」）。
+			// 区分は head の由来（computeRosterSkills の sources）で決める。ヒント（キャラは初期・覚醒）でも得るものはそちらの区分。下位の白は金と一緒に動く。
+			// 区分ごとに 確定 → 未選択、その中は既定の並び（ゲーム内の並び）の逆。既定の並びに無いものは、その区分の最後に今の並びのまま。シナリオの小窓は今の並びのまま
+			const mem = res.members.find(m => m.key === memberKey);
+			const memKind = mem ? mem.kind : null;
+			const kindsOf = new Map();
+			const stepsOf = new Map();
+			(res.sources || []).forEach(s => {
+				if (s.memberKey !== memberKey) return;
+				if (!kindsOf.has(s.skillId)) kindsOf.set(s.skillId, new Set());
+				kindsOf.get(s.skillId).add(s.kind);
+				// 連続イベントの回（データの step）。鍵は card:<ID>#<回の並びの位置>
+				const mm = s.kind === 'event' && typeof s.eventKey === 'string' ? /^card:(.+)#(\d+)$/.exec(s.eventKey) : null;
+				const ev = mm ? ((findEventRow(mm[1]) || {}).chain || [])[Number(mm[2])] : null;
+				if (ev && isNonNegInt(ev.step)) {
+					if (!stepsOf.has(s.skillId)) stepsOf.set(s.skillId, []);
+					if (stepsOf.get(s.skillId).indexOf(ev.step) === -1) stepsOf.get(s.skillId).push(ev.step);
+				}
+			});
+			const hasKind = (id, k) => !!kindsOf.get(id) && kindsOf.get(id).has(k);
+			const catOf = (u) => {
+				const id = u.head.it.skillId;
+				const r = rarityOf(id);
+				if (memKind === 'uma') {
+					if (r === 'unique') return 'unique';
+					if (u.evo) return 'evo';
+					if (!hasKind(id, 'uma') && hasKind(id, 'umaEvent')) return 'event';
+					return r === 'gold' ? 'gold' : 'white';
+				}
+				if (hasKind(id, 'hint') || hasKind(id, 'event')) return r === 'gold' ? 'gold' : 'white';
+				return 'common';
+			};
+			const CAT_ORDER = { uma: ['unique', 'evo', 'gold', 'white', 'event'], card: ['gold', 'white', 'common'] }[memKind];
+			let sorted = units;
+			if (CAT_ORDER) {
+				units.forEach((u, n) => { u.cat = catOf(u); u.n = n; u.pos = skillDisplayPos ? skillDisplayPos.get(String(u.head.it.skillId)) : undefined; });
+				const byNewer = (a, b) => (a.pos === undefined) - (b.pos === undefined) || (a.pos !== undefined && b.pos !== undefined ? b.pos - a.pos : 0) || a.n - b.n;
+				sorted = [];
+				CAT_ORDER.forEach(c => [false, true].forEach(mb => units.filter(u => u.cat === c && u.head.maybe === mb).sort(byNewer).forEach(u => sorted.push(u))));
+			}
+			const addSrcTag = (li, text, el) => {
+				const nm = li.querySelector('.usd-ev-skill-name');
+				if (!nm) return;
+				const tg = infoEl('span', 'usd-roster-autotag', text);
+				tg.setAttribute('data-usd-el', el);
+				nm.appendChild(tg);
+			};
+			sorted.forEach(u => u.rows.forEach(row => {
+				const li = row.make();
+				const id = row.x ? row.x.it.skillId : null;
+				if (id !== null && memKind === 'card' && stepsOf.has(id)) addSrcTag(li, '連続イベント' + stepsOf.get(id).sort((a, b) => a - b).join('・') + '回目', 'ev-skill-chain');
+				if (id !== null && memKind === 'uma' && u.cat === 'event') addSrcTag(li, 'イベントスキル', 'ev-skill-event');
+				ul.appendChild(li);
+			}));
 			right.appendChild(ul);
 		}
 		// ── 狭い幅（1列）では「イベント」「スキル」の2つのタブで切り替える。タブの見た目・押し方（クリック・←→・Home/End）・左右スワイプは、

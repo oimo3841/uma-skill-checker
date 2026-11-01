@@ -166,7 +166,9 @@ export async function register56(env) {
 	const SCEN_DOC = readJson('data/scenario-event-skills.json');
 	const md5 = (s) => crypto.createHash('md5').update(s).digest('hex').slice(0, 16);
 	// 2026-10-27（スキルの既定の並び）: 小窓の右の一覧の行（li）を並べ替えた形。顔ぶれが変更前と同じことを、並びに左右されずに見る
-	const canonHtml = (h) => (h ? h.replace(/<li\b[\s\S]*?<\/li>/g, '') + (h.match(/<li\b[\s\S]*?<\/li>/g) || []).sort().join('') : h);
+	// T70（2026-11-02）: 並べ替えた形では、T70 で足した由来の札（「連続イベントX回目」「イベントスキル」）も取り除く（顔ぶれと各行の中身が前と同じことを見るため）
+	const stripSrcTags = (h) => h.replace(/<span class="usd-roster-autotag" data-usd-el="ev-skill-(?:chain|event)">[^<]*<\/span>/g, '');
+	const canonHtml = (h) => (h ? (h = stripSrcTags(h), h.replace(/<li\b[\s\S]*?<\/li>/g, '') + (h.match(/<li\b[\s\S]*?<\/li>/g) || []).sort().join('')) : h);
 	const canonCol = (x) => Object.assign({}, x, { right: canonHtml(x.right), rightText: undefined });
 	// T67（2026-11-02）: ①は種別の順→ID の降順に並ぶので、材料もその順に置く（顔ぶれは前と同じ）。吾妻（card-0564・card-0566）の列は 5（AZ_KEY）
 	const R1 = ['card-0478', 'card-0565', 'card-0535', 'card-0248', 'card-0564', 'card-0402'];
@@ -182,9 +184,12 @@ export async function register56(env) {
 	// 2026-11-02（T67 ①のカードの並び）: ほかの列 othersHash（R1 95449442aa405282→10e23358a7cc5335・R2 54b158e30cbb3187→11f6b917730ee8cb）・
 	// othersCanon（R1 ed9602c3b628e817→0773972dbaf4735f・R2 73c181fe0c2e876d→5303401b39ec27f0）は、列の番号（キー）とカードの組が並べ直しで変わったため。
 	// 変更前の製品（ef915f0）に、並んだ順の材料（上の R1・R2）を入れて測ると、4つとも新しい値と一致した（差は並びだけ）。合計・行・吾妻の列の中身は変わらない
+	// 2026-11-02（T70 詳細の小窓のスキルの並び・C-266 の (3)）: 右の一覧の並びと由来の札（「連続イベントX回目」「イベントスキル」）が変わったので、
+	// othersHash（R1 10e23358a7cc5335→2346c540dfb1e28b・R2 11f6b917730ee8cb→ed73a1ea84a0fc5e）と吾妻の列の rightHash（766f5a64af63aec4→a4d33b18abc93784）は変更後の値。
+	// *Canon は並べ替えた形から T70 の札を取り除いて測り（stripSrcTags）、前の値のまま一致する（顔ぶれと各行の中身は同じ）。合計・行・左のイベントは変わらない
 	const BEFORE4 = {
-		R1: { total: '8,863', rows: 83, rowsHash: '7d0680abed707734', othersHash: '10e23358a7cc5335', leftHash: '78aa6a02cd962b23', rightHash: '766f5a64af63aec4', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: '0773972dbaf4735f', rightCanon: '126e0947b8b1dafc' },
-		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: '11f6b917730ee8cb', rowsCanon: '14e40cb2351ce84e', othersCanon: '5303401b39ec27f0' }
+		R1: { total: '8,863', rows: 83, rowsHash: '7d0680abed707734', othersHash: '2346c540dfb1e28b', leftHash: '78aa6a02cd962b23', rightHash: 'a4d33b18abc93784', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: '0773972dbaf4735f', rightCanon: '126e0947b8b1dafc' },
+		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: 'ed73a1ea84a0fc5e', rowsCanon: '14e40cb2351ce84e', othersCanon: '5303401b39ec27f0' }
 	};
 	const dumpCols = async (cards) => {
 		const sp = await openPage(browser, base, 'special.html', { width: 1280, height: 900 }, EMPTY);

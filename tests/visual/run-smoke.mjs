@@ -119,6 +119,7 @@ import { register89 } from './blocks-89.mjs';
 import { register90 } from './blocks-90.mjs';
 import { register91 } from './blocks-91.mjs';
 import { register92 } from './blocks-92.mjs';
+import { register93 } from './blocks-93.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15466,6 +15467,8 @@ await register90({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register91({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T68（2026-11-02）: 動画の取り込みの取り消し（読み込み・シークが返ってこない場合も。見出しは「T68動画の取り消し」）
 await register92({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T70（2026-11-02）: 詳細の小窓の「取得できるスキル」の並びと札（C-266 の (3)。見出しは「T70スキルの並び」）
+await register93({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
