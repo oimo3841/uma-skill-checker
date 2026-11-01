@@ -21,10 +21,11 @@
  *
  * 重いループはメインのまま、約 24ms ごとに await で譲る（Web Worker は使わない。おいもさんの決定 2026-10-31）。
  * opts.signal（AbortSignal）で取り消すと、次に譲ったところで name が 'AbortError' の例外で止まる。
+ * 動画の読み込み・シーク・描画の待ちが返ってこないときも、取り消したらその場で止まる（untilAbort。T68）。
  * opts.onProgress({ phase, done, total, ratio, persons }) に進捗を知らせる（phase: 'read' | 'select' | 'grab' | 'compose'）。
  *
  * 使い方（V1-2 の想定）:
- *   const src = await UmaVideoFrames.videoSource(file);           // File / Blob / URL
+ *   const src = await UmaVideoFrames.videoSource(file, { signal }); // File / Blob / URL
  *   try {
  *     const sel = await UmaVideoFrames.selectFrames(src, { signal, onProgress });
  *     for (const p of sel.persons) {
@@ -36,7 +37,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-10-31a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-02a';
 
 	const DEFAULTS = {
 		fps: 4,              // 調べる間隔（1秒あたり）
@@ -72,6 +73,16 @@
 	}
 	function isAbortError(e) { return !!e && e.name === 'AbortError'; }
 	function framesError(code, msg) { const e = new Error(msg); e.code = code; return e; }
+	// 待ちが返ってこなくても（動画の読み込み・シーク・作り物の画の描画）、取り消したらすぐ AbortError で抜ける（T68）
+	function untilAbort(p, signal) {
+		if (!signal) return p;
+		if (signal.aborted) return Promise.reject(abortError());
+		return new Promise((res, rej) => {
+			const onAbort = () => rej(abortError());
+			signal.addEventListener('abort', onAbort, { once: true });
+			Promise.resolve(p).then((v) => { signal.removeEventListener('abort', onAbort); res(v); }, (e) => { signal.removeEventListener('abort', onAbort); rej(e); });
+		});
+	}
 
 	// setTimeout(0) は裏のタブで 1秒に間引かれるので、MessageChannel で譲る
 	let channel = null;
@@ -122,19 +133,21 @@
 		});
 	}
 
-	/** 動画ファイル（File / Blob / URL の文字列）から。close() で後片付け */
-	async function videoSource(input) {
+	/** 動画ファイル（File / Blob / URL の文字列）から。close() で後片付け。o.signal で読み込みの待ちの途中でも取り消せる（T68） */
+	async function videoSource(input, o) {
+		const signal = (o && o.signal) || null;
+		if (signal && signal.aborted) throw abortError();
 		const own = typeof input !== 'string';
 		const url = own ? URL.createObjectURL(input) : input;
 		const v = document.createElement('video');
 		v.muted = true; v.preload = 'auto'; v.playsInline = true; v.src = url;
 		const close = () => { try { v.removeAttribute('src'); v.load(); } catch (e) { /* 何もしない */ } if (own) URL.revokeObjectURL(url); };
 		try {
-			await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(framesError('decode', '動画を読めない')); });
+			await untilAbort(new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(framesError('decode', '動画を読めない')); }), signal);
 			if (!v.videoWidth || !v.videoHeight) throw framesError('no-video-track', '映像を復号できない');
 			let D = v.duration;
 			// MediaRecorder の WebM などは長さが Infinity のことがある。末尾までシークすると分かる
-			if (!isFinite(D)) { await seekVideo(v, 1e7); D = v.duration; await seekVideo(v, 0); }
+			if (!isFinite(D)) { await seekVideo(v, 1e7, signal); D = v.duration; await seekVideo(v, 0, signal); }
 			if (!isFinite(D) || D <= 0) throw framesError('no-duration', '動画の長さが分からない');
 			return {
 				kind: 'video', width: v.videoWidth, height: v.videoHeight, duration: D,
@@ -150,7 +163,7 @@
 			kind: spec.kind || 'canvas', width: spec.width, height: spec.height, duration: spec.duration,
 			async drawAt(t, ctx, dw, dh, signal) {
 				if (signal && signal.aborted) throw abortError();
-				await spec.draw(t, ctx, dw, dh);
+				await untilAbort(spec.draw(t, ctx, dw, dh), signal);
 			},
 			close() { if (spec.close) spec.close(); }
 		};
@@ -303,7 +316,7 @@
 		let blankSkipped = 0;
 		for (let n = 0; n < times.length; n++) {
 			await pause();
-			await source.drawAt(times[n], sctx, sw, H, signal);
+			await untilAbort(source.drawAt(times[n], sctx, sw, H, signal), signal);
 			const band = sctx.getImageData(0, bandY0, sw, bandY1 - bandY0).data;
 			const top = toGray(sctx.getImageData(0, topY, sw, topH).data);
 			const bandGray = toGray(band);
@@ -380,7 +393,7 @@
 		// 速い区間だけ細かく取り直す。縮小画・本文のグレーを同じ形で作る（真っ白・真っ黒なら null）
 		async function sampleEntry(t) {
 			await pause();
-			await source.drawAt(t, sctx, sw, H, signal);
+			await untilAbort(source.drawAt(t, sctx, sw, H, signal), signal);
 			const band = toGray(sctx.getImageData(0, hE, sw, cH).data);
 			if (isBlankGray([band], opts.blankRatio)) { blankSkipped++; return null; }
 			const g = new Uint8Array(pw * cH);
@@ -560,7 +573,7 @@
 			const p = picks[i];
 			let t = p.t, tries = 0;
 			while (true) {
-				await source.drawAt(t, fctx, W, H, signal);
+				await untilAbort(source.drawAt(t, fctx, W, H, signal), signal);
 				if (!isBlankCanvas(fctx, W, H, opts.blankRatio)) break;
 				// シークの直後に描けていない（真っ白・真っ黒）。同じ時刻をもう一度 → 少しずらして取り直す
 				if (++tries > opts.grabRetry) throw framesError('blank-grab', '動画のフレームを描けない: ' + p.t);
@@ -571,7 +584,7 @@
 				if (!fixedTop) { fixedTop = fctx.getImageData(0, 0, W, keepTop); fixedBottom = fctx.getImageData(0, keepBottomY, W, H - keepBottomY); }
 				else { fctx.putImageData(fixedTop, 0, 0); fctx.putImageData(fixedBottom, 0, keepBottomY); }
 			}
-			const blob = await new Promise((res) => full.toBlob(res, opts.grabType, opts.grabQ));
+			const blob = await untilAbort(new Promise((res) => full.toBlob(res, opts.grabType, opts.grabQ)), signal);
 			if (!blob) throw framesError('encode', '静止画にできない');
 			files.push(new File([blob], 'frame-' + String(Math.round(p.t * 1000)).padStart(6, '0') + ext, { type: opts.grabType }));
 			progress('grab', i + 1, picks.length);
@@ -717,6 +730,7 @@
 		canvasSource,
 		selectFrames,
 		composePerson,
-		isAbortError
+		isAbortError,
+		untilAbort
 	});
 })(typeof window !== 'undefined' ? window : globalThis);

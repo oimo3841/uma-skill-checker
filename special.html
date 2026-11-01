@@ -58,7 +58,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
-	<script src="js/video-frames.js?v=2026-10-31a"></script>
+	<script src="js/video-frames.js?v=2026-11-02a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -1717,9 +1717,10 @@
 			const t0 = performance.now();
 			let src = null;
 			try {
-				src = (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.videoSource(input);
+				// 読み込み・シークの待ちが返ってこなくても「取り消す」でその場で抜ける（T68。前は読み込みの待ちが取り消しを聞いておらず、押しても何も起きなかった）
+				src = (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.videoSource(input, { signal: ctrl.signal });
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
-				const sel = await UmaVideoFrames.selectFrames(src, { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress });
+				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress }), ctrl.signal);
 				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
 				const counts = [];
 				sel.persons.forEach((p, r) => {

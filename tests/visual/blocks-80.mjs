@@ -289,7 +289,7 @@ export async function register80(env) {
 			const fr = (() => { try { g.x = 1; return g.x === 1; } catch (e) { return false; } })();
 			return { keys: Object.keys(g).sort(), version: g.VERSION, frozen: Object.isFrozen(g) && !fr, bad, defaults: { xs: g.DEFAULTS.xs, grabType: g.DEFAULTS.grabType, grabQ: g.DEFAULTS.grabQ, verCoarse: g.DEFAULTS.verCoarse, verYs: g.DEFAULTS.verYs } };
 		});
-		assert(r.keys.join() === 'DEFAULTS,VERSION,canvasSource,composePerson,isAbortError,selectFrames,videoSource' && r.frozen, 'T42動画(5) UmaVideoFrames の中身と、書き換えられないこと', r.keys);
+		assert(r.keys.join() === 'DEFAULTS,VERSION,canvasSource,composePerson,isAbortError,selectFrames,untilAbort,videoSource' && r.frozen, 'T42動画(5) UmaVideoFrames の中身と、書き換えられないこと', r.keys);
 		assert(/^\d{4}-\d{2}-\d{2}[a-z]$/.test(r.version), 'T42動画(5) VERSION が日付＋連番', r.version);
 		assert(r.defaults.xs === 6 && r.defaults.grabType === 'image/jpeg' && r.defaults.grabQ === 0.92 && r.defaults.verCoarse === true && r.defaults.verYs === 4, 'T42動画(5) 既定の設定が T39 の最終形（xs=6・verYs=4・verCoarse・JPEG 0.92）', r.defaults);
 		assert(r.bad && r.bad.code === 'decode', 'T42動画(5) 読めない動画は code が decode の例外', r.bad);
