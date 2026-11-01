@@ -2351,6 +2351,8 @@ html[data-t66-tile="1"] :is([data-usd-el="outside-card"], [data-usd-el="outside-
 html[data-t66-tile="1"] :is([data-usd-el="outside-card"], [data-usd-el="outside-pinned"]) .usd-out-card-side > .usd-card-ico--rarity { margin-right: 17px; }
 html[data-t66-tile="1"] :is([data-usd-el="outside-card"], [data-usd-el="outside-pinned"]) .usd-out-card-sub--x { padding-right: 0; }
 /* 案2: SSR の札を左の種別アイコンの下へ（16px）・右の上の段に「＋X種」（右上の × の左）・下の段に「対象Y種」 */
+/* 案2 は右の列が低くなり、タイルが 44.2px → 44px（名前の押せる範囲が 0.2px 低くなる）。今より小さくしないため、今の高さにそろえる */
+html[data-t66-tile="2"] :is([data-usd-el="outside-card"], [data-usd-el="outside-pinned"]) { min-height: 44.2px; }
 html[data-t66-tile="2"] :is([data-usd-el="outside-card"], [data-usd-el="outside-pinned"]) .usd-out-card-lead { flex-direction: column; justify-content: center; gap: 0; align-self: stretch; }
 html[data-t66-tile="2"] :is([data-usd-el="outside-card"], [data-usd-el="outside-pinned"]) .usd-out-card-lead > .usd-card-ico--rarity { width: 16px; height: 16px; }
 html[data-t66-tile="2"] :is([data-usd-el="outside-card"], [data-usd-el="outside-pinned"]) .usd-out-card-x { top: 0; bottom: auto; align-items: flex-start; padding: 5px 5px 0 0; }
