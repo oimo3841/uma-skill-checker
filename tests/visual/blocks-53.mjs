@@ -108,6 +108,9 @@ export async function register53(env) {
 
 	await block('駿大祭(3) ③のシナリオ因子の一覧に「駿大祭シナリオ」がある（25種。データの並びの末尾）', async () => {
 		const sp = await openSp({ w: 390, tab: 2 });
+		// T56（C-258 の (2)-1）: シナリオ因子・遺伝子の行は画面に出さなくなった（core の「?」の一覧は残っている）。データの並びを見るため、検査の中だけ行を見せて押す
+		await sp.page.waitForSelector('#deck-scopes-bar [data-usd-act="scope-help"][data-scope="scenarioFactors"]', { state: 'attached', timeout: 15000 });
+		await sp.page.evaluate(() => { document.getElementById('deck-scopes-bar').hidden = false; });
 		await sp.page.waitForSelector('[data-usd-act="scope-help"][data-scope="scenarioFactors"]', { timeout: 15000 });
 		await sp.page.click('[data-usd-act="scope-help"][data-scope="scenarioFactors"]');
 		await sp.page.waitForSelector('[data-usd-el="scope-list-close"]', { timeout: 10000 });

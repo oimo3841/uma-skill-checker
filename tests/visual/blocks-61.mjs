@@ -296,9 +296,11 @@ export async function register61(env) {
 	await block('②マーカー(8) ③の結果の表: スキルの行の名前の左は自動のマーカー（16px・②と同じ種類）／◎○▲は無い／シナリオ因子◆は残る', async () => {
 		const sp = await openSp({ w: 1280, roster: R1S, ids: GIDS });
 		const page = sp.page;
-		await page.evaluate(() => selectStepTab(2));   // ③の表とシナリオ因子のチェック（③の先頭の行）を見えるように
+		await page.evaluate(() => selectStepTab(2));   // ③の表を見えるように
 		await page.waitForTimeout(300);
-		await page.click('#deck-scopes-bar [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
+		// T56（C-258 の (2)-1）: シナリオ因子は画面から対象にできなくなった（チェックの行を出さない・遺伝子だけがいつも対象）。
+		// シナリオ因子の行の◆を見るため、検査の中だけ対象の節を差し替える（シナリオ因子だけを対象に＝T56 より前の「シナリオ因子だけ ON」と同じ）
+		await page.evaluate(() => { FACTOR_SCOPE_OCR.scenarioFactors = true; FACTOR_SCOPE_OCR.genes = false; onDeckScopeSelected(deckTemplateManager.getSelection()); });
 		await page.waitForTimeout(400);
 		const res = await page.evaluate(() => {
 			const mk = (texts) => texts.map((t, i) => ({ text: t, stars: (i % 3) + 1, starsReliable: true, rowKey: 'r' + i }));

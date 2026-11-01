@@ -1020,7 +1020,8 @@ await block('special.html（UmaStar OCR）', async () => {
 	// 親A／親Bセットは帯のタブで切り替える（C-54）。B のタブを押すと B のパネルだけが見える
 	const setTabs = await page.evaluate(() => [...document.querySelectorAll('#personset-tabs .uma-subtab')].map(t => ({
 		label: t.querySelector('.uma-subtab-label').textContent, selected: t.getAttribute('aria-selected'), tinted: t.classList.contains('uma-subtab--tinted') })));
-	assert(setTabs.length === 2 && setTabs[0].label === '親Aセット' && setTabs[0].selected === 'true' && setTabs[1].label === '親Bセット' && setTabs.every(t => t.tinted),
+	// T56（C-258 の (2)-6）: 親B に画像が無いあいだは「＋親Bセット」（入ると「親Bセット」。blocks-86 の T56画像アップロード(4) が見る）
+	assert(setTabs.length === 2 && setTabs[0].label === '親Aセット' && setTabs[0].selected === 'true' && setTabs[1].label === '＋親Bセット' && setTabs.every(t => t.tinted),
 		'special: ③に親A／親Bセットのタブがあり、既定は親A', setTabs);
 	await page.click('#personset-tabs .uma-subtab[data-tab-id="1"]');
 	await page.waitForTimeout(300);
@@ -2028,8 +2029,9 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	await page.waitForTimeout(300);
 	const step2 = await stepState();
 	assert(step2.tab2 === 'true' && !step2.panel1 && step2.panel2, 'exam: ②のタブを押すとパネルが入れ替わる', step2);
-	assert(await page.isVisible('#process-btn') && await page.isVisible('#setb-toggle-btn'),
-		'exam: ②に実行ボタンと「親Bセットも追加する」がある');  // exam は据え置き（C-54 は special だけ）
+	// T56（C-258 の (2)-7）: exam も「＋ 親Bセットも追加する」を消し、special と同じタブ（親Aセット／＋親Bセット）にした
+	assert(await page.isVisible('#process-btn') && !(await page.$('#setb-toggle-btn')) && await page.isVisible('#personset-tabs .uma-subtab[data-tab-id="1"]'),
+		'exam: ②に実行ボタンと親A／＋親Bセットのタブがある（「親Bセットも追加する」は無い）');
 	await page.keyboard.press('ArrowLeft');
 	await page.waitForTimeout(300);
 	assert((await stepState()).panel1, 'exam: ←キーで①へ戻る');
@@ -6426,7 +6428,7 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
  * OCR は回さず、stitchOnePerson を差し替えて「OCR が済んだ状態」（lastOcrRun）を作る。
  * 見るのは stitchRefreshState() の遷移:
  *   same（表示設定が同じ）→ ready（違う）→ same（戻した）／
- *   stale（画像の足し引き・範囲・シナリオ因子・集計モード・親Bセットの開閉・OCR だけ回した）→ 戻せば same
+ *   stale（画像の足し引き〔親Bセットも〕・範囲・シナリオ因子・集計モード・OCR だけ回した）→ 戻せば same（T56 で親Bセットの開閉はタブになり、タブの切り替えは same のまま）
  * と、refreshStitchedImages() が OCR を回さずに作り直し、未読の印を立てないこと。
  * ============================================================ */
 await block('exam.html — 結果画像の引き出しからの「画像を更新」（③）: 状態の判定', async () => {
@@ -6517,10 +6519,15 @@ await block('exam.html — 結果画像の引き出しからの「画像を更�
 			out.states.countMode = stitchRefreshState();
 			setCountMode('equivalence');
 			out.states.countModeBack = stitchRefreshState();
-			// 親Bセットの開閉 → stale → 戻す
-			toggleSetB();
+			// T56（C-258 の (2)-7）: 親Bセットの開閉（toggleSetB）はタブに置き換えた。タブを切り替えても結合の範囲は変わらない（same のまま）。
+			// 親Bセットに画像を足すと stale・外すと same（結合の範囲は画像のあるセット）
+			selectPersonSet(1);
 			out.states.setB = stitchRefreshState();
-			toggleSetB();
+			selectPersonSet(0);
+			out.states.setBTabBack = stitchRefreshState();
+			persons[3].files = [{ name: 'b.png' }];
+			out.states.setBFile = stitchRefreshState();
+			persons[3].files = [];
 			out.states.setBBack = stitchRefreshState();
 			// 結果画像より後に OCR だけ回した → stale（表示設定を変えても押せない）
 			lastOcrRun = captureRun();
@@ -6558,7 +6565,8 @@ await block('exam.html — 結果画像の引き出しからの「画像を更�
 	assert(st.scopeChanged === 'stale' && st.scopeBack === 'same', '画像を更新: 範囲を変えると stale、戻すと same', st);
 	assert(st.factorOn === 'stale' && st.factorOff === 'same', '画像を更新: シナリオ因子を変えると stale、戻すと same', st);
 	assert(st.countMode === 'stale' && st.countModeBack === 'same', '画像を更新: 集計モードを変えると stale、戻すと same', st);
-	assert(st.setB === 'stale' && st.setBBack === 'same', '画像を更新: 親Bセットの開閉で stale、戻すと same', st);
+	assert(st.setB === 'same' && st.setBTabBack === 'same' && st.setBFile === 'stale' && st.setBBack === 'same',
+		'画像を更新: 親Aセット／親Bセットのタブを切り替えても same・親Bセットに画像を足すと stale、外すと same（T56）', st);
 	assert(st.ocrOnlyAfter === 'stale' && flow.staleRefreshIgnored, '画像を更新: 結果画像より後に OCR だけ回したら stale で、更新は何もしない', flow);
 	assert(errors.length === 0, '画像を更新: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
@@ -7824,7 +7832,9 @@ await block('②の B・C ―― シナリオ因子と遺伝子を対象に含�
 	await page.waitForTimeout(300);
 	// 段8（C-120）で②のタブの帯を無くし、シナリオ因子／遺伝子のチェックを③の先頭の1行（#deck-scopes-bar）へ移した。
 	// セットは deckTemplateManager.setSelectedId で選び、チェックは③のタブで見る（新しい置き場所の仕様は blocks-8.mjs の段8(E)）
-	await page.evaluate((id) => { deckTemplateManager.setSelectedId(id); selectStepTab(2, { noSave: true }); }, TEMPLATE_ID);
+	// T56（C-258 の (2)-1）: この行は画面に出さなくなった（遺伝子はいつも対象・シナリオ因子は対象外。blocks-86 の T56画像アップロード(6)(7) が見る）。
+	// 節の ON/OFF の保存の仕組み（core の scopes・schemaVersion 5・書き出し）は、保存の形を変えないために残っているので、この塊は行を検査の中だけ見せて仕組みを見張る
+	await page.evaluate((id) => { deckTemplateManager.setSelectedId(id); selectStepTab(2, { noSave: true }); document.getElementById('deck-scopes-bar').hidden = false; }, TEMPLATE_ID);
 	await page.waitForTimeout(400);
 	const sc = () => page.evaluate(() => {
 		const r = '#deck-scopes-bar';
@@ -7940,7 +7950,7 @@ await block('②の B・C ―― シナリオ因子と遺伝子を対象に含�
 	if (await page2.isVisible('#ui-notice')) await page2.click('[data-act="notice-ok"]');
 	await page2.waitForTimeout(300);
 	// 段8（C-120）: セットは setSelectedId で選び、チェックは③の先頭の1行（#deck-scopes-bar）で見る
-	await page2.evaluate((id) => { deckTemplateManager.setSelectedId(id); selectStepTab(2, { noSave: true }); }, TEMPLATE_ID);
+	await page2.evaluate((id) => { deckTemplateManager.setSelectedId(id); selectStepTab(2, { noSave: true }); document.getElementById('deck-scopes-bar').hidden = false; }, TEMPLATE_ID);
 	await page2.waitForTimeout(400);
 	const back = await page2.evaluate(() => {
 		const r = '#deck-scopes-bar';
@@ -8071,8 +8081,9 @@ await block('段K ―― ②の画面構成（スキルセット／シナリオ�
 				const inView = (el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; };
 				return {
 					n: secs.length,
-					// チェックが画面内にあるか
+					// チェックが画面内にあるか（T56 からは行ごと画面に出さないので、見えていないこと〔shown=false〕を見る。下の assert）
 					checksInView: secs.length > 0 && secs.every(inView),
+					shown: !!document.getElementById('deck-scopes-bar').offsetParent,
 					checked: secs.map(s => s.querySelector('input[type="checkbox"]').checked),
 				};
 			});
@@ -8095,8 +8106,10 @@ await block('段K ―― ②の画面構成（スキルセット／シナリオ�
 		};
 
 		const before = await read();
-		assert(before.n === 2 && before.checked.every(Boolean) && before.checksInView,
-			'段K(' + w + 'px): ON のチェックが画面内にある（③の先頭の1行）', before);
+		// T56（C-258 の (2)-1）: シナリオ因子・遺伝子の行は画面に出さない（保存の scopes は今のまま読み書きされる）。
+		// 段K の「切り替えたチェックが画面内で見える」は見張る対象が無くなったので、行が見えないことと、保存の状態が切り替えに付いてくることを見る
+		assert(before.n === 2 && before.checked.every(Boolean) && !before.shown,
+			'段K(' + w + 'px): シナリオ因子・遺伝子の行は見えない（T56）・保存の ON は読める', before);
 
 		// **セットを切り替える。** B は scopes を持たないのでチェックが外れる（C-2a の仕様）。
 		// その変化が**画面に入っていること**が段K の目的。段8: 切り替えは共通の見出しの帯の一覧から
@@ -8106,8 +8119,8 @@ await block('段K ―― ②の画面構成（スキルセット／シナリオ�
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(200);
 		const after = await read();
-		assert(after.checked.every(v => v === false) && after.checksInView,
-			'段K(' + w + 'px): セットを切り替えた直後、外れたチェックが画面内で見える', after);
+		assert(after.checked.every(v => v === false) && !after.shown,
+			'段K(' + w + 'px): セットを切り替えると保存の状態も切り替わる（行は見えないまま。T56）', after);
 		/* **73セッション目に言い方を変えた。** 入口の並びは折り返さなくなった（横に送る形）ので、
 		   「切り替えで段数が変わらない」は**どう転んでも通る検査**になった。
 		   段数は**常に1**であることを直接言う形にして、意味を持たせている。 */
@@ -8158,12 +8171,15 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 		badge: document.getElementById('skill-count-badge').textContent,
 		n: (deckTemplateManager.getSetSummary() || {}).factorKinds
 	}));
+	// T56（C-258 の (2)-1）: 節の ON/OFF の行は画面に出さず、遺伝子はいつも対象・シナリオ因子は対象外（FACTOR_SCOPE_OCR）。
+	// 既定（③のチェックなし）で、因子は遺伝子だけ入る（スキルの数・②のタブのバッジは因子を数えない）
+	const nGeneAll = await page.evaluate(() => UmaSkillDeckCore.getCatalogEntries('geneFactor').length);
 	const off = await lists();
-	assert(off.all === off.skills && off.factors === 0 && off.badge === off.n + '種',
-		'C-2b: OFF のときは因子が1つも混ざらない（今までどおり）', off);
-
-	// B（シナリオ因子）を ON にする（C-2c で1行になったので、そのままチェックを押せる）
-	await page.click('#deck-scopes-bar [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
+	assert(off.all === off.skills + nGeneAll && off.factors === nGeneAll && off.badge === off.n + '種',
+		'C-2b（T56）: 既定で因子は遺伝子だけ入り、スキルの数とバッジは因子を数えない', Object.assign({ nGeneAll }, off));
+	// 以下は照合の仕組み（誤マッチのガード・数え分け・印・コピー）を見る。シナリオ因子は画面から対象にできなくなったので、
+	// 検査の中だけ対象の節を差し替える（シナリオ因子だけを対象にした状態＝T56 より前の「B だけ ON」と同じ）
+	await page.evaluate(() => { FACTOR_SCOPE_OCR.scenarioFactors = true; FACTOR_SCOPE_OCR.genes = false; onDeckScopeSelected(deckTemplateManager.getSelection()); });
 	await page.waitForTimeout(400);
 	const nFactor = await page.evaluate(() => UmaSkillDeckCore.getCatalogEntries('scenarioFactor').length);
 	const on = await lists();
@@ -8284,8 +8300,9 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 
 	/* --- 段G: 遺伝子も ON にして、◆と♡が**同時に**出ることを見る ---
 	   C-2b の段では節が1つしか ON になっていないので、2つの印が混ざらないことは確かめられない。
-	   凡例は「含めている節のぶんだけ」行が増えるので、2節 ON なら1節 ON より高くなる。 */
-	await page.click('#deck-scopes-bar [data-usd-act="scope-check"][data-scope="genes"]');
+	   凡例は「含めている節のぶんだけ」行が増えるので、2節 ON なら1節 ON より高くなる。
+	   T56: チェックの行は画面に出さないので、検査の中だけ対象の節を差し替える（遺伝子も対象に） */
+	await page.evaluate(() => { FACTOR_SCOPE_OCR.genes = true; onDeckScopeSelected(deckTemplateManager.getSelection()); });
 	await page.waitForTimeout(400);
 	const both = await page.evaluate(() => {
 		const names = UmaSkillDeckCore.getCatalogEntries('scenarioFactor').map(e => e.name);
@@ -8642,7 +8659,8 @@ await block('special と exam の操作感を揃える（59セッション目・
  * C-59 では案(c) として挙げながら採らなかったものを、**exam と同じ連続した体験を
  * special でも作るほうが、ボタンの数を抑えることより大事**という判断で入れた。
  * 見るのは4点。
- *   - 3つのボタンの主従（一体＝黒塗り・大／個別2つ＝白地・標準）と並び
+ *   - ボタンの主従と並び（T56〔C-258 の (2)-9〕で「OCR処理を開始する」を消して2つ。一体＝黒塗り・大／「画像を結合する」＝白地・標準。
+ *     塊の見出しの「（高負荷）」は当時の名前のまま残している〔塊の時間の記録が見出しで引くため〕）
  *   - 押せる条件が **special の前提**（対象スキルセットが空でなく、画像が1枚以上）に合っていること。
  *     とくに「画像を結合する」は、セットが空でも押せたまま（退行させていない）
  *   - 一体の処理の間は3つとも押せないこと（途中で個別のボタンが復活しない）
@@ -8663,24 +8681,22 @@ await block('special の「OCR処理＋画像結合を開始する（高負荷�
 			const r = b.getBoundingClientRect();
 			return { cls: b.className, disabled: b.disabled, top: Math.round(r.top), h: Math.round(r.height) };
 		};
-		return { combo: one('process-stitch-btn'), ocr: one('process-btn'), stitch: one('stitch-btn') };
+		return { combo: one('process-stitch-btn'), ocr: document.getElementById('process-btn'), stitch: one('stitch-btn') };
 	});
 
 	let L = await look();
-	// C-62 の (8): **並び・大きさ・色を exam.html と同じにした**（C-61 で special だけ
-	// 一体を先頭に置いていたのを戻した）。3つ目の「画像を結合する」は special だけの操作。
-	assert(L.ocr.top < L.combo.top && L.combo.top < L.stitch.top,
-		'C-62 (8): 並びは exam と同じ「OCR単独 → 一体 → 結合だけ」', { ocr: L.ocr.top, combo: L.combo.top, stitch: L.stitch.top });
-	assert(L.ocr.cls.includes('uma-btn--primary') && L.ocr.cls.includes('uma-btn--lg'),
-		'C-62 (8): OCR単独は黒塗り・大（exam と同じ）', L.ocr.cls);
-	assert(L.combo.cls.includes('uma-btn--accent-outline') && L.combo.cls.includes('uma-btn--lg'),
-		'C-62 (8): 一体は枠線・大（exam と同じ）', L.combo.cls);
+	// T56（C-258 の (2)-9）: special は「OCR処理を開始する」を消し、一体のボタンを先頭の黒塗りの主なボタンにした（（高負荷）も外した）。
+	// それまでの C-62 の (8)（並び・大きさ・色を exam と同じ「OCR単独 → 一体 → 結合だけ」）は置き換えた。exam は「OCR処理を開始する」を残す（blocks-86 の T56画像アップロード(3)）
+	assert(L.ocr === null && L.combo.top < L.stitch.top,
+		'T56: 「OCR処理を開始する」は無く、並びは「一体 → 結合だけ」', { ocr: L.ocr, combo: L.combo.top, stitch: L.stitch.top });
+	assert(L.combo.cls.includes('uma-btn--primary') && L.combo.cls.includes('uma-btn--lg') && !L.combo.cls.includes('uma-btn--accent-outline'),
+		'T56: 一体は黒塗り・大（主なボタン）', L.combo.cls);
 	assert(L.stitch.cls.includes('uma-btn--secondary') && !L.stitch.cls.includes('uma-btn--lg'),
 		'C-62 (8): 「画像を結合する」だけは標準の大きさのまま', L.stitch.cls);
-	assert(L.ocr.h === L.combo.h && L.combo.h > L.stitch.h,
-		'C-62 (8): 上の2つは同じ高さで、3つ目だけ低い', { ocr: L.ocr.h, combo: L.combo.h, stitch: L.stitch.h });
-	assert((await page.textContent('#process-stitch-btn')).trim() === 'OCR処理＋画像結合を開始する（高負荷）',
-		'C-61: 文言は exam と同じ');
+	assert(L.combo.h > L.stitch.h,
+		'C-62 (8): 一体のほうが「画像を結合する」より高い', { combo: L.combo.h, stitch: L.stitch.h });
+	assert((await page.textContent('#process-stitch-btn')).trim() === 'OCR処理＋画像結合を開始する',
+		'T56: 文言は「OCR処理＋画像結合を開始する」（（高負荷）なし。exam と同じ）');
 	assert((await page.textContent('#stitch-btn')).trim() === '画像を結合する（OCRしない）',
 		'C-62 (8): 3つ目は「画像を結合する（OCRしない）」（「（SNS投稿用）」から変えた）');
 	// 「個別に実行することもできます」の説明は C-62 の (8)-4 で削除した
@@ -8690,8 +8706,8 @@ await block('special の「OCR処理＋画像結合を開始する（高負荷�
 		'C-62 (8) → C-63 (7) → 段5(C-227): チェックの文言（印ではなく種類の枠）');
 
 	// 押せる条件。画像を足す前・足したあと・セットを外したあとの3通り
-	assert(L.combo.disabled && L.ocr.disabled && L.stitch.disabled,
-		'C-61: 画像が無ければ3つとも押せない', L);
+	assert(L.combo.disabled && L.stitch.disabled,
+		'C-61: 画像が無ければ2つとも押せない（T56 で3つ → 2つ）', L);
 	const setFiles = (n) => page.evaluate((k) => {
 		persons[0].files = Array.from({ length: k }, (_, i) => ({ name: 'a' + i + '.png' }));
 		updateProcessBtn();
@@ -8703,27 +8719,27 @@ await block('special の「OCR処理＋画像結合を開始する（高負荷�
 	await page.waitForTimeout(400);
 	await setFiles(2);
 	L = await look();
-	assert(!L.combo.disabled && !L.ocr.disabled && !L.stitch.disabled,
-		'C-61: セット＋画像がそろえば3つとも押せる', L);
-	// セットを外す（＝対象スキルが空）と、一体と OCR は押せず、「画像を結合する」だけ残る
+	assert(!L.combo.disabled && !L.stitch.disabled,
+		'C-61: セット＋画像がそろえば2つとも押せる', L);
+	// セットを外す（＝対象スキルが空）と、一体は押せず、「画像を結合する」だけ残る
 	await page.evaluate(() => { onDeckScopeSelected(null); });
 	await page.waitForTimeout(300);
 	L = await look();
-	assert(L.combo.disabled && L.ocr.disabled && !L.stitch.disabled,
+	assert(L.combo.disabled && !L.stitch.disabled,
 		'C-61: セットが空でも「画像を結合する」だけは押せる（special が保ってきた仕様）', L);
 
-	// 一体の処理の間は3つとも押せないまま（updateProcessBtn が早期 return する）
+	// 一体の処理の間は2つとも押せないまま（updateProcessBtn が早期 return する）
 	const busy = await page.evaluate(() => {
 		combinedInProgress = true;
-		['process-btn', 'process-stitch-btn', 'stitch-btn'].forEach((id) => { document.getElementById(id).disabled = true; });
+		['process-stitch-btn', 'stitch-btn'].forEach((id) => { document.getElementById(id).disabled = true; });
 		updateProcessBtn();   // 途中で呼ばれても戻さない
-		const during = ['process-btn', 'process-stitch-btn', 'stitch-btn'].map((id) => document.getElementById(id).disabled);
+		const during = ['process-stitch-btn', 'stitch-btn'].map((id) => document.getElementById(id).disabled);
 		combinedInProgress = false;
 		updateProcessBtn();
 		return during;
 	});
 	assert(busy.every((d) => d === true),
-		'C-61: 一体の処理中は updateProcessBtn() を呼んでも3つとも無効のまま', busy);
+		'C-61: 一体の処理中は updateProcessBtn() を呼んでも2つとも無効のまま', busy);
 
 	// 知らせはまとめて1回。OCR と結合の結末の組み合わせで文面が変わる
 	const texts = await page.evaluate(() => {
@@ -10191,11 +10207,13 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 		const sp = await page.evaluate(([a, b]) => ({
 			dict: skillList.filter((n) => n === a.name || n === b.name),
 			total: skillList.length,
+			// T56（C-258 の (2)-1）: 照合の辞書には遺伝子がいつも入る（因子の数は factorOnlyList。スキルの数は skillOnlyList）
+			skills: skillOnlyList.length, genes: factorOnlyList.length, geneAll: UmaSkillDeckCore.getCatalogEntries('geneFactor').length,
 			// C-226: special の②はアイコンを出さない（行の先頭は自動のマーカー）。分け方（tiers）は保存の値のまま読める
 			tier1: (deckTemplateManager.getSelection() || {}).tiers ? UmaSkillDeckCore.tiers.of(deckTemplateManager.getSelection().tiers, 'custom_c100a') : null,
 			marker: ((document.querySelector('#deck-template-panel .usd-panel[data-skill-id="custom_c100a"] [data-usd-el="factor-marker"]') || {}).dataset || {}).marker || null,
 		}), [C1, C2]);
-		assert(eq(sp.dict.slice().sort(), [C1.name, C2.name].sort()) && sp.total === 4,
+		assert(eq(sp.dict.slice().sort(), [C1.name, C2.name].sort()) && sp.skills === 4 && sp.genes === sp.geneAll && sp.total === 4 + sp.geneAll,
 			'C-100 special: 自作スキル入りのセットを選ぶと、照合の辞書に自作スキルが同じ名前で入る', sp);
 		assert(sp.tier1 === 1 && sp.marker === 'other', 'C-100 special: 周回因子セットでも分け方（tiers の超優先）は変わらない。行の先頭は自動のマーカー（自作スキルは「その他」）', sp);
 		const panel = await page.evaluate((id) => {
@@ -14307,8 +14325,9 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 	});
 	assert(sections.n >= 2 && sections.btns === 0, '段6(8): シナリオ因子・遺伝子の節（' + sections.n + '個。空振りでない）には ⓘ も長押しの対象も無い', sections);
 	const lists = [];
-	// 段8（C-120）でシナリオ因子／遺伝子のチェックと「?」を③の先頭の1行へ移したので、③のタブを開いてから押す
-	await sp.page.evaluate(() => selectStepTab(2, { noSave: true }));
+	// 段8（C-120）でシナリオ因子／遺伝子のチェックと「?」を③の先頭の1行へ移したので、③のタブを開いてから押す。
+	// T56（C-258 の (2)-1）でこの行は画面に出さなくなった（core の「?」の一覧は残っている）ので、検査の中だけ行を見せて押す
+	await sp.page.evaluate(() => { selectStepTab(2, { noSave: true }); document.getElementById('deck-scopes-bar').hidden = false; });
 	await sp.page.waitForTimeout(200);
 	for (const key of sections.keys) {
 		await sp.page.click('[data-usd-act="scope-help"][data-scope="' + key + '"]');

@@ -7,7 +7,7 @@
 //  (2) 2行目の合計は 46px 太字。後ろの部分は太字で、いちばん幅の広い見本（99,999・999種・勉強家と切れ者の広いほう）が字に使える幅 396px に入る大きさを
 //      26px から 1px ずつ下げて決める（下限 20px）。状態によって変えない。3〜6行目は 23px・行の高さ 34。
 //  (3) 値は core の getSetSummary()（setSummaryOf）。継承固有のヒントLv（uniqLevel）と共通スキルのヒントLv（commonLevel）は T51 で core に足した口。写しに入れる（画面の選択欄からは読まない）。
-//  (4) 遺伝子（③の「遺伝子」のチェックが入っているとき OCR の対象）: 読めた遺伝子のパネルを②のスキルの枠と同じ求め方・太さ・塗り方で、G1（枠 #BE185D・塗り #FCE7F0）で囲む。
+//  (4) 遺伝子（③の「遺伝子」のチェックが入っているとき OCR の対象。T56〔C-258 の (2)-1〕からはいつも対象）: 読めた遺伝子のパネルを②のスキルの枠と同じ求め方・太さ・塗り方で、G1（枠 #BE185D・塗り #FCE7F0）で囲む。
 //  (5) 人の見出しの行の右に「名前：★N」（★を測れなければ ★?）を縦に最大3段（18px 太字・1段 21px・遺伝子の色・名前の左に 14×12 の見本・間 6px）。
 //      人の列に入らなければ字を縮める（下限 14px）。(6) 「枠の見かた」の最後に「遺伝子」。(7) 遺伝子は帯の Pt・種数・表の行・②の枠の数に数えない。
 // 遺伝子の名前は検査の側に書かない（data/aptitude-genes.json を Node 側で読む。恒久ルール1）。
@@ -260,7 +260,8 @@ export async function register82(env) {
 			return Object.assign(r, { errors: e });
 		};
 		const off = await read(null), on = await read({ genes: true });
-		assert(JSON.stringify(on.genes) === JSON.stringify(GENES) && off.genes.length === 0, 'T51(8): 写しの遺伝子は、チェックを入れたときだけ data の10種（並びも data の順）', { on: on.genes, off: off.genes });
+		// T56（C-258 の (2)-1）: 遺伝子はいつも OCR の対象（③のチェックは画面に出さない）。それまでは「チェックを入れたときだけ」を見ていた
+		assert(JSON.stringify(on.genes) === JSON.stringify(GENES) && JSON.stringify(off.genes) === JSON.stringify(GENES), 'T51(8)（T56）: 写しの遺伝子は、チェックの有無に関係なく data の10種（並びも data の順）', { on: on.genes, off: off.genes });
 		assert(on.total === off.total && on.kinds === off.kinds && on.factorPt === off.factorPt && on.factorKinds === off.factorKinds && on.bar === off.bar && on.entries === off.entries && on.entries === IDS.length,
 			'T51(8): 遺伝子を対象にしても帯の Pt・種数・②の数・表の行は同じ', { on, off });
 		assert(on.errors.length === 0 && off.errors.length === 0, 'T51(8): コンソールエラー0', on.errors.concat(off.errors).slice(0, 3));

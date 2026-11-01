@@ -596,10 +596,14 @@ export async function register19(env) {
 			const r2 = await page.evaluate(() => {
 				const p2 = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
 				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
-				return { p2: p2.innerText, html: p2.innerHTML, br: p2.querySelectorAll('br').length, foot: foot.textContent, body: document.body.innerText };
+				const panel = document.getElementById('step-panel-2').textContent;
+				return { p2: p2 ? p2.innerText : null, gone: ['親Aセットのみでも判定できます', '親Bセットを追加すると', '1-2行重なるように撮影してください'].filter((t) => panel.includes(t)),
+					foot: foot.textContent, body: document.body.innerText };
 			});
-			assert(r2.p2.replace(/\n+/g, '\n') === '親Bセットを追加すると、親Aセットとまとめて照合・比較できます。\nスキルが1-2行重なるように撮影してください。' && r2.br === 1,
-				'微調整1C1(' + w + 'px): ②は「親Bセットを追加すると、…比較できます。」に続けて改行し、「スキルが1-2行重なるように撮影してください。」', r2.p2);
+			// T56（C-258 の (2)-4）: ②の上の文3つ（「親Aセットのみでも判定できます」「親Bセットを追加すると、…」「スキルが1-2行重なるように…」）は消した
+			// （それまでは (7)(8) の「…比較できます。」に続けて改行し「スキルが1-2行…」を見ていた）
+			assert(r2.p2 === null && r2.gone.length === 0,
+				'微調整1C1(' + w + 'px): ②の上の文3つは無い（T56）', r2);
 			assert(r2.foot === '※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。' && !r2.body.includes('1人につき2枚以上') && !r2.body.includes('1人分が1枚だけのときはエラー'),
 				'微調整1C1(' + w + 'px): ②の※は「※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。」に短縮', r2.foot);
 			assert(jsErrors(errors).length === 0, '微調整1C1(' + w + 'px): コンソールエラーなし', errors.slice(0, 3));

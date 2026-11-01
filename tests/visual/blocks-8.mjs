@@ -271,16 +271,21 @@ export async function register8(env) {
 	/* ====================================================================
 	 * (E) シナリオ因子／遺伝子のチェックは③の先頭
 	 * ==================================================================== */
+	// T56（C-258 の (2)-1）: この行は画面に出さなくなった（遺伝子はいつも対象・シナリオ因子は対象外。blocks-86 の T56画像アップロード(6)(7)）。
+	// 置き場（#deck-scopes-bar）と中身（core が描くチェック2つと「?」2つ）・保存の仕組みは残っているので、見えないことを見たうえで、検査の中だけ行を見せて仕組みを見張る
 	await block('段8(E) シナリオ因子／遺伝子のチェックは③の先頭の1行', async () => {
 		const sp = await openSet({ tab: 2, roster: null });
+		const shown = await sp.page.evaluate(() => !!document.getElementById('deck-scopes-bar').offsetParent);
+		assert(!shown, '段8(E)（T56）: ③のパネルにシナリオ因子・遺伝子の行は見えない', shown);
 		const g = await sp.page.evaluate(() => {
 			const bar = document.getElementById('deck-scopes-bar');
+			bar.hidden = false;
 			const panel = document.getElementById('step-panel-2');
 			const first = Array.from(panel.children).find((c) => !c.hidden && c.getClientRects().length);
 			return { inPanel: panel.contains(bar), first: first === bar, checks: bar.querySelectorAll('[data-usd-act="scope-check"]').length, help: bar.querySelectorAll('[data-usd-act="scope-help"]').length,
 				inTwo: !!document.querySelector('#step-panel-1 [data-usd-act="scope-check"]'), rows: new Set(Array.from(bar.querySelectorAll('.uma-checkrow')).map((r) => Math.round(r.getBoundingClientRect().top))).size };
 		});
-		assert(g.inPanel && g.first && g.checks === 2 && g.help === 2 && !g.inTwo && g.rows === 1, '段8(E): ③のパネルの先頭の1行に、チェック2つと「?」2つ（②には無い）', g);
+		assert(g.inPanel && g.first && g.checks === 2 && g.help === 2 && !g.inTwo && g.rows === 1, '段8(E): 置き場は③のパネルの先頭で、中身はチェック2つと「?」2つの1行（②には無い。検査の中だけ見せたとき）', g);
 		await sp.page.check('#deck-scopes-bar [data-usd-act="scope-check"][data-scope="genes"]');
 		await sp.page.waitForTimeout(150);
 		const saved = await sp.page.evaluate(() => (JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')) || {}).scopes);
