@@ -17,7 +17,8 @@ export async function register46(env) {
 	const KEYS = { 1: 'speed', 2: 'stamina', 3: 'power', 4: 'guts', 5: 'wisdom', 6: 'friend' };
 	const firstOf = (t) => CARDS.find((c) => c.rarity === 'SSR' && !c.isGroup && c.typeOrder === t);
 	// 同じ種別が2組（友人×2・スピード×2）と、1枚だけの種別（根性・スタミナ）を含む編成
-	const SAME_IDS = ['card-0402', 'card-0499', 'card-0248', 'card-0249', 'card-0250', 'card-0251'];
+	// T67: ①は種別の順→ID の降順に並ぶので、その順に置く（タイル・列の位置と一致させる。顔ぶれは前と同じ）
+	const SAME_IDS = ['card-0250', 'card-0249', 'card-0251', 'card-0248', 'card-0499', 'card-0402'];
 	// 6枚とも種別が違う編成（種別ごとに最初の SSR）
 	const DIFF_IDS = [1, 2, 3, 4, 5, 6].map((t) => firstOf(t).id);
 	const SR_CARD = CARDS.find((c) => c.rarity === 'SR' && !c.isGroup);
@@ -158,9 +159,12 @@ export async function register46(env) {
 		const sr = [SAME_IDS[0], SAME_IDS[1], SAME_IDS[2], SAME_IDS[3], SAME_IDS[4], SR_CARD.id];
 		const sp = await openSp({ roster: { umaId: 'uma-0179', cardIds: sr, skillFilter: FILTER, outsideOptions: { count: 4 } } });
 		const m = await measure(sp.page);
-		assert(m.tiles.slice(0, 5).every((t) => t.rar === null), 'C-187(b3) ①の SSR のカード5枚には、レアリティの印が出ない', m.tiles.map((t) => t.rar));
-		assert(srcKey(m.tiles[5].rar) === 'rarity:sr' && m.tiles[5].rarAlt === 'SR' && /（[^）]*SR[^）]*）$/.test(m.tiles[5].mainLabel), 'C-187(b3) SR のカードだけ SR の印（alt・読み上げにも SR）', m.tiles[5]);
-		assert(m.tiles.slice(0, 5).every((t) => t.mainLabel.indexOf('SSR') === -1), 'C-187(b3) SSR は読み上げにも出さない', m.tiles.map((t) => t.mainLabel));
+		// T67: カードは種別の順→ID の降順に並ぶので、SR のカードの枠は位置ではなく二つ名で探す
+		const srTile = m.tiles.find((t) => t.nickText === '[' + SR_CARD.title + ']');
+		const ssrTiles = m.tiles.filter((t) => t !== srTile);
+		assert(!!srTile && ssrTiles.length === 5 && ssrTiles.every((t) => t.rar === null), 'C-187(b3) ①の SSR のカード5枚には、レアリティの印が出ない', m.tiles.map((t) => t.rar));
+		assert(!!srTile && srcKey(srTile.rar) === 'rarity:sr' && srTile.rarAlt === 'SR' && /（[^）]*SR[^）]*）$/.test(srTile.mainLabel), 'C-187(b3) SR のカードだけ SR の印（alt・読み上げにも SR）', srTile);
+		assert(ssrTiles.every((t) => t.mainLabel.indexOf('SSR') === -1), 'C-187(b3) SSR は読み上げにも出さない', m.tiles.map((t) => t.mainLabel));
 		// ②のオススメサポの小窓（SSR・SR の両方）
 		await sp.page.click('#step-tab-1');
 		await sp.page.waitForSelector('#deck-template-panel [data-usd-el="outside-open"]', { timeout: 10000 });

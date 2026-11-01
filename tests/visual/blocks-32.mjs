@@ -69,7 +69,9 @@ export async function register32(env) {
 	// skill-step-up だけを 2026-10-02b に戻すと 0f5ec6f98a9edf30 に戻る（一致を確かめた）。real・r2・vary は変わらない
 	// 2026-10-27（スキルの既定の並び）: 4つとも変わった（solo271 a3dd7632add101c0→710f4b24fcf599ba・real c233a84f582ba98d→6f5751aefc620b91・r2 2e74a955752d79c6→8a6d02ef2b0937f9・vary 49545117935c03cb→1605348246ab5ca2）。
 	// 変わったのは並び（skillIds と表の行の順）だけ: 配列を並べ替えた形のハッシュ（CANON）は変更前と4つとも同じ（変更前 d2e8499 で測って一致を確かめた）
-	const HASH = { solo271: '710f4b24fcf599ba', real: '6f5751aefc620b91', r2: '8a6d02ef2b0937f9', vary: '1605348246ab5ca2' };
+	// 2026-11-02（T67 ①のカードの並び）: real・r2・vary が変わった（real 6f5751aefc620b91→dfe31ce0c3722f6b・r2 8a6d02ef2b0937f9→97a3462802fc5e54・vary 1605348246ab5ca2→9265b3639458bec3）。
+	// 変わったのはカードの並び（種別の順→ID の降順）に従う配列の順だけ: CANON は4つとも同じ（T67 の変更後に測って一致）。solo271 はカードが無いので変わらない
+	const HASH = { solo271: '710f4b24fcf599ba', real: 'dfe31ce0c3722f6b', r2: '97a3462802fc5e54', vary: '9265b3639458bec3' };
 	const CANON = { solo271: 'e79c7a8e1fd9a6ec', real: '0a1a56e7d28cb8f8', r2: '3a5cdf27564fec57', vary: '8d022e98a6cc681b' };   // 並べ替えた形。変更前（d2e8499）で測った値
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {

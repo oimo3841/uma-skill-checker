@@ -482,12 +482,13 @@ export async function register63(env) {
 		assert(r.no.crop && r.no.crop.ok && r.no.crop.R - r.no.crop.L < 1179 * 0.85 && r.no.head.icon && r.no.head.icon.h === 64, '結合画像の構成(9): 「OCRしない」結合でも両側を削り、見出しに顔とラベル', r.no);
 		assert(!r.legacy.table && r.legacy.parent && r.legacy.crop && r.legacy.crop.ok, '結合画像の構成(9): 旧UI（写しの行が空）は表なし・人は両側を削る', r.legacy);
 		// T37: 写しの①②のカード・育成ウマ娘・想定SP
-		assert(r.setBefore && r.setBefore.umaId === 'uma-0001' && JSON.stringify(r.setBefore.rosterCards) === JSON.stringify(CARDS6) && JSON.stringify(r.setBefore.factorCards) === JSON.stringify(SAVED5) && r.setBefore.sp && r.setBefore.sp.total > 0,
+		// T67: ①の画面の編成（getRoster）は種別の順→ID の降順に並んでいるので、写しの rosterCards もその順（上段の並びは今までどおり expectOrder）
+		assert(r.setBefore && r.setBefore.umaId === 'uma-0001' && JSON.stringify(r.setBefore.rosterCards) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(r.setBefore.factorCards) === JSON.stringify(SAVED5) && r.setBefore.sp && r.setBefore.sp.total > 0,
 			'結合画像の構成(9): 写しに①のカード6枚・育成ウマ娘・②のカード（outsideOptions.cards）・想定SP', r.setBefore);
 		assert(JSON.stringify(r.setAfter) === JSON.stringify(r.setBefore), '結合画像の構成(9): 押した後に画面の値が変わっても、写しのセットの部分は押した時点のまま', { before: r.setBefore, after: r.setAfter });
 		assert(JSON.stringify(r.ocrTop.roster) === JSON.stringify(expectOrder(CARDS6)) && JSON.stringify(r.ocrTop.factor) === JSON.stringify(expectOrder(SAVED5)) && r.ocrTop.sp[0] === r.spBeforeLine,
 			'結合画像の構成(9): OCR の結合の上段は写しの値（押した後の変更は入らない）', { ocrTop: r.ocrTop, want: [expectOrder(CARDS6), expectOrder(SAVED5), r.spBeforeLine] });
-		assert(JSON.stringify(r.noTop.roster) === JSON.stringify(expectOrder(CARDS6.slice(0, 2))) && JSON.stringify(r.noTop.factor) === JSON.stringify(['card-0310']) && JSON.stringify(r.noTop.sp) === JSON.stringify(['1 Pt／2種／X', '①　本育成編成：3 Pt', '②　因子周回：4 Pt', '・継承固有5種／ヒントLv2含む', '・共通スキルヒントLv4']),
+		assert(JSON.stringify(r.noTop.roster) === JSON.stringify(expectOrder(expectOrder(CARDS6).slice(0, 2))) && JSON.stringify(r.noTop.factor) === JSON.stringify(['card-0310']) && JSON.stringify(r.noTop.sp) === JSON.stringify(['1 Pt／2種／X', '①　本育成編成：3 Pt', '②　因子周回：4 Pt', '・継承固有5種／ヒントLv2含む', '・共通スキルヒントLv4']),
 			'結合画像の構成(9): 「OCRしない」結合の上段は結合した時点の値（空振りでないこと＝OCR の結合とは違う値になる）', r.noTop);
 		assert(r.legacyTop === null, '結合画像の構成(9): 旧UI（写しにセットが無い）は上段を描かない', r.legacyTop);
 		assert(jsErrors(errors).length === 0, '結合画像の構成(9): コンソールエラー0', jsErrors(errors).slice(0, 3));

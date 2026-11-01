@@ -117,6 +117,7 @@ import { register87 } from './blocks-87.mjs';
 import { register88 } from './blocks-88.mjs';
 import { register89 } from './blocks-89.mjs';
 import { register90 } from './blocks-90.mjs';
+import { register91 } from './blocks-91.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -11620,6 +11621,8 @@ await block('編成パネル ―― サポートカードのイベントの●�
 		await Core.loadTrainingSources(true);
 		const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
 		return {
+			// T67: ①のカードは種別の順→ID の降順に並ぶので、列の key はその並びの位置＋1
+			sorted: Core.sortCardIdsByType ? Core.sortCardIdsByType(cardIds) : cardIds.slice(),
 			entries: (Core.getTrainingSources().supportCardEventSkill || {}).entries.length,
 			skillIds: r.skillIds,
 			items: r.items.map((it) => ({ id: it.skillId, members: it.members, sureMembers: it.sureMembers, sure: it.sure })),
@@ -11632,7 +11635,8 @@ await block('編成パネル ―― サポートカードのイベントの●�
 	const S = fx.S;
 	const item = (i) => res.items.find((it) => it.id === S[i]) || null;
 	const sure = (i) => res.skillIds.includes(S[i]);
-	// 列の key は 0＝育成ウマ娘、1〜＝カードの枠（A=1, B=2, C=3, D=4）
+	// 列の key は 0＝育成ウマ娘、1〜＝カードの枠。T67: A・B・C・D の枠は種別の順→ID の降順に並べた位置＋1（仕込みの順ではない）
+	const [KA, KB, KC, KD] = [0, 1, 2, 3].map((i) => res.sorted.indexOf(fx.cardIds[i]) + 1);
 	assert(sure(0) && sure(1), 'イベント(1): 選択肢の無い確定のイベントのスキルは●（除外の対象）', { s0: item(0), s1: item(1) });
 	assert(item(2) && item(3) && !sure(3) && sure(4),
 		'イベント(2): 2択のイベントは△で、両方の選択肢に入っているスキルだけ●', { s2: item(2), s3: item(3), s4: item(4) });
@@ -11640,7 +11644,7 @@ await block('編成パネル ―― サポートカードのイベントの●�
 		'イベント(3): 結果が3通りのイベントは先頭（成功）だけが●で、失敗側のスキルは表に出ない', { s5: item(5), s6: item(6), s7: item(7) });
 	assert(item(8) && !sure(8) && !item(9),
 		'イベント(4): 2択の片方が成否ありのとき、成功側は△・失敗側は出ない', { s8: item(8), s9: item(9) });
-	assert(sure(2) && item(2).sureMembers.join() === '3' && item(2).members.slice().sort().join() === '2,3',
+	assert(sure(2) && item(2).sureMembers.join() === String(KC) && item(2).members.slice().sort().join() === [KB, KC].sort().join(),
 		'イベント(5): 同じスキルが別のカードで確定なら全体では●で、列ごとの印はその列の強さ（B は△・C は●）', item(2));
 	assert(item(10) && !sure(10) && item(10).sureMembers.length === 0,
 		'イベント(6): シートから取り込んだまま（seeded）のスキルは△', item(10));
@@ -11683,14 +11687,14 @@ await block('編成パネル ―― サポートカードのイベントの●�
 		host.remove();
 		return out;
 	}, { cardIds: fx.cardIds, S: S });
-	// 列は 育成ウマ娘・1〜6。A=1, B=2, C=3, D=4
+	// 列は 育成ウマ娘・1〜6。A・B・C・D の列は KA・KB・KC・KD（T67: 並べた位置）
 	const m = panel.marks;
-	assert(m[0] && m[0][1] === '●' && m[1] && m[1][1] === '●', 'イベント(9): 確定のスキルは A の列に●', { m0: m[0], m1: m[1] });
-	assert(m[3] && m[3][2] === '△' && m[4] && m[4][2] === '●', 'イベント(10): 2択は B の列に△、両方にあるスキルは●', { m3: m[3], m4: m[4] });
-	assert(m[2] && m[2][2] === '△' && m[2][3] === '●', 'イベント(11): 同じスキルでも列ごとに印が違う（B は△・C は●）', m[2]);
-	assert(m[5] && m[5][2] === '●' && m[6] === null && m[9] === null, 'イベント(12): 結果の先頭は●、失敗側の行は表に無い', { m5: m[5], m6: m[6], m9: m[9] });
+	assert(m[0] && m[0][KA] === '●' && m[1] && m[1][KA] === '●', 'イベント(9): 確定のスキルは A の列に●', { m0: m[0], m1: m[1] });
+	assert(m[3] && m[3][KB] === '△' && m[4] && m[4][KB] === '●', 'イベント(10): 2択は B の列に△、両方にあるスキルは●', { m3: m[3], m4: m[4] });
+	assert(m[2] && m[2][KB] === '△' && m[2][KC] === '●', 'イベント(11): 同じスキルでも列ごとに印が違う（B は△・C は●）', m[2]);
+	assert(m[5] && m[5][KB] === '●' && m[6] === null && m[9] === null, 'イベント(12): 結果の先頭は●、失敗側の行は表に無い', { m5: m[5], m6: m[6], m9: m[9] });
 	// 段7: C の1回目は「スキルを持つ選択肢が1つだけ」なので、パネルでは既定で選ばれて S8 は●（関数を直に呼ぶ上の検査は従来どおり△）
-	assert(m[8] && m[8][3] === '●' && m[10] && m[10][4] === '△', 'イベント(13)→段7: 成否ありの選択肢の成功側は、パネルでは既定で選ばれて●。取り込んだままのスキルは△', { m8: m[8], m10: m[10] });
+	assert(m[8] && m[8][KC] === '●' && m[10] && m[10][KD] === '△', 'イベント(13)→段7: 成否ありの選択肢の成功側は、パネルでは既定で選ばれて●。取り込んだままのスキルは△', { m8: m[8], m10: m[10] });
 	const look = panel.look || {};
 	assert(look.w >= 10 && look.w <= 16 && look.h >= 10 && look.h <= 16 && look.mask.includes('svg') && look.color && look.color === look.gotColor,
 		'イベント(18・見た目): △の印は●とほぼ同じ大きさで、SVG のマスクで描き、色は●の線と同じ', look);
@@ -11738,6 +11742,8 @@ await block('編成パネル ―― キャラクター共通のイベントの�
 		const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
 		const cards = Core.getTrainingSources().supportCard.entries;
 		return {
+			// T67: ①のカードは種別の順→ID の降順に並ぶので、列の key はその並びの位置＋1
+			sorted: Core.sortCardIdsByType ? Core.sortCardIdsByType(cardIds) : cardIds.slice(),
 			entries: (Core.getTrainingSources().characterEventSkill || {}).entries.length,
 			charsOfGroup: Core.charactersOfCard(cards.find((c) => c.id === cardIds[1])),
 			charsWithoutMark: Core.charactersOfCard(Object.assign({}, cards.find((c) => c.id === cardIds[0]), { isGroup: undefined })),
@@ -11750,14 +11756,16 @@ await block('編成パネル ―― キャラクター共通のイベントの�
 	const T = fx.T;
 	const item = (i) => res.items.find((it) => it.id === T[i]) || null;
 	const sure = (i) => res.skillIds.includes(T[i]);
-	// 列の key：1=A（グループでない）、2=G（グループ）、3=N（G のメンバー M のカード）、4=D（none）
-	assert(item(0) && sure(0) && item(0).members.join() === '1',
+	// 列の key：A（グループでない）・G（グループ）・N（G のメンバー M のカード）・D（none）。T67: 種別の順→ID の降順に並べた位置＋1（仕込みの順ではない）
+	const KA = res.sorted.indexOf(fx.cardIds[0]) + 1, KG = res.sorted.indexOf(fx.cardIds[1]) + 1, KN = res.sorted.indexOf(fx.cardIds[2]) + 1;
+	const GN = [KG, KN].sort().join();
+	assert(item(0) && sure(0) && item(0).members.join() === String(KA),
 		'共通(1): グループでないカードには、その charaName の共通イベントが当たる（A の列に●）', item(0));
-	assert(JSON.stringify(res.charsOfGroup) === JSON.stringify(fx.group.members) && item(4) && sure(4) && item(4).members.join() === '2',
+	assert(JSON.stringify(res.charsOfGroup) === JSON.stringify(fx.group.members) && item(4) && sure(4) && item(4).members.join() === String(KG),
 		'共通(2): グループのカードには groupMembers の全員ぶんが当たる（代表者でないメンバーの分も G の列に●）', { chars: res.charsOfGroup, t4: item(4) });
-	assert(item(3) && sure(3) && item(3).members.join() === '2,3' && item(3).sureMembers.join() === '2,3',
+	assert(item(3) && sure(3) && item(3).members.join() === GN && item(3).sureMembers.join() === GN,
 		'共通(3): 同じキャラクターが2枚から当たるとき、スキルは1行で、G と N の両方の列に●', item(3));
-	assert(item(1) && item(2) && !sure(1) && !sure(2) && item(1).members.join() === '2,3' && item(1).sureMembers.length === 0,
+	assert(item(1) && item(2) && !sure(1) && !sure(2) && item(1).members.join() === GN && item(1).sureMembers.length === 0,
 		'共通(4): 2択の共通イベントは△（どちらの列も△。除外には入らない）', { t1: item(1), t2: item(2) });
 	const charaUnconf = res.unconfirmed.filter((u) => u.includes('共通イベント'));
 	assert(charaUnconf.includes(fx.cardIds[1] + ':共通イベント（' + fx.group.representative + '）')
@@ -11783,8 +11791,9 @@ await block('編成パネル ―― キャラクター共通のイベントの�
 		host.remove();
 		return out;
 	}, { cardIds: fx.cardIds, T: T });
-	// 並びは 育成ウマ娘|1|2|3|4|5|6
-	assert(marks[3] === '||●|●|||' && marks[1] === '||△|△|||' && marks[4] === '||●||||' && marks[0] === '|●|||||',
+	// 並びは 育成ウマ娘|1|2|3|4|5|6（T67: 列の番号は並べた位置。KA・KG・KN）
+	const row = (m) => [0, 1, 2, 3, 4, 5, 6].map((k) => m[k] || '').join('|');
+	assert(marks[3] === row({ [KG]: '●', [KN]: '●' }) && marks[1] === row({ [KG]: '△', [KN]: '△' }) && marks[4] === row({ [KG]: '●' }) && marks[0] === row({ [KA]: '●' }),
 		'共通(7): 表では、同じ共通イベントがグループのカードとメンバーのカードの両方の列に出る', marks);
 	assert(errors.length === 0, '共通: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
@@ -12491,13 +12500,14 @@ await block('グループのサポートカードの名前（2026-09-30）', asy
 		const hitG = await take(0, G);
 		const hitN = await take(1, N);
 		const hitG2 = await take(2, G2);
-		const look = await page.evaluate(() => {
+		// T67: ①のカードは種別の順→ID の降順に並び直すので、選んだ枠は位置ではなくカードの題（枠の title）で探す
+		const look = await page.evaluate((titles) => {
 			const panel = document.getElementById('deck-roster-panel');
-			const slot = (i) => panel.querySelector('[data-usd-act="pick-card"][data-index="' + i + '"]').textContent.trim();
-			return { slot0: slot(0), slot1: slot(1), slot2: slot(2),
+			const slot = (t) => { const b = Array.from(panel.querySelectorAll('[data-usd-act="pick-card"]')).find((x) => (x.title || '').indexOf('[' + t + ']') === 0); return b ? b.textContent.trim() : ''; };
+			return { slot0: slot(titles[0]), slot1: slot(titles[1]), slot2: slot(titles[2]),
 				heads: Array.from(panel.querySelectorAll('.usd-roster-gh-name')).map((e) => e.textContent), text: panel.textContent,
 				titles: Array.from(panel.querySelectorAll('[data-usd-act="pick-card"]')).map((b) => b.title) };
-		});
+		}, [G.title, N.title, G2.title]);
 		assert(hitG2 === '[' + G2.title + ']' + G2.charaName && look.slot2.includes(G2.charaName) && look.heads.includes(G2.charaName),
 			'名前(2): groupName の無いグループのカードは、候補・選んだ枠・列の見出しとも今までどおり代表者の名前', { hitG2, slot2: look.slot2 });
 		assert(hitG === '[' + G.title + ']' + G.groupName && hitN === '[' + N.title + ']' + N.charaName,
@@ -14422,7 +14432,9 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	// （絞り込みの期待値をこの塊の中で作れるように。名前は書かない）
 	const byId = new Map(master.map((s) => [s.id, s]));
 	const hintOk = cardsAll.filter((c) => c.dataStatus && c.dataStatus.hint === 'done' && (c.hintSkills || []).length > 0 && c.hintSkills.every((h) => byId.has(h.skillId) && !byId.get(h.skillId).raceDistance));
-	const [cA, cB] = [hintOk[0], hintOk[1]];
+	// T67: ①は種別の順→ID の降順に並ぶので、A が1枚目（列 1）・B が2枚目（列 2）になるよう、その順に置く
+	const t67Key = (c) => typeof c.typeOrder === 'number' ? c.typeOrder : 99;
+	const [cA, cB] = [hintOk[0], hintOk[1]].sort((a, b) => (t67Key(a) - t67Key(b)) || (a.id < b.id ? 1 : -1));
 	const hintIds = [...new Set([cA, cB].flatMap((c) => c.hintSkills.map((s) => s.skillId)))];
 	const hinted = new Set(hintIds);
 	const plain = (s) => !hinted.has(s.id) && s.tags && (s.tags.style || []).length === 0 && (s.tags.surface || []).length === 0 && (s.tags.passive || []).length === 0;
@@ -14735,7 +14747,9 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	assert(!(await draft(sp.page)).umaId && v.uma[0].disabled, '段7(8): 育成ウマ娘の × で外れる（覚醒ヒントLv5 は押せなくなる）', v.uma);
 	await sp.page.click(P + '[data-usd-act="clear-card"][data-index="0"]');
 	v = await readPanel(sp.page);
-	assert((await draft(sp.page)).cardIds[0] === null && v.events.length === 1, '段7(10): カードの × で外れる（列の「!」・番号のボタンも減る）', v.events);
+	// T67: 外すと残りのカードが前に詰まる（空きは後ろ）ので、1枚目の位置ではなく A が無くなったことを見る
+	const dr10 = await draft(sp.page);
+	assert(!dr10.cardIds.includes(cA.id) && dr10.cardIds.filter(Boolean).length === 1 && v.events.length === 1, '段7(10): カードの × で外れる（列の「!」・番号のボタンも減る）', v.events);
 	await sp.ctx.close();
 	sp = await open({ roster: { umaId: umaLv5.id, cardIds: [cA.id, null, null, null, null, null] } });
 	v = await readPanel(sp.page);
@@ -14853,7 +14867,9 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	// （絞り込みの期待値をこの塊の中で作れるように。名前は書かない）
 	const byId = new Map(master.map((s) => [s.id, s]));
 	const hintOk = cardsAll.filter((c) => c.dataStatus && c.dataStatus.hint === 'done' && (c.hintSkills || []).length > 0 && c.hintSkills.every((h) => byId.has(h.skillId) && !byId.get(h.skillId).raceDistance));
-	const [cA, cB] = [hintOk[0], hintOk[1]];
+	// T67: ①は種別の順→ID の降順に並ぶので、A が1枚目（列 1）・B が2枚目（列 2）になるよう、その順に置く
+	const t67Key = (c) => typeof c.typeOrder === 'number' ? c.typeOrder : 99;
+	const [cA, cB] = [hintOk[0], hintOk[1]].sort((a, b) => (t67Key(a) - t67Key(b)) || (a.id < b.id ? 1 : -1));
 	const hintIds = [...new Set([cA, cB].flatMap((c) => c.hintSkills.map((s) => s.skillId)))];
 	const hinted = new Set(hintIds);
 	const plain = (s) => !hinted.has(s.id) && s.tags && (s.tags.style || []).length === 0 && (s.tags.surface || []).length === 0 && (s.tags.passive || []).length === 0;
@@ -14948,7 +14964,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const draft = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || 'null'));
 
-	const cC = hintOk[2];
+	// T67: C は3枚目（列 3）に並ぶよう、B より後ろに並ぶカードにする（種別の順→ID の降順）
+	const cC = hintOk.slice(2).find((c) => (t67Key(cB) - t67Key(c)) < 0 || (t67Key(cB) === t67Key(c) && c.id < cB.id)) || hintOk[2];
 	const popoverOpen = async (page) => (await popover(page)).open;
 	const rgb = (s) => (s.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
 	const lumOf = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
@@ -15444,6 +15461,8 @@ await register88({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register89({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T60（2026-11-01）: 遺伝子をレース条件で絞る（C-258 の (2)-1 の続き。見出しは「T60遺伝子の絞り込み」）
 await register90({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T67（2026-11-02）: サポカの並びと再計算（見出しは「T67サポカの並び」）
+await register91({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

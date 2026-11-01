@@ -285,7 +285,9 @@ export async function register60(env) {
 			await sp.page.waitForTimeout(300);
 		};
 		let checked = 0;
-		for (const col of [1, 4]) {
+		// T67: 列はカードの種別の順に並ぶ（1列目は印の無いカードになった）ので、印のある列から2つを選ぶ
+		const cols = [1, 2, 3, 4, 5].filter((c) => units(t0.rows.filter((r) => !r.off)).some((u) => u.some((r) => r.marks[c - 1] !== '-'))).slice(0, 2);
+		for (const col of cols) {
 			await sortBy(col);
 			const t = await readTable(sp.page);
 			const has = (u) => u.some((r) => r.marks[col - 1] !== '-');
@@ -298,7 +300,7 @@ export async function register60(env) {
 			assert(sorted.filter(Boolean).length === 1 && sorted[col - 1], '②星取表(5) ' + col + '枚目の見出しだけ並べ替え中（data-sorted）', sorted);
 			checked++;
 		}
-		await sortBy(4);
+		await sortBy(cols[cols.length - 1]);
 		const t3 = await readTable(sp.page);
 		assert(JSON.stringify(t3.rows.map((r) => r.id)) === JSON.stringify(t0.rows.map((r) => r.id)) && t3.heads.slice(1).every((h) => !h.sorted), '②星取表(5) もう一度押すと元の並び（どの列も並べ替えていない）', null);
 		assert(checked === 2, '②星取表(5) 2つの列で確かめた', checked);
@@ -482,7 +484,8 @@ export async function register60(env) {
 		await setView(sp.page, true);
 		const t = await readTable(sp.page);
 		const row = t.rows.find((r) => r.id === '19' && !r.off);
-		assert(give !== null && row && row.marks[0] === give && SAVED5[0] === 'card-0257', '②星取表(10) 1枚目（card-0257）が 19 を得られ、②の 19 の行の1列目に同じ印（' + give + '）', { give, row });
+		// T67: 列は種別の順→ID の降順（card-0300 スピード・card-0257 賢さ・友人3枚）なので、card-0257 は2列目
+		assert(give !== null && row && row.marks[1] === give && SAVED5[0] === 'card-0257', '②星取表(10) card-0257（2列目）が 19 を得られ、②の 19 の行の2列目に同じ印（' + give + '）', { give, row });
 		await sp.ctx.close();
 	});
 

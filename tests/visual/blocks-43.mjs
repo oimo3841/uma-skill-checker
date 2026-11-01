@@ -395,7 +395,9 @@ export async function register43(env) {
 		const after = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
 		// 下書きの保存で固定の項目（名前・星など）が足されることがあるので、元にあった項目が変わっていないことを見る
 		const ob = JSON.parse(before), oa = JSON.parse(after);
-		assert(Object.keys(ob).every((k) => JSON.stringify(oa[k]) === JSON.stringify(ob[k])) && oa.race === undefined, 'C-184 レースを選んで「指定なし」に戻すと、元にあった項目は変わらない（raceAutoSkillIds もそのまま）・レースの項目は残らない', { before: ob, after: oa });
+		// T67: レースを選ぶ（利用者の操作）と編成を保存するので、cardIds は種別の順→ID の降順に並んだ順で保存される。cardIds は顔ぶれで見る
+		const same = (k) => k === 'cardIds' ? JSON.stringify((oa[k] || []).slice().sort()) === JSON.stringify((ob[k] || []).slice().sort()) : JSON.stringify(oa[k]) === JSON.stringify(ob[k]);
+		assert(Object.keys(ob).every(same) && oa.race === undefined, 'C-184 レースを選んで「指定なし」に戻すと、元にあった項目は変わらない（raceAutoSkillIds もそのまま）・レースの項目は残らない', { before: ob, after: oa });
 		assert(sp.reqs.length === 0, 'C-184 レースを選んでも recommended-skills.json は取りに行かない', sp.reqs);
 		await sp.ctx.close();
 	});

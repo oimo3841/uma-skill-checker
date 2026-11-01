@@ -34,7 +34,9 @@ export async function register7d(env) {
 
 	/* ---- 材料（blocks-7c と同じ作り） ---- */
 	const hintOk = cardsAll.filter((c) => c.dataStatus && c.dataStatus.hint === 'done' && (c.hintSkills || []).length > 0 && c.hintSkills.every((h) => byId.has(h.skillId) && !byId.get(h.skillId).raceDistance));
-	const [cA, cB] = [hintOk[0], hintOk[1]];
+	// T67: ①は種別の順→ID の降順に並ぶので、A が1枚目（列 1）・B が2枚目（列 2）になるよう、その順に置く
+	const t67Key = (c) => typeof c.typeOrder === 'number' ? c.typeOrder : 99;
+	const [cA, cB] = [hintOk[0], hintOk[1]].sort((a, b) => (t67Key(a) - t67Key(b)) || (a.id < b.id ? 1 : -1));
 	const hintIds = [...new Set([cA, cB].flatMap((c) => c.hintSkills.map((s) => s.skillId)))];
 	const hinted = new Set(hintIds);
 	const plainTags = (s) => !hinted.has(s.id) && s.tags && (s.tags.style || []).length === 0 && (s.tags.surface || []).length === 0 && (s.tags.passive || []).length === 0 && !s.raceDistance;

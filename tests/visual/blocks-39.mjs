@@ -99,7 +99,8 @@ export async function register39(env) {
 		const sum = tb.rows.filter((r) => !r.off).reduce((s, r) => s + ptNum(r.pt), 0);
 		assert(sum === d.total, '本育成表(2) 表の行の Pt を全部足すと合計に一致する（' + sum + '）', { sum, total: d.total });
 		assert(START.line === d.prev.length, '本育成表(2) 前提: 前段として数える項目は開始時と同じ10', d.prev.length);
-		assert(tb.line === 'ヒントLv0：折れない心 162・直線加速 153・コーナー加速○ 162', '本育成表(2) 上の1行は「ヒントLv0：名前 Pt・名前 Pt」の形のまま、Lv0 のグループだけ（3項目）', tb.line);
+		// T67: 項目の並びは①のカードの並び（種別の順→ID の降順に並べ直した）に従う。変更前の製品に並べた順の編成を入れても同じ文になる（T67 の報告）
+		assert(tb.line === 'ヒントLv0：直線加速 153・コーナー加速○ 162・折れない心 162','本育成表(2) 上の1行は「ヒントLv0：名前 Pt・名前 Pt」の形のまま、Lv0 のグループだけ（3項目）', tb.line);
 		assert(!/ヒントLv[1-9]/.test(tb.line || ''), '本育成表(2) Lv1〜5 のグループは出ない（◎に上げた○は出ない）', tb.line);
 		// ○のまま（◎に上げない）にしても、上の1行は同じ（Lv0 のグループだけ）
 		const cands = await sp.page.evaluate((r) => UmaSkillDeckCore.getRosterVisiblePart(r).circleCandidates.map((x) => x[0]), A);

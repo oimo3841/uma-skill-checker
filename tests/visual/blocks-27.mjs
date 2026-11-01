@@ -109,7 +109,8 @@ export async function register27(env) {
 			const sp = await openSp(have, { umaId: '' });
 			await pickTake(sp.page, 1, take);
 			const s = await state(sp.page);
-			assert(s.ids[1] === take && !s.modal && !s.notice, 'グループのカード(2) ' + name + ': 入る（窓は閉じる・知らせなし）', s);
+			// T67: 入れたカードは種別の順→ID の降順の位置に並ぶので、枠の位置ではなく入ったかどうかで見る
+			assert(s.ids.filter(Boolean).length === 2 && s.ids.includes(take) && !s.modal && !s.notice, 'グループのカード(2) ' + name + ': 入る（窓は閉じる・知らせなし）', s);
 			await sp.ctx.close();
 		}
 		// 入れ替え（同じ枠の自分自身との重なりは見ない）

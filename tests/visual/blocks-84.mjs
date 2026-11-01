@@ -35,6 +35,9 @@ export async function register84(env) {
 	const GROUP_FREE = 'card-0324'; // グループのカード（メンバーは②と重ならない。①とは重なる＝選べる）
 	const cardsData = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-cards.json'), 'utf8')).entries;
 	const titleOf = (id) => (cardsData.find((c) => c.id === id) || {}).title || '';
+	// T67: パネルと星取表の列は、保存の順ではなく種別の順（typeOrder）→ID の降順に並ぶ（保存の順は変わらない）。期待の並びはデータから作る
+	const typeOf = (id) => { const c = cardsData.find((x) => x.id === id); return c && typeof c.typeOrder === 'number' ? c.typeOrder : 99; };
+	const sortedIds = (ids) => ids.slice().sort((a, b) => (typeOf(a) - typeOf(b)) || (a < b ? 1 : a > b ? -1 : 0));
 
 	/** special.html を、①（下書きの編成）と②の下書きを入れて開く（blocks-83 と同じ作り）。tab: '0'＝①・'1'＝② */
 	const openSp = async (o = {}) => {
@@ -151,8 +154,8 @@ export async function register84(env) {
 	await block('T53②因子周回の後半 (2) パネルの中身は保存のカード（outsideOptions.cards）の並び・空きは後ろで「サポートカード」・星取表の列は同じ並びで空きは出さない・タイルと分類の表示にもパネル', async () => {
 		const sp = await openSp({ w: 375 });
 		const tl = await tiles(sp.page);
-		assert(tl.map((t) => t.id).join() === SAVED5.concat(['']).join() && tl.slice(0, 5).every((t) => !t.empty && t.x2 && /^\d枚目：/.test(t.aria)) && tl[5].empty && tl[5].name === 'サポートカード' && tl[5].aria === '6枚目：サポートカードを選ぶ' && !tl[5].x2,
-			'T53(2) 6枚の枠に保存の5枚がその並びで入り、6枚目は空き（名前「サポートカード」・読み上げ「6枚目：サポートカードを選ぶ」・× なし）。入っている枠は「N枚目：…」と ×', tl.map((t) => [t.id, t.name, t.aria, t.x2]));
+		assert(tl.map((t) => t.id).join() === sortedIds(SAVED5).concat(['']).join() && tl.slice(0, 5).every((t) => !t.empty && t.x2 && /^\d枚目：/.test(t.aria)) && tl[5].empty && tl[5].name === 'サポートカード' && tl[5].aria === '6枚目：サポートカードを選ぶ' && !tl[5].x2,
+			'T53(2)→T67 6枚の枠に保存の5枚が種別の順→ID の降順で入り、6枚目は空き（名前「サポートカード」・読み上げ「6枚目：サポートカードを選ぶ」・× なし）。入っている枠は「N枚目：…」と ×', tl.map((t) => [t.id, t.name, t.aria, t.x2]));
 		for (const v of ['cards', 'group']) {
 			await setView(sp.page, v);
 			const n = (await tiles(sp.page)).length;
@@ -200,20 +203,23 @@ export async function register84(env) {
 		await take(sp.page, FREE1);
 		const o1 = await optsOf(sp.page);
 		const tl1 = await tiles(sp.page);
-		assert(!(await modalOpen(sp.page)) && o1.cards.join() === SAVED5.concat([FREE1]).join() && o1.pinned.join() === FREE1 && o1.count === null && tl1[5].id === FREE1,
-			'T53(3) 選ぶと6枚目に入り、列のカード（cards）の後ろと、残りの枠の指定（pinned）に入る。枚数は既定の5のまま（6 − 1 = 5）', o1);
+		// T67: パネルでは種別の順の位置（p）に入る。保存（cards）は今までどおり後ろに足す
+		const p = sortedIds(o1.cards).indexOf(FREE1);
+		assert(!(await modalOpen(sp.page)) && o1.cards.join() === SAVED5.concat([FREE1]).join() && o1.pinned.join() === FREE1 && o1.count === null && p >= 0 && tl1[p].id === FREE1 && tl1.map((t) => t.id).join() === sortedIds(o1.cards).join(),
+			'T53(3)→T67 選ぶと、列のカード（cards）の後ろと、残りの枠の指定（pinned）に入り、パネルでは種別の順の位置に並ぶ。枚数は既定の5のまま（6 − 1 = 5）', { o1, tl: tl1.map((t) => t.id) });
 		assert((await scopeIds(sp.page)) === ids0, 'T53(3) 直接指定で②のスキルは変わらない', await scopeIds(sp.page));
 		const cols1 = await tableCols(sp.page);
 		const a1 = await activeOf(sp.page);
-		assert(cols1.length === 6 && cols1[5].label.indexOf(tl1[5].name) !== -1 && a1 && a1.el === 'factor-card-pick' && a1.index === '5', 'T53(3) 星取表の列が6列になり（6列目が選んだカード）、フォーカスは選んだ枠', { cols1, a1 });
-		// 入っている枠を押して入れ替える（1枚目の提案のカード → 指定）。指定が2枚になるので、枚数は 4 に下がる
-		await openPick(sp.page, 0);
+		assert(cols1.length === 6 && cols1[p].label.indexOf(tl1[p].name) !== -1 && a1 && a1.el === 'factor-card-pick' && a1.index === String(p), 'T53(3)→T67 星取表の列が6列になり（選んだカードはパネルと同じ位置の列）、フォーカスは選んだカードの枠', { cols1, a1, p });
+		// 入っている枠を押して入れ替える（提案のカード SAVED5[0] → 指定）。指定が2枚になるので、枚数は 4 に下がる。T67: 枠はパネルの中の位置で探す
+		const shownAt = async (id) => (await tiles(sp.page)).findIndex((t) => t.id === id);
+		await openPick(sp.page, await shownAt(SAVED5[0]));
 		await take(sp.page, FREE2);
 		const o2 = await optsOf(sp.page);
 		assert(o2.cards.join() === [FREE2].concat(SAVED5.slice(1), [FREE1]).join() && o2.pinned.join() === [FREE1, FREE2].join() && o2.count === 4,
 			'T53(3) 入っている枠を押して選ぶと、その位置で入れ替わり、指定は2枚・枚数は 6 − 2 = 4 に下がる（C-262 の (4)）', o2);
 		// ①と同じキャラクターの別のカードも入れられる
-		await openPick(sp.page, 1);
+		await openPick(sp.page, await shownAt(SAVED5[1]));
 		await take(sp.page, SAME_R1);
 		const o3 = await optsOf(sp.page);
 		assert(o3.cards[1] === SAME_R1 && o3.pinned.join() === [FREE1, FREE2, SAME_R1].join() && o3.count === 3, 'T53(3) ①と同じキャラクターの別のカードを入れると指定は3枚・枚数は 3', o3);
@@ -222,7 +228,7 @@ export async function register84(env) {
 		await reloadReady(sp.page);
 		await sp.page.waitForTimeout(800);
 		const tl4 = await tiles(sp.page);
-		assert(tl4.map((t) => t.id).join() === o3.cards.join() && Object.keys(o3.raw).sort().join() === 'cards,count,pinned', 'T53(3) 読み込み直しても同じ6枚。保存は outsideOptions の cards・pinned・count だけ（形は今のまま）', { ids: tl4.map((t) => t.id), keys: Object.keys(o3.raw) });
+		assert(tl4.map((t) => t.id).join() === sortedIds(o3.cards).join() && Object.keys(o3.raw).sort().join() === 'cards,count,pinned', 'T53(3) 読み込み直しても同じ6枚。保存は outsideOptions の cards・pinned・count だけ（形は今のまま）', { ids: tl4.map((t) => t.id), keys: Object.keys(o3.raw) });
 		assert(jsErrors(sp.errors).length === 0, 'T53(3) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -233,18 +239,22 @@ export async function register84(env) {
 		const sp = await openSp({ w: 1280, roster: R });
 		await setView(sp.page, 'table');
 		const ids0 = await scopeIds(sp.page);
-		await sp.page.click(T + '[data-usd-el="factor-card-clear"][data-index="5"]');
+		// T67: パネルは種別の順に並ぶので、外すカードの枠はパネルの中の位置で探す
+		const shownAt = async (id) => (await tiles(sp.page)).findIndex((t) => t.id === id);
+		const i1 = await shownAt(FREE1);
+		await sp.page.click(T + '[data-usd-el="factor-card-clear"][data-index="' + i1 + '"]');
 		await sp.page.waitForTimeout(300);
 		const o1 = await optsOf(sp.page);
 		const a1 = await activeOf(sp.page);
-		assert(o1.cards.join() === SAVED5.join() && o1.pinned.length === 0 && o1.count === 4 && a1 && a1.el === 'factor-card-pick' && a1.index === '5', 'T53(4) 指定のカードの × で、列のカードと指定の両方から外れる。枚数は 4 のまま。フォーカスは同じ枠（空き）', { o1, a1 });
-		await sp.page.click(T + '[data-usd-el="factor-card-clear"][data-index="1"]');
+		assert(o1.cards.join() === SAVED5.join() && o1.pinned.length === 0 && o1.count === 4 && a1 && a1.el === 'factor-card-pick' && a1.index === String(i1), 'T53(4)→T67 指定のカードの × で、列のカードと指定の両方から外れる。枚数は 4 のまま。フォーカスは同じ枠', { o1, a1, i1 });
+		const i2 = await shownAt(SAVED5[1]);
+		await sp.page.click(T + '[data-usd-el="factor-card-clear"][data-index="' + i2 + '"]');
 		await sp.page.waitForTimeout(300);
 		const o2 = await optsOf(sp.page);
 		const tl = await tiles(sp.page);
 		const a2 = await activeOf(sp.page);
-		assert(o2.cards.join() === [SAVED5[0]].concat(SAVED5.slice(2)).join() && tl.map((t) => t.id).join() === o2.cards.concat(['', '']).join() && a2 && a2.index === '1',
-			'T53(4) 提案のカードの × で、列のカードから外れ、後ろの枠は詰める（空きは後ろ2つ）。フォーカスは同じ枠（次のカード）', { o2, tl: tl.map((t) => t.id), a2 });
+		assert(o2.cards.join() === [SAVED5[0]].concat(SAVED5.slice(2)).join() && tl.map((t) => t.id).join() === sortedIds(o2.cards).concat(['', '']).join() && a2 && a2.index === String(i2),
+			'T53(4)→T67 提案のカードの × で、列のカードから外れ、後ろの枠は詰める（空きは後ろ2つ。パネルは種別の順）。フォーカスは同じ枠（次のカード）', { o2, tl: tl.map((t) => t.id), a2, i2 });
 		assert((await scopeIds(sp.page)) === ids0 && (await tableCols(sp.page)).length === 4, 'T53(4) × で②のスキルは変わらない。星取表の列は残りの4列', { cols: await tableCols(sp.page) });
 		assert(jsErrors(sp.errors).length === 0, 'T53(4) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
@@ -350,13 +360,13 @@ export async function register84(env) {
 		await sp.page.waitForTimeout(500);
 		const after = await optsOf(sp.page);
 		const tlA = await tiles(sp.page);
-		assert(after.cards.length === 5 + 1 && after.cards[5] === FREE1 && after.cards.slice(0, 5).every((id) => rec.indexOf(id) !== -1) && after.pinned.join() === FREE1 && tlA.map((t) => t.id).join() === after.cards.join(),
+		assert(after.cards.length === 5 + 1 && after.cards[5] === FREE1 && after.cards.slice(0, 5).every((id) => rec.indexOf(id) !== -1) && after.pinned.join() === FREE1 && tlA.map((t) => t.id).join() === sortedIds(after.cards).join(),
 			'T53(8) 「追加」で、パネルは提案の5枚＋直接指定の1枚（後ろ）になる（使い直しでも直接指定を残す）', { after, rec, tl: tlA.map((t) => t.id) });
 		const undo = await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());
 		await sp.page.waitForTimeout(400);
 		const back = await optsOf(sp.page);
 		const tlB = await tiles(sp.page);
-		assert(undo && back.cards.join() === before.join() && tlB.map((t) => t.id).join() === before.join() && (await scopeIds(sp.page)) === '2',
+		assert(undo && back.cards.join() === before.join() && tlB.map((t) => t.id).join() === sortedIds(before).concat(before.length < 6 ? [''] : []).join() && (await scopeIds(sp.page)) === '2',
 			'T53(8) 「元に戻す」で、足したスキルとカードの両方が「追加」の前に戻る（パネルも）', { back, before, ids: await scopeIds(sp.page) });
 		// 追加 → パネルで1枚外す → 元に戻す: カードはパネルで変えた今のまま（スキルだけ戻す）
 		await sp.page.click(T + '[data-usd-el="outside-open"]');

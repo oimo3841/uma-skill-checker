@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-02a';
 
 	/* ============================================================
 	 * 定数
@@ -2547,6 +2547,26 @@
 		return (typeof n === 'number' && isFinite(n) && n >= 1) ? n : null;
 	}
 	/**
+	 * サポートカードの並び（T37・T67）: 種別の順（typeOrder の小さい順。友人とグループは同じ番号。番号の無いカード・引けない ID は後ろ）→ 同じ種別の中は ID の降順。
+	 * 結合画像の上段（special の stitchSortCards）・①本育成編成の6枚・②因子周回のカード（outsideOptions.cards）が、みなここを通る
+	 */
+	function compareCardIdsByType(a, b) {
+		const oa = cardTypeOrderOf(findCard(a)) || 99, ob = cardTypeOrderOf(findCard(b)) || 99;
+		return (oa - ob) || (a < b ? 1 : a > b ? -1 : 0);
+	}
+	function sortCardIdsByType(ids) {
+		return (Array.isArray(ids) ? ids : []).filter(id => typeof id === 'string' && id).sort(compareCardIdsByType);
+	}
+	/**
+	 * ①の6枠（T67）: 先頭の6枠のカードを compareCardIdsByType の順に並べ、空いている枠は後ろ。枠の番号（1〜6）はこの並びの順。
+	 * 保存値は書き換えない（読んだ写しを並べるだけ。並んだ順が保存されるのは、利用者が編成を変えたとき。ルール28）
+	 */
+	function rosterCardSlotsOf(ids) {
+		const out = sortCardIdsByType((Array.isArray(ids) ? ids : []).slice(0, ROSTER_CARD_SLOTS));
+		while (out.length < ROSTER_CARD_SLOTS) out.push(null);
+		return out;
+	}
+	/**
 	 * 種類の名前 → 種類の順番の番号（C-62 の (1)(2)）。**種類の名前はここにも書かない** ――
 	 * データにある名前をそのままキーにして、色は番号で引く。番号を持たない種類は入れない
 	 * （呼び出し側は「色が無い」として既定の面に落とす）。
@@ -2720,9 +2740,8 @@
 			}
 		}
 		members.push({ key: UMA_KEY, kind: 'uma', no: null, label: umaLabel, shortLabel: umaShort, typeOrder: null });
-		// ── サポートカード（番号 1〜。枠の順） ──
-		const cardIds = (r.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
-		while (cardIds.length < ROSTER_CARD_SLOTS) cardIds.push(null);
+		// ── サポートカード（番号 1〜。種別の順→ID の降順に並べた枠の順。T67） ──
+		const cardIds = rosterCardSlotsOf(r.cardIds);
 		cardIds.forEach((cardId, i) => {
 			const key = UMA_KEY + 1 + i;
 			const no = i + 1;
@@ -2854,9 +2873,14 @@
 	}
 	/**
 	 * オススメサポで「追加」を押したときの提案のカード（②因子周回 段3 の作り直し・C-225。roster.outsideOptions.cards）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
-	 * 収録データで引けるもの・重複なし・最大6枚。並びは保存の順（小窓のカードの並び＝増分の順、そのあとに残りの枠の指定）。無ければ空（②の星取表の列と無効の段は空）
+	 * 収録データで引けるもの・重複なし・最大6枚（どの6枚かは保存の順で決める）。並びは compareCardIdsByType（T67。種別の順→ID の降順。結合画像の上段と同じ）。
+	 * 無ければ空（②の星取表の列と無効の段は空）。保存の順（小窓のカードの並び＝増分の順、そのあとに残りの枠の指定）は書き換えない
 	 */
 	function outsideSavedCardsOf(stored) {
+		return sortCardIdsByType(outsideCardIdsOf(stored));
+	}
+	/** outsideSavedCardsOf の並べる前（保存の順のまま）。書くとき（setOptions）と「元に戻す」で戻す値に使う */
+	function outsideCardIdsOf(stored) {
 		const out = [];
 		(Array.isArray(stored) ? stored : []).forEach(id => { if (typeof id === 'string' && id && findCard(id) && out.indexOf(id) === -1) out.push(id); });
 		return out.slice(0, ROSTER_CARD_SLOTS);
@@ -4997,8 +5021,7 @@
 	 */
 	function rosterPtInputsOf(r) {
 		const copy = snapshot(r);
-		copy.cardIds = (copy.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
-		while (copy.cardIds.length < ROSTER_CARD_SLOTS) copy.cardIds.push(null);
+		copy.cardIds = rosterCardSlotsOf(copy.cardIds);
 		const res = rosterSkillResultOf(copy);
 		// 段7d の ⑥：①のパネルと同じ「表に出す部分」（絞り込みに当たる行の由来・取得しないスキルを除いた●）を渡す
 		const vp = visiblePartOf(copy, res);
@@ -12730,8 +12753,7 @@
 			const base = emptyRoster();
 			if (!d) return base;
 			const r = Object.assign(base, snapshot(d));
-			r.cardIds = (Array.isArray(r.cardIds) ? r.cardIds : []).slice(0, ROSTER_CARD_SLOTS);
-			while (r.cardIds.length < ROSTER_CARD_SLOTS) r.cardIds.push(null);
+			r.cardIds = rosterCardSlotsOf(r.cardIds);
 			return r;
 		}
 
@@ -13021,7 +13043,7 @@
 				const head = m.kind === 'card' ? m.no + '枚目：' + (m.shortLabel || m.label) + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）'
 					: m.kind === 'uma' ? '育成ウマ娘' + (m.label ? '：' + (m.shortLabel || m.label) : '') : (m.label || '');
 				const label = head + 'のメニュー' + (info.unsel > 0 ? '（未選択' + info.unsel + '件）' : '') + (info.picked > 0 ? '（結果を切り替え中' + info.picked + '件）' : '')
-					+ (info.acquired > 0 ? '（取得を選択中' + info.acquired + '件）' : '') + (sorted ? '（並べ替え中）' : '');
+					+ (info.acquired > 0 ? '（取得を選択中' + info.acquired + '件）' : '') + (sorted ? '（ソート中）' : '');
 				const icon = m.kind === 'card'
 					? (typed ? cardIconBoxHtml(n, 'head') : '<span class="usd-gh-fallback" data-usd-el="gh-fallback" aria-hidden="true">' + esc(Array.from(String(m.shortLabel || m.label).replace(/^[（(\[［「]+/, ''))[0] || '') + '</span>')
 					: '<span class="usd-card-icobox usd-card-icobox--head">' + rosterIconHtml(m.kind) + '</span>';
@@ -13328,12 +13350,25 @@
 			if (r) r.scrollTop = keep.right;
 		}
 
+		/**
+		 * ①のカードを入れる・外す（T67）。変えたあと種別の順→ID の降順に並べ直し、枠の番号を振り直す。
+		 * 列のソート（sortKey＝枠の番号）は、並べ替えていたカードの新しい枠に付け替える（そのカードが無くなったら解除）。
+		 * イベントの選択などはカードの ID（card:<id>）で持っているので、そのまま付いて動く
+		 */
+		function changeCards(mutate) {
+			const idx = (typeof sortKey === 'number' && sortKey >= 1 && sortKey <= ROSTER_CARD_SLOTS) ? sortKey - 1 : -1;
+			const sortedId = idx >= 0 ? roster.cardIds[idx] : null;
+			mutate();
+			roster.cardIds = rosterCardSlotsOf(roster.cardIds);
+			if (idx >= 0) { const at = sortedId ? roster.cardIds.indexOf(sortedId) : -1; sortKey = at >= 0 ? at + 1 : null; }
+		}
+
 		function loadSelected(id) {
 			selectedId = id || '';
 			const found = id ? findRoster(id) : null;
 			roster = found ? snapshot(found) : restoreDraftRoster();
-			roster.cardIds = (roster.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
-			while (roster.cardIds.length < ROSTER_CARD_SLOTS) roster.cardIds.push(null);
+			// T67: 開いたときに種別の順に並べて見せる（写しを並べるだけ。保存は利用者が変えたとき）
+			roster.cardIds = rosterCardSlotsOf(roster.cardIds);
 			picking = null;
 			nameEdit = null;
 			sortKey = null;
@@ -13463,7 +13498,7 @@
 			}
 			else if (act === 'type') { pickType = btn.getAttribute('data-value') || ''; render(); renderHits(); }
 			else if (act === 'clear-uma') { roster.umaId = ''; persistNow(); render(); }
-			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; persistNow(); render(); }
+			else if (act === 'clear-card') { changeCards(() => { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; }); persistNow(); render(); }
 			else if (act === 'take') {
 				const id = btn.getAttribute('data-entry-id');
 				// オススメサポの残りの枠（段13・C1）: ①の編成には書かず、選んだIDを返すだけ
@@ -13484,7 +13519,8 @@
 					// 同じキャラクターのカードは同時に入れられない（ゲームの規則）。追加せず、窓を開いたまま理由を知らせる
 					const why = sameCharaNoticeOf(id, picking.index);
 					if (why) { pickNotice = why; render(); renderHits(); return; }
-					roster.cardIds[picking.index] = id;
+					const at = picking.index;
+					changeCards(() => { roster.cardIds[at] = id; });
 				}
 				picking = null;
 				persistNow();
@@ -13780,7 +13816,7 @@
 			}
 			// C-225: オススメサポで「追加」を押したときの提案のカード（並びのまま。引けないID・重複は入れない）。空なら項目を消す。書くのは outsideAdd だけ
 			if ('cards' in patch) {
-				const c = outsideSavedCardsOf(patch.cards);
+				const c = outsideCardIdsOf(patch.cards);
 				if (c.length === 0) delete next.cards; else next.cards = c;
 			}
 			// T18: ピン止めしたスキル（押した順）。引けないID・重複は入れない。空なら項目を消す。書くのはピンのボタンだけ（押した時点）
@@ -13950,6 +13986,8 @@
 		// 画面の中だけの状態で保存しない（リロードでカード一覧に戻る）。切り替えのボタンを押すたびに FACTOR_VIEWS の順に回る
 		let factorView = 'cards';
 		let factorTableSort = null;
+		// T67: 列のソートをしているカードの ID（カードを変えて列の並びが変わっても、同じカードの列に付け替える。描いたときに覚える）
+		let factorTableSortCardId = null;
 		// T52（C-262 の (5)(6)）: 星取表の種類の並べ替え（'heal'・'passive'・'debuff'。null＝なし。保存しない）。◎は factorCircleMode と同じ状態（◎を選ぶ＝モードの入り）。
 		// 星取表の列見出しのメニューの並べ替え（factorTableSort）・種類の並べ替え・◎は、有効なのは全部で1つだけ（setFactorSort で切り替える）
 		let factorToneSort = null;
@@ -13957,6 +13995,7 @@
 		/** 並べ替えを1つに切り替える。kind＝'tone'（key＝種類。'circle' は◎のモード）／'col'（key＝列）／null（並べ替えない） */
 		function setFactorSort(kind, key) {
 			factorTableSort = kind === 'col' ? key : null;
+			factorTableSortCardId = null;
 			factorCircleMode = kind === 'tone' && key === 'circle';
 			factorToneSort = kind === 'tone' && key !== 'circle' ? key : null;
 		}
@@ -15577,10 +15616,12 @@
 		function setFactorCard(index, id) {
 			const r = rosterOutsideSink.getRoster();
 			const opt = outsideOptionsOf(r);
-			const cards = opt.cards.slice();
-			const old = cards[index] || '';
+			// T67: index はパネルの枠（種別の順に並べた位置）。書くのは保存の順（outsideCardIdsOf）の中の、そのカードの位置（空きなら後ろ）
+			const cards = outsideCardIdsOf(r && r.outsideOptions && r.outsideOptions.cards);
+			const old = opt.cards[index] || '';
 			if (old !== id) {
-				if (index < cards.length) cards[index] = id; else cards.push(id);
+				const at = old ? cards.indexOf(old) : -1;
+				if (at >= 0) cards[at] = id; else cards.push(id);
 				const pinned = opt.pinned.filter(x => x !== old && x !== id);
 				if (pinned.length < ROSTER_CARD_SLOTS - OUTSIDE_COUNT_CHOICES[0]) pinned.push(id);
 				const patch = { cards: cards, pinned: pinned };
@@ -15589,15 +15630,19 @@
 				rosterOutsideSink.setOptions(patch);
 				afterFactorCardsChange();
 			}
-			focusNoScroll(container.querySelector('[data-usd-el="factor-card-pick"][data-index="' + Math.min(cards.indexOf(id), ROSTER_CARD_SLOTS - 1) + '"]'));
+			// T67: 入れたカードは種別の順の位置に並ぶので、並んだあとの位置に focus を戻す
+			const shown = outsideOptionsOf(rosterOutsideSink.getRoster()).cards;
+			focusNoScroll(container.querySelector('[data-usd-el="factor-card-pick"][data-index="' + Math.min(Math.max(shown.indexOf(id), 0), ROSTER_CARD_SLOTS - 1) + '"]'));
 		}
 		/** ②のパネルの × （T53）。そのカードを列のカードと指定から外す（後ろの枠は詰める）。枚数は変えない。②のスキルは変えない */
 		function clearFactorCard(index) {
 			if (!rosterOutsideSink) return;
-			const opt = outsideOptionsOf(rosterOutsideSink.getRoster());
+			const r = rosterOutsideSink.getRoster();
+			const opt = outsideOptionsOf(r);
 			const old = opt.cards[index];
 			if (!old) return;
-			rosterOutsideSink.setOptions({ cards: opt.cards.filter((x, k) => k !== index), pinned: opt.pinned.filter(x => x !== old) });
+			// T67: 外すのは保存の順のまま（並べるのは読むとき）
+			rosterOutsideSink.setOptions({ cards: outsideCardIdsOf(r && r.outsideOptions && r.outsideOptions.cards).filter(x => x !== old), pinned: opt.pinned.filter(x => x !== old) });
 			afterFactorCardsChange();
 			focusNoScroll(container.querySelector('[data-usd-el="factor-card-pick"][data-index="' + index + '"]'));
 		}
@@ -16037,6 +16082,13 @@
 			let units = factorTableUnitsOf(sortedIds, src);
 			let offRows = offIds.slice();
 			// ソート（列見出しのメニュー）: その列が持つ（●か○）スキルのまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）。もう一度で元の並び。無効の段の中も同じ決まりで並べる
+			// T67: 列はカードの種別の順に並ぶので、カードを変えると列の番号が動く。ソートは覚えたカードの ID の列に付け替える（無くなったら解除）
+			if (typeof factorTableSort === 'number') {
+				const ids = src.roster.cardIds || [];
+				if (factorTableSortCardId === null) factorTableSortCardId = ids[factorTableSort - 1] || null;
+				else { const at = ids.indexOf(factorTableSortCardId); factorTableSort = at >= 0 ? at + 1 : null; }
+			}
+			if (factorTableSort === null) factorTableSortCardId = null;
 			if (factorTableSort !== null && !cards.some(m => m.key === factorTableSort && m.label)) factorTableSort = null;
 			// T52: 種類の並べ替え（列見出しの入口の小窓）。①の表と同じ基準（rowToneOf）で、その種類を持つまとまりを上へ（安定ソート）。
 			// ◎（factorCircleMode）は◎／○の2つの状態を持つ行（②の候補と、①に関わる○の行）を上へ。無効の段の中も同じ決まりで並べる
@@ -16064,7 +16116,7 @@
 				const n = m.typeOrder;
 				const typed = cardTypeKnown(n);
 				const sorted = factorTableSort === m.key;
-				const label = m.no + '枚目：' + (m.shortLabel || m.label) + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）のメニュー' + (sorted ? '（並べ替え中）' : '');
+				const label = m.no + '枚目：' + (m.shortLabel || m.label) + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）のメニュー' + (sorted ? '（ソート中）' : '');
 				const icon = typed ? cardIconBoxHtml(n, 'head')
 					: '<span class="usd-gh-fallback" data-usd-el="gh-fallback" aria-hidden="true">' + esc(Array.from(String(m.shortLabel || m.label).replace(/^[（(\[［「]+/, ''))[0] || '') + '</span>';
 				return '<button type="button" class="usd-gh-menu" data-usd-act="factor-col-menu" data-usd-el="factor-col-menu" data-member-key="' + m.key + '" data-no="' + m.no + '"'
@@ -17080,7 +17132,8 @@
 			q(el, 'outside-total').textContent = sum.kindsText;
 			q(el, 'outside-total-pt').textContent = sum.ptText;
 			q(el, 'outside-add').disabled = sum.checked.length === 0;
-			q(el, 'outside-recalc').hidden = outsideSkillKey() === outsideUi.applied;
+			// T67: 計算中のほかは、状態が変わっていなくても「再計算」を出す（押したときの計算は outsideRun のまま）
+			q(el, 'outside-recalc').hidden = false;
 		}
 
 		/** 追加（段4）。チェックされた白スキルを、既存の一括追加と同じ受け皿で②に足す（2種以上なら「元に戻す」付きの知らせ）。足したら小窓を閉じる */
@@ -17098,7 +17151,9 @@
 				const pinnedNow = optNow.pinned;
 				const by = new Map(r.cards.map(c => [c.cardId, c]));
 				const order = (r.kindOrder || r.cards.map(c => c.cardId)).filter(id => by.has(id) && !by.get(id).pinned);
-				cardsBefore = optNow.cards.slice();
+				// T67: optNow.cards は並べたもの。戻すのは保存の順のまま
+				const rNow = rosterOutsideSink.getRoster();
+				cardsBefore = outsideCardIdsOf(rNow && rNow.outsideOptions && rNow.outsideOptions.cards);
 				rosterOutsideSink.setOptions({ cards: order.concat(pinnedNow.filter(id => by.has(id))) });
 				cardsWritten = outsideOptionsOf(rosterOutsideSink.getRoster()).cards;
 			}
@@ -18831,6 +18886,8 @@
 		expandMergedValues: expandMergedValues,
 		// 結合画像の上段とタイトル（T37）: 育成ウマ娘・カードの id → { kind, id, title, name, typeOrder, typeIconUrl }（引けなければ null）
 		stitchEntryOf: stitchEntryOf,
+		// T67: サポカの並び（種別の順→ID の降順）。結合画像の上段・①の6枚・②のカードの共通の規則
+		sortCardIdsByType: sortCardIdsByType,
 		formatPtNumber: formatPtNumber,   // 3桁ごとの区切り（結合画像の想定SP が帯と同じ書き方にするため）
 
 		// 一括貼り付けテキストのマッチング（UIを持たない純粋なロジック）

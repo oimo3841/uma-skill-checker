@@ -87,7 +87,8 @@ export async function register56(env) {
 	const SAVED = { umaId: 'uma-0179', cardIds: ['card-0002', 'card-0566', 'card-0147', 'card-0149', 'card-0402', 'card-0248'], skillFilter: {} };
 	// 2026-10-27（スキルの既定の並び）: rowsHash は並びが変わったので変更後の値（a4ff69b4fad1a04a→fd7ef33c3080726e）。rowsCanon は並べ替えた形で、変更前 d2e8499 で測った値
 	const BEFORE = { total: '6,447', rows: 52, rowsHash: 'fd7ef33c3080726e', rowsCanon: '4e60dd9d3e2cb5f7',
-		tiles: ['[トレセン学園]サイレンススズカ×', '[巫女]吾妻×', '[やれやれ、お帰り]フジキセキ×', '[テッペンに立て！]ヒシアマゾン×', "[L'aubeは迫りて]佐岳メイ×", '[日本一のステージを]スペシャルウィーク×'] };
+		// T67（2026-11-02）: タイルは種別の順→ID の降順に並ぶ（顔ぶれは同じ。保存の cardIds は書き換えない）
+		tiles: ['[トレセン学園]サイレンススズカ×', '[テッペンに立て！]ヒシアマゾン×', '[日本一のステージを]スペシャルウィーク×', '[やれやれ、お帰り]フジキセキ×', '[巫女]吾妻×', "[L'aubeは迫りて]佐岳メイ×"] };
 	await block('J作業3(2) 保存済みの①の編成の R・SR はそのまま表示し、計算も変わらない（変更前の実測と同じ。390・1280）', async () => {
 		for (const w of [390, 1280]) {
 			const tag = 'J作業3(2) ' + w + 'px: ';
@@ -167,8 +168,10 @@ export async function register56(env) {
 	// 2026-10-27（スキルの既定の並び）: 小窓の右の一覧の行（li）を並べ替えた形。顔ぶれが変更前と同じことを、並びに左右されずに見る
 	const canonHtml = (h) => (h ? h.replace(/<li\b[\s\S]*?<\/li>/g, '') + (h.match(/<li\b[\s\S]*?<\/li>/g) || []).sort().join('') : h);
 	const canonCol = (x) => Object.assign({}, x, { right: canonHtml(x.right), rightText: undefined });
-	const R1 = ['card-0564', 'card-0565', 'card-0402', 'card-0248', 'card-0535', 'card-0478'];
-	const R2 = ['card-0566', 'card-0002', 'card-0147', 'card-0149', 'card-0402', 'card-0248'];
+	// T67（2026-11-02）: ①は種別の順→ID の降順に並ぶので、材料もその順に置く（顔ぶれは前と同じ）。吾妻（card-0564・card-0566）の列は 5（AZ_KEY）
+	const R1 = ['card-0478', 'card-0565', 'card-0535', 'card-0248', 'card-0564', 'card-0402'];
+	const R2 = ['card-0002', 'card-0149', 'card-0248', 'card-0147', 'card-0566', 'card-0402'];
+	const AZ_KEY = '5';
 	// 2026-10-27（スキルの既定の並び）: rowsHash・othersHash・rightHash は並びが変わったので変更後の値（R1 a50791516eb2f219→7d0680abed707734・c8fba2eca29f0fb3→660b4c21a38f7b0e・3527d527ab1ddb48→7f6f2e2784733e3d／
 	// R2 0dfc95b7c8ce1790→79a1441f58d1a638・a8e4ccb9e6a2180d→8d44a49c6384c5e9）。*Canon は並べ替えた形で、変更前 d2e8499 で測った値（変更後も同じ＝変わったのは並びだけ）
 	// 2026-10-29（吾妻のおでかけのトリガーのイベントを自動で選ばない・manualChoice）: R1 の合計 8,959→8,863（card-0564 の step 1 が自動で選ばれず△になり、−96 Pt）・
@@ -176,9 +179,12 @@ export async function register56(env) {
 	// ほかの列 othersHash（R1 660b4c21a38f7b0e→95449442aa405282・R2 8d44a49c6384c5e9→54b158e30cbb3187）・othersCanon（R1 be6076a4d4de2659→ed9602c3b628e817・R2 5476187973a5f043→73c181fe0c2e876d）
 	// は「自動」の札の class（usd-roster-autotag--auto）と、取得できるスキルの一覧の「自動」の札で変わった。印を外したデータで開き、札の差を取り除くと、
 	// 変更前（ce28f00）の値（合計・行・吾妻の列・ほかの列の HTML）と一致することを確かめた。行の文字（rowsHash）は変わらない
+	// 2026-11-02（T67 ①のカードの並び）: ほかの列 othersHash（R1 95449442aa405282→10e23358a7cc5335・R2 54b158e30cbb3187→11f6b917730ee8cb）・
+	// othersCanon（R1 ed9602c3b628e817→0773972dbaf4735f・R2 73c181fe0c2e876d→5303401b39ec27f0）は、列の番号（キー）とカードの組が並べ直しで変わったため。
+	// 変更前の製品（ef915f0）に、並んだ順の材料（上の R1・R2）を入れて測ると、4つとも新しい値と一致した（差は並びだけ）。合計・行・吾妻の列の中身は変わらない
 	const BEFORE4 = {
-		R1: { total: '8,863', rows: 83, rowsHash: '7d0680abed707734', othersHash: '95449442aa405282', leftHash: '78aa6a02cd962b23', rightHash: '766f5a64af63aec4', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: 'ed9602c3b628e817', rightCanon: '126e0947b8b1dafc' },
-		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: '54b158e30cbb3187', rowsCanon: '14e40cb2351ce84e', othersCanon: '73c181fe0c2e876d' }
+		R1: { total: '8,863', rows: 83, rowsHash: '7d0680abed707734', othersHash: '10e23358a7cc5335', leftHash: '78aa6a02cd962b23', rightHash: '766f5a64af63aec4', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: '0773972dbaf4735f', rightCanon: '126e0947b8b1dafc' },
+		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: '11f6b917730ee8cb', rowsCanon: '14e40cb2351ce84e', othersCanon: '5303401b39ec27f0' }
 	};
 	const dumpCols = async (cards) => {
 		const sp = await openPage(browser, base, 'special.html', { width: 1280, height: 900 }, EMPTY);
@@ -218,17 +224,17 @@ export async function register56(env) {
 		const azuma = CHARA.entries.find((e) => e.charaName === '吾妻');
 		assert(azuma && azuma.events.length === 1 && azuma.events[0].fixed === true && azuma.events[0].when === WHEN, 'J作業4(2) データ: 吾妻の共通イベントは fixed・when（' + WHEN + '）を持つ', azuma && azuma.events);
 		for (const [name, cards] of [['R1', R1], ['R2', R2]]) {
-			const tag = 'J作業4(2) ' + name + '（' + cards[0] + '）: ';
+			const tag = 'J作業4(2) ' + name + '（' + cards[Number(AZ_KEY) - 1] + '）: ';
 			const o = await dumpCols(cards);
 			const want = BEFORE4[name];
-			const c = o.cols['1'];
+			const c = o.cols[AZ_KEY];
 			const box = c && c.fixed ? c.fixed : [];
 			const scenBox = (o.cols.scenario && o.cols.scenario.fixed) || [];
 			assert(c && c.menu && box.length === 1 && box[0].title === '固定イベント（' + WHEN + '） 確定' && JSON.stringify(box[0].skills) === JSON.stringify(['末脚 Lv3']) && scenBox.length > 0 && box[0].cls === scenBox[0].cls,
 				tag + '吾妻の列の小窓の左に「固定イベント（' + WHEN + '）」「確定」・末脚 Lv3 の箱（シナリオの固定のイベントの箱と同じ class）', { box, scen: scenBox[0] && scenBox[0].cls });
 			assert(o.table.total === want.total && o.table.rows.length === want.rows && md5(o.table.rows.join('\n')) === want.rowsHash && md5(o.table.rows.slice().sort().join('\n')) === want.rowsCanon, tag + '表の行（' + want.rows + '）と合計Pt（' + want.total + '）は変更前と同じ', { total: o.table.total, rows: o.table.rows.length });
-			const others = Object.keys(o.cols).filter((k) => k !== '1').sort().map((k) => k + ':' + JSON.stringify(o.cols[k])).join('\n');
-			const othersCanon = Object.keys(o.cols).filter((k) => k !== '1').sort().map((k) => k + ':' + JSON.stringify(canonCol(o.cols[k]))).join('\n');
+			const others = Object.keys(o.cols).filter((k) => k !== AZ_KEY).sort().map((k) => k + ':' + JSON.stringify(o.cols[k])).join('\n');
+			const othersCanon = Object.keys(o.cols).filter((k) => k !== AZ_KEY).sort().map((k) => k + ':' + JSON.stringify(canonCol(o.cols[k]))).join('\n');
 			assert(md5(others) === want.othersHash && md5(othersCanon) === want.othersCanon, tag + 'ほかの列（サポカ5枚・育成ウマ娘・シナリオ）の小窓の中身は変更前と同じ（右の一覧の並びは既定の並び〔2026-10-27〕）', { raw: md5(others), canon: md5(othersCanon), rows: md5(o.table.rows.join('\n')), rowsCanon: md5(o.table.rows.slice().sort().join('\n')), left: c && c.left ? md5(c.left) : null, right: c && c.right ? md5(c.right) : null, rightCanon: c && c.right ? md5(canonHtml(c.right)) : null });
 			if (want.leftHash) {
 				const b = c.left.indexOf('<div class="usd-roster-event" data-usd-el="event-fixed">');

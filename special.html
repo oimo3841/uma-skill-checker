@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-01e"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-02a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
@@ -3162,10 +3162,9 @@
 			};
 		}
 
-		/** 上段のカードの並び（T37）: 種別の順（typeOrder の小さい順。友人とグループは同じ番号）→ 同じ種別の中は ID の降順。引けない ID は描かない */
+		/** 上段のカードの並び（T37）: 種別の順（typeOrder の小さい順。友人とグループは同じ番号）→ 同じ種別の中は ID の降順。引けない ID は描かない。規則は core の sortCardIdsByType（①②の並びと同じ。T67） */
 		function stitchSortCards(ids) {
-			return (ids || []).map(id => UmaSkillDeckCore.stitchEntryOf(id)).filter(e => e && e.kind === 'card')
-				.sort((a, b) => ((a.typeOrder || 99) - (b.typeOrder || 99)) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+			return UmaSkillDeckCore.sortCardIdsByType(ids).map(id => UmaSkillDeckCore.stitchEntryOf(id)).filter(e => e && e.kind === 'card');
 		}
 
 		/** 結合画像の枠の種類。OCR の写しがあればそれ、無ければ今の判定 */
