@@ -169,7 +169,8 @@ export async function register22(env) {
 	/* ====================================================================
 	 * E: 告知（exam だけ）
 	 * ==================================================================== */
-	const WANT_LEAD = '新機能「効率を指定」モードを追加し、文面含め全体的な調整を行いました。';
+	// 2026-11-01（T55・C-260 の (b)）: 「含め」だけを直した（前: 「新機能「効率を指定」モードを追加し、文面含め全体的な調整を行いました。」）
+	const WANT_LEAD = '新機能「効率を指定」モードを追加し、全体の文面も見直しました。';
 	const WANT_LINES = ['評価点÷SPの「効率」で対象スキルを区別します。', '蹄鉄をドラッグして区間を調整、バーをタップすると区間が対象から外れます。', '結合画像には、検出数と、★の数に応じて補正された合計評価点が入ります。'];
 	// お知らせの塊なので、日付を固定して回す（C-260 の (a)・2026-10-31。lib/fixtures.mjs の NOTICE_FIXED_TIME）
 	const noticeBlock = (title, fn) => block(title, () => withNoticeClock(NOTICE_FIXED_TIME, fn));
@@ -197,12 +198,12 @@ export async function register22(env) {
 		for (const [label, query, store] of [['既読の人', '', true], ['初めての人', '', false], ['?notice=force', '?notice=force', true]]) {
 			const r = await openPage(browser, base, 'special.html' + query, { width: 375, height: 800 });
 			if (store) {
-				await r.page.evaluate(() => { localStorage.clear(); localStorage.setItem('uma-special-ui-notice', UI_NOTICE_ID); localStorage.setItem('uma-special-alpha-notice', ALPHA_NOTICE_ID); localStorage.setItem('uma-special-catalog-notice', CATALOG_NOTICE_ID); });
+				await r.page.evaluate(() => { localStorage.clear(); localStorage.setItem('uma-special-ui-notice', UI_NOTICE_ID); localStorage.setItem('uma-special-stitch-notice', UmaAnnounce.STITCH.id); });
 				await reloadReady(r.page);
 			}
 			await r.page.waitForTimeout(1500);
 			const s = await r.page.evaluate(() => ({ open: !document.getElementById('ui-notice').hidden, kind: uiNoticeKind, menuBtn: !!document.getElementById('announce-menu-btn'), ed: localStorage.getItem('uma-special-edition-notice') }));
-			// お知らせの履歴（2026-10-25）: special にも履歴（収録・改修中・画面の3件）があり、メニューに「お知らせ」の行がある。2nd Edition の告知は出ない・既読の値も書かない
+			// お知らせの履歴（2026-10-25）: special にも履歴（2026-11-01 から結合画像のリニューアルの1件）があり、メニューに「お知らせ」の行がある。2nd Edition の告知は出ない・既読の値も書かない
 			assert(!(s.open && s.kind === 'edition') && s.menuBtn && s.ed === null, '微調整4E1(special・' + label + '): 2nd Edition の告知は出ない・メニューに「お知らせ」の行がある（履歴）・2nd Edition の既読の値は書かない', s);
 			assert(jsErrors(r.errors).length === 0, '微調整4E1(special・' + label + '): コンソールエラーなし', r.errors.slice(0, 3));
 			await r.ctx.close();

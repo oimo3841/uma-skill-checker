@@ -102,9 +102,10 @@ let scenarioPendingOn = false;
 export function setScenarioPendingOn(v) { scenarioPendingOn = !!v; }
 /* 2026-10-31（C-260 の (a)）: お知らせは「お知らせの日から30日目まで」だけ自動で開く。お知らせの塊は、日付を固定して開く
  * （Playwright の clock.setFixedTime。Date だけを固定し、タイマーは普通に進む）。固定するのはお知らせの塊だけ（ほかの塊は今日の日付のまま）。
- * NOTICE_FIXED_TIME は、今のお知らせ（NOTICE_LIST の 2026/09/11〜2026/10/24）がどれも自動で出る範囲に入る日（2026/09/11 がちょうど30日目。
- * 2026/10/24 の新シナリオはまだ先の日付で、範囲に入る）。これで、日付の規則より前に書いた塊は今までの意味のまま回る。日付の規則そのものは blocks-51 の 履歴(9)〜(11) が見る。 */
-export const NOTICE_FIXED_TIME = '2026-10-11T12:00:00+09:00';
+ * NOTICE_FIXED_TIME は、今のお知らせ（NOTICE_LIST の 2026/10/11〜2026/11/01）がどれも自動で出る範囲に入る日。日付の規則そのものは blocks-51 の 履歴(9)〜(11) と blocks-85 が見る。
+ * 2026-11-01（T55・C-260 の (b)(c)）: 古いお知らせ（09/11〜09/27）を外し、(c)（2026/11/01・special だけ）を足したので、2026-10-11 から 2026-11-01 に選び直した
+ * （(c) が0日目・新シナリオ 10/24 が8日目・2nd Edition 10/11 が21日目。どれも過去の日付で、30日以内）。 */
+export const NOTICE_FIXED_TIME = '2026-11-01T12:00:00+09:00';
 let noticeClock = null;
 /** 以後 openPage で開くページの日付を固定する（null で戻す） */
 export function setNoticeClock(t) { noticeClock = t || null; }

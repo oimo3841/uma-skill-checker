@@ -8,7 +8,7 @@
  *   ・各ページの #ui-notice の小窓に、中身だけ差し替えて出す（✕・OK・背景・Esc のどれで閉じても既読）
  *   ・既読の印は、ページごとのキーに「告知のID」を値として書く（ID を変えれば、もう一度出せる）
  *       exam    … uma-exam-edition-notice
- *       special … uma-special-edition-notice
+ *       special … uma-special-edition-notice（結合画像のリニューアルのお知らせ〔STITCH〕は uma-special-stitch-notice）
  *   ・小窓は1回の読み込みで1枚だけ（先に出す告知があるときは、次の読み込みで出す）
  * 足したのは、次の3点だけ:
  *   ・画像を載せられる（img/ の日付つきの名前。alt つき）
@@ -18,7 +18,7 @@
  * このファイルは DOM を作るだけで、保存や開閉の処理は持たない（各ページの openUiNotice / closeUiNotice が持つ）。
  * 公開するグローバルは UmaAnnounce の1つだけ。
  * ============================================================ */
-const ANNOUNCE_JS_VERSION = '2026-10-31a';
+const ANNOUNCE_JS_VERSION = '2026-11-01a';
 
 (function () {
 	'use strict';
@@ -32,7 +32,7 @@ const ANNOUNCE_JS_VERSION = '2026-10-31a';
 		sections: [
 			{
 				heading: 'UmaExam OCR',
-				lead: '新機能「効率を指定」モードを追加し、文面含め全体的な調整を行いました。',
+				lead: '新機能「効率を指定」モードを追加し、全体の文面も見直しました。',  // C-260 の (b): 「含め」だけを直した（ID は据え置き）
 				lines: [
 					'評価点÷SPの「効率」で対象スキルを区別します。',
 					'蹄鉄をドラッグして区間を調整、バーをタップすると区間が対象から外れます。',
@@ -45,6 +45,28 @@ const ANNOUNCE_JS_VERSION = '2026-10-31a';
 			},
 		],
 	};
+
+	/* ---------- 結合画像のリニューアルのお知らせ（C-260 の (c)・UmaStar だけ。2026-11-01） ----------
+	 * 形は ANNOUNCE と同じ（中身は fill が作る）。ANNOUNCE と違い、節の見出しは隠さない（小窓の最初の行）。
+	 * 画像は結合画像の全体を半分に縮めたもの。画像の代わりの説明文は付けない（alt=""。おいもさんの判断）。
+	 * 既読の印は special の uma-special-stitch-notice に id を書く。 */
+	const STITCH = {
+		id: '2026-11-01-stitch-renewal',
+		date: '2026-11-01',
+		label: 'お知らせ',
+		pages: ['special'],
+		sections: [
+			{
+				heading: '結合画像のリニューアル',
+				lead: '1枚の結合画像で、編成と因子をまとめて見られるようになりました。',
+				lines: [],
+				images: [
+					{ src: 'img/announce-stitch-2026-11-01.png', alt: '' },
+				],
+			},
+		],
+	};
+	const STITCH_TITLE_ID = 'ui-notice-title-stitch';
 
 	/* ---------- 新シナリオへの未対応の知らせ（暫定。段1a・2026-10-24。文面は 2026-10-25 に全面差し替え） ----------
 	 * 新シナリオ（10月26日 12:00 開始）を含むゲームの更新に、ツールが対応するまでの断り。
@@ -72,15 +94,13 @@ const ANNOUNCE_JS_VERSION = '2026-10-31a';
 	/* ---------- お知らせの履歴（日付つき。各ツールで新しい3件を見られる。2026-10-25） ----------
 	 * 並びは新しい順（同じ日付は、この並び）。date は、そのお知らせを入れた commit の日付（日本時間）。
 	 * pages＝どのツールに出すか。scenario は SCENARIO_PENDING.on が false になったら履歴から外れる（edition は ANNOUNCE.pages に従う）。
-	 * 本文は、scenario・edition はこのファイルが作り、layout・target・alpha・catalog は各ページの HTML が持つ（ここは種類と日付だけ）。 */
+	 * 本文は、stitch・scenario・edition とも、このファイルが作る。
+	 * 2026-11-01（C-260 の (b)）: 古いお知らせ（catalog 09/27・alpha 09/19・target 09/15・layout 09/11）を外した（本文・既読の読み書きも各ページから外した）。 */
 	const HISTORY_MAX = 3;
 	const NOTICE_LIST = [
+		{ kind: 'stitch', date: '2026/11/01', pages: ['special'], commit: 'T55' },
 		{ kind: 'scenario', date: '2026/10/24', pages: ['exam', 'special'], commit: '054dbee' },
 		{ kind: 'edition', date: '2026/10/11', pages: ['exam'], commit: '05540a0' },
-		{ kind: 'catalog', date: '2026/09/27', pages: ['special'], commit: '768840b' },
-		{ kind: 'alpha', date: '2026/09/19', pages: ['special'], commit: '748aa64' },
-		{ kind: 'target', date: '2026/09/15', pages: ['exam'], commit: 'e057ddc' },
-		{ kind: 'layout', date: '2026/09/11', pages: ['exam', 'special'], commit: '9f8b97c（exam）／d9836e7（special）' },
 	];
 	const TOOL_NAME = { exam: 'UmaExam OCR', special: 'UmaStar OCR' };
 
@@ -226,16 +246,18 @@ const ANNOUNCE_JS_VERSION = '2026-10-31a';
 		return e;
 	}
 
-	/** 小窓の中身（アイコン・見出し・各ツールの節）を root の中に作る。何度呼んでも同じ（作り直す）。 */
-	function fill(root) {
+	/** 小窓の中身（読み上げの見出し・各節）を root の中に作る。何度呼んでも同じ（作り直す）。
+	 *  def＝お知らせの定義（ANNOUNCE と同じ形。省くと ANNOUNCE）・titleId＝読み上げの見出しの id（省くと TITLE_ID）。 */
+	function fill(root, def, titleId) {
+		def = def || ANNOUNCE;
 		ensureStyle();
 		root.textContent = '';
 		// C-142（微調整4・E）: 見出し（「2nd Edition になりました」）とアイコンは出さない。読み上げの名前「お知らせ」は、見えない見出しで持つ
-		// （各ページの小窓の aria-labelledby が TITLE_ID を指す）。小窓の最初の行は各ツールの節の見出し（「UmaExam OCR」）
-		const h = el('h2', 'announce-sr', ANNOUNCE.label);
-		h.id = TITLE_ID;
+		// （各ページの小窓の aria-labelledby が titleId を指す）。2nd Edition の小窓の最初の行は各ツールの節の見出し（「UmaExam OCR」）
+		const h = el('h2', 'announce-sr', def.label);
+		h.id = titleId || TITLE_ID;
 		root.appendChild(h);
-		ANNOUNCE.sections.forEach(function (sec) {
+		def.sections.forEach(function (sec) {
 			const s = el('section', 'announce-sec');
 			s.appendChild(el('h3', 'announce-h', sec.heading));
 			s.appendChild(el('p', 'announce-lead', sec.lead));
@@ -288,7 +310,7 @@ const ANNOUNCE_JS_VERSION = '2026-10-31a';
 	}
 
 	window.UmaAnnounce = {
-		ANNOUNCE: ANNOUNCE, TITLE_ID: TITLE_ID, fill: fill, isFor: isFor, isForced: isForced, version: ANNOUNCE_JS_VERSION,
+		ANNOUNCE: ANNOUNCE, TITLE_ID: TITLE_ID, STITCH: STITCH, STITCH_TITLE_ID: STITCH_TITLE_ID, fill: fill, isFor: isFor, isForced: isForced, version: ANNOUNCE_JS_VERSION,
 		SCENARIO_PENDING: SCENARIO_PENDING, SCENARIO_TITLE_ID: SCENARIO_TITLE_ID, fillScenario: fillScenario, isScenarioFor: isScenarioFor,
 		NOTICE_LIST: NOTICE_LIST, HISTORY_MAX: HISTORY_MAX, TOOL_NAME: TOOL_NAME, history: history, allKinds: allKinds, decorate: decorate, mountChrome: ensureChrome,
 		AUTO_OPEN_DAYS: AUTO_OPEN_DAYS, noticeAgeDays: noticeAgeDays, isFresh: isFresh, autoOpenKind: autoOpenKind,

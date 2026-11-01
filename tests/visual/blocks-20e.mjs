@@ -14,8 +14,9 @@ export async function register20e(env) {
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	// C-142（微調整4・E）: 告知は exam だけに出す（UmaStar の告知は完成後）。special には出ないことは 微調整4E1 が見る
 	const TOOLS_ALL = [
-		{ name: 'exam', file: 'exam.html', key: 'uma-exam-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-target-notice': 'TARGET_NOTICE_ID', 'uma-exam-scenario-notice': 'UmaAnnounce.SCENARIO_PENDING.id' }, back: '#ui-notice-backdrop' },
-		{ name: 'special', file: 'special.html', key: 'uma-special-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-alpha-notice': 'ALPHA_NOTICE_ID', 'uma-special-catalog-notice': 'CATALOG_NOTICE_ID', 'uma-special-scenario-notice': 'UmaAnnounce.SCENARIO_PENDING.id' }, back: '#ui-notice-backdrop' },
+		// 2026-11-01（T55・C-260 の (b)）: 対象スキルの告知（target）・改修中（alpha）・収録（catalog）を外したので、既読の保存値から外した
+		{ name: 'exam', file: 'exam.html', key: 'uma-exam-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-scenario-notice': 'UmaAnnounce.SCENARIO_PENDING.id' }, back: '#ui-notice-backdrop' },
+		{ name: 'special', file: 'special.html', key: 'uma-special-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-stitch-notice': 'UmaAnnounce.STITCH.id', 'uma-special-scenario-notice': 'UmaAnnounce.SCENARIO_PENDING.id' }, back: '#ui-notice-backdrop' },
 	];
 	const TOOLS = TOOLS_ALL.filter((t) => t.name === 'exam');
 	const ID = async (page, names) => page.evaluate((ns) => Object.fromEntries(ns.map((n) => [n, eval(n)])), names);
@@ -55,7 +56,7 @@ export async function register20e(env) {
 				const id = await page.evaluate(() => UmaAnnounce.ANNOUNCE.id);
 				const kind = await noticeKind(page);
 				assert(await noticeOpen(page) && kind === 'edition', '微調整2E1(' + t.name + '・' + how + '): 起動すると2nd Edition の告知の小窓が出る', { open: await noticeOpen(page), kind });
-				const body = await page.evaluate(() => { const b = document.getElementById('ui-notice-body-edition'); return { hidden: b.hidden, title: b.querySelector('#' + UmaAnnounce.TITLE_ID).textContent, h: [...b.querySelectorAll('.announce-h')].map((e) => e.textContent), label: document.getElementById('ui-notice').getAttribute('aria-labelledby'), layoutHidden: document.getElementById('ui-notice-body-layout').hidden }; });
+				const body = await page.evaluate(() => { const b = document.getElementById('ui-notice-body-edition'); return { hidden: b.hidden, title: b.querySelector('#' + UmaAnnounce.TITLE_ID).textContent, h: [...b.querySelectorAll('.announce-h')].map((e) => e.textContent), label: document.getElementById('ui-notice').getAttribute('aria-labelledby'), layoutHidden: [...document.querySelectorAll('#ui-notice .notice-body > div[id^="ui-notice-body-"]')].every((x) => x === b || x.hidden) }; });
 				const want = await page.evaluate(() => ({ title: UmaAnnounce.ANNOUNCE.label, h: UmaAnnounce.ANNOUNCE.sections.map((s) => s.heading), tid: UmaAnnounce.TITLE_ID }));
 				assert(!body.hidden && body.layoutHidden && body.title === want.title && JSON.stringify(body.h) === JSON.stringify(want.h) && body.label === want.tid && (await page.evaluate((i) => document.getElementById(i) !== null, want.tid)),
 					'微調整2E1(' + t.name + '・' + how + '): 小窓の中身は定義（各ツールの節）どおりで、読み上げの名前は「お知らせ」（見えない見出し。微調整4E）', { body, want });
@@ -76,7 +77,8 @@ export async function register20e(env) {
 		}
 	});
 
-	await block('微調整2E2 初めての人には画面の告知だけを出し、2nd Edition の告知は「見たこと」にする（小窓は1枚だけ）／先に出す告知が未読の人には、そちらを先に出して次の読み込みで2nd Edition を出す', async () => {
+	// 2026-11-01（T55・C-260 の (b)）: 先に出す告知（exam の対象スキルの告知）を外したので、その場合を外した。初めての人の場合だけを見る
+	await block('微調整2E2 初めての人には履歴の最新の1件（2nd Edition の告知）を出し、閉じると既読にする（小窓は1枚だけ）', async () => {
 		for (const t of TOOLS) {
 			// 初めて: 保存値なし
 			{
@@ -91,25 +93,6 @@ export async function register20e(env) {
 				await reloadReady(page);
 				await page.waitForTimeout(1500);
 				assert(!(await noticeOpen(page)), '微調整2E2(' + t.name + '・初めて): 次に開いても2nd Edition の告知は出ない', null);
-				await ctx.close();
-			}
-			// 先に出す告知が未読（exam＝対象スキルの告知・special＝改修中の断り）の人: 先にそちらを出し、閉じたら次の読み込みで2nd Edition
-			{
-				const firstKey = t.name === 'exam' ? 'uma-exam-target-notice' : 'uma-special-alpha-notice';
-				const store = await seenStore(t, [firstKey]);
-				const { ctx, page } = await open(t, { store });
-				const k1 = await noticeKind(page);
-				// お知らせの履歴（2026-10-25）: 履歴の3件のどれかが未読なら、最新の1件（edition）で開く。先の告知は ‹ › の先にある。閉じると3件とも既読
-				assert(await noticeOpen(page) && k1 === 'edition', '微調整2E2(' + t.name + '・先の告知が未読): 最新の1件（2nd Edition の告知）で開く（先の告知は › の先）', k1);
-				await page.click('[data-notice-nav="older"]');
-				const k1b = await noticeKind(page);
-				assert(k1b === (t.name === 'exam' ? 'target' : 'alpha'), '微調整2E2(' + t.name + '・先の告知が未読): › で先の告知（' + k1b + '）に移れる', k1b);
-				await page.click(t.ok);
-				const firstSeen = await page.evaluate((k) => localStorage.getItem(k), firstKey);
-				await reloadReady(page);
-				await page.waitForTimeout(1500);
-				const open2 = await noticeOpen(page);
-				assert(firstSeen !== null && !open2, '微調整2E2(' + t.name + '・先の告知が未読): 閉じると先の告知も既読になり、次の読み込みでは出ない', { firstSeen, open2 });
 				await ctx.close();
 			}
 		}

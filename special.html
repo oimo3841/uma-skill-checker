@@ -58,7 +58,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-31a"></script>
+	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -654,48 +654,17 @@
 			</div>
 		</div>
 
-		<!-- UIの切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
+		<!-- お知らせの小窓。履歴の中に30日以内の未読があれば自動で出て、ツール切替のメニューの「お知らせ」からいつでも読み直せる。
 		     ✕・OK・背景・Esc のどれで閉じても既読になる。 -->
 		<div id="ui-notice-backdrop" class="uma-overlay-backdrop" hidden onclick="closeUiNotice()"></div>
-		<div id="ui-notice" class="uma-overlay notice-dialog deck-accent" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title">
+		<div id="ui-notice" class="uma-overlay notice-dialog deck-accent" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title-stitch">
 			<button type="button" class="usd-icon-btn uma-icon-btn notice-close" data-act="notice-close" onclick="closeUiNotice()" aria-label="閉じる">
 				<i data-lucide="x" class="w-4 h-4"></i>
 			</button>
 			<div class="notice-body">
-				<!-- 告知は2種類あり、出すのはどちらか一方だけ（openUiNotice が切り替える。exam と同じ作法）。
-				     ・layout … スキルの選び方が変わったときの案内（右上の「新UI」バッジから読み直せる）
-				     ・alpha  … 改修中であることの断り（C-62 の (11)。2026-09-18） -->
-				<div id="ui-notice-body-layout">
-				<div class="notice-icon" aria-hidden="true">
-					<i data-lucide="layers" class="w-6 h-6"></i>
-				</div>
-				<h2 class="notice-title" id="ui-notice-title">スキルの選び方が新しくなりました</h2>
-				<p class="notice-text">スキル名を毎回貼り付けなくても、保存しておいたセットから選べます。作ったセットは次回も残り、UmaSkill Deck とも共有されます。</p>
-				<!-- 「右上の『旧UIへ』から、いつでも元の画面に戻せます。」の一文は 2026-09-15 の片道化で削った
-				     （新UIからは旧UIへ行けなくなったので事実と食い違う）。告知の ID は据え置き＝既読の人には再表示されない。 -->
-				</div><!-- /#ui-notice-body-layout -->
-
-				<div id="ui-notice-body-alpha" hidden>
-					<div class="notice-icon" aria-hidden="true">
-						<i data-lucide="alert-triangle" class="w-6 h-6"></i>
-					</div>
-					<h2 class="notice-title" id="ui-notice-title-alpha">機能を大幅に改修中です</h2>
-					<p class="notice-text"><span class="nb">この画面は</span><span class="nb">いま大幅な改修の途中</span>（<span class="nb">αテスト中</span>）<span class="nb">です。</span></p>
-					<p class="notice-text"><span class="nb">改修が終わるまで、</span><span class="nb">一部の機能が</span><span class="nb">不安定になったり、</span><span class="nb">結果が正しくなかったり</span><span class="nb">することがあります。</span></p>
-					<p class="notice-text"><span class="nb">あらかじめ</span><span class="nb">ご了承ください。</span></p>
-				</div>
-
-				<!-- 収録の告知（C-100・2026-09-27）。**special だけに出す**（exam と Deck には出さない＝おいもさんの決定）。
-				     既読の印は layout・alpha とは**別のキー**なので、前の告知を閉じた人にも1度だけ出る。
-				     **モーダルは1回の読み込みで1枚だけ**（initUiMode の決まり）なので、layout か alpha を出す読み込みでは、
-				     この節を**同じモーダルの下に並べて**出す（線で区切り、印は出さない＝.notice-catalog--with）。
-				     それ以外の読み込みでは、これだけを1枚で出す。 -->
-				<div id="ui-notice-body-catalog" class="notice-catalog" hidden>
-					<div class="notice-icon" aria-hidden="true">
-						<i data-lucide="book-open" class="w-6 h-6"></i>
-					</div>
-					<h2 class="notice-title" id="ui-notice-title-catalog"><span class="nb">最新のスキルまで</span><span class="nb">収録しました</span><span class="nb">（2026年9月27日時点）。</span></h2>
-				</div>
+				<!-- 2026-11-01（C-260 の (b)）: 古いお知らせ（画面の切り替え〔layout〕・改修中〔alpha〕・収録〔catalog〕）の本文を外した。
+				     結合画像のリニューアルのお知らせ（C-260 の (c)・2026-11-01）。文面・画像は js/announce.js の STITCH が持つ。openUiNotice('stitch') が中身を作る -->
+				<div id="ui-notice-body-stitch" hidden></div>
 
 				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ（exam と共有）。openUiNotice('edition') が中身を作る -->
 				<div id="ui-notice-body-edition" hidden></div>
@@ -4286,14 +4255,10 @@
 		const UI_MODE_STORAGE_KEY = 'uma-special-ui-mode';       // 'new' | 'old'
 		const UI_NOTICE_STORAGE_KEY = 'uma-special-ui-notice';   // 見た告知のID
 		const UI_NOTICE_ID = '2026-09-new-ui-default';
-		// 改修中であることの断り（C-62 の (11)。2026-09-18）。画面の切り替えの告知とは**別のキー**に
-		// してあるので、そちらを既読にした人にもこれは1度だけ出る（exam の TARGET_NOTICE と同じ作法）。
-		const ALPHA_NOTICE_STORAGE_KEY = 'uma-special-alpha-notice';
-		const ALPHA_NOTICE_ID = '2026-09-18-alpha-rework';
-		// 最新のスキルまで収録したことの告知（C-100。2026-09-27）。これも**別のキー**なので、
-		// layout・alpha を既読にした人にも1度だけ出る。special だけに出す（exam と Deck には出さない）。
-		const CATALOG_NOTICE_STORAGE_KEY = 'uma-special-catalog-notice';
-		const CATALOG_NOTICE_ID = '2026-09-27-skills-up-to-date';
+		// 2026-11-01（C-260 の (b)）: 画面の切り替えの告知（layout）・改修中の断り（alpha）・収録の告知（catalog）はお知らせの履歴から外した。
+		// 画面の切り替えの既読の印（UI_NOTICE_*）だけは、旧UIの保存値を効かせる印として残す（閉じたときに今までどおり書く）。
+		// 結合画像のリニューアルのお知らせ（C-260 の (c)）。文面・画像・番号は js/announce.js（UmaAnnounce.STITCH）。これも別のキー
+		const STITCH_NOTICE_STORAGE_KEY = 'uma-special-stitch-notice';
 		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE。exam と共有）。これも別のキー
 		const EDITION_NOTICE_STORAGE_KEY = 'uma-special-edition-notice';
 		// 新シナリオへの未対応の知らせ（段1a）。文面・番号は js/announce.js（UmaAnnounce.SCENARIO_PENDING。exam と共有）。これも別のキー
@@ -4316,19 +4281,12 @@
 			if (hasSeenUiNotice()) return;
 			writeStored(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID);
 		}
-		function hasSeenAlphaNotice() {
-			return readStored(ALPHA_NOTICE_STORAGE_KEY) === ALPHA_NOTICE_ID;
+		function hasSeenStitchNotice() {
+			return readStored(STITCH_NOTICE_STORAGE_KEY) === UmaAnnounce.STITCH.id;
 		}
-		function markAlphaNoticeSeen() {
-			if (hasSeenAlphaNotice()) return;
-			writeStored(ALPHA_NOTICE_STORAGE_KEY, ALPHA_NOTICE_ID);
-		}
-		function hasSeenCatalogNotice() {
-			return readStored(CATALOG_NOTICE_STORAGE_KEY) === CATALOG_NOTICE_ID;
-		}
-		function markCatalogNoticeSeen() {
-			if (hasSeenCatalogNotice()) return;
-			writeStored(CATALOG_NOTICE_STORAGE_KEY, CATALOG_NOTICE_ID);
+		function markStitchNoticeSeen() {
+			if (hasSeenStitchNotice()) return;
+			writeStored(STITCH_NOTICE_STORAGE_KEY, UmaAnnounce.STITCH.id);
 		}
 		function hasSeenEditionNotice() {
 			return readStored(EDITION_NOTICE_STORAGE_KEY) === UmaAnnounce.ANNOUNCE.id;
@@ -4380,16 +4338,14 @@
 		}
 		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ----------
 		   枠（背景・✕・OK・Esc）は1つで、中身だけ差し替える。**1件ずつ**出す。小窓の上にツール名と日付、本文と OK の間に ‹ n / N ›（js/announce.js の decorate）。
-		   kind: 'layout'（バッジからの読み直し）| 'alpha' | 'catalog' | 'edition' | 'scenario'（後の2つは中身を js/announce.js が作る） */
+		   kind: 'stitch' | 'edition' | 'scenario'（中身はどれも js/announce.js が作る。layout・alpha・catalog は 2026-11-01 に外した＝C-260 の (b)） */
 		let uiNoticeOpen = false;
-		let uiNoticeKind = 'layout';
+		let uiNoticeKind = 'stitch';
 		let uiNoticeReturnFocus = null;
 
 		// 種類ごとの、本文の要素・読み上げの見出し・既読の読み書き
 		const NOTICE_KINDS = {
-			layout: { body: 'ui-notice-body-layout', title: () => 'ui-notice-title', seen: hasSeenUiNotice, mark: markUiNoticeSeen },
-			alpha: { body: 'ui-notice-body-alpha', title: () => 'ui-notice-title-alpha', seen: hasSeenAlphaNotice, mark: markAlphaNoticeSeen },
-			catalog: { body: 'ui-notice-body-catalog', title: () => 'ui-notice-title-catalog', seen: hasSeenCatalogNotice, mark: markCatalogNoticeSeen },
+			stitch: { body: 'ui-notice-body-stitch', title: () => UmaAnnounce.STITCH_TITLE_ID, seen: hasSeenStitchNotice, mark: markStitchNoticeSeen },
 			edition: { body: 'ui-notice-body-edition', title: () => UmaAnnounce.TITLE_ID, seen: hasSeenEditionNotice, mark: markEditionNoticeSeen },
 			scenario: { body: 'ui-notice-body-scenario', title: () => UmaAnnounce.SCENARIO_TITLE_ID, seen: hasSeenScenarioNotice, mark: markScenarioNoticeSeen },
 		};
@@ -4397,8 +4353,9 @@
 
 		// いま出す告知に合わせて、本文・見出し・日付・‹ n / N › を切り替える（既読は書かない）
 		function showUiNoticeKind(kind) {
-			uiNoticeKind = NOTICE_KINDS[kind] ? kind : 'layout';
+			uiNoticeKind = NOTICE_KINDS[kind] ? kind : 'stitch';
 			Object.keys(NOTICE_KINDS).forEach(k => { document.getElementById(NOTICE_KINDS[k].body).hidden = k !== uiNoticeKind; });
+			if (uiNoticeKind === 'stitch') UmaAnnounce.fill(document.getElementById('ui-notice-body-stitch'), UmaAnnounce.STITCH, UmaAnnounce.STITCH_TITLE_ID);
 			if (uiNoticeKind === 'edition') UmaAnnounce.fill(document.getElementById('ui-notice-body-edition'));
 			if (uiNoticeKind === 'scenario') UmaAnnounce.fillScenario(document.getElementById('ui-notice-body-scenario'), 'special');
 			const dlg = document.getElementById('ui-notice');
@@ -4450,15 +4407,14 @@
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
 			// ?notice=force のときは、何も書かない（既読の状態を変えない）
-			if (!UmaAnnounce.isForced()) UmaAnnounce.allKinds('special').forEach(k => { if (NOTICE_KINDS[k]) NOTICE_KINDS[k].mark(); });
-			// 読み直した場合は開いた元（右上のバッジ）へ、初回表示なら元の位置へ返す
+			// 画面の切り替えの既読の印（旧UIの保存値を効かせる印）は、履歴から外したあとも今までどおり書く（C-260 の (b)・2026-11-01）
+			if (!UmaAnnounce.isForced()) {
+				UmaAnnounce.allKinds('special').forEach(k => { if (NOTICE_KINDS[k]) NOTICE_KINDS[k].mark(); });
+				markUiNoticeSeen();
+			}
+			// 読み直した場合は開いた元（メニュー）へ、初回表示なら元の位置へ返す
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;
-		}
-
-		// 右上の「新UI」バッジからの読み直し。既読の状態は変えない（もともと既読なので）。
-		function reopenUiNotice() {
-			openUiNotice('layout');
 		}
 
 		// ツール切替のメニューの「お知らせ」: メニューを閉じて、最新の1件から開く（読み直し。閉じても既読の状態は変わらない＝すでに既読）

@@ -9,6 +9,8 @@
 // 文面は、依頼文の「そのまま使う」文面を検査の側に直書きして比べる（実装から読んで作らない）。
 // 2026-10-26（新シナリオの仕上げ）: 実データの on を false にした（知らせを外した）。(1)〜(6)・(8) は、on を true にした合成の状態
 // （fixtures の setScenarioPendingOn）で知らせの仕組みを見る。(7) は実データのまま（on が false）で、新シナリオの知らせが履歴に無いことを見る。
+// 2026-11-01（T55・C-260 の (b)(c)）: 古いお知らせ（exam の target・layout／special の catalog・alpha・layout）を外し、special に (c)（stitch 11/01）を足した。
+// 合成の状態の履歴は各ツール2件（exam ＝ scenario 10/24・edition 10/11／special ＝ stitch 11/01・scenario 10/24）、実データは各1件。n / N は「/ 2」、日付の塊は各ツールの最新の日から数える。
 import { reloadReady } from './lib/page-ready.mjs';
 import { setScenarioPendingOn, withNoticeClock, NOTICE_FIXED_TIME } from './lib/fixtures.mjs';
 
@@ -29,12 +31,16 @@ async function register51Body(env) {
 	const DESC = { 'UmaStar OCR': 'チャンミ/LoH用OCR（β版）', 'UmaExam OCR': '技能試験用OCR' };
 	// 履歴（新しい順）: 種類と日付。日付は、そのお知らせを入れた commit の日付（日本時間）
 	const HIST = {
-		exam: [['scenario', '2026/10/24'], ['edition', '2026/10/11'], ['target', '2026/09/15']],
-		special: [['scenario', '2026/10/24'], ['catalog', '2026/09/27'], ['alpha', '2026/09/19']],
+		exam: [['scenario', '2026/10/24'], ['edition', '2026/10/11']],
+		special: [['stitch', '2026/11/01'], ['scenario', '2026/10/24']],
 	};
+	const N = 2;   // 合成の状態の履歴の件数（各ツール）
+	// kindKey＝種類ごとの既読のキー（ui-notice は画面の切り替えの既読の印。履歴の外だが、閉じたときに今までどおり書く）
 	const TOOLS = [
-		{ name: 'exam', file: 'exam.html', tool: 'UmaExam OCR', keys: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-target-notice': 'TARGET_NOTICE_ID', 'uma-exam-edition-notice': 'UmaAnnounce.ANNOUNCE.id' }, scenarioKey: 'uma-exam-scenario-notice' },
-		{ name: 'special', file: 'special.html', tool: 'UmaStar OCR', keys: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-alpha-notice': 'ALPHA_NOTICE_ID', 'uma-special-catalog-notice': 'CATALOG_NOTICE_ID' }, scenarioKey: 'uma-special-scenario-notice' },
+		{ name: 'exam', file: 'exam.html', tool: 'UmaExam OCR', keys: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-edition-notice': 'UmaAnnounce.ANNOUNCE.id' }, scenarioKey: 'uma-exam-scenario-notice',
+			kindKey: { scenario: 'uma-exam-scenario-notice', edition: 'uma-exam-edition-notice' } },
+		{ name: 'special', file: 'special.html', tool: 'UmaStar OCR', keys: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-stitch-notice': 'UmaAnnounce.STITCH.id' }, scenarioKey: 'uma-special-scenario-notice',
+			kindKey: { stitch: 'uma-special-stitch-notice', scenario: 'uma-special-scenario-notice' } },
 	];
 	const noticeOpen = (page) => page.evaluate(() => { const d = document.getElementById('ui-notice'); return !!d && !d.hidden; });
 	const allKeys = (page) => page.evaluate(() => { const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); } return o; });
@@ -82,6 +88,8 @@ async function register51Body(env) {
 		};
 	});
 	const nav = async (page, which) => { await page.click('[data-notice-nav="' + which + '"]'); await page.waitForTimeout(150); };
+	/** › で古い側へめくって、その種類を出す（special の新シナリオは2件目） */
+	const toKind = async (page, kind) => { for (let i = 0; i < N && (await page.evaluate(() => uiNoticeKind)) !== kind; i++) await nav(page, 'older'); };
 	const menuOpen = async (page) => { await page.click('#tool-dropdown-btn'); await page.waitForTimeout(200); };
 	const menuDescs = (page) => page.evaluate(() => {
 		const menu = document.getElementById('tool-dropdown-menu');
@@ -98,8 +106,9 @@ async function register51Body(env) {
 	await block('履歴(1) 文面の byte 一致（新シナリオの見出し・箇条・メニューの説明2つ）／導入や常時の1行は無い', async () => {
 		for (const t of TOOLS) {
 			const r = await open(t, { store: await seenStore(t, true) });
+			await toKind(r.page, 'scenario');
 			const d = await dlg(r.page);
-			assert(d.open && d.kind === 'scenario', `履歴(1) ${t.name}: 新シナリオの知らせが開く`, d.kind);
+			assert(d.open && d.kind === 'scenario', `履歴(1) ${t.name}: 新シナリオの知らせが開く（special は › の先の2件目）`, d.kind);
 			assert(d.head === HEAD, `履歴(1) ${t.name}: 見出しが一致`, d.head);
 			assert(JSON.stringify(d.lines) === JSON.stringify(LINES[t.name]), `履歴(1) ${t.name}: 箇条が一致（${LINES[t.name].length}行）`, JSON.stringify(d.lines));
 			assert(d.leads === 0, `履歴(1) ${t.name}: 導入の文は無い`, d.leads);
@@ -119,10 +128,10 @@ async function register51Body(env) {
 		for (const t of TOOLS) {
 			const r = await open(t, { store: await seenStore(t, true) });
 			const hist = await r.page.evaluate((p) => UmaAnnounce.history(p), t.name);
-			assert(JSON.stringify(hist.map((h) => [h.kind, h.date])) === JSON.stringify(HIST[t.name]), `履歴(2) ${t.name}: 履歴は新しい3件（新しい順）`, JSON.stringify(hist));
+			assert(JSON.stringify(hist.map((h) => [h.kind, h.date])) === JSON.stringify(HIST[t.name]), `履歴(2) ${t.name}: 履歴は新しい順の${N}件（最大3件）`, JSON.stringify(hist));
 			const d = await dlg(r.page);
 			assert(d.tool === t.tool && d.date === HIST[t.name][0][1] && d.headFirst, `履歴(2) ${t.name}: 小窓の上にツール名と日付（${d.tool} ${d.date}）`, JSON.stringify({ tool: d.tool, date: d.date, headFirst: d.headFirst }));
-			assert(d.count === '1 / 3' && d.pagerBeforeOk, `履歴(2) ${t.name}: 本文と OK の間に「1 / 3」`, JSON.stringify({ count: d.count, before: d.pagerBeforeOk }));
+			assert(d.count === '1 / ' + N && d.pagerBeforeOk, `履歴(2) ${t.name}: 本文と OK の間に「1 / ${N}」`, JSON.stringify({ count: d.count, before: d.pagerBeforeOk }));
 			assert(d.shown.length === 1, `履歴(2) ${t.name}: 小窓は1件ずつ（本文は1つだけ）`, JSON.stringify(d.shown));
 			await r.ctx.close();
 		}
@@ -135,15 +144,14 @@ async function register51Body(env) {
 			let d = await dlg(r.page);
 			seq.push([d.kind, d.date, d.count, d.newer.v, d.older.v]);
 			assert(d.newer.v === 'hidden' && d.older.v === 'visible', `履歴(3) ${t.name}: 1件目は ‹ が見えず › が見える`, JSON.stringify(d));
+			// 2026-11-01（T55）: 履歴は2件。› で2件目（最後）に移ると › が見えない
 			await nav(r.page, 'older'); d = await dlg(r.page); seq.push([d.kind, d.date, d.count, d.newer.v, d.older.v]);
-			assert(d.kind === HIST[t.name][1][0] && d.date === HIST[t.name][1][1] && d.count === '2 / 3' && d.newer.v === 'visible' && d.older.v === 'visible', `履歴(3) ${t.name}: › で2件目（${HIST[t.name][1][0]}・${HIST[t.name][1][1]}・2 / 3・両方見える）`, JSON.stringify(d));
-			await nav(r.page, 'older'); d = await dlg(r.page); seq.push([d.kind, d.date, d.count, d.newer.v, d.older.v]);
-			assert(d.kind === HIST[t.name][2][0] && d.date === HIST[t.name][2][1] && d.count === '3 / 3' && d.newer.v === 'visible' && d.older.v === 'hidden', `履歴(3) ${t.name}: › で3件目（${HIST[t.name][2][0]}・3 / 3・› が見えない）`, JSON.stringify(d));
-			assert(d.shown.length === 1, `履歴(3) ${t.name}: 3件目も本文は1つだけ`, JSON.stringify(d.shown));
+			assert(d.kind === HIST[t.name][1][0] && d.date === HIST[t.name][1][1] && d.count === '2 / 2' && d.newer.v === 'visible' && d.older.v === 'hidden', `履歴(3) ${t.name}: › で2件目（${HIST[t.name][1][0]}・${HIST[t.name][1][1]}・2 / 2・‹ が見えて › が見えない）`, JSON.stringify(d));
+			assert(d.shown.length === 1, `履歴(3) ${t.name}: 2件目も本文は1つだけ`, JSON.stringify(d.shown));
 			// 端のボタンは場所を残す（押せない見た目にしない＝visibility で隠す。display:none にしない）
 			assert(d.older.d !== 'none' && d.newer.d !== 'none', `履歴(3) ${t.name}: 端のボタンは場所が残る（並びがずれない）`, JSON.stringify(d));
-			await nav(r.page, 'newer'); await nav(r.page, 'newer'); d = await dlg(r.page);
-			assert(d.kind === 'scenario' && d.count === '1 / 3', `履歴(3) ${t.name}: ‹ で1件目に戻る`, JSON.stringify(d));
+			await nav(r.page, 'newer'); d = await dlg(r.page);
+			assert(d.kind === HIST[t.name][0][0] && d.count === '1 / 2', `履歴(3) ${t.name}: ‹ で1件目に戻る`, JSON.stringify(d));
 			await r.ctx.close();
 		}
 	});
@@ -154,7 +162,7 @@ async function register51Body(env) {
 			for (const how of ['ok', 'x', 'backdrop', 'esc']) {
 				const r = await open(t);
 				const d = await dlg(r.page);
-				assert(d.open && d.kind === 'scenario' && d.count === '1 / 3', `履歴(4) ${t.name}/${how}: 初めての人にも最新の1件（新シナリオ）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
+				assert(d.open && d.kind === HIST[t.name][0][0] && d.count === '1 / ' + N, `履歴(4) ${t.name}/${how}: 初めての人にも最新の1件（${HIST[t.name][0][0]}）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
 				if (how === 'ok') await r.page.click('#ui-notice-ok');
 				else if (how === 'x') await r.page.click('#ui-notice .notice-close');
 				else if (how === 'backdrop') await r.page.evaluate(() => document.getElementById('ui-notice-backdrop').click());
@@ -163,7 +171,7 @@ async function register51Body(env) {
 				const keys = await allKeys(r.page);
 				const want = await seenStore(t);
 				const ok = Object.keys(want).filter((k) => !/ui-mode/.test(k)).every((k) => keys[k] === want[k]);
-				assert(ok, `履歴(4) ${t.name}/${how}: 閉じると、このツールの告知がすべて既読になる（履歴の3件と古い告知の印）`, JSON.stringify(keys));
+				assert(ok, `履歴(4) ${t.name}/${how}: 閉じると、このツールの告知がすべて既読になる（履歴の${N}件と画面の切り替えの印）`, JSON.stringify(keys));
 				await reloadReady(r.page);
 				await r.page.waitForTimeout(1500);
 				assert(!(await noticeOpen(r.page)), `履歴(4) ${t.name}/${how}: 開き直すと自動では出ない`, '');
@@ -173,17 +181,17 @@ async function register51Body(env) {
 			const r2 = await open(t, { store: await seenStore(t) });
 			assert(!(await noticeOpen(r2.page)), `履歴(4) ${t.name}: すべて既読の人には自動で出ない`, '');
 			await r2.ctx.close();
-			// 新シナリオだけ未読: 最新の1件（新シナリオ）で開く
+			// 新シナリオだけ未読: 最新の1件で開く（special の最新は stitch。新シナリオは › の先）
 			const r3 = await open(t, { store: await seenStore(t, true) });
 			const d3 = await dlg(r3.page);
-			assert(d3.open && d3.kind === 'scenario' && d3.count === '1 / 3', `履歴(4) ${t.name}: 履歴の3件のうち新シナリオだけ未読でも、最新の1件で開く`, JSON.stringify(d3));
+			assert(d3.open && d3.kind === HIST[t.name][0][0] && d3.count === '1 / ' + N, `履歴(4) ${t.name}: 履歴のうち新シナリオだけ未読でも、最新の1件で開く`, JSON.stringify(d3));
 			await r3.ctx.close();
-			// 履歴のうち古い側（3件目）だけが未読でも開く（履歴の3件に未読があれば開く）
+			// 履歴のうち古い側（最後の件）だけが未読でも開く（30日以内の未読があれば開く）
 			const s4 = await seenStore(t);
-			delete s4[Object.keys(t.keys)[Object.keys(t.keys).length - 1]];
+			delete s4[t.kindKey[HIST[t.name][N - 1][0]]];
 			const r4 = await open(t, { store: s4 });
 			const d4 = await dlg(r4.page);
-			assert(d4.open && d4.kind === 'scenario', `履歴(4) ${t.name}: 古い側の告知だけ未読でも、最新の1件で開く`, JSON.stringify(d4));
+			assert(d4.open && d4.kind === HIST[t.name][0][0], `履歴(4) ${t.name}: 古い側の告知だけ未読でも、最新の1件で開く`, JSON.stringify(d4));
 			await r4.ctx.close();
 		}
 	});
@@ -198,7 +206,7 @@ async function register51Body(env) {
 			await r.page.click('#announce-menu-btn');
 			await r.page.waitForTimeout(200);
 			const d = await dlg(r.page);
-			assert(d.open && d.kind === 'scenario' && d.count === '1 / 3', `履歴(5) ${t.name}: メニューから最新の1件（1 / 3）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
+			assert(d.open && d.kind === HIST[t.name][0][0] && d.count === '1 / ' + N, `履歴(5) ${t.name}: メニューから最新の1件（1 / ${N}）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
 			assert(await r.page.evaluate(() => document.getElementById('tool-dropdown-menu').classList.contains('hidden')), `履歴(5) ${t.name}: メニューは閉じる`, '');
 			await r.page.keyboard.press('Escape');
 			await r.page.waitForTimeout(200);
@@ -206,7 +214,7 @@ async function register51Body(env) {
 			await r.ctx.close();
 			const f = await open(t, { store, query: '?notice=force' });
 			const df = await dlg(f.page);
-			assert(df.open && df.kind === 'scenario' && df.count === '1 / 3', `履歴(5) ${t.name}: ?notice=force は既読でも最新の1件から開く`, JSON.stringify(df));
+			assert(df.open && df.kind === HIST[t.name][0][0] && df.count === '1 / ' + N, `履歴(5) ${t.name}: ?notice=force は既読でも最新の1件から開く`, JSON.stringify(df));
 			const b4 = await allKeys(f.page);
 			await f.page.click('#ui-notice-ok');
 			await f.page.waitForTimeout(250);
@@ -235,7 +243,8 @@ async function register51Body(env) {
 		}
 	});
 
-	await block('履歴(7) 実データ（SCENARIO_PENDING.on が false）では新シナリオの知らせが履歴に無い（exam: edition・target・layout／special: catalog・alpha・layout）／合成で on にすると scenario が先頭', async () => {
+	// 2026-11-01（T55）: 実データの履歴は exam: edition／special: stitch の各1件。合成で on にすると、新シナリオが日付の位置に入る（exam は先頭・special は2件目）
+	await block('履歴(7) 実データ（SCENARIO_PENDING.on が false）では新シナリオの知らせが履歴に無い（exam: edition／special: stitch）／合成で on にすると scenario が日付の位置に入る', async () => {
 		for (const t of TOOLS) {
 			const store = await seenStore(t);
 			// 実データのまま（合成の on を外して開く）
@@ -243,8 +252,8 @@ async function register51Body(env) {
 			let real;
 			try { real = await open(t, { store }); } finally { setScenarioPendingOn(true); }
 			const realRes = await real.page.evaluate((p) => ({ on: UmaAnnounce.SCENARIO_PENDING.on, kinds: UmaAnnounce.history(p).map((h) => h.kind) }), t.name);
-			const wantReal = t.name === 'exam' ? ['edition', 'target', 'layout'] : ['catalog', 'alpha', 'layout'];
-			assert(realRes.on === false && JSON.stringify(realRes.kinds) === JSON.stringify(wantReal), `履歴(7) ${t.name}: 実データでは on が false で、履歴は新シナリオを含まない3件`, JSON.stringify(realRes));
+			const wantReal = t.name === 'exam' ? ['edition'] : ['stitch'];
+			assert(realRes.on === false && JSON.stringify(realRes.kinds) === JSON.stringify(wantReal), `履歴(7) ${t.name}: 実データでは on が false で、履歴は新シナリオを含まない1件`, JSON.stringify(realRes));
 			await real.ctx.close();
 			const r = await open(t, { store });
 			const res = await r.page.evaluate((p) => {
@@ -253,14 +262,14 @@ async function register51Body(env) {
 				const off = UmaAnnounce.history(p).map((h) => h.kind);
 				return { on, off };
 			}, t.name);
-			const wantOff = t.name === 'exam' ? ['edition', 'target', 'layout'] : ['catalog', 'alpha', 'layout'];
-			assert(res.on[0] === 'scenario' && res.on.length === 3, `履歴(7) ${t.name}: on のときは新シナリオが先頭の3件`, JSON.stringify(res.on));
-			assert(JSON.stringify(res.off) === JSON.stringify(wantOff), `履歴(7) ${t.name}: false にすると新シナリオが外れ、次の3件になる`, JSON.stringify(res.off));
+			const wantOff = t.name === 'exam' ? ['edition'] : ['stitch'];
+			assert(JSON.stringify(res.on) === JSON.stringify(HIST[t.name].map((h) => h[0])), `履歴(7) ${t.name}: on のときは新シナリオが日付の位置に入った${N}件`, JSON.stringify(res.on));
+			assert(JSON.stringify(res.off) === JSON.stringify(wantOff), `履歴(7) ${t.name}: false にすると新シナリオが外れ、1件になる`, JSON.stringify(res.off));
 			await r.ctx.close();
 		}
 	});
 
-	await block('履歴(8) 見た目: special・exam × 360・390・1280px × ライト・ダーク で、小窓（1・2・3件目）とメニュー ―― 横スクロールなし・エラー0・文字のコントラスト 4.5:1 以上・メニューの説明が折り返さない', async () => {
+	await block('履歴(8) 見た目: special・exam × 360・390・1280px × ライト・ダーク で、小窓（1・2件目）とメニュー ―― 横スクロールなし・エラー0・文字のコントラスト 4.5:1 以上・メニューの説明が折り返さない', async () => {
 		const toRgb = (c) => (/rgba?\((\d+), (\d+), (\d+)/.exec(c || '') || []).slice(1, 4).map(Number);
 		const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 		const ratio = (a, b) => { const x = lum(toRgb(a)), y = lum(toRgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
@@ -270,7 +279,7 @@ async function register51Body(env) {
 				for (const theme of ['light', 'dark']) {
 					const tag = `${t.name}/${w}/${theme}`;
 					const r = await open(t, { w, theme, store: await seenStore(t, true) });
-					for (let i = 0; i < 3; i++) {
+					for (let i = 0; i < N; i++) {
 						const m = await r.page.evaluate(() => {
 							const d = document.getElementById('ui-notice');
 							const eff = (el) => { let e = el; while (e) { const bg = getComputedStyle(e).backgroundColor; if (bg && !/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) return bg; e = e.parentElement; } return 'rgb(255, 255, 255)'; };
@@ -283,7 +292,7 @@ async function register51Body(env) {
 						});
 						assert(!m.scroll && m.inView && m.okInView, `履歴(8) ${tag}/${i + 1}件目: 横スクロールなし・小窓と OK が画面に収まる`, JSON.stringify({ scroll: m.scroll, inView: m.inView, okInView: m.okInView }));
 						m.out.forEach((o) => { const c = ratio(o.fg, o.bg); worst.push(c); assert(c >= 4.5, `履歴(8) ${tag}/${i + 1}件目: ${o.cls} のコントラスト ${c.toFixed(2)}:1`, o.fg + ' on ' + o.bg); });
-						if (i < 2) await nav(r.page, 'older');
+						if (i < N - 1) await nav(r.page, 'older');
 					}
 					await r.page.keyboard.press('Escape');
 					await menuOpen(r.page);
@@ -299,8 +308,9 @@ async function register51Body(env) {
 
 	/* ---------- 自動で開く日付（C-260 の (a)・2026-10-31） ----------
 	 * 日付は「読み込みのときに自動で開くか」だけに使う。お知らせの日（日本時間）を0日目として30日目まで自動で出す。
-	 * 未読が31日目以降のものしか無ければ、自動では何も出さず、既読も書かない。‹ n / N › は自動もメニューも同じ3件。
-	 * 合成の状態（新シナリオ 2026/10/24 が先頭）の履歴: exam ＝ scenario 10/24・edition 10/11・target 09/15／special ＝ scenario 10/24・catalog 09/27・alpha 09/19。
+	 * 未読が31日目以降のものしか無ければ、自動では何も出さず、既読も書かない。‹ n / N › は自動もメニューも同じ件数。
+	 * 合成の状態（新シナリオ 2026/10/24 を入れた）の履歴: exam ＝ scenario 10/24・edition 10/11／special ＝ stitch 11/01・scenario 10/24。
+	 * 2026-11-01（T55）: 履歴が2件になったので、0日目・30日目・31日目は各ツールの最新の日から数える（exam ＝ 10/24・special ＝ 11/01）。
 	 * 日付は塊の中で withNoticeClock で固定する（その間に開いたページだけ）。期待する日数は検査の側に直書きする（実装から読まない）。 */
 	const at = (iso, fn) => withNoticeClock(iso, fn);
 	const noticeKeys = (t) => Object.keys(t.keys).concat([t.scenarioKey]);
@@ -309,12 +319,17 @@ async function register51Body(env) {
 		const seen = [];
 		let d = await dlg(page);
 		seen.push([d.kind, d.count]);
-		for (let i = 0; i < 2; i++) { await nav(page, 'older'); d = await dlg(page); seen.push([d.kind, d.count]); }
+		for (let i = 0; i < N - 1; i++) { await nav(page, 'older'); d = await dlg(page); seen.push([d.kind, d.count]); }
 		return seen;
 	};
-	const wantPaged = (t) => HIST[t.name].map((h, i) => [h[0], (i + 1) + ' / 3']);
+	const wantPaged = (t) => HIST[t.name].map((h, i) => [h[0], (i + 1) + ' / ' + N]);
+	// 各ツールの最新の日からの 0日目・30日目・31日目（日本時間）
+	const DAYS = {
+		exam: { d0: ['2026-10-24T00:30:00+09:00', '0日目（10/24 0:30 JST＝UTC では前日）'], d30: ['2026-11-23T23:30:00+09:00', '30日目（11/23 23:30 JST）'], d31: ['2026-11-24T00:30:00+09:00', '31日目（11/24 0:30 JST）'] },
+		special: { d0: ['2026-11-01T00:30:00+09:00', '0日目（11/01 0:30 JST＝UTC では前日）'], d30: ['2026-12-01T23:30:00+09:00', '30日目（12/01 23:30 JST）'], d31: ['2026-12-02T00:30:00+09:00', '31日目（12/02 0:30 JST）'] },
+	};
 
-	await block('履歴(9) 自動で開く日付: お知らせの日（日本時間）が0日目・30日目は初めての人に自動で出て、‹ n / N › は 1 / 3 から3件をめくれる／31日目は出ず、既読も書かない（exam・special）／日数の数え方は日本時間の日付だけ', async () => {
+	await block('履歴(9) 自動で開く日付: お知らせの日（日本時間）が0日目・30日目は初めての人に自動で出て、‹ n / N › は 1 / 2 から2件をめくれる（各ツールの最新の日から数える）／31日目は出ず、既読も書かない（exam・special）／日数の数え方は日本時間の日付だけ', async () => {
 		// 日数の数え方（日本時間の日付の差。時刻の端数は入らない）
 		{
 			const r = await open(TOOLS[0]);
@@ -323,20 +338,20 @@ async function register51Body(env) {
 			assert(JSON.stringify(ages) === JSON.stringify([[0, true], [-1, true], [30, true], [31, false]]), '履歴(9) 日数: 10/24 0:00 JST が0日目・前日 23:59 は −1・11/23 23:59 が30日目（出す）・11/24 0:00 が31日目（出さない）', JSON.stringify(ages));
 			await r.ctx.close();
 		}
-		const days = [
-			{ iso: '2026-10-24T00:30:00+09:00', label: '0日目（10/24 0:30 JST＝UTC では前日）', open: true },
-			{ iso: '2026-11-23T23:30:00+09:00', label: '30日目（11/23 23:30 JST）', open: true },
-			{ iso: '2026-11-24T00:30:00+09:00', label: '31日目（11/24 0:30 JST）', open: false },
-		];
 		for (const t of TOOLS) {
+			const days = [
+				{ iso: DAYS[t.name].d0[0], label: DAYS[t.name].d0[1], open: true },
+				{ iso: DAYS[t.name].d30[0], label: DAYS[t.name].d30[1], open: true },
+				{ iso: DAYS[t.name].d31[0], label: DAYS[t.name].d31[1], open: false },
+			];
 			for (const day of days) {
 				await at(day.iso, async () => {
 					const r = await open(t);
 					const d = await dlg(r.page);
 					if (day.open) {
-						assert(d.open && d.kind === 'scenario' && d.count === '1 / 3', `履歴(9) ${t.name} ${day.label}: 初めての人に最新の1件（1 / 3）で自動で出る`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
+						assert(d.open && d.kind === HIST[t.name][0][0] && d.count === '1 / ' + N, `履歴(9) ${t.name} ${day.label}: 初めての人に最新の1件（1 / ${N}）で自動で出る`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
 						const paged = await pageThrough(r.page);
-						assert(JSON.stringify(paged) === JSON.stringify(wantPaged(t)), `履歴(9) ${t.name} ${day.label}: 自動で開いたときも3件をめくれる（古い側の31日目以降のものも含む）`, JSON.stringify(paged));
+						assert(JSON.stringify(paged) === JSON.stringify(wantPaged(t)), `履歴(9) ${t.name} ${day.label}: 自動で開いたときも${N}件をめくれる（古い側の31日目以降のものも含む）`, JSON.stringify(paged));
 					} else {
 						assert(!d.open, `履歴(9) ${t.name} ${day.label}: 初めての人にも自動では出ない`, JSON.stringify({ open: d.open, kind: d.kind }));
 						const w = await writtenNoticeKeys(t, r.page);
@@ -351,16 +366,17 @@ async function register51Body(env) {
 		}
 	});
 
-	await block('履歴(10) 新しい未読と古い未読: 混ざるときは最新の1件で開き3件をめくれる・閉じるとすべて既読／未読が古いものだけのときは何も出さず既読も書かない（2026-10-25 ＝ 新シナリオ1日目・2件目は30日以内・3件目は31日目以降）', async () => {
-		const iso = '2026-10-25T12:00:00+09:00';
+	await block('履歴(10) 新しい未読と古い未読: 混ざるときは最新の1件で開き2件をめくれる・閉じるとすべて既読／最新だけ未読なら開く／未読が古いものだけのときは何も出さず既読も書かない（最新は30日以内・2件目は31日目以降の日）', async () => {
+		// 2026-11-01（T55）: 履歴が2件なので、最新は30日以内・2件目は31日目以降の日で見る（exam ＝ 11/15〔scenario 22日目・edition 35日目〕・special ＝ 11/25〔stitch 24日目・scenario 32日目〕）
+		const ISO = { exam: '2026-11-15T12:00:00+09:00', special: '2026-11-25T12:00:00+09:00' };
 		for (const t of TOOLS) {
-			const oldKey = t.name === 'exam' ? 'uma-exam-target-notice' : 'uma-special-alpha-notice';      // 3件目（exam ＝ target 09/15・special ＝ alpha 09/19。どちらも31日目以降）
-			const midKey = t.name === 'exam' ? 'uma-exam-edition-notice' : 'uma-special-catalog-notice';   // 2件目（exam ＝ edition 10/11・special ＝ catalog 09/27。どちらも30日以内）
-			await at(iso, async () => {
+			const newKey = t.kindKey[HIST[t.name][0][0]];   // 1件目（30日以内）
+			const oldKey = t.kindKey[HIST[t.name][1][0]];   // 2件目（31日目以降）
+			await at(ISO[t.name], async () => {
 				// 初めての人（新しい未読と古い未読が混ざる）
 				const r = await open(t);
 				const d = await dlg(r.page);
-				assert(d.open && d.kind === 'scenario' && d.count === '1 / 3', `履歴(10) ${t.name}: 新しい未読と古い未読が混ざると、最新の1件（1 / 3）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
+				assert(d.open && d.kind === HIST[t.name][0][0] && d.count === '1 / ' + N, `履歴(10) ${t.name}: 新しい未読と古い未読が混ざると、最新の1件（1 / ${N}）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
 				const paged = await pageThrough(r.page);
 				assert(JSON.stringify(paged) === JSON.stringify(wantPaged(t)), `履歴(10) ${t.name}: 古い側（31日目以降）にもめくれる`, JSON.stringify(paged));
 				await r.page.click('#ui-notice-ok');
@@ -369,14 +385,14 @@ async function register51Body(env) {
 				const want = await seenStore(t);
 				assert(Object.keys(want).filter((k) => !/ui-mode/.test(k)).every((k) => keys[k] === want[k]), `履歴(10) ${t.name}: 閉じると、古いものも含めてすべて既読`, JSON.stringify(keys));
 				await r.ctx.close();
-				// 新しい未読（2件目）と古い未読（3件目）が混ざり、最新（1件目）は既読
+				// 最新（30日以内）だけ未読で、古いものは既読
 				const s2 = await seenStore(t);
-				delete s2[midKey]; delete s2[oldKey];
+				delete s2[newKey];
 				const r2 = await open(t, { store: s2 });
 				const d2 = await dlg(r2.page);
-				assert(d2.open && d2.kind === 'scenario' && d2.count === '1 / 3', `履歴(10) ${t.name}: 2件目（30日以内）と3件目（31日目以降）が未読なら、最新の1件で開く`, JSON.stringify({ open: d2.open, kind: d2.kind, count: d2.count }));
+				assert(d2.open && d2.kind === HIST[t.name][0][0] && d2.count === '1 / ' + N, `履歴(10) ${t.name}: 最新（30日以内）が未読なら、最新の1件で開く`, JSON.stringify({ open: d2.open, kind: d2.kind, count: d2.count }));
 				await r2.ctx.close();
-				// 未読が古いもの（3件目）だけ
+				// 未読が古いもの（2件目）だけ
 				const s3 = await seenStore(t);
 				delete s3[oldKey];
 				const r3 = await open(t, { store: s3 });
@@ -392,9 +408,9 @@ async function register51Body(env) {
 		}
 	});
 
-	await block('履歴(11) メニューの「お知らせ」は日付に関係なく 1 / 3 から3件をめくれる（31日目・初めての人／すべて既読の人）／?notice=force は31日目でも開く／実データ: 2026-10-31 は UmaStar に出ず UmaExam に出る・UmaExam は 11/10 まで出て 11/11 から出ない', async () => {
+	await block('履歴(11) メニューの「お知らせ」は日付に関係なく 1 / 2 から2件をめくれる（31日目・初めての人／すべて既読の人）／?notice=force は31日目でも開く／実データ: UmaStar は 11/01〜12/01 に出て 12/02 から出ない・UmaExam は 11/10 まで出て 11/11 から出ない', async () => {
 		for (const t of TOOLS) {
-			await at('2026-11-24T12:00:00+09:00', async () => {
+			await at(DAYS[t.name].d31[0].replace('00:30:00', '12:00:00'), async () => {
 				for (const who of ['first', 'seen']) {
 					const r = await open(t, who === 'seen' ? { store: await seenStore(t) } : {});
 					assert(!(await noticeOpen(r.page)), `履歴(11) ${t.name}/${who}: 31日目は自動では出ない`, '');
@@ -402,21 +418,22 @@ async function register51Body(env) {
 					await r.page.click('#announce-menu-btn');
 					await r.page.waitForTimeout(200);
 					const d = await dlg(r.page);
-					assert(d.open && d.kind === 'scenario' && d.count === '1 / 3', `履歴(11) ${t.name}/${who}: 31日目でもメニューから最新の1件（1 / 3）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
+					assert(d.open && d.kind === HIST[t.name][0][0] && d.count === '1 / ' + N, `履歴(11) ${t.name}/${who}: 31日目でもメニューから最新の1件（1 / ${N}）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
 					const paged = await pageThrough(r.page);
-					assert(JSON.stringify(paged) === JSON.stringify(wantPaged(t)), `履歴(11) ${t.name}/${who}: メニューからも同じ3件をめくれる`, JSON.stringify(paged));
+					assert(JSON.stringify(paged) === JSON.stringify(wantPaged(t)), `履歴(11) ${t.name}/${who}: メニューからも同じ${N}件をめくれる`, JSON.stringify(paged));
 					await r.ctx.close();
 				}
 				const f = await open(t, { query: '?notice=force' });
 				const df = await dlg(f.page);
-				assert(df.open && df.kind === 'scenario' && df.count === '1 / 3', `履歴(11) ${t.name}: ?notice=force は31日目でも最新の1件から開く`, JSON.stringify({ open: df.open, kind: df.kind, count: df.count }));
+				assert(df.open && df.kind === HIST[t.name][0][0] && df.count === '1 / ' + N, `履歴(11) ${t.name}: ?notice=force は31日目でも最新の1件から開く`, JSON.stringify({ open: df.open, kind: df.kind, count: df.count }));
 				await f.ctx.close();
 			});
 		}
-		// 実データ（新シナリオの知らせは外れている）: special の最新は catalog 09/27・exam の最新は edition 10/11
+		// 実データ（新シナリオの知らせは外れている）: special の履歴は stitch 11/01 の1件・exam の履歴は edition 10/11 の1件（1件なので ‹ n / N › は出ない）
 		const real = [
-			{ t: TOOLS[1], iso: '2026-10-27T12:00:00+09:00', open: true, kind: 'catalog', label: '10/27（09/27 から30日目）' },
-			{ t: TOOLS[1], iso: '2026-10-31T12:00:00+09:00', open: false, label: '10/31（09/27 から34日目）' },
+			{ t: TOOLS[1], iso: '2026-11-01T12:00:00+09:00', open: true, kind: 'stitch', label: '11/01（0日目）' },
+			{ t: TOOLS[1], iso: '2026-12-01T12:00:00+09:00', open: true, kind: 'stitch', label: '12/01（11/01 から30日目）' },
+			{ t: TOOLS[1], iso: '2026-12-02T12:00:00+09:00', open: false, label: '12/02（31日目）' },
 			{ t: TOOLS[0], iso: '2026-10-31T12:00:00+09:00', open: true, kind: 'edition', label: '10/31（10/11 から20日目）' },
 			{ t: TOOLS[0], iso: '2026-11-10T12:00:00+09:00', open: true, kind: 'edition', label: '11/10（30日目）' },
 			{ t: TOOLS[0], iso: '2026-11-11T12:00:00+09:00', open: false, label: '11/11（31日目）' },
@@ -427,7 +444,7 @@ async function register51Body(env) {
 				await at(c.iso, async () => {
 					const r = await open(c.t);
 					const d = await dlg(r.page);
-					if (c.open) assert(d.open && d.kind === c.kind && d.count === '1 / 3', `履歴(11) 実データ ${c.t.name} ${c.label}: 初めての人に ${c.kind}（1 / 3）で出る`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
+					if (c.open) assert(d.open && d.kind === c.kind && d.pagerHidden === true, `履歴(11) 実データ ${c.t.name} ${c.label}: 初めての人に ${c.kind}（1件だけ・‹ n / N › なし）で出る`, JSON.stringify({ open: d.open, kind: d.kind, pagerHidden: d.pagerHidden }));
 					else assert(!d.open && (await writtenNoticeKeys(c.t, r.page)).length === 0, `履歴(11) 実データ ${c.t.name} ${c.label}: 初めての人にも出ず、既読も書かない`, JSON.stringify({ open: d.open, kind: d.kind }));
 					assert(jsErrors(r.errors).length === 0, `履歴(11) 実データ ${c.t.name} ${c.label}: エラー0`, JSON.stringify(jsErrors(r.errors)));
 					await r.ctx.close();

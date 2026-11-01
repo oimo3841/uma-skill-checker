@@ -111,6 +111,7 @@ import { register81 } from './blocks-81.mjs';
 import { register82 } from './blocks-82.mjs';
 import { register83 } from './blocks-83.mjs';
 import { register84 } from './blocks-84.mjs';
+import { register85 } from './blocks-85.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -1860,8 +1861,9 @@ await noticeBlock('special.html — 既定は新UI／切り替えの告知モー
 			'special: 初回は新UIで開く', first);
 		assert(!first.btnShown && !first.endNote, 'special: 初回（新UI）では「旧UIへ」も更新終了の注記も出ない（片道化）', first);
 		// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
-		assert(first.noticeText.includes('スキルの選び方が新しくなりました') && !first.noticeText.includes('旧UIへ'),
-			'special: 告知の文面に「旧UIへ」の案内が残っていない', first.noticeText);
+		// 2026-11-01（T55・C-260 の (b)(c)）: 画面の切り替えの告知は外した。初めての人に出るのは履歴の最新の1件（結合画像のリニューアル）
+		assert(first.noticeText.includes('結合画像のリニューアル') && !first.noticeText.includes('スキルの選び方が新しくなりました') && !first.noticeText.includes('旧UIへ'),
+			'special: 告知は結合画像のリニューアル（画面の切り替えの告知・「旧UIへ」の案内は無い）', first.noticeText);
 		assert(first.notice && first.backdrop && first.scrollLocked,
 			'special: 初回は切り替えの告知モーダルが出て、本文のスクロールが止まる', first);
 		assert(await page.evaluate(() => ({
@@ -1889,12 +1891,13 @@ await noticeBlock('special.html — 既定は新UI／切り替えの告知モー
 		assert(again.title === '因子周回' && !again.notice,
 			'special: 既読なら新UIのままで、モーダルは繰り返さない', again);
 
-		// 6. 読み直せる（既読のまま）。右上の「新UI」バッジは段7b の ⓪で無くしたので、読み直しの関数を直接呼ぶ
-		await page.evaluate(() => reopenUiNotice());
+		// 6. 読み直せる（既読のまま）。右上の「新UI」バッジは段7b の ⓪で無くした。
+		//    2026-11-01（T55）: 画面の切り替えの告知を外したので、読み直しの関数（reopenUiNotice）も外した。ツール切替のメニューの「お知らせ」から読み直す
+		await page.evaluate(() => openAnnounceFromMenu());
 		await page.waitForTimeout(300);
 		const reopened = await uiState(page);
 		assert(reopened.notice && reopened.seen === '2026-09-new-ui-default',
-			'special: 右上のバッジから読み直せて、既読のまま変わらない', reopened);
+			'special: メニューの「お知らせ」から読み直せて、既読のまま変わらない', reopened);
 		await page.click('[data-act="notice-ok"]');
 		await page.waitForTimeout(300);
 
@@ -4628,35 +4631,17 @@ await noticeBlock('exam.html — 既定は新UI／切り替えの告知モーダ
 		assert(await page.evaluate(() => document.activeElement === document.getElementById('ui-notice-ok')),
 			'exam: 開いた時点でOKにフォーカスが移る');
 		assert(first.seen === null, 'exam: 開いただけではまだ既読にしない', first.seen);
-		// 文面は固定。＜新機能＞の段は Deck の色の枠。
-		// 告知は2種類あり、枠は共有で中身だけ差し替わるので、出している方の中身だけを見る。
+		// 2026-11-01（T55・C-260 の (b)）: 画面の作りの告知（layout）と対象スキルの告知（target）は外した。
+		// 初めての人に出るのは履歴の最新の1件（2nd Edition の告知。文面は blocks-22 の 微調整4E1・blocks-85 が見る）
 		const text = await page.evaluate(() => ({
-			title: document.getElementById('ui-notice-title').textContent,
-			body: document.getElementById('ui-notice-body-layout').textContent.replace(/\s+/g, ''),
-			targetHidden: document.getElementById('ui-notice-body-target').hidden,
-			newBox: getComputedStyle(document.querySelector('#ui-notice .notice-new')).backgroundColor
+			kind: uiNoticeKind,
+			hist: UmaAnnounce.history('exam').map((h) => h.kind),
+			gone: ['ui-notice-body-layout', 'ui-notice-body-target', 'ui-notice-title', 'ui-notice-title-target'].filter((id) => !!document.getElementById(id)),
+			body: document.getElementById('ui-notice').textContent.replace(/\s+/g, '')
 		}));
-		assert(text.targetHidden, 'exam: 初回は対象スキルの告知は出さない（画面の告知だけ）', text.targetHidden);
-		assert(text.title === '画面が新しくなりました'
-			&& text.body.includes('対象スキル（133種）はそのままです。')
-			&& text.body.includes('照合結果と結合画像の表示は、右下の＋ボタンから開く引き出しに表示されます。')
-			// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
-			&& !text.body.includes('旧UIへ')
-			&& text.body.includes('＜新機能＞')
-			&& text.body.includes('OCRの結果を保存して、候補同士を見比べられる「UmaSkillDeck」が追加されました。')
-			&& text.body.includes('UmaSkillDeckは、右下の＋ボタンから開く引き出しに表示されます。')
-			&& text.body.includes('照合結果はUmaSkillDeckに直接追加できます。'),
-			'exam: 告知の文面が決めたとおり', text);
-		// ツール名は太字で強調する（枠の中の本文と同じ色）
-		assert(await page.evaluate(() => {
-			const el = document.querySelector('#ui-notice .notice-deck-name');
-			return el ? getComputedStyle(el).fontWeight : null;
-		}) === '700', 'exam: 告知の「UmaSkill Deck」が太字で強調されている');
-		assert(text.newBox === 'rgb(231, 229, 228)', 'exam: ＜新機能＞の段は Deck の色（暖灰）の枠', text.newBox);
-		// 語の途中で折れていないこと（.nb で括った文節は1行に収まる）
-		const broken = await page.evaluate(() => [...document.querySelectorAll('#ui-notice .nb')]
-			.filter((el) => el.getClientRects().length > 1).map((el) => el.textContent));
-		assert(broken.length === 0, 'exam: 告知の文節が途中で折り返されていない（PC幅）', broken);
+		assert(text.kind === 'edition' && JSON.stringify(text.hist) === '["edition"]' && text.gone.length === 0
+			&& !text.body.includes('画面が新しくなりました') && !text.body.includes('対象スキルの選択方法がアップデートされました') && !text.body.includes('旧UIへ'),
+			'exam: 初回は 2nd Edition の告知が出る（画面の作り・対象スキルの告知は無い）', text);
 
 		await page.click('#ui-notice-ok');
 		await page.waitForTimeout(300);
@@ -4670,41 +4655,12 @@ await noticeBlock('exam.html — 既定は新UI／切り替えの告知モーダ
 		const again = await uiState(page);
 		assert(again.newCard && !again.notice, 'exam: 既読なら新UIのままで、モーダルは繰り返さない', again);
 
-		/* 対象スキルの告知（2026-09-14）。画面の告知を既に読んでいる人にだけ、1度だけ出る。
-		   画面の告知が未読の人（＝初めて開く人）には出さない（上で targetHidden を見ている）。 */
+		/* 対象スキルの告知（2026-09-14）は 2026-11-01（T55・C-260 の (b)）に外した。既読の印のキーを消しても出ない・閉じても書かない */
 		await page.evaluate(() => localStorage.removeItem('uma-exam-target-notice'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(1500);
-		// お知らせの履歴（2026-10-25）: 履歴の3件のどれかが未読なら、最新の1件で開く。
-		// 2026-10-26（新シナリオの仕上げ）: 新シナリオの知らせを外したので、exam の履歴は 2nd Edition・対象スキル・画面。対象スキルの告知は › 1回の先
-		await page.click('[data-notice-nav="older"]');
-		const tgt = await page.evaluate(() => ({
-			notice: !document.getElementById('ui-notice').hidden,
-			layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
-			title: document.getElementById('ui-notice-title-target').textContent,
-			body: document.getElementById('ui-notice-body-target').textContent.replace(/\s+/g, ''),
-			labelledby: document.getElementById('ui-notice').getAttribute('aria-labelledby'),
-			seen: localStorage.getItem('uma-exam-target-notice')
-		}));
-		assert(tgt.notice && tgt.layoutHidden && tgt.labelledby === 'ui-notice-title-target',
-			'exam: 画面の告知が既読なら、対象スキルの告知が代わりに出る', tgt);
-		assert(tgt.title === '対象スキルの選択方法がアップデートされました'
-			&& tgt.body.includes('「対象スキルの範囲」から、既定133種／拡張138種／絞り込み121種を選べるようになりました。')
-			&& tgt.body.includes('新たに「シナリオ因子」も対象に追加できます。'),
-			'exam: 対象スキルの告知の文面が決めたとおり', tgt);
-		assert(tgt.seen === null, 'exam: 対象スキルの告知も、開いただけではまだ既読にしない', tgt.seen);
-		await page.click('#ui-notice-ok');
-		await page.waitForTimeout(300);
-		const tgtClosed = await page.evaluate(() => ({
-			notice: !document.getElementById('ui-notice').hidden,
-			seen: localStorage.getItem('uma-exam-target-notice')
-		}));
-		assert(!tgtClosed.notice && tgtClosed.seen === '2026-09-14-target-scope',
-			'exam: 閉じると対象スキルの告知の既読の印が残る', tgtClosed);
-		await page.reload({ waitUntil: 'domcontentloaded' });
-		await page.waitForTimeout(1500);
-		assert(!(await page.evaluate(() => !document.getElementById('ui-notice').hidden)),
-			'exam: 対象スキルの告知は繰り返さない');
+		assert(!(await page.evaluate(() => !document.getElementById('ui-notice').hidden)) && (await page.evaluate(() => localStorage.getItem('uma-exam-target-notice'))) === null,
+			'exam: 対象スキルの告知は外した（印が無くても出ず、書かない）');
 
 			// 見出しの「新UI」バッジは C-139（微調整1・C(11)）で外した（読み直す入口は無い）
 			assert((await page.$('#ui-mode-badge')) === null, 'exam: 見出しに「新UI」のバッジは無い');
@@ -9124,16 +9080,13 @@ await block('C-62 の (9): 結合画像への導線（引き出しの中のタ�
 /* ============================================================
  * C-62 の (11): 改修中の告知
  *
- * 画面の切り替えの告知（layout）とは**別のキー**で持つので、
- *   - 初めて開く人 … layout だけ出て、改修中のほうは「見たこと」になる
- *   - layout を既読の人 … 改修中のほうが1度だけ出る
- *   - 閉じたあと … もう出ない
+ * 2026-11-01（T55・C-260 の (b)）: 改修中の断り（alpha）・収録（catalog）・画面の切り替え（layout）の告知は、お知らせの履歴から外した。
+ * 画面の切り替えを既読の人（前は改修中の告知が › の先にあった人）にも、出るのは履歴の最新の1件（結合画像）だけで、
+ * 改修中の告知は本文も履歴も無く、閉じても既読の印を書かない。（外したことの全体は blocks-85 の T55お知らせ(5) が見る）
  * ============================================================ */
 await noticeBlock('C-62 の (11): 改修中の告知', async () => {
 {
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-	// layout の告知だけ既読にして開く＝改修中の告知が出るはずの状態
-	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた（on が false の）状態で見る。special の履歴は 収録・改修中・画面（最新が先頭・› で古い側へ）
 	await routeScenarioPendingOff(ctx);
 	await ctx.addInitScript(() => {
 		localStorage.setItem('uma-special-ui-notice', '2026-09-new-ui-default');
@@ -9145,70 +9098,50 @@ await noticeBlock('C-62 の (11): 改修中の告知', async () => {
 	await page.goto(base + '/special.html', { waitUntil: 'networkidle', timeout: 60000 });
 	await page.waitForTimeout(2000);
 
-	// 最新の1件（収録の告知）で開く。改修中の告知は › の先（2件目）
-	await page.click('[data-notice-nav="older"]');
-	const shown = await page.evaluate(() => ({
+	const s = await page.evaluate(() => ({
 		open: !document.getElementById('ui-notice').hidden,
-		layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
-		alphaHidden: document.getElementById('ui-notice-body-alpha').hidden,
-		title: document.getElementById('ui-notice-title-alpha').textContent,
-		labelled: document.getElementById('ui-notice').getAttribute('aria-labelledby'),
+		kind: uiNoticeKind,
+		alphaBody: !!document.getElementById('ui-notice-body-alpha'),
+		hist: UmaAnnounce.history('special').map((h) => h.kind),
+		text: document.getElementById('ui-notice').textContent,
 	}));
-	assert(shown.open && shown.layoutHidden && !shown.alphaHidden,
-		'C-62 (11): 既読の人には、履歴の中の改修中の告知を › で出せる（出すのは一方だけ）', shown);
-	assert(shown.title === '機能を大幅に改修中です' && shown.labelled === 'ui-notice-title-alpha',
-		'C-62 (11): 見出しと読み上げの向き先も改修中のほう', shown);
-	assert((await page.textContent('#ui-notice-body-alpha')).includes('αテスト中'),
-		'C-62 (11): 文面にαテスト中であることが入っている');
-
-	// 閉じると既読になり、開き直しても出ない
+	assert(s.open && s.kind === 'stitch' && !s.alphaBody && s.hist.indexOf('alpha') === -1 && !s.text.includes('機能を大幅に改修中です'),
+		'C-62 (11): 改修中の告知は外した（画面の切り替えを既読の人にも出るのは最新の1件〔結合画像〕で、改修中の告知の本文も履歴も無い）', s);
 	await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
 	const key = await page.evaluate(() => localStorage.getItem('uma-special-alpha-notice'));
-	assert(key === '2026-09-18-alpha-rework', 'C-62 (11): 閉じると既読の印が付く', key);
-	// 2nd Edition の告知（C-140・微調整2・E）はこの検査の対象ではないので、見たことにしておく（次の読み込みで出てしまうため）
-	await page.evaluate(() => markEditionNoticeSeen());
+	assert(key === null, 'C-62 (11): 閉じても改修中の告知の既読の印は書かない', key);
 	await reloadReady(page);
 	await page.waitForTimeout(2000);
 	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
 		'C-62 (11): 一度閉じれば次からは出ない');
-
-	// 読み直し（右上の「新UI」バッジは段7b の ⓪で無くしたので、読み直しの関数を直接呼ぶ）は、これまでどおり layout のほう
-	await page.evaluate(() => reopenUiNotice());
-	await page.waitForTimeout(300);
-	assert(await page.evaluate(() => !document.getElementById('ui-notice-body-layout').hidden
-		&& document.getElementById('ui-notice-body-alpha').hidden),
-		'C-62 (11): バッジからの読み直しは「画面の切り替え」のほう');
-	await page.click('[data-act="notice-ok"]');
-	await page.waitForTimeout(200);
-
 	assert(errors.length === 0, 'C-62 (11): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 });
 
 /* ============================================================
- * C-62 の (11・裏）: 初めて開く人には layout だけ
+ * C-62 の (11・裏）: 初めて開く人には最新の1件だけ
+ * （2026-11-01・T55: 前は「layout だけ」。layout は外したので、履歴の最新の1件〔結合画像〕だけ。閉じると画面の切り替えの既読の印も今までどおり書く）
  * ============================================================ */
-await noticeBlock('C-62 の (11・裏）: 初めて開く人には layout だけ', async () => {
+await noticeBlock('C-62 の (11・裏）: 初めて開く人には最新の1件だけ', async () => {
 {
-	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた状態で、初めて開く人には履歴の最新の1件（収録の告知）が出る。閉じると改修中の告知・画面の告知も既読になる
 	setScenarioPendingOff(true);
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	setScenarioPendingOff(false);
 	await page.waitForTimeout(500);
 	const first = await page.evaluate(() => ({
 		open: !document.getElementById('ui-notice').hidden,
-		catalogShown: !document.getElementById('ui-notice-body-catalog').hidden,
-		layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
-		alphaSeen: localStorage.getItem('uma-special-alpha-notice'),
+		stitchShown: !document.getElementById('ui-notice-body-stitch').hidden,
+		shown: [...document.querySelectorAll('#ui-notice .notice-body > div[id^="ui-notice-body-"]')].filter((x) => !x.hidden).length,
+		stitchSeen: localStorage.getItem('uma-special-stitch-notice'),
 	}));
-	assert(first.open && first.catalogShown && first.layoutHidden && first.alphaSeen === null,
-		'C-62 (11): 初めて開く人には履歴の最新の1件だけを出す（開いただけでは、改修中のほうはまだ既読にしない）', first);
+	assert(first.open && first.stitchShown && first.shown === 1 && first.stitchSeen === null,
+		'C-62 (11): 初めて開く人には履歴の最新の1件だけを出す（開いただけでは、まだ既読にしない）', first);
 	await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
-	assert(await page.evaluate(() => localStorage.getItem('uma-special-alpha-notice') === '2026-09-18-alpha-rework' && localStorage.getItem('uma-special-ui-notice') === '2026-09-new-ui-default'),
-		'C-62 (11): 閉じると、改修中のほうも画面の告知も「見たこと」になる');
+	assert(await page.evaluate(() => localStorage.getItem('uma-special-stitch-notice') === UmaAnnounce.STITCH.id && localStorage.getItem('uma-special-ui-notice') === '2026-09-new-ui-default' && localStorage.getItem('uma-special-alpha-notice') === null),
+		'C-62 (11): 閉じると、結合画像のお知らせも画面の切り替えの印も「見たこと」になる（外した改修中の印は書かない）');
 	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
 		'C-62 (11): 初回の告知を閉じると、続けてもう1枚は出ない');
 	assert(errors.length === 0, 'C-62 (11・裏): コンソールエラーが出ない', errors.slice(0, 3));
@@ -10281,95 +10214,43 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 /* ============================================================
  * 収録の告知（2026-09-27・C-100 の追加の指示）
  *
- * special を開いたときのお知らせのモーダルに「最新のスキルまで収録しました（2026年9月27日時点）。」を足した。
- * **special だけ**（exam と Deck には出さない）。既読の印は layout・alpha とは別のキー（uma-special-catalog-notice）。
- * モーダルは1回の読み込みで1枚だけなので、layout か alpha を出す読み込みでは同じモーダルの下に並べ、
- * それ以外の読み込みでは1枚で出す。見るのは:
- *   (1) 初めて開いたときに、この文が出る（layout の下に並ぶ）
- *   (2) 閉じたあとにもう一度開くと出ない
- *   (3) 前のお知らせ（layout・alpha）を閉じた状態の保存データで開くと、この1件だけが出る
- *   (3b) alpha だけ未読なら、alpha の下に並ぶ
+ * 2026-11-01（T55・C-260 の (b)）: 収録の告知「最新のスキルまで収録しました（2026年9月27日時点）。」は外した。見るのは:
+ *   (1) 初めて開いても、前のお知らせを閉じた保存データで開いても、この文は出ない（出るのは履歴の最新の1件〔結合画像〕）
+ *   (2) 閉じても収録の告知の既読の印を書かない
  *   (4) exam を開いても出ない
  * ============================================================ */
-await noticeBlock('収録の告知 ―― special のお知らせのモーダルにだけ1度出る（C-100）', async () => {
+await noticeBlock('収録の告知 ―― 外した（C-100・2026-11-01 に C-260 の (b) で外した）', async () => {
 {
-	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた状態で見る。special の履歴は 収録・改修中・画面（1件ずつ・最新が先頭）
 	setScenarioPendingOff(true);
-	const TEXT = '最新のスキルまで収録しました（2026年9月27日時点）。';
-	const KEYS = { layout: ['uma-special-ui-notice', '2026-09-new-ui-default'], alpha: ['uma-special-alpha-notice', '2026-09-18-alpha-rework'],
-		catalog: ['uma-special-catalog-notice', '2026-09-27-skills-up-to-date'] };
+	const TEXT = '最新のスキルまで収録しました';
 	const state = (page) => page.evaluate((text) => {
 		const d = document.getElementById('ui-notice');
-		const vis = (id) => { const el = document.getElementById(id); return !!el && !el.hidden && el.offsetParent !== null; };
 		return {
 			出ている: !!d && !d.hidden,
-			layout: vis('ui-notice-body-layout'), alpha: vis('ui-notice-body-alpha'), catalog: vis('ui-notice-body-catalog'),
-			文: !!d && !d.hidden && d.innerText.includes(text),
-			並べ: !!document.querySelector('#ui-notice-body-catalog.notice-catalog--with'),
-			印: (() => { const i = document.querySelector('#ui-notice-body-catalog .notice-icon'); return !!i && i.offsetParent !== null; })(),
-			見出し: d ? d.getAttribute('aria-labelledby') : null,
+			種類: typeof uiNoticeKind === 'undefined' ? null : uiNoticeKind,
+			文: document.documentElement.outerHTML.includes(text),
+			節: !!document.getElementById('ui-notice-body-catalog'),
+			履歴: UmaAnnounce.history('special').map((h) => h.kind),
 			既読: localStorage.getItem('uma-special-catalog-notice'),
 		};
 	}, TEXT);
-	const reopen = async (page) => {
-		await reloadReady(page);
-		await page.waitForTimeout(1200);
-	};
-
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(600);
-	// (1) 初めて開いた（告知の既読が1つも無い）→ 履歴の最新の1件（収録の告知）が1件だけで出る
+	// (1) 初めて開いた → 出るのは履歴の最新の1件（結合画像）。収録の告知の文・節・履歴は無い
 	const s1 = await state(page);
-	assert(s1.出ている && !s1.layout && !s1.alpha && s1.catalog && s1.文 && !s1.並べ && s1.印 && s1.見出し === 'ui-notice-title-catalog' && s1.既読 === null,
-		'収録の告知(1): 初めて開くと、履歴の最新の1件として「' + TEXT + '」が1件だけで出る', s1);
+	assert(s1.出ている && s1.種類 === 'stitch' && !s1.文 && !s1.節 && s1.履歴.indexOf('catalog') === -1 && s1.既読 === null,
+		'収録の告知(1): 外した（初めて開いても出るのは結合画像のお知らせで、収録の告知の文・節・履歴は無い）', s1);
 	await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
-	const afterClose = await page.evaluate((k) => ({ 収録: localStorage.getItem(k.catalog[0]), 画面: localStorage.getItem(k.layout[0]),
-		次のモーダル: !document.getElementById('ui-notice').hidden }), KEYS);
-	assert(afterClose.収録 === KEYS.catalog[1] && afterClose.画面 === KEYS.layout[1] && !afterClose.次のモーダル,
-		'収録の告知(1): OK で閉じると収録の告知も既読になり、2枚目のモーダルは出ない', afterClose);
-
-	// (2) もう一度開くと出ない
-	await reopen(page);
+	// (2) 閉じても収録の告知の既読の印は書かない
 	const s2 = await state(page);
-	assert(!s2.出ている && !s2.文, '収録の告知(2): 閉じたあとにもう一度開くと出ない', s2);
-
-	// (3) 前のお知らせ（layout・alpha）を閉じた保存データ・収録の告知だけ未読 → これだけが1枚で出る
-	await page.evaluate((k) => { localStorage.setItem(k.layout[0], k.layout[1]); localStorage.setItem(k.alpha[0], k.alpha[1]); localStorage.removeItem(k.catalog[0]); }, KEYS);
-	await reopen(page);
+	assert(!s2.出ている && s2.既読 === null, '収録の告知(2): 閉じても収録の告知の既読の印は書かない', s2);
+	// (1) 前のお知らせ（layout・alpha）を閉じた保存データ・収録の告知だけ未読（前はこれだけが出た）→ 出ない
+	await page.evaluate(() => { localStorage.setItem('uma-special-alpha-notice', '2026-09-18-alpha-rework'); localStorage.removeItem('uma-special-catalog-notice'); });
+	await reloadReady(page);
+	await page.waitForTimeout(1200);
 	const s3 = await state(page);
-	assert(s3.出ている && !s3.layout && !s3.alpha && s3.catalog && s3.文 && !s3.並べ && s3.印 && s3.見出し === 'ui-notice-title-catalog',
-		'収録の告知(3): 前のお知らせを閉じた人にも、この1件だけが1枚で出る', s3);
-	await page.click('[data-act="notice-ok"]');
-	await page.waitForTimeout(300);
-	await reopen(page);
-	const s3b = await state(page);
-	assert(!s3b.出ている && s3b.既読 === KEYS.catalog[1], '収録の告知(3): 閉じたあとは出ない', s3b);
-
-	// (3b) alpha だけ未読 → 履歴の最新の1件（収録の告知）で開き、› で改修中の告知に移れる（並べて出さない）
-	await page.evaluate((k) => { localStorage.removeItem(k.alpha[0]); localStorage.removeItem(k.catalog[0]); }, KEYS);
-	await reopen(page);
-	const s4a = await state(page);
-	assert(s4a.出ている && !s4a.layout && !s4a.alpha && s4a.catalog && !s4a.並べ && s4a.見出し === 'ui-notice-title-catalog',
-		'収録の告知(3b): 改修中の告知が未読でも、最新の1件（収録の告知）が1件だけで出る', s4a);
-	await page.click('[data-notice-nav="older"]');
-	const s4 = await state(page);
-	assert(s4.出ている && !s4.layout && s4.alpha && !s4.catalog && s4.見出し === 'ui-notice-title-alpha',
-		'収録の告知(3b): › で改修中の告知に移れる', s4);
-	await page.click('[data-act="notice-ok"]');
-	await page.waitForTimeout(300);
-	const s4after = await page.evaluate((k) => ({ alpha: localStorage.getItem(k.alpha[0]), 収録: localStorage.getItem(k.catalog[0]),
-		次のモーダル: !document.getElementById('ui-notice').hidden }), KEYS);
-	assert(s4after.alpha === KEYS.alpha[1] && s4after.収録 === KEYS.catalog[1] && !s4after.次のモーダル,
-		'収録の告知(3b): 閉じると両方とも既読になる', s4after);
-
-	// 読み直しでは、収録の告知は並べない（読み直すのは画面の切り替えの告知だけ。バッジは段7b の ⓪で無くしたので、関数を直接呼ぶ）
-	await page.evaluate(() => reopenUiNotice());
-	await page.waitForTimeout(300);
-	const s5 = await state(page);
-	assert(s5.出ている && s5.layout && !s5.catalog, '収録の告知: 「新UI」バッジからの読み直しには並ばない', s5);
-	await page.click('[data-act="notice-ok"]');
-	await page.waitForTimeout(200);
+	assert(!s3.出ている && !s3.文 && s3.既読 === null, '収録の告知(1): 収録の告知だけが未読の保存データでも出ない', s3);
 	assert(errors.length === 0, '収録の告知: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 	setScenarioPendingOff(false);
@@ -15525,6 +15406,8 @@ await register82({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register83({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T53（2026-11-01）: ②因子周回の調和の後半（カードのパネル・オススメサポの枚数 1〜6。見出しは「T53②因子周回の後半」）
 await register84({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T55（2026-11-01）: お知らせ段2＋3（(b) 古いお知らせを外す・E3 の文面・(c) 結合画像のリニューアルのお知らせ。見出しは「T55お知らせ」）
+await register85({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

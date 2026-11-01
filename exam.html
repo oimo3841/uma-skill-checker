@@ -38,7 +38,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-31a"></script>
+	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -952,46 +952,15 @@
 			</div>
 		</div>
 
-		<!-- 画面の切り替えの告知。初回だけ自動で出る（読み直す入口だった見出しの「新UI」バッジは C-139 で外した）。
-		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。
-		     上の段はこのページの青、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
-		     「この色＝Deck」と覚えてもらう。文面は固定（改行位置だけ .nb で整える）。 -->
+		<!-- お知らせの小窓。履歴の中に30日以内の未読があれば自動で出て、ツール切替のメニューの「お知らせ」からいつでも読み直せる。
+		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。 -->
 		<div id="ui-notice-backdrop" class="uma-overlay-backdrop" hidden onclick="closeUiNotice()"></div>
-		<div id="ui-notice" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title">
+		<div id="ui-notice" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title-edition">
 			<button type="button" class="notice-close inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer" onclick="closeUiNotice()" aria-label="閉じる">
 				<i data-lucide="x" class="w-4 h-4"></i>
 			</button>
 			<div class="notice-body">
-				<!-- 告知は2種類あり、出すのはどちらか一方だけ（openUiNotice が切り替える）。
-				     ・layout … 画面の作りが変わったときの案内
-				     ・target … 対象スキルの選び方が変わったときの案内（2026-09-14） -->
-				<div id="ui-notice-body-layout">
-				<div class="notice-icon" aria-hidden="true">
-					<i data-lucide="panel-right-open" class="w-6 h-6"></i>
-				</div>
-				<h2 class="notice-title" id="ui-notice-title">画面が新しくなりました</h2>
-				<p class="notice-text"><span class="nb">対象スキル（133種）</span>は<span class="nb">そのままです。</span></p>
-				<p class="notice-text"><span class="nb">照合結果</span>と<span class="nb">結合画像の表示</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
-				<!-- 「右上の『旧UIへ』から、いつでも元の画面に戻せます。」の一文は 2026-09-15 の片道化で削った
-				     （新UIからは旧UIへ行けなくなったので事実と食い違う）。告知の ID は据え置き＝既読の人には再表示されない。 -->
-				<div class="deck-accent deck-note notice-new">
-					<p class="notice-new-title deck-note-title">＜新機能＞</p>
-					<p class="notice-text deck-note-text"><span class="nb">OCRの結果</span>を保存して、<span class="nb">候補同士</span>を<span class="nb">見比べられる</span><br /><span class="nb notice-deck-name">「UmaSkill Deck」</span>が<span class="nb">追加されました。</span></p>
-					<p class="notice-text deck-note-text"><span class="nb">UmaSkill Deck</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
-					<p class="notice-text deck-note-text"><span class="nb">照合結果</span>は<span class="nb">UmaSkill Deck</span>に<span class="nb">直接追加できます。</span></p>
-				</div>
-				</div><!-- /#ui-notice-body-layout -->
-
-				<div id="ui-notice-body-target" hidden>
-					<div class="notice-icon" aria-hidden="true">
-						<i data-lucide="list-checks" class="w-6 h-6"></i>
-					</div>
-					<h2 class="notice-title" id="ui-notice-title-target">対象スキルの選択方法がアップデートされました</h2>
-					<p class="notice-text"><span class="nb">「対象スキルの範囲」</span>から、<span class="nb">既定133種</span>／<span class="nb">拡張138種</span>／<span class="nb">絞り込み121種</span>を<span class="nb">選べるようになりました。</span></p>
-					<p class="notice-text"><span class="nb">新たに</span><span class="nb">「シナリオ因子」</span>も<span class="nb">対象に追加できます。</span></p>
-					<p class="notice-text"><span class="nb">設定は</span><span class="nb">①「対象スキル」</span>の<span class="nb">タブにあります。</span></p>
-					<p class="notice-text"><span class="nb">これまでの</span><span class="nb">「対象スキルのカスタム設定</span><span class="nb">（追加・除外）」</span>は、<span class="nb">この2つに</span><span class="nb">まとめました。</span></p>
-				</div>
+				<!-- 2026-11-01（C-260 の (b)）: 古いお知らせ（画面の作りの案内〔layout〕・対象スキルの選び方の案内〔target〕）の本文を外した。 -->
 
 				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ。openUiNotice('edition') が中身を作る -->
 				<div id="ui-notice-body-edition" hidden></div>
@@ -7875,10 +7844,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		const UI_MODE_STORAGE_KEY = 'uma-exam-ui-mode';       // 'new' | 'old'
 		const UI_NOTICE_STORAGE_KEY = 'uma-exam-ui-notice';   // 見た告知のID
 		const UI_NOTICE_ID = '2026-09-exam-drawer-layout';
-		// 対象スキルの選び方が変わったことの告知（2026-09-14）。画面の作りの告知とは別に持つ。
-		// 別のキーにしてあるので、画面の告知を既読にした人にもこちらは1度だけ出る。
-		const TARGET_NOTICE_STORAGE_KEY = 'uma-exam-target-notice';
-		const TARGET_NOTICE_ID = '2026-09-14-target-scope';
+		// 2026-11-01（C-260 の (b)）: 画面の作りの告知（layout）・対象スキルの選び方の告知（target）はお知らせの履歴から外した。
+		// 画面の作りの既読の印（UI_NOTICE_*）だけは、旧UIの保存値を効かせる印として残す（閉じたときに今までどおり書く）。
 		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE）。これも別のキー
 		const EDITION_NOTICE_STORAGE_KEY = 'uma-exam-edition-notice';
 		// 新シナリオへの未対応の知らせ（段1a）。文面・番号は js/announce.js（UmaAnnounce.SCENARIO_PENDING）。これも別のキー
@@ -7898,13 +7865,6 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		function markUiNoticeSeen() {
 			if (hasSeenUiNotice()) return;
 			writeStored(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID);
-		}
-		function hasSeenTargetNotice() {
-			return readStored(TARGET_NOTICE_STORAGE_KEY) === TARGET_NOTICE_ID;
-		}
-		function markTargetNoticeSeen() {
-			if (hasSeenTargetNotice()) return;
-			writeStored(TARGET_NOTICE_STORAGE_KEY, TARGET_NOTICE_ID);
 		}
 		function hasSeenEditionNotice() {
 			return readStored(EDITION_NOTICE_STORAGE_KEY) === UmaAnnounce.ANNOUNCE.id;
@@ -8016,15 +7976,13 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 
 		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ----------
 		   枠（背景・✕・OK・Esc）は1つで、中身だけ差し替える。**1件ずつ**出す。小窓の上にツール名と日付、本文と OK の間に ‹ n / N ›（js/announce.js の decorate）。
-		   kind: 'layout' … 画面の作りの案内 ／ 'target' … 対象スキルの選び方の案内 ／ 'edition' … 2nd Edition の告知 ／ 'scenario' … 新シナリオへの対応（後の2つは中身を js/announce.js が作る） */
+		   kind: 'edition' … 2nd Edition の告知 ／ 'scenario' … 新シナリオへの対応（中身はどちらも js/announce.js が作る。layout・target は 2026-11-01 に外した＝C-260 の (b)） */
 		let uiNoticeOpen = false;
-		let uiNoticeKind = 'layout';
+		let uiNoticeKind = 'edition';
 		let uiNoticeReturnFocus = null;
 
 		// 種類ごとの、本文の要素・読み上げの見出し・既読の読み書き
 		const NOTICE_KINDS = {
-			layout: { body: 'ui-notice-body-layout', title: () => 'ui-notice-title', seen: hasSeenUiNotice, mark: markUiNoticeSeen },
-			target: { body: 'ui-notice-body-target', title: () => 'ui-notice-title-target', seen: hasSeenTargetNotice, mark: markTargetNoticeSeen },
 			edition: { body: 'ui-notice-body-edition', title: () => UmaAnnounce.TITLE_ID, seen: hasSeenEditionNotice, mark: markEditionNoticeSeen },
 			scenario: { body: 'ui-notice-body-scenario', title: () => UmaAnnounce.SCENARIO_TITLE_ID, seen: hasSeenScenarioNotice, mark: markScenarioNoticeSeen },
 		};
@@ -8032,7 +7990,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 
 		// いま出す告知に合わせて、本文・見出し・日付・‹ n / N › を切り替える（既読は書かない）
 		function showUiNoticeKind(kind) {
-			uiNoticeKind = NOTICE_KINDS[kind] ? kind : 'layout';
+			uiNoticeKind = NOTICE_KINDS[kind] ? kind : 'edition';
 			Object.keys(NOTICE_KINDS).forEach(k => { document.getElementById(NOTICE_KINDS[k].body).hidden = k !== uiNoticeKind; });
 			if (uiNoticeKind === 'edition') UmaAnnounce.fill(document.getElementById('ui-notice-body-edition'));
 			if (uiNoticeKind === 'scenario') UmaAnnounce.fillScenario(document.getElementById('ui-notice-body-scenario'), 'exam');
@@ -8093,7 +8051,11 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
 			// ?notice=force のときは、何も書かない（既読の状態を変えない）
-			if (!UmaAnnounce.isForced()) UmaAnnounce.allKinds('exam').forEach(k => { if (NOTICE_KINDS[k]) NOTICE_KINDS[k].mark(); });
+			// 画面の作りの既読の印（旧UIの保存値を効かせる印）は、履歴から外したあとも今までどおり書く（C-260 の (b)・2026-11-01）
+			if (!UmaAnnounce.isForced()) {
+				UmaAnnounce.allKinds('exam').forEach(k => { if (NOTICE_KINDS[k]) NOTICE_KINDS[k].mark(); });
+				markUiNoticeSeen();
+			}
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;
 		}
