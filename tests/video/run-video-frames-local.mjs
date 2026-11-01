@@ -6,6 +6,8 @@
 //   npm run test:video-local -- --only=1     … 動画1 だけ（1 か 2）
 //   npm run test:video-local -- --compare    … 同じフレームで stitchOnePerson も呼び、高さと継ぎ目の確かさを並べる（時間に入れない）
 //   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存
+//   npm run test:video-local -- --special    … special.html の③の流れを通す（T59・動画V1-2）: 入口 → 小窓の「動画を選ぶ」→ ファイルの選択に動画を渡す →
+//                                               「動画から N枚」が入るまで → 「画像を結合する（OCRしない）」で結合画像ができるまで。人ごとの枚数と高さを見る
 //
 // 期待値（T39 の実測）: 区画の頭の時刻・人ごとの高さ・選ぶ枚数。**時間は揺れるので期待値にしない**（表に出すだけ）。
 // iPhone の収録は HEVC なので、同梱の Chromium では復号できない。channel:'chrome' で回す（tests/skillset/extract-video-frames.mjs と同じ）。
@@ -22,10 +24,12 @@ const cpu = Number(arg('cpu', '1'));
 const only = arg('only', '');
 const compare = process.argv.includes('--compare');
 const save = process.argv.includes('--save');
+const special = process.argv.includes('--special');
 
 const VIDEOS = [
-	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 8.75, 14.5], heights: [1999, 1709, 1648], picks: 18 },
-	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10.5, 20], heights: [2579, 2480, 2352], picks: 54 }
+	// counts … 人ごとの枚数（次の人の1枚目も入る。T42 の実測）
+	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 8.75, 14.5], heights: [1999, 1709, 1648], picks: 18, counts: [7, 10, 3] },
+	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10.5, 20], heights: [2579, 2480, 2352], picks: 54, counts: [19, 23, 14] }
 ];
 const LABELS = ['親', '祖1', '祖2'];
 
@@ -49,8 +53,46 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let ng = 0;
 const check = (cond, label, detail) => { console.log((cond ? '  OK  ' : '  NG  ') + label + (cond || detail == null ? '' : '  … ' + detail)); if (!cond) ng++; };
 const rows = [];
+
+/** special.html の③の流れを通す（T59）。時間は「ファイルを渡してから知らせが出るまで」と「結合のボタンから結合画像ができるまで」 */
+async function runSpecial(v) {
+	console.log('\n=== 動画' + v.no + '（special.html の流れ・CPU ' + cpu + '倍）===');
+	const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+	const page = await ctx.newPage();
+	page.setDefaultTimeout(600000);
+	page.on('pageerror', (e) => console.log('[page error]', String(e)));
+	await page.addInitScript(() => localStorage.setItem('umaSkillDeck:stepTab', '2'));
+	await page.goto(base + '/special.html');
+	await page.waitForTimeout(1500);
+	for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('#ui-notice-ok, [data-act="notice-ok"]').catch(() => {});
+	await page.evaluate(() => selectStepTab(2));
+	const cdp = await ctx.newCDPSession(page);
+	if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
+	await page.click('#video-import-btn');
+	const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#video-sheet [data-video-act="pick"]')]);
+	const t0 = Date.now();
+	await chooser.setFiles(path.join(root, v.name));
+	await page.waitForSelector('#video-summary, #video-error', { timeout: 600000 });
+	const importS = (Date.now() - t0) / 1000;
+	const imp = await page.evaluate(() => ({ n: persons.slice(0, 3).map((p) => p.files.length), err: (document.getElementById('video-error') || {}).textContent || null,
+		sum: (document.getElementById('video-summary') || {}).textContent || null, unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1) }));
+	check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／') + '（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
+	const t1 = Date.now();
+	const st = await page.evaluate(async () => {
+		devGeometry = [];
+		await runImageStitching({ keepClosed: true, quiet: true });
+		return { lines: devGeometry.filter((l) => /^\[動画\]/.test(l)), img: !!document.querySelector('#stitch-result-content img'),
+			warn: (document.querySelector('#stitch-result-content .video-warn') || {}).textContent || null };
+	});
+	const stitchS = (Date.now() - t1) / 1000;
+	const hs = st.lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
+	check(st.img && st.lines.length === 3 && hs.join('/') === v.heights.join('/'), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.join('／'), hs.join('／'));
+	console.log('  取り込み ' + importS.toFixed(1) + '秒・結合（OCRしない）' + stitchS.toFixed(1) + '秒・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
+	await ctx.close();
+}
 try {
-	for (const v of targets) {
+	if (special) for (const v of targets) await runSpecial(v);
+	for (const v of special ? [] : targets) {
 		console.log('\n=== 動画' + v.no + '（CPU ' + cpu + '倍）===');
 		const page = await browser.newPage();
 		page.on('pageerror', (e) => console.log('[page error]', String(e)));

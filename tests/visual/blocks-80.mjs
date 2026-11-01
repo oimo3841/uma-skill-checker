@@ -14,8 +14,8 @@ const HOST = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>
 	+ '<script>var devGeometry = [];</script><script src="/js/common.js"></script><script src="/js/stitch.js"></script>'
 	+ '<script src="/js/video-frames.js"></script></head><body></body></html>';
 
-// ページの中で作り物の画を作る（文字列で渡して addScriptTag で読む）
-const SYNTH = String.raw`
+// ページの中で作り物の画を作る（文字列で渡して addScriptTag で読む）。blocks-89（T59・special.html の動画の流れ）も使う
+export const SYNTH = String.raw`
 window.__synth = (function () {
 	const W = 720, H = 1560, HE = 640, FS = 1360, CH = FS - HE; // スマホ版相当（縦横比 2.17）。本文の帯は 640〜1359
 	const ROW = 96, HEAD = 60;

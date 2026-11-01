@@ -115,6 +115,7 @@ import { register85 } from './blocks-85.mjs';
 import { register86 } from './blocks-86.mjs';
 import { register87 } from './blocks-87.mjs';
 import { register88 } from './blocks-88.mjs';
+import { register89 } from './blocks-89.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15438,6 +15439,8 @@ await register86({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register87({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T58（2026-11-01）: ソートの文言と × の色の直し（C-262 の追記・C-258 の T57 への回答 4。見出しは「T58ソートと×」）
 await register88({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T59（2026-11-01）: 動画V1-2 ③の動画の入口と流れ（C-258 の (3)・C-259。見出しは「T59動画」）
+await register89({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

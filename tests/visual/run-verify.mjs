@@ -67,7 +67,7 @@ function grabQuery(sources) {
 }
 
 const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html', 'card-event-input.html',
-	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js'];
+	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js'];
 // 15セッション目: exam.html を「変更してはいけないファイル」から外し、
 // special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
 const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
@@ -132,6 +132,8 @@ const skillsetOcrVer = /SKILLSET_OCR_JS_VERSION = '([^']+)'/.exec(read('js/skill
 const themeVer = /THEME_JS_VERSION = '([^']+)'/.exec(read('js/theme.js'))[1];
 // C-140（微調整2・E）: お知らせ（告知）の文面・画像・番号を持つ js/announce.js を新設した。exam / special の2ページが読む。他の共有JSと同じ「定数と ?v= の3点一致」の運用に載せる。
 const announceVer = /ANNOUNCE_JS_VERSION = '([^']+)'/.exec(read('js/announce.js'))[1];
+// T59（動画V1-2・2026-11-01）: 動画から結合の素材のフレームを選ぶ部品 js/video-frames.js（T42）を special.html が読むようになった。他の共有JSと同じ「定数と ?v= の3点一致」の運用に載せる。
+const videoFramesVer = /VIDEO_FRAMES_JS_VERSION = '([^']+)'/.exec(read('js/video-frames.js'))[1];
 /* 71セッション目・段7: マスター（uma-skill-deck-skills.json）の取得URLに ?v= が付いた。
    ここだけ形が違う ―― 版の正本は**JSONの中の masterVersion**（ファイル名には版が付かない）で、
    core.js の MASTER_JSON_VERSION がそれを写して ?v= に使う。**写し間違いを落とす。**
@@ -159,7 +161,7 @@ for (const k of Object.keys(examDataVerTable)) dataVerOwner[k] = 'exam.html';
 const bothTables = Object.keys(examDataVerTable).filter((k) => k in dataVerTable);
 Object.assign(dataVerTable, examDataVerTable);
 const dataFiles = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).sort();
-console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / theme=%s / announce=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, themeVer, announceVer, cssVer);
+console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / theme=%s / announce=%s / video-frames=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, themeVer, announceVer, videoFramesVer, cssVer);
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['special.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
@@ -169,6 +171,8 @@ for (const [p, pat, ver, name] of [
 	// C-140（微調整2・E）: お知らせ（告知）の定義。special / exam の2ページが1か所ずつ読む
 	['special.html', /js\/announce\.js\?v=([0-9a-z-]+)/g, announceVer, 'announce.js'],
 	['exam.html', /js\/announce\.js\?v=([0-9a-z-]+)/g, announceVer, 'announce.js'],
+	// T59: 動画の部品は special.html だけが読む（UmaExam には動画の入口を置かない）
+	['special.html', /js\/video-frames\.js\?v=([0-9a-z-]+)/g, videoFramesVer, 'video-frames.js'],
 	['special.html', /js\/skillset-cards\.js\?v=([0-9a-z-]+)/g, skillsetVer, 'skillset-cards.js'],
 	['special.html', /js\/skillset-ocr\.js\?v=([0-9a-z-]+)/g, skillsetOcrVer, 'skillset-ocr.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
@@ -246,6 +250,7 @@ const VERSIONED = [
 	['js/skillset-ocr.js', skillsetOcrVer, /SKILLSET_OCR_JS_VERSION = '([^']+)'/],
 	['js/theme.js', themeVer, /THEME_JS_VERSION = '([^']+)'/],
 	['js/announce.js', announceVer, /ANNOUNCE_JS_VERSION = '([^']+)'/],
+	['js/video-frames.js', videoFramesVer, /VIDEO_FRAMES_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
 	// マスターは JSON の中の masterVersion が版。**中身を変えたのに版を据え置く**と
 	// ?v= も動かず、公開側の10分キャッシュに古い本文が残り続ける（71セッション目・段7）。
@@ -488,7 +493,7 @@ console.log('\n=== 4. 消したclassがJSに掴まれていないか ===');
 // classList/className は「JSが既に参照を持つ要素」にしか作用しないので同ページ内のみ危険。
 // querySelector 系は文書全体を探すのでファイル横断で危険。
 const SIBLINGS = {
-	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js'],
+	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js'],
 	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js'],
 	'uma-skill-deck.html': ['uma-skill-deck.html', 'js/uma-skill-deck.js', 'js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck-core.js': ['js/uma-skill-deck-core.js'],
@@ -521,7 +526,7 @@ for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleg
 		check(r.status === 0, `${p} の<script>#${i} が構文エラーなし`, (r.stderr || '').slice(0, 160));
 	});
 }
-for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js']) {
+for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js']) {
 	const r = spawnSync(process.execPath, ['--check', path.join(REPO_ROOT, p)], { encoding: 'utf8' });
 	check(r.status === 0, p + ' が構文エラーなし', (r.stderr || '').slice(0, 160));
 }
