@@ -391,10 +391,10 @@ export async function register13(env) {
 					tag + kind + ': その種類を含むまとまりが上へ（並びは元のまま＝安定）。行は減らない・金と直下の前段の白は一緒に動く', { got: got.length, exp: exp.length });
 				assert(g.btns.filter((b) => b.on).map((b) => b.tone).join() === kind && g.memberOn === 0, tag + kind + ': 選んだ種類だけが有効（同時に1つだけ。アイコンの印）', g.btns);
 			}
-			// T52: 小窓の「並べ替えない」で元の並び（それまでは同じ漏斗をもう一度押す）
+			// T52: 小窓の「ソートしない」（T58 で「並べ替えない」から）で元の並び（それまでは同じ漏斗をもう一度押す）
 			await pickToneSort(sp.page, '#deck-roster-panel ', null);
 			const g1 = await gridInfo(sp.page);
-			assert(JSON.stringify(g1.rows) === JSON.stringify(g0.rows) && g1.btns.every((b) => !b.on), tag + '「並べ替えない」で元の並びに戻る', true);
+			assert(JSON.stringify(g1.rows) === JSON.stringify(g0.rows) && g1.btns.every((b) => !b.on), tag + '「ソートしない」で元の並びに戻る', true);
 			// メンバーの列の漏斗とも同時に1つだけ
 			await pickToneSort(sp.page, '#deck-roster-panel ', 'heal');
 			await clickSort(sp.page, '#deck-roster-panel ', '1');   // メンバーの列（C-187: サポカの列はアイコンのメニューの「並べ替え」）

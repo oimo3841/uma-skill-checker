@@ -225,12 +225,12 @@ export async function register83(env) {
 				seen.push(p ? p.title + (p.sort ? ':sort' : '') : null);
 				await closePop(sp.page);
 			}
-			assert(seen.every((s) => s === '並べ替え:sort'), 'T52②因子周回の前半(4) 9点のどこを押しても「並べ替え」の小窓（' + w + 'px）', seen);
+			assert(seen.every((s) => s === 'ソート:sort'), 'T52②因子周回の前半(4) 9点のどこを押しても「ソート」の小窓（' + w + 'px。T58 で「並べ替え」から）', seen);
 			await sp.page.click(R + '[data-usd-el="tone-sort-entry"]');
 			await sp.page.waitForTimeout(150);
 			const opts = await sortOpts(sp.page);
-			assert(opts.map((o) => o.label).join('|') === '回復スキルを上に寄せる|◎と○を切り替えられるスキルを上に寄せる|緑スキルを上に寄せる|デバフスキルを上に寄せる|並べ替えない'
-				&& opts.every((o) => o.h >= 44) && opts.filter((o) => o.checked).map((o) => o.tone).join(',') === '', 'T52②因子周回の前半(4) 小窓は5つ（補足の字なし・高さ 44px 以上）・はじめは「並べ替えない」', opts);
+			assert(opts.map((o) => o.label).join('|') === '回復スキルでソート|◎と○を切り替えられるスキルでソート|緑スキルでソート|デバフスキルでソート|ソートしない'
+				&& opts.every((o) => o.h >= 44) && opts.filter((o) => o.checked).map((o) => o.tone).join(',') === '', 'T52②因子周回の前半(4) 小窓は5つ（補足の字なし・高さ 44px 以上）・はじめは「ソートしない」（T58 で文言を「ソート」に）', opts);
 			await closePop(sp.page);
 			const s0 = await headState(sp.page, R);
 			assert(!s0.sorted && !s0.funnelOn && s0.marked.length === 0, 'T52②因子周回の前半(4) はじめは並べ替えなし（漏斗は塗らない・印なし）', s0);
@@ -239,7 +239,7 @@ export async function register83(env) {
 			await pickSort(sp.page, R, 'heal');
 			const s1 = await headState(sp.page, R);
 			const mark = await ctrlMark(sp.page);
-			assert(s1.sorted && s1.funnelOn && s1.fill !== 'none' && s1.marked.join(',') === 'heal' && s1.outline[0] === '2px solid ' + mark && /回復スキルを上に寄せる/.test(s1.label),
+			assert(s1.sorted && s1.funnelOn && s1.fill !== 'none' && s1.marked.join(',') === 'heal' && s1.outline[0] === '2px solid ' + mark && /回復スキルでソート/.test(s1.label),
 				'T52②因子周回の前半(4) 回復を選ぶと漏斗を塗り、回復のアイコンに 2px のベースカラーの枠', { s1, mark });
 			const after = await rowsOf();
 			assert(before.some((r) => r.heal) && after[0].heal && after.length === before.length, 'T52②因子周回の前半(4) 回復の行が上へ（行の数は変わらない）', { first: after[0], n: [before.length, after.length] });
@@ -292,7 +292,7 @@ export async function register83(env) {
 				seen.push(p ? p.title + (p.sort ? ':sort' : '') : null);
 				await closePop(sp.page);
 			}
-			assert(seen.every((s) => s === '並べ替え:sort'), 'T52②因子周回の前半(5) 9点のどこを押しても「並べ替え」の小窓', seen);
+			assert(seen.every((s) => s === 'ソート:sort'), 'T52②因子周回の前半(5) 9点のどこを押しても「ソート」の小窓（T58 で「並べ替え」から）', seen);
 			const circleBtn = () => sp.page.getAttribute(T + '[data-usd-el="factor-circle-mode"]', 'aria-pressed');
 			const firstRows = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="factor-table-row"]')).slice(0, 3).map((r) => ({ id: r.getAttribute('data-fstar-id'), toggle: !!r.querySelector('[data-usd-el="factor-circle-toggle"]') })));
 			const rows0 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="factor-table-row"]')).map((r) => r.getAttribute('data-fstar-id')));

@@ -114,6 +114,7 @@ import { register84 } from './blocks-84.mjs';
 import { register85 } from './blocks-85.mjs';
 import { register86 } from './blocks-86.mjs';
 import { register87 } from './blocks-87.mjs';
+import { register88 } from './blocks-88.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -6919,13 +6920,14 @@ await block('exam.html — 右下のボタン群の「結合画像の設定」',
 		inputs: Array.from(document.querySelectorAll('#stitch-settings-pop input[data-stitch-show]')).map((i) => i.id).join(','),
 		title: document.getElementById('stitch-settings-title').textContent.trim(),
 		innerTitle: !!document.querySelector('#stitch-settings-pop .stitch-show-title'),
-		note: document.querySelector('#stitch-settings-pop .stitch-show-note').textContent,
+		note: !!document.querySelector('#stitch-settings-pop .stitch-show-note'),
 		focus: document.activeElement && document.activeElement.id,
 		expanded: document.getElementById('fab-item-settings').getAttribute('aria-expanded'),
 		bodyOverflow: document.body.style.overflow
 	}));
 	assert(st.popVisible && st.backdropVisible && !st.navOpen, '結合画像の設定: 項目を押すと暗転つきのパネルが開き、ボタン群は畳まれる', st);
-	assert(!st.hasRefresh && st.note.includes('「結合画像の表示」の画面で「画像を更新」'), '結合画像の設定: 「画像を更新」は無く、更新の道を案内で示す', st);
+	// T58（C-258 の T57 への回答 4）: 更新の道の案内の文（「…「画像を更新」を押してください。」）は消した
+	assert(!st.hasRefresh && !st.note, '結合画像の設定: 「画像を更新」は無く、案内の文も無い（T58 で消した）', st);
 	assert(st.inputs === 'fab-stitch-show-banner,fab-stitch-show-scenario,fab-opt-attr-icons,fab-stitch-show-legend,fab-stitch-show-conditions' && st.title === '結合画像の設定' && !st.innerTitle,
 		'結合画像の設定: 5項目の id は fab- で分かれ、見出しはパネルの頭に1つだけ', st);
 	assert(st.focus === 'stitch-settings-close' && st.expanded === 'true' && st.bodyOverflow === 'hidden', '結合画像の設定: 開いたら ✕ にフォーカスが移り、本文のスクロールが止まる', st);
@@ -15434,6 +15436,8 @@ await register85({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register86({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T57（2026-11-01）: セット名と文言の直し（C-258 の (1)・T56 の報告への回答。見出しは「T57セット名と文言」）
 await register87({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T58（2026-11-01）: ソートの文言と × の色の直し（C-262 の追記・C-258 の T57 への回答 4。見出しは「T58ソートと×」）
+await register88({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-01e';
 
 	/* ============================================================
 	 * 定数
@@ -4864,13 +4864,13 @@
 	}
 	function toneSortLabelOf(key) {
 		const t = ROW_TONE_SORTS.find(x => x.key === key);
-		return t ? t.label + 'を上に寄せる' : '並べ替えない';
+		return t ? t.label + 'でソート' : 'ソートしない';
 	}
 	function toneSortHeadHtml(active, where) {
-		const label = '並べ替え（今: ' + toneSortLabelOf(active) + '）';
+		const label = 'ソート（今: ' + toneSortLabelOf(active) + '）';
 		return '<span class="usd-roster-tonebox">'
 			+ '<button type="button" class="usd-roster-toneentry" data-usd-act="tone-sort-open" data-usd-el="tone-sort-entry" data-usd-where="' + where + '"'
-			+ (active ? ' data-sorted="1"' : '') + ' aria-haspopup="dialog" aria-expanded="false" aria-label="' + esc(label) + '" title="並べ替え"></button>'
+			+ (active ? ' data-sorted="1"' : '') + ' aria-haspopup="dialog" aria-expanded="false" aria-label="' + esc(label) + '" title="ソート"></button>'
 			+ '<span class="usd-roster-tones" data-usd-el="tone-sorts">'
 			+ ROW_TONE_SORTS.map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">' + toneIconHtml(t, active === t.key)
 				+ '<span class="usd-roster-ghbtn usd-roster-tonebtn usd-roster-tonegap" aria-hidden="true"></span></span>').join('')
@@ -4883,11 +4883,11 @@
 	 */
 	function openToneSortPopover(btn, key, active, noneChecked, disabled, onPick) {
 		openPopover({
-			key: key, title: '並べ替え', btn: btn, opener: btn, refocus: '[data-usd-el="tone-sort-entry"][data-usd-where="' + btn.getAttribute('data-usd-where') + '"]',
+			key: key, title: 'ソート', btn: btn, opener: btn, refocus: '[data-usd-el="tone-sort-entry"][data-usd-where="' + btn.getAttribute('data-usd-where') + '"]',
 			build: (body) => {
 				const list = infoEl('div', 'usd-sort-list');
 				list.setAttribute('role', 'radiogroup');
-				list.setAttribute('aria-label', '並べ替え');
+				list.setAttribute('aria-label', 'ソート');
 				list.setAttribute('data-usd-el', 'tone-sort-list');
 				const name = uid('usdsort');
 				ROW_TONE_SORTS.map(t => ({ key: t.key, t: t })).concat([{ key: null, t: null }]).forEach(o => {

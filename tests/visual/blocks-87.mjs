@@ -123,7 +123,8 @@ export async function register87(env) {
 		assert(e.panelNotes === 0 && e.panelList, 'T57(3) UmaExam: 結合画像の設定の欄の下の文（.stitch-show-note）は入れ物ごと無い（チェックの一覧は今のまま）', e);
 		assert(!e.html.includes('次に「OCR処理＋画像結合を開始する」を押したときに反映されます') && !e.html.includes('SNS投稿用に出力') && !e.html.includes('入れてから判定すると'),
 			'T57(3) UmaExam: 消した・変えた前の文が無い', null);
-		assert(e.fabNote && e.fabNote.startsWith('ここで変えた表示は、次の結合から反映されます。'), 'T57(3) UmaExam: 右下の「結合画像の設定」の小窓の文は今のまま（4か所のほかは変えない）', e.fabNote);
+		// T58（C-258 の T57 への回答 4）: 右下の「結合画像の設定」の小窓の文も消した（T57 では「今のまま」を確かめていた）
+		assert(e.fabNote === null, 'T57(3) UmaExam: 右下の「結合画像の設定」の小窓の文は無い（T58 で消した）', e.fabNote);
 		assert(jsErrors(ex.errors).length === 0, 'T57(3) UmaExam: コンソールのエラー0', ex.errors);
 		await ex.ctx.close();
 	});
