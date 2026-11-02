@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（同じフォルダの JS と製品のトークンの CSS だけを読む）。通信は禁止 -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>Deck モック v12（作業用）</title>
+	<!--
+		新しい UmaSkill Deck のモック版12（作り直しの段3・T86・2026-11-02）。製品には組み込まない。どのページからもリンクしない。
+		版11（lab/deck-v11/）に C-273 の決定（ヒートマップの表し方・配色・PC の左の列・ボタンの形）を入れた版。今回は見た目も判定する。
+		■ 画面: このページ（Deck 本体とバックアップ）と register.html（UmaStar の OCR から送ったときの登録の画面）。
+		■ 保存: IndexedDB の uma-lab-deck-v12（親1人1件 ＋ meta）。今のツールの localStorage には触れない。
+		■ 仮のデータ: 最初に開いたとき親100人を入れる。「⋯」（スマホは道具の行の右端・PC は見出しの行の右）から 30・100・300人に入れ直せる。
+		■ 見え方の確認: ?theme=light|dark で見た目を固定できる（設定より優先。撮影用）。
+	-->
+	<link rel="stylesheet" href="../../css/tokens.css" />
+	<link rel="stylesheet" href="deck-v12.css" />
+</head>
+<body>
+<div class="app" id="app">
+	<div class="top">
+	<header class="hd">
+		<h1>Deck <span class="muted small">α</span></h1>
+		<button class="nudge" id="nudge" type="button" hidden></button>
+		<button class="rsel" id="setBtn" type="button" aria-haspopup="dialog"><span class="t" id="setText">指定なし</span><span class="car" aria-hidden="true">▾</span></button>
+		<button class="btn icon" id="toolBtn" type="button" aria-label="ツール切り替え" title="ツール切り替え">▦</button>
+		<button class="btn icon" id="themeBtn" type="button" aria-label="ライト／ダークの切り替え" title="ライト／ダーク">☾</button>
+		<button class="btn icon more" type="button" id="moreBtnPc" aria-haspopup="dialog" aria-label="バックアップ・仮のデータ" title="バックアップ・仮のデータ">⋯</button>
+	</header>
+	<nav class="tb" aria-label="道具">
+		<span class="seg tabs" role="group" aria-label="引き出し">
+			<button class="tab" type="button" data-tab="parent" aria-pressed="false">親(列)<i class="dot" id="dotParent" hidden></i></button>
+			<button class="tab" type="button" data-tab="skill" aria-pressed="false">スキル(行)<i class="dot" id="dotSkill" hidden></i></button>
+			<button class="tab" type="button" data-tab="view" aria-pressed="false">表示</button>
+			<button class="tab" type="button" data-tab="sort" aria-pressed="false">ソート<i class="dot" id="dotSort" hidden></i></button>
+			<button class="tab" type="button" data-tab="plan" aria-pressed="false">本育成設計<i class="dot" id="dotPlan" hidden></i></button>
+		</span>
+		<button class="btn more" type="button" id="moreBtn" aria-haspopup="dialog" aria-label="バックアップ・仮のデータ" title="バックアップ・仮のデータ">⋯</button>
+	</nav>
+	</div>
+	<aside class="panes" id="panes" hidden>
+		<section class="pane" data-pane="parent" hidden>
+			<h3 class="ph">親(列)</h3>
+			<div class="it"><span class="lab">脚質</span><span class="opts" id="pf-style"></span></div>
+			<div class="it"><span class="lab">持ち主</span><span class="opts" id="pf-owner"></span></div>
+		</section>
+		<section class="pane" data-pane="skill" hidden>
+			<h3 class="ph">スキル(行)</h3>
+			<div class="it" id="sf-listRow"><span class="lab">一覧</span><span class="opts" id="sf-list"></span></div>
+			<div class="it"><span class="lab">分類</span><span class="opts" id="sf-cat"></span></div>
+			<div class="it"><span class="lab">距離</span><span class="opts" id="sf-dist"></span></div>
+			<div class="it"><span class="lab">脚質</span><span class="opts" id="sf-style"></span></div>
+			<div class="it"><span class="lab">名前</span><span class="opts"><input class="txt" id="sf-q" type="search" placeholder="スキル名で探す" aria-label="スキル名で探す" autocomplete="off" /></span></div>
+		</section>
+		<section class="pane" data-pane="view" hidden>
+			<h3 class="ph">表示</h3>
+			<div class="it"><span class="lab">段階</span><span class="opts"><span class="seg sm" role="group" aria-label="表示の段階" id="lvSeg">
+				<button type="button" data-lv="0" aria-pressed="false">全体</button>
+				<button type="button" data-lv="1" aria-pressed="true">縮小</button>
+				<button type="button" data-lv="2" aria-pressed="false">拡大</button>
+			</span></span></div>
+			<div class="it"><span class="lab">基準</span><span class="opts"><span class="seg sm" role="group" aria-label="充足の基準"><button type="button" data-th="1" aria-pressed="true">★1以上</button><button type="button" data-th="2" aria-pressed="false">★2以上</button></span></span></div>
+			<div class="it"><span class="lab">祖</span><span class="opts"><button class="tag" type="button" id="gpToggle" aria-pressed="true">祖2人も数える</button><button class="tag" type="button" id="geneToggle" aria-pressed="true">遺伝子の行</button></span></div>
+			<div class="it"><span class="lab">凡例</span><span class="opts legend" id="legend"><span><i class="sw" style="background:var(--dk-s1)"></i>1-2</span><span><i class="sw" style="background:var(--dk-s2)"></i>3-4</span><span><i class="sw" style="background:var(--dk-s3)"></i>5-6</span><span><i class="sw" style="background:var(--dk-s4)"></i>7-8</span><span><i class="sw" style="background:var(--dk-s5)"></i>9</span><span><i class="sw unk"></i>★不明</span><span class="fr">フレンド</span><span class="old">前回までの一覧</span></span></div>
+		</section>
+		<section class="pane" data-pane="sort" hidden>
+			<h3 class="ph">ソート</h3>
+			<div class="it"><span class="lab">親(列)</span><span class="opts"><select class="sel" id="cs" aria-label="親(列)の並び"><option value="def">登録日の新しい順</option><option value="many">対象の多い順</option><option value="owner">持ち主ごと</option></select></span></div>
+			<div class="it"><span class="lab">スキル(行)</span><span class="opts"><select class="sel" id="rs" aria-label="スキル(行)の並び"><option value="def">既定（ゲーム内）</option><option value="few">持つ親の少ない順</option><option value="max">最大の大きい順</option><option value="cat">分類ごと</option></select></span></div>
+		</section>
+		<section class="pane" data-pane="plan" hidden>
+			<h3 class="ph">本育成設計</h3>
+			<div class="ped" id="planTree"></div>
+			<div class="plist" id="planList"></div>
+			<div class="it"><span class="opts"><button class="btn pri" type="button" id="planGo">絞り込み</button><button class="btn" type="button" id="planOff" hidden>絞り込みをやめる</button><button class="btn" type="button" id="planClear">6人を空にする</button></span></div>
+			<div class="small muted" id="planSum"></div>
+		</section>
+	</aside>
+	<div class="stage" id="stage" tabindex="0" aria-label="ヒートマップ"></div>
+	<footer class="dock" id="dock">
+		<div class="r1">
+			<button class="slot" type="button" id="slotA"><b>A</b><span class="nm none">未選択</span></button>
+			<button class="slot" type="button" id="slotB"><b>B</b><span class="nm none">未選択</span></button>
+			<span class="cov mono" id="cov">—<small>充足</small></span>
+		</div>
+		<div class="r2">
+			<button class="btn" type="button" id="recB">親Bのおすすめ</button>
+			<button class="btn" type="button" id="recPair">2組を探す</button>
+			<button class="tag" type="button" id="onlyMiss" aria-pressed="false" hidden>足りないだけ</button>
+			<button class="tag" type="button" id="sixCols" aria-pressed="false" hidden>6人で見る</button>
+			<button class="btn" type="button" id="clearSel" hidden>選び直す</button>
+		</div>
+		<div class="miss" id="miss"></div>
+	</footer>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="importFile" accept="application/json,.json" hidden />
+<script src="data-snapshot.js"></script>
+<script src="deck-v12-core.js"></script>
+<script src="deck-v12-deck.js"></script>
+</body>
+</html>
