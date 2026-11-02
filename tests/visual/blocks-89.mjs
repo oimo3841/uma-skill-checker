@@ -348,13 +348,13 @@ export async function register89(env) {
 		CASES.forEach(([code, key], i) => {
 			assert(got[i] && got[i].t === MOCK.err[key] + MOCK.keep && got[i].role === 'alert' && got[i].afterRow && got[i].n === 1, `T59(7) e.code=${code} → 「${MOCK.err[key].slice(0, 16)}…」＋「${MOCK.keep}」（タブのすぐ下・role=alert・1つだけ）`, got[i]);
 		});
-		// 本物の失敗: 動画でないファイル（videoSource が decode）・人が1人（速すぎて祖1・祖2 の頭を通り過ぎる作り物の画）
+		// 本物の失敗: 動画でないファイル（videoSource が decode）・人が1人（親の途中で終わる作り物の画。T85 で速く通り過ぎた頭も見つけるようになったので jump から替えた）
 		await sp.page.click('#video-import-btn');
 		await sp.page.click('#video-sheet [data-video-act="replace"]');
 		await sp.page.evaluate(() => onVideoChosen(new File([new Uint8Array(64)], 'broken.mp4', { type: 'video/mp4' })));
 		const dec = await sp.page.evaluate(() => (document.querySelector('#video-error .video-error-text') || {}).textContent);
 		assert(dec === MOCK.err.unreadable + MOCK.keep, 'T59(7) 本物の読めないファイル → 読めない動画の文', dec);
-		await runSynth(sp.page, 'replace', { path: 'jump' });
+		await runSynth(sp.page, 'replace', { path: 'short' });
 		await waitRun(sp.page);
 		const sp1 = await sp.page.evaluate(() => (document.querySelector('#video-error .video-error-text') || {}).textContent);
 		assert(sp1 === MOCK.err.split(1) + MOCK.keep, 'T59(7) 人が3人でない（見つかったのは 1人）→ 人が分けられない文（数はその時の値）', sp1);

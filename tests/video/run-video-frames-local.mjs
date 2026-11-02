@@ -27,9 +27,11 @@ const save = process.argv.includes('--save');
 const special = process.argv.includes('--special');
 
 const VIDEOS = [
-	// counts … 人ごとの枚数（次の人の1枚目も入る。T42 の実測）
-	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 8.75, 14.5], heights: [1999, 1709, 1648], picks: 18, counts: [7, 10, 3] },
-	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10.5, 20], heights: [2579, 2480, 2352], picks: 54, counts: [19, 23, 14] }
+	// counts … 人ごとの枚数（次の人の1枚目も入る）。T85（2026-11-03）で止まっている1枚を選ぶようにして変わった。
+	// 前（T42 の実測）: 動画1 頭 0／8.75／14.5秒・高さ 1999／1709／1648・18枚・7／10／3、動画2 頭 0／10.5／20秒・高さ 2579／2480／2352・54枚・19／23／14。
+	// 結合画像の中身は前と同じ（行ごとに比べて重複・欠けなし。高さの差 1〜2px は継ぎ目の画が変わったため）
+	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 7.5, 14], heights: [1998, 1707, 1648], picks: 12, counts: [4, 7, 3] },
+	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10, 20.25], heights: [2578, 2480, 2352], picks: 34, counts: [12, 16, 8] }
 ];
 const LABELS = ['親', '祖1', '祖2'];
 

@@ -11,12 +11,16 @@
  *     真っ白・真っ黒のフレーム（シークの直後に描けていないもの）は捨てる。
  *  2. 1枚目と上の帯が近いフレームだけを残す（末尾のコントロールセンター・別の画面を外す）。
  *  3. 数枚で stitchDetectHeaderFooter を呼んで本文の帯を決める（上端は組ごとの中央値）。
- *  4. 区画の頭（親・祖1・祖2 の青いパネル）が帯の上から 0.25W 以内に来たフレームを「アンカー」にする。
- *  5. となりのフレームどうしのずれを「直前のずれの近く」だけで探して軌跡を作り（①予測つき）、
- *     軌跡から候補を決めて、選ぶ継ぎ目だけを「粗い全範囲 → 近くだけ細かく」で確かめる（⑤）。
- *     測れない組（速すぎる）は、その間だけ 1/16 秒刻みで取り直す。止まった組・戻った組は選ばない。
- *  6. 選んだ時刻だけ等倍で取り直して JPEG（品質 0.92）の File にする（④）。固定部分（本文の帯の上と下）は1枚目の画素にそろえる。
- *  7. アンカーで人ごとに分ける。各人の継ぎ目のずれ（shifts）を返すので、composePerson で組み立てられる（⑥。
+ *  4. となりのフレームどうしのずれを「直前のずれの近く」だけで探して軌跡を作る（①予測つき）。
+ *     測れない組（速すぎる）は、その間だけ 1/16 秒刻みで取り直す。
+ *  5. 区画の頭（親・祖1・祖2 の青いパネル）を帯の中のどこでも見つけ、軌跡の上の位置で同じ頭をまとめて「アンカー」にする（T85）。
+ *     人の1枚目は頭が帯の上から 0.25W 以内（組み立てが頭を探す範囲）のフレーム。止まっているフレームを先に選ぶ。
+ *  6. 軌跡から選ぶ。止まっている区間の真ん中の1枚を先に（T85。シークがずれても同じ画で、タッチのエフェクトも出ない）、
+ *     止まり→止まりが本文の帯の 85% を超える所だけ動いている1枚を足す。選ぶ継ぎ目は「粗い全範囲 → 近くだけ細かく」で確かめる（⑤）。
+ *     止まった組・戻った組は選ばない。
+ *  7. 選んだ時刻だけ等倍で取り直して JPEG（品質 0.92）の File にする（④）。固定部分（本文の帯の上と下）は1枚目の画素にそろえる。
+ *     取り直した画を縮めて縮小画と比べ、合わなければ次の画を待って取り直す（T85）。継ぎ目のずれは取り直した画どうしで測り直す（T85）。
+ *  8. アンカーで人ごとに分ける。各人の継ぎ目のずれ（shifts）を返すので、composePerson で組み立てられる（⑥。
  *     stitchOnePerson の並び順と継ぎ目の総当たり〔stitchResolveOrder〕を通さない）。
  *
  * 重いループはメインのまま、約 24ms ごとに await で譲る（Web Worker は使わない。おいもさんの決定 2026-10-31）。
@@ -37,7 +41,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-02c';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-03a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -63,6 +67,14 @@
 		warnSecondRatio: 1.5, // 離れた位置の次点との比がこれ未満（似た行が続いて決め手が無い）
 		blankRatio: 0.985,   // 真っ白（250 以上）または真っ黒（5 以下）の画素がこの割合以上なら捨てる
 		grabRetry: 3,        // 取り直しで真っ白・真っ黒が出たら、少しずらして取り直す回数
+		// T85（T83 の案1＋案3）
+		preferStill: true,   // 止まっている区間の真ん中の1枚を先に選ぶ（止まり→止まりが maxGap を超える所だけ動いている1枚を足す）
+		maxGap: 0.85,        // 止まっている候補を選ぶ距離の上限（本文の帯の高さに対する割合）
+		grabMatch: 0.03,     // 取り直した等倍の画を縮めて、選ぶときの縮小画と比べる不一致率の上限（badNear0）
+		remeasureWin: 48,    // 取り直した画どうしで、選ぶときのずれの ±この範囲を測り直す
+		nearWin: 12,         // 測れない組の、ほぼ止まっている見込みで探す範囲（±px）
+		grabRetryDt: [0, 1 / 60, -1 / 60, 1 / 30, -1 / 30], // 取り直した画が縮小画と合わないとき、次の画を待って取り直す時刻（選んだ時刻からの差・秒）
+		deltaWin: 240,       // 取り直した画と縮小画のずれを探す範囲（±px）
 		maxPicks: 120,
 		sliceMs: 24,
 		labels: null         // 人の名前（例 ['親', '祖1', '祖2']）。無ければ「人1」…
@@ -110,14 +122,16 @@
 	}
 
 	/* ── フレームの出どころ ─────────────────────────────
-	 * source = { kind, width, height, duration, drawAt(t, ctx, dw, dh, signal) → Promise, close() }
+	 * source = { kind, width, height, duration, drawAt(t, ctx, dw, dh, signal, how) → Promise, close() }
+	 * how.waitFrame（T85）: シークし直して次の画が出るのを待ってから描く（取り直した画が縮小画と合わないときの取り直し）
 	 * drawAt は時刻 t の画を ctx の (0,0)-(dw,dh) に縮めて描く。動画ファイル・作り物の画・
 	 * 将来の PC のウィンドウの取り込み（録った映像を時刻で引ける形にして渡す）を同じ形で差し替える。 */
 
-	function seekVideo(v, t, signal) {
+	// force: 同じ時刻でもシークし直す（取り直しで、描かれた画が古いとき。T85）
+	function seekVideo(v, t, signal, force) {
 		return new Promise((res, rej) => {
 			if (signal && signal.aborted) { rej(abortError()); return; }
-			if (Math.abs(v.currentTime - t) < 1e-6 && !v.seeking && v.readyState >= 2) { res(); return; }
+			if (!force && Math.abs(v.currentTime - t) < 1e-6 && !v.seeking && v.readyState >= 2) { res(); return; }
 			let timer = null;
 			const done = () => { cleanup(); res(); };
 			const fail = () => { cleanup(); rej(framesError('decode', '動画を読めない')); };
@@ -167,19 +181,31 @@
 			if (!isFinite(D) || D <= 0) throw framesError('no-duration', '動画の長さが分からない');
 			return {
 				kind: 'video', width: v.videoWidth, height: v.videoHeight, duration: D,
-				async drawAt(t, ctx, dw, dh, signal) { await seekVideo(v, t, signal); ctx.drawImage(v, 0, 0, dw, dh); },
+				// how.waitFrame: シークし直して、seeked のあと次の画が出る（requestVideoFrameCallback）のを待ってから描く（T85。T83 の案4。
+				// iPhone の Safari は seeked の時点で前の画のままのことがある〔推測〕。来ないときは 250ms で描く）
+				async drawAt(t, ctx, dw, dh, signal, how) {
+					if (how && how.waitFrame && typeof v.requestVideoFrameCallback === 'function') {
+						let id = 0, timer = null;
+						const frame = new Promise((res) => { id = v.requestVideoFrameCallback(() => res()); timer = setTimeout(res, 250); });
+						await seekVideo(v, t, signal, true);
+						await untilAbort(frame, signal);
+						clearTimeout(timer);
+						try { v.cancelVideoFrameCallback(id); } catch (e) { /* 何もしない */ }
+					} else await seekVideo(v, t, signal, !!(how && how.waitFrame));
+					ctx.drawImage(v, 0, 0, dw, dh);
+				},
 				close
 			};
 		} catch (e) { clearTimeout(loadTimer); close(); throw e; }
 	}
 
-	/** 作り物の画（検査）など: draw(t, ctx, dw, dh) が時刻 t の画を描く */
+	/** 作り物の画（検査）など: draw(t, ctx, dw, dh, how) が時刻 t の画を描く（how は drawAt と同じ。T85） */
 	function canvasSource(spec) {
 		return {
 			kind: spec.kind || 'canvas', width: spec.width, height: spec.height, duration: spec.duration,
-			async drawAt(t, ctx, dw, dh, signal) {
+			async drawAt(t, ctx, dw, dh, signal, how) {
 				if (signal && signal.aborted) throw abortError();
-				await untilAbort(spec.draw(t, ctx, dw, dh), signal);
+				await untilAbort(spec.draw(t, ctx, dw, dh, how), signal);
 			},
 			close() { if (spec.close) spec.close(); }
 		};
@@ -213,6 +239,20 @@
 			rows.push(toGray(ctx.getImageData(0, y, W, 1).data));
 		}
 		return isBlankGray(rows, ratio);
+	}
+	// ずれ dy（-R〜R）のうち不一致率が最小のもの（T85）
+	function nearShift(a, b, R) {
+		const w = a.w, h = a.h;
+		let best = { dy: 0, rate: 1 };
+		for (let dy = -R; dy <= R; dy++) {
+			let bad = 0, tot = 0;
+			for (let y = R + 1; y < h - R - 1; y += 2) {
+				const ra = (y + dy) * w, rb = y * w;
+				for (let x = 0; x < w; x += 2) { if (Math.abs(a.gray[ra + x] - b.gray[rb + x]) > 24) bad++; tot++; }
+			}
+			if (tot && bad / tot < best.rate) best = { dy, rate: bad / tot };
+		}
+		return best;
 	}
 	// ずれ dy（-3〜3）のうち最小の不一致率。止まり際の1〜2pxの戻りを「止まっている」に入れる
 	function badNear0(a, b) {
@@ -384,37 +424,30 @@
 			const g = new Uint8Array(pw * cH);
 			for (let y = 0; y < cH; y++) g.set(f.band.subarray((hE - bandY0 + y) * sw + mx, (hE - bandY0 + y) * sw + mx + pw), y * pw);
 			f.plane = { gray: g, w: pw, h: cH };
-			// 区画の頭（青いパネル）が帯の上端から 8〜0.25W-8 にあり、それより上に青が無い
-			const bs = blueStarts(f.col, hE - bandY0, footer - bandY0).map((y) => y - (hE - bandY0));
-			f.anchorY = bs.length && bs[0] >= 8 && bs[0] <= W * 0.25 - 8 ? bs[0] : null;
+			// 区画の頭（青いパネル）の上端。帯の中のどこでも（T85。T83 の案3。動画B の祖1 は帯の上から約 300px で止まっていた）
+			f.heads = blueStarts(f.col, hE - bandY0, footer - bandY0).map((y) => y - (hE - bandY0)).filter((y) => y >= 8);
 			f.band = null; f.probe = null; f.top = null; f.col = null;
 		}
 		for (const f of small) { f.band = null; f.probe = null; }
-		// アンカーは「続けて条件を満たすフレームの中で、頭がいちばん上に近い1枚」。1枚目から続く区間（親の頭が見えたまま）は 0 番で代表する
-		const anchors = [0];
-		let runBest = -1, firstRun = same[0].anchorY != null;
-		for (let n = 1; n < same.length; n++) {
-			const f = same[n];
-			if (f.anchorY != null) {
-				if (!firstRun && (runBest < 0 || f.anchorY < same[runBest].anchorY)) runBest = n;
-			} else {
-				firstRun = false;
-				if (runBest >= 0) { anchors.push(runBest); runBest = -1; }
-			}
-		}
-		if (runBest >= 0) anchors.push(runBest);
-		const anchorEntries = anchors.map((n) => same[n]);
-		const anchorSet = new Set(anchorEntries);
 
-		// 速い区間だけ細かく取り直す。縮小画・本文のグレーを同じ形で作る（真っ白・真っ黒なら null）
+		// 本文の帯（縮小画のグレー）を plane の形に。取り直した等倍の画を縮めて比べるときにも使う
+		function planeFromSmall() {
+			const band = toGray(sctx.getImageData(0, hE, sw, cH).data);
+			if (isBlankGray([band], opts.blankRatio)) return null;
+			const g = new Uint8Array(pw * cH);
+			for (let y = 0; y < cH; y++) g.set(band.subarray(y * sw + mx, y * sw + mx + pw), y * pw);
+			return { gray: g, w: pw, h: cH };
+		}
+		// 速い区間だけ細かく取り直す。縮小画・本文のグレーを同じ形で作る（真っ白・真っ黒なら null）。区切りの頭もここで調べる（T85）
 		async function sampleEntry(t) {
 			await pause();
 			await untilAbort(source.drawAt(t, sctx, sw, H, signal), signal);
-			const band = toGray(sctx.getImageData(0, hE, sw, cH).data);
-			if (isBlankGray([band], opts.blankRatio)) { blankSkipped++; return null; }
-			const g = new Uint8Array(pw * cH);
-			for (let y = 0; y < cH; y++) g.set(band.subarray(y * sw + mx, y * sw + mx + pw), y * pw);
-			return { t: +t.toFixed(4), plane: { gray: g, w: pw, h: cH }, fine: true };
+			const plane = planeFromSmall();
+			if (!plane) { blankSkipped++; return null; }
+			const cd = sctx.getImageData(colX, hE, 1, cH).data;
+			const col = new Uint8Array(cH * 3);
+			for (let y = 0; y < cH; y++) { col[y * 3] = cd[y * 4]; col[y * 3 + 1] = cd[y * 4 + 1]; col[y * 3 + 2] = cd[y * 4 + 2]; }
+			return { t: +t.toFixed(4), plane, fine: true, heads: blueStarts(col, 0, cH).filter((y) => y >= 8) };
 		}
 		const fine = step / opts.fineDiv;
 		let densified = 0;
@@ -455,14 +488,16 @@
 				weak: !!weak, uncertain: uncertainOf(r), anchor: anchorSet.has(to)
 			});
 		};
-		let stills = 0, backs = 0, local = 0, localFallback = 0, coarse = 0, verifies = 0;
+		let stills = 0, backs = 0, local = 0, localFallback = 0, coarse = 0, verifies = 0, nears = 0, headHints = 0, predVerifies = 0, loose = 0;
 		// となりどうしのずれ（正＝下へスクロール・0＝止まっている・負＝上へ戻った・null＝測れない）
 		function stepShift(a, b, prev) {
-			if (badNear0(a.plane, b.plane) < opts.stillBad) { stills++; return 0; }
+			b.strictStill = false;
+			if (badNear0(a.plane, b.plane) < opts.stillBad) { stills++; b.strictStill = true; return 0; }
 			if (prev != null && prev > 0) {
 				const win = Math.max(opts.predWin, Math.round(prev * 0.5));
 				const r = scanRange(a.plane, b.plane, prev - win, prev + win, opts.seamYs, opts.seamXs); local++;
-				if (r.shift > 0 && r.badRate < opts.okBad && r.shift > prev - win + 1 && r.shift < prev + win - 1) return r.shift;
+				// 予測の範囲の中の当たりは、基準の2倍まで認める（T85。タッチのエフェクトは画面に付いて動かないので、正しいずれでも不一致が増える）
+				if (r.shift > 0 && r.badRate < opts.okBad * 2 && r.shift > prev - win + 1 && r.shift < prev + win - 1) return r.shift;
 				localFallback++;
 			}
 			// 粗い全範囲 → 当たりの近くだけ細かく
@@ -471,15 +506,36 @@
 				const r = scanRange(a.plane, b.plane, c.shift - opts.coarseYs * 2, c.shift + opts.coarseYs * 2, opts.seamYs, opts.seamXs); local++;
 				if (r.shift > 0 && r.badRate < opts.okBad) return r.shift;
 			}
+			// 当たりが1つに決まる（次点との比 3 以上）なら、不一致が多くても（タッチのエフェクトが両方に写っている）軌跡のずれにする（T85）
+			if (c.shift > 0 && c.badRate < opts.okBad * 3 && coarseRatio(c) >= 3) {
+				const r = scanRange(a.plane, b.plane, c.shift - opts.coarseYs * 2, c.shift + opts.coarseYs * 2, opts.seamYs, opts.seamXs); local++;
+				if (r.shift > 0 && r.badRate < opts.okBad * 3) { loose++; return r.shift; }
+			}
 			const cb = coarseScan(b.plane, a.plane, opts.coarseYs, opts.coarseXs); coarse++;
 			if (cb.confident) { backs++; return -cb.shift; }
+			// ほぼ止まっている（1〜数px ずつ動く・タッチのエフェクトが出ている）。近くだけ少しゆるく（T85。粗い全範囲では次点と比べて決め手が無い）
+			const sm = nearShift(a.plane, b.plane, opts.nearWin);
+			if (sm.rate < opts.okBad * 2) { nears++; return sm.dy; }
+			// 速すぎて測れない。両方に区画の頭が見えていれば、頭の動いた量の近くだけ確かめる（T85。動画B の速いスワイプ）
+			for (const ya of a.heads || []) for (const yb of b.heads || []) {
+				const d = ya - yb;
+				if (d <= 0) continue;
+				const r = scanRange(a.plane, b.plane, d - 6, d + 6, opts.seamYs, opts.seamXs); local++;
+				if (r.shift > 0 && r.badRate < opts.okBad * 3) { headHints++; return r.shift; }
+			}
 			return null;
 		}
 		// 選ぶ継ぎ目の確かめ。verCoarse のときは粗い全範囲（次点との比を見る）＋当たりの近くだけ細かく
-		function verifySeam(a, b) {
+		// pred（軌跡の見込みのずれ）があり、粗い全範囲で決め手が無いとき（重なりが小さい継ぎ目）は、見込みの近くの当たりが
+		// 強ければ（不一致 okBad の半分未満）確かとみなす（T85。止まり→止まりは重なりが 15〜30% になる）
+		function verifySeam(a, b, pred) {
 			verifies++;
 			if (!opts.verCoarse) return stitchMeasureSeam(a, b, opts.verYs, opts.verXs);
 			const c = coarseScan(a, b, opts.coarseYs, opts.coarseXs); coarse++;
+			if (!c.confident && pred >= opts.minShift && pred <= cH - 60) {
+				const r = scanRange(a, b, pred - 16, pred + 16, opts.seamYs, opts.seamXs); local++;
+				if (r.shift > 0 && r.badRate < opts.okBad / 2) { predVerifies++; return { shift: r.shift, overlap: cH - r.shift, badRate: r.badRate, ratio: Math.max(coarseRatio(c), opts.warnSecondRatio), confident: true }; }
+			}
 			if (!c.confident) return { shift: c.shift, overlap: c.shift > 0 ? cH - c.shift : 60, badRate: c.badRate, ratio: coarseRatio(c), confident: false };
 			const r = scanRange(a, b, c.shift - opts.coarseYs * 2, c.shift + opts.coarseYs * 2, opts.seamYs, opts.seamXs); local++;
 			// 次点との比は粗い全範囲の値（同じ間引きどうしで比べる）
@@ -502,9 +558,93 @@
 				continue;
 			}
 			pos.set(b, pos.get(a) + s);
+			b.stepPrev = s;
 			prevShift = s > 0 ? s : null;
 		}
-		// 軌跡から選ぶ。アンカーは必ず選ぶ。候補は遠いほうから確かめ、確かな最初の1枚を選ぶ
+
+		// 止まっている区間（となりとのずれ 0 が続く所）。区間の真ん中の1枚を候補にする（T85。T83 の案1 (a)）。
+		// 止まっている画はシークが前後にずれても同じ画で、タッチのエフェクトも出ない
+		let stillRuns = 0;
+		{
+			let run = [same[0]];
+			const flush = () => {
+				if (run.length >= 2) {
+					const mid = (run[0].t + run[run.length - 1].t) / 2;
+					let rep = run[0];
+					for (const e of run) { e.still = true; if (Math.abs(e.t - mid) < Math.abs(rep.t - mid)) rep = e; }
+					rep.stillRep = true;
+					stillRuns++;
+				}
+			};
+			for (let n = 1; n < same.length; n++) {
+				if (same[n].stepPrev === 0 && same[n].strictStill && pos.has(same[n])) run.push(same[n]);
+				else { flush(); run = [same[n]]; }
+			}
+			flush();
+		}
+		// 区切り（アンカー）: 頭の位置を軌跡の上の位置（pos＋頭の y）で覚え、同じ位置の頭は1つにまとめる（T85。T83 の案3）。
+		// 人の1枚目は、頭が帯の上から 0.25W-8 以内（組み立ての stitchDetectFirstSkillPanelTop が頭を探す範囲）のフレームのうち、
+		// 止まっている区間の候補があればその中で、無ければ全部の中で、頭がいちばん上に近いもの（止まっている画はシークがずれても同じ画で、
+		// エフェクトも出ない。頭より上は組み立てで使わないので、中身は減らない）。範囲に入るフレームが無ければ頭がいちばん上に近いもの。
+		// 1枚目に見えている頭（と 0.25W より上の頭）は 0 番の人のもの
+		const heads = [];
+		for (const f of same) {
+			if (!pos.has(f) || !f.heads) continue;
+			for (const y of f.heads) heads.push({ f, y, abs: pos.get(f) + y });
+		}
+		heads.sort((p, q) => p.abs - q.abs);
+		const headTol = Math.max(40, Math.round(cH * 0.05));
+		const groups = [];
+		for (const h of heads) {
+			const g = groups[groups.length - 1];
+			if (g && h.abs - g[g.length - 1].abs <= headTol) g.push(h); else groups.push([h]);
+		}
+		// 頭が窓（帯の上から 0.25W-8）に入るフレームが無い（窓の少し下で止まり、次のスワイプで窓を飛び越えた）。
+		// 頭が最後に見えたフレームと次のフレームの間を半分ずつ取り直して、頭が窓に入るフレームを探す（最大 4回）
+		async function headIntoWindow(g) {
+			// 頭が最後に見えたフレーム（同じ時刻なら上のもの）から。頭は時間とともに上へ動いて窓を飛び越える
+			let cur = g.reduce((p, q) => (q.f.t > p.f.t || (q.f.t === p.f.t && q.y < p.y) ? q : p));
+			for (let it = 0; it < 4; it++) {
+				const k = same.indexOf(cur.f), nx = same[k + 1];
+				if (!nx || nx.t - cur.f.t < 1 / 120) return null;
+				const e = await sampleEntry((cur.f.t + nx.t) / 2);
+				if (!e) return null;
+				const st = stepShift(cur.f, e, null);
+				same.splice(k + 1, 0, e);
+				densified++;
+				pos.set(e, pos.get(cur.f) + (st != null ? st : 0));
+				e.stepPrev = st;
+				// 同じ頭（測れたときは軌跡の上の位置で、測れないときは前より上にある頭）
+				const y = (e.heads || []).filter((v) => (st != null ? Math.abs(pos.get(e) + v - cur.abs) <= headTol : v < cur.y))[0];
+				if (y == null) continue; // もう窓の上へ抜けた: 前半をさらに半分に
+				if (st == null) pos.set(e, cur.abs - y);
+				const h = { f: e, y, abs: pos.get(e) + y };
+				if (y <= W * 0.25 - 8) return h;
+				cur = h;
+			}
+			return null;
+		}
+		const firstAbs = same[0].heads && same[0].heads.length ? same[0].heads[0] : null;
+		const anchorEntries = [same[0]];
+		same[0].anchorY = firstAbs;
+		for (const g of groups) {
+			if (g[0].abs <= W * 0.25 - 8 || (firstAbs != null && g.some((h) => h.f === same[0]))) continue;
+			const inWin = g.filter((h) => h.y <= W * 0.25 - 8);
+			if (!inWin.length) { const h = await headIntoWindow(g); if (h) inWin.push(h); }
+			const pool = inWin.filter((h) => h.f.stillRep);
+			const from = pool.length ? pool : inWin.length ? inWin : g;
+			let best = from[0];
+			for (const h of from) if (h.y < best.y || (h.y === best.y && h.f.t < best.f.t)) best = h;
+			if (anchorEntries.includes(best.f)) continue;
+			best.f.anchorY = best.y;
+			anchorEntries.push(best.f);
+		}
+		anchorEntries.sort((p, q) => p.t - q.t);
+		const anchorSet = new Set(anchorEntries);
+
+		const maxGap = Math.round(opts.maxGap * cH);
+
+		// 軌跡から選ぶ。アンカーは必ず選ぶ。止まっている候補を先に、遠いほうから確かめ、確かな最初の1枚を選ぶ
 		const idx = (f) => same.indexOf(f);
 		let key = same[0];
 		guard = 0;
@@ -525,50 +665,87 @@
 					const prev = picks[picks.length - 2];
 					const r0 = verifySeam(prev.plane, fa.plane);
 					if (ok(r0)) { picks.pop(); seams.pop(); pushPick(prev, fa, r0); key = fa; continue; }
-					const r1 = verifySeam(key.plane, fa.plane);
+					// 直前の1枚とアンカーが同じ画（近くのずれで合う。verifySeam は「ずれ 0」を表せない。T85）→ その前の1枚からの継ぎ目をそのまま使う
+					const last = seams[seams.length - 1];
+					const sm = nearShift(key.plane, fa.plane, opts.nearWin);
+					if (last && last.shift > 0 && sm.rate < opts.okBad) {
+						picks.pop(); seams.pop();
+						const sh = last.shift + sm.dy;
+						pushPick(prev, fa, { shift: sh, overlap: cH - sh, badRate: last.badRate, ratio: last.secondRatio }, last.weak);
+						key = fa;
+						continue;
+					}
+					const r1 = verifySeam(key.plane, fa.plane, pos.get(fa) - pk);
 					pushPick(key, fa, r1, !ok(r1)); key = fa;
 					continue;
 				}
-				if (cH - gap >= opts.target * cH * 0.5 || gap < opts.minShift) {
-					const r = verifySeam(key.plane, fa.plane);
+				if (gap <= maxGap || gap < opts.minShift) {
+					const r = verifySeam(key.plane, fa.plane, gap);
 					if (ok(r)) { pushPick(key, fa, r); key = fa; continue; }
+				}
+			}
+			let picked = false;
+			const tryList = async (list) => {
+				for (const j of list) {
+					if (nextA >= 0 && j === nextA) continue;
+					await pause();
+					const f = same[j];
+					const r = verifySeam(key.plane, f.plane, pos.get(f) - pk);
+					if (ok(r)) { pushPick(key, f, r); key = f; return true; }
+				}
+				return false;
+			};
+			const gapOf = (j) => pos.get(same[j]) - pk;
+			if (opts.preferStill) {
+				// 止まっている候補（位置が minShift〜maxGap 先）を遠いほうから
+				const st = [];
+				for (let j = end; j > k; j--) if (same[j].stillRep && gapOf(j) >= opts.minShift && gapOf(j) <= maxGap) st.push(j);
+				if (await tryList(st)) continue;
+				// 次の止まり（かアンカー）が maxGap より遠い: 間の動いているフレームを足す。次の止まりに届く範囲で、真ん中に近いものから
+				let goal = -1;
+				for (let j = k + 1; j <= end; j++) if ((same[j].stillRep || anchorSet.has(same[j])) && gapOf(j) > maxGap) { goal = j; break; }
+				if (goal >= 0 && gapOf(goal) <= maxGap * 2) {
+					const gg = gapOf(goal);
+					const mv = [];
+					for (let j = k + 1; j < goal; j++) { const g = gapOf(j); if (g >= opts.minShift && g >= gg - maxGap && g <= maxGap) mv.push(j); }
+					mv.sort((p, q) => Math.abs(gapOf(p) - gg / 2) - Math.abs(gapOf(q) - gg / 2));
+					if (await tryList(mv)) continue;
 				}
 			}
 			// 前に進む候補（位置が minShift 以上先・予測の重なりが target 以上）を遠いほうから
 			const cands = [];
-			for (let j = k + 1; j <= end; j++) {
-				const g = pos.get(same[j]) - pk;
+			for (let j = end; j > k; j--) {
+				const g = gapOf(j);
 				if (g >= opts.minShift && cH - g >= opts.target * cH) cands.push(j);
 			}
-			let picked = false;
-			for (let c = cands.length - 1; c >= 0; c--) {
-				const f = same[cands[c]];
-				if (nextA >= 0 && cands[c] === nextA) continue;
-				await pause();
-				const r = verifySeam(key.plane, f.plane);
-				if (ok(r)) { pushPick(key, f, r); key = f; picked = true; break; }
-			}
+			if (await tryList(cands)) picked = true;
 			if (picked) continue;
 			// 候補が無い: 終わり（この先に前へ進むフレームが無い）か、次のフレームが遠すぎる
 			let further = -1;
 			for (let j = k + 1; j <= end; j++) if (pos.get(same[j]) - pk >= opts.minShift) { further = j; break; }
 			if (further < 0) {
-				if (nextA >= 0) { const fa = same[nextA]; const r = verifySeam(key.plane, fa.plane); pushPick(key, fa, r, !ok(r)); key = fa; continue; }
+				if (nextA >= 0) { const fa = same[nextA]; const r = verifySeam(key.plane, fa.plane, pos.get(fa) - pk); pushPick(key, fa, r, !ok(r)); key = fa; continue; }
 				break;
 			}
 			const f = same[further];
 			if (f.t - key.t > fine + 1e-6 && await densify(key, f)) {
-				// 細かく取り直したフレームの位置を補う（key から測る）
+				// 細かく取り直したフレームの位置を補う。1つ前のフレームから軌跡と同じ測り方で（T85。key から verifySeam で測ると、
+				// 止まっている区間で「ずれ 0」を表せず 1画面先にしてしまい、ほぼ同じ画を2枚目に選ぶことがあった。T83 §2）
 				for (let j = idx(key) + 1; j < idx(f); j++) {
 					const e = same[j];
 					if (pos.has(e)) continue;
 					await pause();
+					const pe = same[j - 1], pp = same[j - 2];
+					// 予測は1つ前の組のずれを時間の比で縮める（細かく取り直したフレームは間隔が短い）
+					const pred = pe.stepPrev > 0 && pp && pe.t > pp.t ? Math.round(pe.stepPrev * (e.t - pe.t) / (pe.t - pp.t)) : null;
+					const st = stepShift(pe, e, pred > 0 ? pred : null);
+					if (st != null) { pos.set(e, pos.get(pe) + st); e.stepPrev = st; continue; }
 					const r = verifySeam(key.plane, e.plane);
 					pos.set(e, ok(r) ? pk + r.shift : pk + cH);
 				}
 				continue;
 			}
-			const r = verifySeam(key.plane, f.plane);
+			const r = verifySeam(key.plane, f.plane, pos.get(f) - pk);
 			pushPick(key, f, r, !ok(r)); key = f;
 		}
 		tm.selectMs = performance.now() - t1;
@@ -584,6 +761,24 @@
 		let fixedTop = null, fixedBottom = null, grabRetries = 0;
 		const keepTop = Math.max(0, hE - 4), keepBottomY = Math.min(H, footer + 4);
 		const ext = opts.grabType === 'image/png' ? '.png' : '.jpg';
+		// 取り直した等倍の画を縮めて、選ぶときの縮小画と比べる（T85。T83 の案1 (b)）。iPhone の Safari ではシークした時刻と描かれた画が
+		// 合わないことがある（T83 §2）。合わなければ、同じ時刻（次の画が出るのを待つ＝案4）→ 少し後 の順に取り直し、いちばん合う画を使う
+		const grabPlanes = [], grabDeltas = [];
+		let grabMismatch = 0, grabFixed = 0, grabShifted = 0;
+		// 取り直した画が、縮小画の何 px 先（後）の画か。重なりがほぼ全面なので、となりの画どうしより確かに測れる
+		const grabDelta = (sp, gp) => {
+			const nr = nearShift(sp, gp, opts.nearWin);
+			if (nr.rate < opts.stillBad) return nr.dy;
+			const f = scanRange(sp, gp, 1, opts.deltaWin, opts.seamYs, opts.seamXs);
+			const b = scanRange(gp, sp, 1, opts.deltaWin, opts.seamYs, opts.seamXs);
+			const best = f.badRate <= b.badRate ? { d: f.shift, r: f.badRate } : { d: -b.shift, r: b.badRate };
+			return best.d && best.r < opts.okBad ? best.d : null;
+		};
+		const grabMatchOf = (p) => {
+			sctx.drawImage(full, 0, 0, W, H, 0, 0, sw, H);
+			const g = planeFromSmall();
+			return g ? { plane: g, bad: badNear0(g, p.plane) } : null;
+		};
 		for (let i = 0; i < picks.length; i++) {
 			await pause();
 			const p = picks[i];
@@ -596,6 +791,33 @@
 				grabRetries++;
 				t = tries === 1 ? p.t : Math.min(D - 0.01, p.t + (tries - 1) / 120);
 			}
+			let m = grabMatchOf(p);
+			if (m && m.bad >= opts.grabMatch) {
+				grabMismatch++;
+				m.delta = grabDelta(p.plane, m.plane);
+				let best = { m, img: fctx.getImageData(0, 0, W, H) };
+				const better = (x, y) => (x.bad < opts.grabMatch) !== (y.bad < opts.grabMatch) ? x.bad < opts.grabMatch
+					: (x.delta != null) !== (y.delta != null) ? x.delta != null
+					: x.delta != null ? Math.abs(x.delta) < Math.abs(y.delta) : x.bad < y.bad;
+				for (const dt of opts.grabRetryDt) {
+					await pause();
+					const tt = Math.max(0, Math.min(D - 0.01, p.t + dt));
+					await untilAbort(source.drawAt(tt, fctx, W, H, signal, { waitFrame: true }), signal);
+					if (isBlankCanvas(fctx, W, H, opts.blankRatio)) continue;
+					const m2 = grabMatchOf(p);
+					if (!m2) continue;
+					if (m2.bad >= opts.grabMatch) m2.delta = grabDelta(p.plane, m2.plane);
+					if (better(m2, best.m)) best = { m: m2, img: fctx.getImageData(0, 0, W, H) };
+					if (m2.bad < opts.grabMatch) break;
+				}
+				if (best.m.bad < opts.grabMatch) grabFixed++;
+				else if (best.m.delta != null) grabShifted++;
+				fctx.putImageData(best.img, 0, 0);
+				m = best.m;
+			}
+			grabPlanes.push(m ? m.plane : p.plane);
+			// 縮小画に対する取り直した画のずれ（正＝取り直した画のほうが下へ進んでいる）。合っていれば 0・測れなければ null
+			grabDeltas.push(!m ? 0 : m.bad < opts.grabMatch ? 0 : m.delta);
 			if (opts.normalizeFixed) {
 				if (!fixedTop) { fixedTop = fctx.getImageData(0, 0, W, keepTop); fixedBottom = fctx.getImageData(0, keepBottomY, W, H - keepBottomY); }
 				else { fctx.putImageData(fixedTop, 0, 0); fctx.putImageData(fixedBottom, 0, keepBottomY); }
@@ -606,6 +828,32 @@
 			progress('grab', i + 1, picks.length);
 		}
 		full.width = full.height = 0; sc.width = sc.height = 0;
+		// となりどうしのずれを、取り直した画どうしで測り直す（T85。T83 の案1 (c)）。まず選ぶときのずれの近く（±remeasureWin）、
+		// 外れたら粗い全範囲 → 近くだけ。どちらも確かでなければ選ぶときの値のまま「確かでない継ぎ目」にする
+		let remeasureMoved = 0, remeasureFull = 0, remeasureFail = 0, remeasureByDelta = 0;
+		for (let i = 0; i < seams.length; i++) {
+			await pause();
+			const s = seams[i], a = grabPlanes[i], b = grabPlanes[i + 1];
+			const sel0 = s.overlap != null ? cH - s.overlap : cH;
+			// 選ぶときのずれに、取り直した画のずれを足した見込み
+			const known = grabDeltas[i] != null && grabDeltas[i + 1] != null && s.overlap != null;
+			const s0 = known ? sel0 + grabDeltas[i + 1] - grabDeltas[i] : sel0;
+			const win = opts.remeasureWin;
+			let shift = null;
+			const r = scanRange(a, b, s0 - win, s0 + win, opts.seamYs, opts.seamXs);
+			// 取り直した画のずれが分かっているときは、見込みの近くの当たりを「確かでない継ぎ目」の基準（warnBadRate）まで認める
+			// （速い所の動いている画はぶれて、正しいずれでも不一致が 2〜4% になる）
+			const tol = known ? opts.warnBadRate : opts.okBad;
+			if (r.shift > 0 && r.badRate < tol && r.shift > s0 - win && r.shift < s0 + win) shift = r.shift;
+			else {
+				const v = verifySeam(a, b, s0);
+				if (ok(v)) { shift = v.shift; remeasureFull++; }
+				else if (known && s0 !== sel0 && s0 >= opts.minShift && s0 <= cH - 60) { shift = s0; remeasureByDelta++; }
+			}
+			if (shift == null) { remeasureFail++; s.uncertain = true; continue; }
+			if (shift !== s0) remeasureMoved++;
+			s.shift = shift; s.overlap = cH - shift;
+		}
 		tm.grabMs = performance.now() - t2;
 
 		// 7. 人ごと: アンカー k からアンカー k+1 まで（次の人の1枚目も入れる。末尾は stitch が次の青いパネルの手前で切る）
@@ -626,13 +874,16 @@
 			};
 		});
 		tm.totalMs = performance.now() - T0;
+		// 手元の調べ用（T85）: opts.debug（空のオブジェクト）を渡すと、軌跡（時刻・位置・ずれ・頭・止まり）を入れて返す
+		if (opts.debug) opts.debug.track = same.map((f) => ({ t: f.t, pos: pos.has(f) ? pos.get(f) : null, step: f.stepPrev, heads: f.heads, fine: !!f.fine, still: !!f.still, rep: !!f.stillRep }));
 		return {
 			version: VIDEO_FRAMES_JS_VERSION,
 			video: { W, H, D }, xs: opts.xs, fps: opts.fps,
 			header: { headerEnd: hE, footer, contentH: cH },
 			anchors: anchorEntries.map((a) => ({ t: a.t, y: a.anchorY })),
 			picks: picks.map((p) => p.t), seams, files, persons,
-			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries },
+			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
+				nears, headHints, predVerifies, loose, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail },
 			tm
 		};
 	}
