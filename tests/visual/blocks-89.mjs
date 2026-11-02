@@ -24,6 +24,8 @@ const MOCK = {
 	steps: ['動画を読み込み中', '親A のフレームを選んでいます', '祖A1 のフレームを選んでいます', '祖A2 のフレームを選んでいます', '完了'],
 	foot: '処理中もほかの画面は見られます',
 	next: 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。',
+	// T82（モック T69 の vdone。C-258 の T69 への回答 8）
+	stitched: '結合画像を作りました。OCRするときは「OCR処理＋画像結合を開始する」を押してください。',
 	cancel: '取り消しました。入っていた画像はそのままです',
 	keep: '入っていた画像はそのままです。',
 	err: {
@@ -238,11 +240,13 @@ export async function register89(env) {
 			assert(res && res.ok === true && m.n.every((x) => x >= 2) && m.names.every(Boolean) && m.video.every(Boolean), `T59(4) ${w}px 3人の枠が動画のフレーム（frame-NNNNNN.jpg）だけに置き換わり、人ごとのずれ・確かでない継ぎ目を持つ`, { res, m });
 			assert(m.tiles.every((t, i) => t && t.tag === 'BUTTON' && t.text === '動画から ' + m.n[i] + '枚' && t.hint === '押すと全部を表示' && t.img) && m.thumbs.every((x) => x === 0),
 				`T59(4) ${w}px 人ごとに「動画から N枚」の1行（押すと全部を表示）だけで、サムネイルは並べない`, m.tiles);
-			assert(m.sumText === '動画から ' + total + '枚 を入れました（親A ' + m.n[0] + '枚・祖A1 ' + m.n[1] + '枚・祖A2 ' + m.n[2] + '枚）。' + MOCK.next && m.sumBold === total + '枚' && m.sumRole === 'status' && m.sumAfterRow,
+			// T82: 取り込みのあと自動で結合するので、2行目は「結合画像を作りました。…」（C-258 の T69 への回答 8。自動の結合ができなかったときだけ MOCK.next）
+			assert(m.sumText === '動画から ' + total + '枚 を入れました（親A ' + m.n[0] + '枚・祖A1 ' + m.n[1] + '枚・祖A2 ' + m.n[2] + '枚）。' + MOCK.stitched && m.sumBold === total + '枚' && m.sumRole === 'status' && m.sumAfterRow,
 				`T59(4) ${w}px 終わった知らせ「動画から ${total}枚 を入れました（親A …）。」＋次の操作（タブのすぐ下・role=status）`, m);
 			assert(m.tab === total + '枚', `T59(4) ${w}px タブの枚数は ${total}枚`, m.tab);
 			assert(!m.prog && !m.err && !m.busy && !m.btnDis, `T59(4) ${w}px 終わると進捗の箱が消え、枠は元の濃さ・入口はまた押せる`, m);
-			// 「動画から N枚」を押すと全部のサムネイルが出る
+			// 「動画から N枚」を押すと全部のサムネイルが出る（T82: 3列は結合画像の下の「親ごとの画像を見る」で出してから）
+			await sp.page.click('#personset-A-wrap .video-showcols');
 			await sp.page.click('.person-image-list[data-person="1"] .video-tile');
 			const ex = await sp.page.evaluate(() => ({ tile: !!document.querySelector('.person-image-list[data-person="1"] .video-tile'), thumbs: document.querySelectorAll('.person-image-list[data-person="1"] > div.group').length, still: !!persons[1].video }));
 			assert(!ex.tile && ex.thumbs === m.n[1] && ex.still, `T59(4) ${w}px 「動画から N枚」を押すと、その人のサムネイル ${m.n[1]}枚が並ぶ（動画から来たことは変わらない）`, ex);

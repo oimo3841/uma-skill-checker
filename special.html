@@ -58,7 +58,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
-	<script src="js/video-frames.js?v=2026-11-02b"></script>
+	<script src="js/video-frames.js?v=2026-11-02c"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -260,6 +260,13 @@
 		.video-tile:hover { background: var(--uma-surface-sunken); }
 		.video-tile img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--uma-border); }
 		.video-tile small { margin-left: auto; font-weight: 600; color: var(--uma-text-subtle); font-size: 11px; }
+		/* 取り込みが成功したあと自動で結合した画像を③の中に出す（T82。C-258 の T69 への回答 7〜9・モック T69 の vdone／vwarn）。
+		   結果の箱がセットの枠の中で枠が2重にならないよう、出ている間はセットの枠の線を外す。上の余白は右上の「セットをクリア」の下から始めるため */
+		.upload-set-panel.video-has-result { border-color: transparent; }
+		.video-result { margin: 16px 0 12px; }
+		/* 3列を出す／隠す字のボタン（文は VIDEO_TEXTS の video.result.show／hide。今の「セットをクリア」と同じ字の作り・押せる高さ 44px） */
+		.video-showcols { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-size: 12px; color: var(--uma-text-subtle); text-decoration: underline; text-underline-offset: 2px; background: none; border: 0; padding: 0; cursor: pointer; }
+		.video-showcols:hover { color: var(--uma-text-heading); }
 		/* (2)-8: いちばん下の左の「!」（高度な解析オプション）。丸の線（--uma-border-strong）の中に灰の「!」（--uma-text-faint）・押せる範囲 44px */
 		.adv-opts { margin-top: var(--uma-sp-3); }
 		.adv-opts-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -11px; padding: 0; border: 0; background: transparent; cursor: pointer; }
@@ -1533,6 +1540,9 @@
 			'video.done.text': '動画から {N}枚 を入れました（{内訳}）。',
 			'video.done.item': '{人} {N}枚',
 			'video.done.next': 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。',
+			'video.done.stitched': '結合画像を作りました。OCRするときは「OCR処理＋画像結合を開始する」を押してください。',
+			'video.result.show': '親ごとの画像を見る',
+			'video.result.hide': '親ごとの画像を隠す',
 			'video.tile.text': '動画から {N}枚',
 			'video.tile.hint': '押すと全部を表示',
 			'video.warn.person': '{人} の結合の一部がずれているかもしれません。結果の画像を見て、ずれていたら動画を撮り直すか、スクショで入れ直してください。',
@@ -1695,7 +1705,7 @@
 			if (c === 'persons') return 'video.err.split';
 			if (c === 'band' || c === 'too-few') return 'video.err.noscreen';
 			if (c === 'too-many' || c === 'track') return 'video.err.fast';
-			return 'video.err.unreadable';   // decode・no-video-track・no-duration・blank-grab・seek-timeout・encode ほか
+			return 'video.err.unreadable';   // decode・load-timeout（読み込みの待ちの上限 20秒。T82）・no-video-track・no-duration・blank-grab・seek-timeout・encode ほか
 		}
 		function showVideoError(e) {
 			const el = document.createElement('div');
@@ -1706,7 +1716,8 @@
 				+ '<br>' + escapeHtml(videoText('video.err.keep')) + '</div>';
 			insertVideoBox(el);
 		}
-		function showVideoSummary(setIdx, counts) {
+		// stitched … 自動の結合で結合画像ができたか（T82）。できたら2行目は「結合画像を作りました。…」、できなければ今までの「このあと…を押してください。」
+		function showVideoSummary(setIdx, counts, stitched) {
 			const names = videoSetMembers(setIdx);
 			const total = counts.reduce((a, b) => a + b, 0);
 			const el = document.createElement('div');
@@ -1714,8 +1725,58 @@
 			el.className = 'video-summary';
 			el.setAttribute('role', 'status');
 			el.innerHTML = VIDEO_SVG_INFO + '<span>' + videoHtml('video.done.text', { N: total, 内訳: names.map((n, i) => videoText('video.done.item', { 人: n, N: counts[i] })).join('・') }, ['{N}枚'])
-				+ '<br>' + escapeHtml(videoText('video.done.next')) + '</span>';
+				+ '<br>' + escapeHtml(videoText(stitched ? 'video.done.stitched' : 'video.done.next')) + '</span>';
 			insertVideoBox(el);
+		}
+		/* 取り込みが成功したら、自動で「画像を結合する（OCRしない）」と同じ処理（buildStitchedSetImage の withMarks なし）をそのセットだけに行い、
+		 * 結合画像を③のセットの枠の中に出す（T82。C-258 の T69 への回答 7〜9・モック lab/upload-layout-mock.html の vdone／vwarn・res=inline）。
+		 *  - ずれの警告が無いとき: 3列（親ごとの画像）は隠し、結果の下の字のボタン（video.result.show／hide）で出す／隠す
+		 *  - ずれの警告があるとき: 3列も出し、警告の人の列だけサムネイルを全部見せる（ほかの人は「動画から N枚」のまま）
+		 * 結合画像の引き出しは開かない・中身も変えない（OCR は帯の「OCR処理＋画像結合を開始する」で行う） */
+		function videoSetPanel(setIdx) {
+			const w = document.getElementById('personset-' + PERSON_SETS[setIdx].id + '-wrap');
+			return w ? w.querySelector('.upload-set-panel') : null;
+		}
+		function clearVideoResult(setIdx) {
+			const panel = videoSetPanel(setIdx);
+			if (!panel) return;
+			const box = panel.querySelector('.video-result');
+			if (box) box.remove();
+			panel.classList.remove('video-has-result');
+			const cols = panel.querySelector('.upload-cols');
+			if (cols) cols.hidden = false;
+		}
+		function showVideoResult(setIdx, canvas) {
+			const panel = videoSetPanel(setIdx);
+			if (!panel) return;
+			clearVideoResult(setIdx);
+			const box = document.createElement('div');
+			box.className = 'video-result';
+			appendStitchResultBlock(box, PERSON_SETS[setIdx], canvas);
+			panel.querySelector('.upload-set-clear').after(box);
+			panel.classList.add('video-has-result');
+			const cols = panel.querySelector('.upload-cols');
+			const warned = canvas._videoWarnLabels || [];
+			if (warned.length) {
+				warned.forEach(label => {
+					const idx = PERSON_LABELS.indexOf(label);
+					if (idx >= 0 && persons[idx].video) { persons[idx].video.expanded = true; renderPersonImageList(idx); }
+				});
+				return;
+			}
+			cols.hidden = true;
+			const b = document.createElement('button');
+			b.type = 'button';
+			b.className = 'video-showcols';
+			b.setAttribute('aria-expanded', 'false');
+			b.textContent = videoText('video.result.show');
+			b.addEventListener('click', () => {
+				const show = cols.hidden;
+				cols.hidden = !show;
+				b.textContent = videoText(show ? 'video.result.hide' : 'video.result.show');
+				b.setAttribute('aria-expanded', String(show));
+			});
+			box.firstElementChild.appendChild(b);
 		}
 		function videoTileHtml(personIdx, files) {
 			if (!files.length) return '';
@@ -1733,6 +1794,8 @@
 			persons[personIdx].video = null;
 			const sum = document.getElementById('video-summary');
 			if (sum) sum.remove();
+			// ③の中の結合画像も古くなるので外し、3列を出す（T82）
+			clearVideoResult(Math.floor(personIdx / 3));
 		}
 
 		// 動画（File）か、フレームの出どころ（UmaVideoFrames.videoSource／canvasSource の形）を受け取り、選んだフレームを入れ先のセットの3人の枠へ入れる。
@@ -1766,10 +1829,15 @@
 				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + ': ' + counts.join('／') + '枚を入れました（' + (pend.mode === 'append' ? '後ろに足す' : '置き換え') + '・'
 					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）');
 				renderVideoProgress(setIdx, 4, 1);
+				clearVideoResult(setIdx);
 				[0, 1, 2].forEach(r => renderPersonImageList(setIdx * 3 + r));
+				// 自動の結合が終わるまで進捗の箱は「完了 100%」のまま残す。結合は取り消せないので「取り消す」は押せなくする
+				const abortBtn = document.querySelector('#video-progress [data-video-act="abort"]');
+				if (abortBtn) abortBtn.disabled = true;
+				const stitched = await autoStitchVideoSet(setIdx);
 				document.getElementById('video-progress').remove();
-				showVideoSummary(setIdx, counts);
-				return { ok: true };
+				showVideoSummary(setIdx, counts, stitched);
+				return { ok: true, stitched };
 			} catch (e) {
 				const el = document.getElementById('video-progress');
 				if (el) el.remove();
@@ -1785,6 +1853,33 @@
 				if (src && src !== input && typeof src.close === 'function') { try { src.close(); } catch (e) { /* 閉じられなくてもよい */ } }
 				videoBusy = null;
 				setVideoBusyUi(false);
+			}
+		}
+
+		// 取り込んだセットだけを「画像を結合する（OCRしない）」と同じく結合して③の中に出す（T82）。進捗は取り込みの箱の「完了」のまま（呼び出し元）。
+		// 取り込み中の印（videoBusy）は呼び出し元が持ったまま（3列と処理のボタンは押せないまま）。戻り値: 結合画像ができたか。
+		// 結合に失敗したときは③の中に今の結合の失敗の帯（appendStitchErrorBlock の文）を出し、3列は出したまま
+		async function autoStitchVideoSet(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			stitchInProgress = true;
+			try {
+				const canvas = await buildStitchedSetImage(setIdx, null, false);
+				if (!canvas) return false;
+				showVideoResult(setIdx, canvas);
+				return true;
+			} catch (e) {
+				// 失敗は③の中の帯で知らせる（コンソールには出さない）
+				devGeometry.push('[動画] 自動の結合に失敗しました: ' + (e && e.message));
+				const panel = videoSetPanel(setIdx);
+				if (panel) {
+					const box = document.createElement('div');
+					box.className = 'video-result';
+					appendStitchErrorBlock(box, set, e && e.message);
+					panel.querySelector('.upload-set-clear').after(box);
+				}
+				return false;
+			} finally {
+				stitchInProgress = false;
 			}
 		}
 

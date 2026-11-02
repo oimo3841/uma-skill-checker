@@ -124,6 +124,7 @@ import { register94 } from './blocks-94.mjs';
 import { register95 } from './blocks-95.mjs';
 import { register96 } from './blocks-96.mjs';
 import { register97 } from './blocks-97.mjs';
+import { register98 } from './blocks-98.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15485,6 +15486,8 @@ await register95({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register96({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T80（2026-11-02）: オススメサポの「除外中」の行の部品と短い表記・見出しの？の2項目・②の小窓に R を出さない（C-270。見出しは「T80除外中と説明とR」）
 await register97({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T82（2026-11-02）: 動画の読み込みの上限 20秒と、取り込みが成功したあと自動で結合して③に出す流れ（C-259・C-258 の T69 への回答 7〜9。見出しは「T82動画の上限と成功後」）
+await register98({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

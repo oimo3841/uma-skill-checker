@@ -37,7 +37,9 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-02b';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-02c';
+	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
+	const LOAD_TIMEOUT_MS = 20000;
 
 	const DEFAULTS = {
 		fps: 4,              // 調べる間隔（1秒あたり）
@@ -149,8 +151,15 @@
 		v.src = url;
 		v.load();
 		const close = () => { try { v.removeAttribute('src'); v.load(); v.remove(); } catch (e) { /* 何もしない */ } if (own) URL.revokeObjectURL(url); };
+		let loadTimer = null;
 		try {
-			await untilAbort(new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(framesError('decode', '動画を読めない')); }), signal);
+			// 読み込みの待ちには上限（既定 20秒。C-259 の 2026-11-02 の決定）。超えたら code 'load-timeout'（画面では「読み込めませんでした」の文）
+			const limit = (o && o.loadTimeoutMs != null) ? o.loadTimeoutMs : LOAD_TIMEOUT_MS;
+			await untilAbort(new Promise((res, rej) => {
+				v.onloadeddata = res; v.onerror = () => rej(framesError('decode', '動画を読めない'));
+				loadTimer = setTimeout(() => rej(framesError('load-timeout', '動画の読み込みが ' + limit + 'ms で終わらない')), limit);
+			}), signal);
+			clearTimeout(loadTimer);
 			if (!v.videoWidth || !v.videoHeight) throw framesError('no-video-track', '映像を復号できない');
 			let D = v.duration;
 			// MediaRecorder の WebM などは長さが Infinity のことがある。末尾までシークすると分かる
@@ -161,7 +170,7 @@
 				async drawAt(t, ctx, dw, dh, signal) { await seekVideo(v, t, signal); ctx.drawImage(v, 0, 0, dw, dh); },
 				close
 			};
-		} catch (e) { close(); throw e; }
+		} catch (e) { clearTimeout(loadTimer); close(); throw e; }
 	}
 
 	/** 作り物の画（検査）など: draw(t, ctx, dw, dh) が時刻 t の画を描く */
@@ -732,6 +741,7 @@
 
 	global.UmaVideoFrames = Object.freeze({
 		VERSION: VIDEO_FRAMES_JS_VERSION,
+		LOAD_TIMEOUT_MS,
 		DEFAULTS: Object.freeze(Object.assign({}, DEFAULTS)),
 		videoSource,
 		canvasSource,
