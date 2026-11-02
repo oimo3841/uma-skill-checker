@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない・何も読まない（このページの中だけで完結する） -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>Deck の大きさと速さの計測（作業用）</title>
+	<!--
+		新しい Deck（作り直しの段1・調査C。T74・2026-11-02）で、親とスキルの数を増やしたときに
+		データの大きさ・表の描画・「2組を探す」がどれだけかかるかを測るページ。
+		**ツール本体には組み込まない**（lab/video-diag.html と同じ扱い。どのページからもリンクしない）。
+		おいもさんが iPhone で開いて「4通りを測る」を押し、結果の表のスクリーンショットを返す。
+
+		■ 保存領域に何も書かない
+		- 仮のデータはこのページの中（メモリ）だけで作る。localStorage・IndexedDB・Cookie は使わない。
+		- 上の Content-Security-Policy で通信（connect-src）とフォームの送信を禁止している。外のファイルも読まない。
+
+		■ 何を測るか（親 100・300人 × スキル 133・500種 の4通り）
+		- データ: データの形の第1版の案（報告 T74-deck-data-shape-report の 1.）で仮の親を作り、JSON にしたときの大きさ・
+		  書き出し（JSON.stringify）と読み込み（JSON.parse ＋ 表示用の形への展開）の時間。
+		- 表の描画: 全体（キャンバス）・縮小・拡大の3段階。描き方は3通り。
+		  (a) モック版8 と同じ（1マスごとに色を getComputedStyle で読み、style に書き、マスごとに押したときの処理を付ける）
+		  (b) 色を先に1回だけ読み、マスは class で色を付け、押したときの処理は表に1つだけ
+		  (c) 見える範囲だけ描く（縮小・拡大。最初の描画と、表を動かしたときの描き直し10回の平均）
+		  時間は「処理（js）」「配置まで（強制レイアウト）」「画面に出るまで（次の描画のあと）」の3つを取り、表には「画面に出るまで」を出す。
+		- 2組を探す: 表示中の親から2家系を選ぶ全組み合わせを数える。(a) モック版8 と同じ（真偽の配列・組ごとに遺伝子を数え直す・全部並べ替える）
+		  (b) ビット列（家系ごとに持つスキルを32本ずつの整数に詰め、OR と1の数え上げ。上位8組だけ残す）
+		- 繰り返し: 表は3回（1回目が3秒を超えたら1回だけ）、2組は5回。中央値を出す。
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4;
+			--surface: #fff; --ink: #1d1d1f; --muted: #666; --h0: #F3F5F8; --h1: #C9DCEE; --h2: #6F9FD0; --h3: #1F4E85; --unk: #B8BEC7; --gp: #9AA6B4; --sel: #26292E; --friend: #A8501E; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #232323;
+			--surface: #161616; --ink: #eee; --muted: #aaa; --h0: #222831; --h1: #2D4A6B; --h2: #4F86C0; --h3: #A9CBF0; --unk: #56606C; --gp: #6B7787; --sel: #E6E9EE; --friend: #F2A273; } }
+		body { margin: 0; padding: 8px 10px 40px; background: var(--bg); color: var(--fg); font: 11px/1.4 -apple-system, system-ui, sans-serif; }
+		main { max-width: 1100px; margin: 0 auto; }
+		h1 { font-size: 15px; margin: 0 0 6px; }
+		h2 { font-size: 12px; margin: 10px 0 2px; }
+		.box { background: var(--box); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+		.ua { word-break: break-all; font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
+		.ok { color: var(--ok); font-weight: 700; }
+		.ng { color: var(--ng); font-weight: 700; }
+		.warn { color: var(--warn); font-weight: 700; }
+		button.go { font-size: 15px; padding: 8px 14px; margin: 6px 6px 0 0; }
+		#now { margin: 6px 0; font-weight: 700; min-height: 1.4em; }
+		table.res { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+		table.res th, table.res td { border-top: 1px solid var(--line); padding: 2px 3px; text-align: right; white-space: nowrap; }
+		table.res th:first-child, table.res td:first-child { text-align: left; white-space: normal; }
+		table.res thead th { border-top: 0; color: var(--sub); font-weight: 600; }
+		table.res tr.sec td { color: var(--sub); font-weight: 700; text-align: left; padding-top: 6px; }
+		#txt { width: 100%; box-sizing: border-box; height: 7em; font: 10px/1.3 ui-monospace, Menlo, monospace; }
+		#stage { position: relative; height: 420px; overflow: auto; border: 1px solid var(--line); margin-top: 8px; background: var(--surface); color: var(--ink); }
+		#stage canvas { display: block; }
+		/* 表（モック版8 の .hm の写し。opacity だけは (b)(c) で使わない） */
+		table.hm { border-collapse: separate; border-spacing: 0; font-size: 11px; }
+		.hm th, .hm td { padding: 0; }
+		.hm thead th { position: sticky; top: 0; background: var(--surface); z-index: 2; vertical-align: bottom; border-bottom: 1px solid var(--line); }
+		.hm tbody th { position: sticky; left: 0; background: var(--surface); z-index: 1; text-align: left; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: 1px solid var(--line); padding: 0 6px; }
+		.hm thead th.corner { left: 0; z-index: 3; text-align: left; padding: 4px 6px; font-weight: 500; color: var(--muted); }
+		.hm td { border-right: 1px solid var(--surface); border-bottom: 1px solid var(--surface); text-align: center; position: relative; }
+		.hm td.gp::after { content: ""; position: absolute; right: 2px; top: 2px; width: 4px; height: 4px; border-radius: 50%; background: var(--gp); }
+		.hm td.low { opacity: .35; }
+		.hm td.unk { background-image: repeating-linear-gradient(45deg, var(--unk) 0 2px, transparent 2px 5px); }
+		.hm .cnt { color: var(--muted); font-size: 10px; text-align: center; background: var(--surface); font-weight: 500; }
+		.hm .vt { writing-mode: vertical-rl; white-space: nowrap; margin: 0 auto; line-height: 1.1; }
+		.hm .cn { display: block; font-size: 10px; color: var(--muted); text-align: center; margin-top: 3px; border-top: 1px solid var(--line); padding-top: 2px; }
+		.hm th.fr .vt { color: var(--friend); font-weight: 700; }
+		/* (b)(c) の色は class で */
+		.hm td.c0 { background-color: var(--h0); color: var(--ink); } .hm td.c1 { background-color: var(--h1); color: var(--ink); }
+		.hm td.c2 { background-color: var(--h2); color: var(--surface); } .hm td.c3 { background-color: var(--h3); color: var(--surface); }
+		.hm td.lw { background-color: var(--h0); color: var(--muted); }
+		/* (c) 見える範囲だけ */
+		.vw-sizer { position: relative; }
+		.vw-part { position: absolute; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>Deck の大きさと速さの計測（作業用・T74）</h1>
+	<div class="box">
+		<div class="ua" id="ua"></div>
+		<div id="env"></div>
+	</div>
+	<button class="go" id="go-all" type="button">4通りを測る</button>
+	<button class="go" id="go-small" type="button">親100×スキル133 だけ</button>
+	<div id="now"></div>
+	<h2>結果（中央値・ms。画面に出るまで）</h2>
+	<table class="res"><thead id="res-h"></thead><tbody id="res-b"></tbody></table>
+	<p style="color:var(--sub);margin:4px 0">色：<span class="ok">100ms 以下</span>・<span class="warn">500ms 以下</span>・<span class="ng">それより遅い</span>（目安。報告 T74 の 3.）。「5MB比」は 5MB（5,000,000 バイト）に対する割合で、/2 は1文字2バイトで数える保存先の場合。</p>
+	<h2>文字の結果（写す用）</h2>
+	<textarea id="txt" readonly></textarea>
+	<div id="stage"></div>
+</main>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const stage = $('stage');
+const COMBOS = [[100, 133], [100, 500], [300, 133], [300, 500]];
+const QUOTA = 5000000;
+
+/* ── 端末 ─────────────────────── */
+$('ua').textContent = navigator.userAgent;
+$('env').textContent = '画面 ' + screen.width + '×' + screen.height + '・dpr ' + devicePixelRatio + '・表示幅 ' + innerWidth + '・' + (navigator.hardwareConcurrency || '?') + 'コア';
+
+/* ── 仮のデータ（データの形の第1版の案のとおりに作る） ─────────────────────── */
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const DIST = ['short', 'mile', 'medium', 'long'], STY = ['nige', 'senko', 'sashi', 'oikomi'], SURF = ['turf', 'dirt'];
+const STATS = ['speed', 'stamina', 'power', 'guts', 'wit'];
+const APT = SURF.concat(DIST, STY);
+const GENE = { turf: 'ap-turf', dirt: 'ap-dirt', short: 'ap-short', mile: 'ap-mile', medium: 'ap-medium', long: 'ap-long', nige: 'ap-nige', senko: 'ap-senko', sashi: 'ap-sashi', oikomi: 'ap-oikomi' };
+const pick = (r, a) => a[Math.floor(r() * a.length)];
+const pad = (n, w) => String(n).padStart(w, '0');
+
+// スキルの ID は公開データと同じ形：マスターは '1'〜'445'、拡張スキルは 'ex-0001'…（445 を超える分）
+function skillIds(n, r) {
+	if (n > 445) { const a = []; for (let i = 1; i <= 445; i++) a.push(String(i)); for (let i = 1; a.length < n; i++) a.push('ex-' + pad(i, 4)); return a; }
+	const all = []; for (let i = 1; i <= 445; i++) all.push(i);
+	for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+	return all.slice(0, n).sort((a, b) => a - b).map(String);
+}
+
+function makeDoc(nP, nS, seed) {
+	const r = rng(seed);
+	const ids = skillIds(nS, r);
+	// スキルの性質（モック版8 の確率の作りに合わせる：ふつう .07・サポカ外 .15・シナリオ .2、距離・脚質の指定つきは合う親で出やすい）
+	const attr = ids.map(() => { const q = r(); return { p: q < .7 ? .07 : q < .9 ? .15 : .2, d: r() < .25 ? pick(r, DIST) : null, s: r() < .25 ? pick(r, STY) : null }; });
+	const bundles = [
+		{ id: 'b1', name: '11月LoH', dist: 'medium', surface: 'turf' },
+		{ id: 'b2', name: '10月CM', dist: 'mile', surface: 'turf' },
+		{ id: 'b3', name: '12月CM', dist: 'long', surface: 'turf' },
+		{ id: 'b4', name: '9月LoH', dist: 'mile', surface: 'dirt' }
+	];
+	const whites = (b, st, rich, keep) => {
+		const o = {};
+		for (let k = 0; k < ids.length; k++) {
+			const a = attr[k]; let p = a.p;
+			if (a.d) p = a.d === b.dist ? p + .35 : p * .4;
+			if (a.s) p = a.s === st ? p + .3 : p * .5;
+			if (rich) p = Math.min(.85, p * 1.7);
+			if (r() >= p) continue;
+			if (keep && r() >= keep) continue;
+			const q = r(); o[ids[k]] = r() < .03 ? -1 : q < .5 ? 1 : q < .85 ? 2 : 3;
+		}
+		return o;
+	};
+	const genes = (b, st) => {
+		const q = r(), n = q < .25 ? 0 : q < .6 ? 1 : q < .85 ? 2 : 3, want = [b.surface, b.dist, st], o = {};
+		for (let g = 0; Object.keys(o).length < n && g < 20; g++) { const k = r() < .7 ? pick(r, want) : pick(r, APT); if (!o[GENE[k]]) o[GENE[k]] = 1 + Math.floor(r() * 3); }
+		return o;
+	};
+	const factors = (b) => ({ blue: [pick(r, STATS), 1 + Math.floor(r() * 3)], red: [r() < .6 ? b.dist : pick(r, APT), 1 + Math.floor(r() * 3)], green: 1 + Math.floor(r() * 3) });
+	const parents = [];
+	const base = Date.UTC(2026, 7, 1);
+	for (let j = 0; j < nP; j++) {
+		const b = pick(r, bundles), st = pick(r, STY), owner = r() < .1 ? 'friend' : 'self';
+		const day = new Date(base + Math.floor(j * 90 / nP + r()) * 86400000);
+		const p = {
+			id: 'p' + (j + 1),
+			uma: 'uma-' + pad(1 + Math.floor(r() * 272), 4),
+			date: day.toISOString().slice(0, 10), no: 0, owner,
+			bundles: [b.id], tags: { dist: [b.dist], style: [st], surface: [b.surface] }
+		};
+		if (r() < .3) { const s2 = pick(r, STY); if (s2 !== st) p.tags.style.push(s2); }
+		if (r() < .2) { const b2 = pick(r, bundles); if (b2.id !== b.id) p.bundles.push(b2.id); }
+		Object.assign(p, factors(b));
+		p.skills = whites(b, st, owner === 'friend', 0);
+		p.genes = genes(b, st);
+		p.gp = [];
+		for (let k = 0; k < 2; k++) {
+			const fr = parents.filter((x) => x.owner === 'friend');
+			if (fr.length && r() < .45) p.gp.push({ link: pick(r, fr).id });
+			else if (parents.length && r() < .2) p.gp.push({ link: pick(r, parents).id });
+			else p.gp.push(Object.assign({ uma: 'uma-' + pad(1 + Math.floor(r() * 272), 4) }, factors(b), { skills: whites(b, st, false, .6), genes: genes(b, st) }));
+		}
+		parents.push(p);
+	}
+	const byDate = {};
+	parents.forEach((p) => { byDate[p.date] = (byDate[p.date] || 0) + 1; p.no = byDate[p.date]; });
+	return {
+		doc: { format: 'uma-deck', schema: 1, tool: 'star', savedAt: '2026-11-02T12:00:00+09:00', data: { master: '2026-10-27a', extended: '2026-10-27a', training: '2026-10-26a' }, next: nP + 1, bundles, parents },
+		ids
+	};
+}
+
+/* ── 読み込んだあとの、表示用の形（スキルの並びの番号で引ける配列） ─────────────────────── */
+function expand(doc, ids) {
+	const ix = new Map(ids.map((id, i) => [id, i]));
+	const N = ids.length;
+	const dense = (m) => { const a = new Int8Array(N); for (const k in m) { const i = ix.get(k); if (i !== undefined) a[i] = m[k]; } return a; };
+	const gl = (m) => Object.keys(m).map((k) => ({ k: k.slice(3), st: m[k] }));
+	const byId = new Map();
+	const ps = doc.parents.map((p) => {
+		const q = { id: p.id, name: 'ウマ娘' + p.uma.slice(4), owner: p.owner, date: p.date, code: p.date + '-' + p.no, keys: [p.tags.surface[0], p.tags.dist[0]].concat(p.tags.style), stars: dense(p.skills), genes: gl(p.genes), gpRaw: p.gp };
+		byId.set(p.id, q); return q;
+	});
+	ps.forEach((q) => {
+		q.gp = q.gpRaw.map((g) => (g.link ? byId.get(g.link) : { name: 'ウマ娘' + g.uma.slice(4), stars: dense(g.skills), genes: gl(g.genes) }));
+		q.fam = [q, q.gp[0], q.gp[1]];
+		delete q.gpRaw;
+	});
+	// 列の既定は登録日の新しい順
+	ps.sort((a, b) => b.date.localeCompare(a.date) || b.code.localeCompare(a.code));
+	const ss = ids.map((id, i) => ({ i, id, n: 'スキル' + id + '○' }));
+	return { ps, ss };
+}
+
+/* ── モック版8 と同じ数え方 ─────────────────────── */
+const TH = 1;
+function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function heat(v) { return v < 0 ? null : cssv('--h' + v); }
+function ok(v) { return v < 0 ? TH === 1 : v >= TH; }
+function gpOnly(p, i) { if (ok(p.stars[i])) return false; return p.gp.some((g) => ok(g.stars[i])); }
+function has(p, i) { return ok(p.stars[i]) || gpOnly(p, i); }
+function famHas(p, i) { return p.fam.some((x) => ok(x.stars[i])); }
+function geneN(x, keys) { return (x.genes || []).filter((g) => keys.includes(g.k) && g.st >= TH).length; }
+function triple(p, i) { const z = (v) => (v >= TH ? v : 0); return z(p.stars[i]) + p.gp.reduce((a, g) => a + z(g.stars[i]), 0); }
+function rowMax(ps, i) { return ps.reduce((m, p) => Math.max(m, triple(p, i)), 0); }
+function famGenes(p) { return p.fam.reduce((a, m) => a + geneN(m, p.keys), 0); }
+
+/* ── 全体（キャンバス） ─────────────────────── */
+// (a) モック版8 の drawOverview と同じ（色は塗るたびに getComputedStyle）
+function overviewA(ps, ss) {
+	stage.innerHTML = '';
+	const W = stage.clientWidth - 2, barT = 22, barR = 26, gap = 2;
+	const cw = Math.max(3, Math.floor((W - barR - gap) / ps.length));
+	const ch = Math.max(3, Math.min(cw, ss.length > 80 ? 8 : 12));
+	const GH = ch * 3 + 4, w = cw * ps.length, h = ch * ss.length;
+	const cv = document.createElement('canvas'), dpr = window.devicePixelRatio || 1;
+	const CW = w + gap + barR, CH = barT + gap + GH + h;
+	cv.width = CW * dpr; cv.height = CH * dpr; cv.style.width = CW + 'px'; cv.style.height = CH + 'px';
+	const g = cv.getContext('2d'); g.scale(dpr, dpr);
+	const colN = ps.map((p) => ss.filter((s) => has(p, s.i)).length), rowN = ss.map((s) => rowMax(ps, s.i));
+	const maxC = Math.max(1, ...colN), maxR = 9;
+	g.fillStyle = cssv('--h2');
+	ps.forEach((p, x) => { const bh = Math.round((barT - 4) * colN[x] / maxC); g.fillRect(x * cw + 1, barT - bh, Math.max(1, cw - 2), bh); });
+	ss.forEach((s, y) => { const bw = Math.round((barR - 4) * rowN[y] / maxR); g.fillRect(w + gap, barT + gap + GH + y * ch + 1, bw, Math.max(1, ch - 2)); });
+	ps.forEach((p, x) => { p.fam.forEach((m, k) => { g.fillStyle = heat(geneN(m, p.keys)); g.fillRect(x * cw, barT + gap + k * ch, cw, ch); }); });
+	const unk = cssv('--unk'), gpC = cssv('--gp');
+	ss.forEach((s, y) => ps.forEach((p, x) => {
+		const v = p.stars[s.i], X = x * cw, Y = barT + gap + GH + y * ch;
+		if (v < 0) { g.fillStyle = cssv('--h0'); g.fillRect(X, Y, cw, ch); g.fillStyle = unk; g.fillRect(X + cw / 4, Y + ch / 4, cw / 2, ch / 2); }
+		else { g.fillStyle = heat(v); g.globalAlpha = (v > 0 && v < TH) ? .35 : 1; g.fillRect(X, Y, cw, ch); g.globalAlpha = 1; if (v === 0 && gpOnly(p, s.i)) { g.fillStyle = gpC; g.globalAlpha = .55; g.fillRect(X + cw * .3, Y + ch * .3, cw * .4, ch * .4); g.globalAlpha = 1; } }
+	}));
+	stage.appendChild(cv);
+}
+// (b) 色を先に1回だけ読む。数えるのも1回の走査で
+function overviewB(ps, ss) {
+	stage.innerHTML = '';
+	const H = [0, 1, 2, 3].map((k) => cssv('--h' + k)), unk = cssv('--unk'), gpC = cssv('--gp');
+	const W = stage.clientWidth - 2, barT = 22, barR = 26, gap = 2;
+	const cw = Math.max(3, Math.floor((W - barR - gap) / ps.length));
+	const ch = Math.max(3, Math.min(cw, ss.length > 80 ? 8 : 12));
+	const GH = ch * 3 + 4, w = cw * ps.length, h = ch * ss.length;
+	const cv = document.createElement('canvas'), dpr = window.devicePixelRatio || 1;
+	const CW = w + gap + barR, CH = barT + gap + GH + h;
+	cv.width = CW * dpr; cv.height = CH * dpr; cv.style.width = CW + 'px'; cv.style.height = CH + 'px';
+	const g = cv.getContext('2d'); g.scale(dpr, dpr);
+	const P = ps.length, S = ss.length, colN = new Int32Array(P), rowN = new Int32Array(S);
+	// 色ごとにまとめて塗る（fillStyle の切り替えを4回＋α に）
+	const buckets = [[], [], [], []], unkL = [], gpL = [];
+	for (let y = 0; y < S; y++) {
+		const i = ss[y].i;
+		for (let x = 0; x < P; x++) {
+			const p = ps[x], v = p.stars[i], a = p.gp[0].stars[i], b = p.gp[1].stars[i];
+			const own = v < 0 || v >= TH, go = !own && (a < 0 || a >= TH || b < 0 || b >= TH);
+			if (own || go) colN[x]++;
+			const t = (v >= TH ? v : 0) + (a >= TH ? a : 0) + (b >= TH ? b : 0); if (t > rowN[y]) rowN[y] = t;
+			if (v < 0) { buckets[0].push(x, y); unkL.push(x, y); } else { buckets[v].push(x, y); if (v === 0 && go) gpL.push(x, y); }
+		}
+	}
+	let maxC = 1; for (let x = 0; x < P; x++) if (colN[x] > maxC) maxC = colN[x];
+	g.fillStyle = H[2];
+	for (let x = 0; x < P; x++) { const bh = Math.round((barT - 4) * colN[x] / maxC); g.fillRect(x * cw + 1, barT - bh, Math.max(1, cw - 2), bh); }
+	for (let y = 0; y < S; y++) { const bw = Math.round((barR - 4) * rowN[y] / 9); g.fillRect(w + gap, barT + gap + GH + y * ch + 1, bw, Math.max(1, ch - 2)); }
+	ps.forEach((p, x) => { p.fam.forEach((m, k) => { g.fillStyle = H[Math.min(3, geneN(m, p.keys))]; g.fillRect(x * cw, barT + gap + k * ch, cw, ch); }); });
+	const Y0 = barT + gap + GH;
+	for (let c = 0; c < 4; c++) { g.fillStyle = H[c]; const L = buckets[c]; for (let k = 0; k < L.length; k += 2) g.fillRect(L[k] * cw, Y0 + L[k + 1] * ch, cw, ch); }
+	g.fillStyle = unk; for (let k = 0; k < unkL.length; k += 2) g.fillRect(unkL[k] * cw + cw / 4, Y0 + unkL[k + 1] * ch + ch / 4, cw / 2, ch / 2);
+	g.fillStyle = gpC; g.globalAlpha = .55; for (let k = 0; k < gpL.length; k += 2) g.fillRect(gpL[k] * cw + cw * .3, Y0 + gpL[k + 1] * ch + ch * .3, cw * .4, ch * .4); g.globalAlpha = 1;
+	stage.appendChild(cv);
+}
+
+/* ── 縮小・拡大（表） ─────────────────────── */
+const narrow = () => matchMedia('(max-width:720px)').matches;
+const dims = (L) => ({ cw: L === 1 ? 16 : 30, rh: L === 1 ? 16 : 24, nw: L === 1 ? (narrow() ? 64 : 88) : (narrow() ? 120 : 170) });
+const fz = (w) => 'width:' + w + 'px;min-width:' + w + 'px;max-width:' + w + 'px';
+// (a) モック版8 の drawTable と同じ（最大の列・遺伝子の3行・マスごとの onclick。効率の列は UmaExam だけなので外す）
+function tableA(ps, ss, L) {
+	const { cw, rh, nw } = dims(L);
+	const colN = ps.map((p) => ss.filter((s) => has(p, s.i)).length);
+	const ink = (lv) => (lv >= 2 ? cssv('--surface') : cssv('--ink'));
+	const mw = 26, left = nw;
+	let h = '<table class="hm"><thead><tr><th class="corner" style="' + fz(nw) + '">' + (L === 2 ? 'スキル ＼ 親' : '') + '</th><th class="corner cnt" style="' + fz(mw) + ';left:' + left + 'px">最大</th>';
+	ps.forEach((p, x) => { const nm = L === 1 ? p.name.slice(0, 4) : p.name; h += '<th class="ch' + (p.owner === 'friend' ? ' fr' : '') + '" data-col="' + x + '" style="' + fz(cw) + '" title="' + p.name + '"><div class="vt">' + nm + '</div><span class="cn">' + colN[x] + '</span></th>'; });
+	h += '</tr></thead><tbody>';
+	['遺伝子：親', '遺伝子：祖1', '遺伝子：祖2'].forEach((lab, k) => {
+		let cells = '', mx = 0;
+		ps.forEach((p, x) => { const n = geneN(p.fam[k], p.keys); mx = Math.max(mx, n); cells += '<td class="gcell" data-g="' + k + '" data-c="' + x + '" style="background-color:' + heat(n) + ';color:' + ink(n) + '">' + (L === 2 && n ? n : '') + '</td>'; });
+		h += '<tr style="height:' + rh + 'px"><th class="gl" style="' + fz(nw) + '">' + (L === 1 ? lab.replace('遺伝子：', '遺') : lab) + '</th><th class="cnt" style="' + fz(mw) + ';left:' + left + 'px;background-color:' + heat(mx) + ';color:' + ink(mx) + '">' + mx + '</th>' + cells + '</tr>';
+	});
+	ss.forEach((s, y) => {
+		let cells = ''; const n = rowMax(ps, s.i);
+		ps.forEach((p, x) => {
+			const v = p.stars[s.i], go = gpOnly(p, s.i), bg = v > 0 ? heat(v) : cssv('--h0');
+			const cls = (v < 0 ? 'unk' : '') + (v > 0 && v < TH ? ' low' : '') + (go ? ' gp' : '');
+			cells += '<td class="' + cls + '" data-r="' + y + '" data-c="' + x + '" style="background-color:' + bg + ';color:' + ink(v) + '">' + (L === 2 ? (v > 0 ? v : v < 0 ? '?' : '') : '') + '</td>';
+		});
+		const lvN = n === 0 ? 0 : n <= 3 ? 1 : n <= 6 ? 2 : 3;
+		h += '<tr style="height:' + rh + 'px"><th data-row="' + y + '" style="' + fz(nw) + ';font-size:' + (L === 1 ? '10px' : '12px') + '" title="' + s.n + '">' + s.n + '</th><th class="cnt" style="' + fz(mw) + ';left:' + left + 'px;background-color:' + heat(lvN) + ';color:' + ink(lvN) + '">' + n + '</th>' + cells + '</tr>';
+	});
+	h += '</tbody></table>';
+	stage.innerHTML = h;
+	stage.querySelectorAll('thead th[data-col]').forEach((th) => (th.onclick = () => {}));
+	stage.querySelectorAll('tbody th[data-row]').forEach((th) => (th.onclick = () => {}));
+	stage.querySelectorAll('td[data-g]').forEach((td) => (td.onclick = () => {}));
+	stage.querySelectorAll('td[data-r]').forEach((td) => (td.onclick = () => {}));
+}
+// 1回の走査で、列の数・行の最大・マスの class を先に作る（(b)(c) が使う）
+function precompute(ps, ss) {
+	const P = ps.length, S = ss.length, colN = new Int32Array(P), rowN = new Int32Array(S), cell = new Int8Array(P * S), gpb = new Uint8Array(P * S);
+	for (let y = 0; y < S; y++) {
+		const i = ss[y].i;
+		for (let x = 0; x < P; x++) {
+			const p = ps[x], v = p.stars[i], a = p.gp[0].stars[i], b = p.gp[1].stars[i];
+			const own = v < 0 || v >= TH, go = !own && (a < 0 || a >= TH || b < 0 || b >= TH);
+			if (own || go) colN[x]++;
+			const t = (v >= TH ? v : 0) + (a >= TH ? a : 0) + (b >= TH ? b : 0); if (t > rowN[y]) rowN[y] = t;
+			cell[y * P + x] = v; gpb[y * P + x] = go ? 1 : 0;
+		}
+	}
+	const gn = ps.map((p) => p.fam.map((m) => Math.min(3, geneN(m, p.keys))));
+	return { P, S, colN, rowN, cell, gpb, gn };
+}
+const tdB = (v, go, L) => '<td class="' + (v < 0 ? 'c0 unk' : v > 0 && v < TH ? 'lw' : 'c' + v) + (go ? ' gp' : '') + '">' + (L === 2 ? (v > 0 ? v : v < 0 ? '?' : '') : '') + '</td>';
+const lvOf = (n) => (n === 0 ? 0 : n <= 3 ? 1 : n <= 6 ? 2 : 3);
+function headRow(ps, pc, L, c0, c1, nw, cw, mw) {
+	let h = '<tr><th class="corner" style="' + fz(nw) + '">' + (L === 2 ? 'スキル ＼ 親' : '') + '</th><th class="corner cnt" style="' + fz(mw) + ';left:' + nw + 'px">最大</th>';
+	for (let x = c0; x < c1; x++) { const p = ps[x]; h += '<th class="ch' + (p.owner === 'friend' ? ' fr' : '') + '" data-col="' + x + '" style="' + fz(cw) + '"><div class="vt">' + (L === 1 ? p.name.slice(0, 4) : p.name) + '</div><span class="cn">' + pc.colN[x] + '</span></th>'; }
+	return h + '</tr>';
+}
+function bodyRows(ps, ss, pc, L, r0, r1, c0, c1, nw, rh, mw) {
+	let h = '';
+	const labs = ['遺伝子：親', '遺伝子：祖1', '遺伝子：祖2'];
+	for (let y = r0; y < r1; y++) {
+		let row = '<tr style="height:' + rh + 'px">';
+		if (y < 3) {
+			let mx = 0; for (let x = 0; x < pc.P; x++) if (pc.gn[x][y] > mx) mx = pc.gn[x][y];
+			row += '<th class="gl" style="' + fz(nw) + '">' + (L === 1 ? labs[y].replace('遺伝子：', '遺') : labs[y]) + '</th><th class="cnt" style="' + fz(mw) + ';left:' + nw + 'px">' + mx + '</th>';
+			for (let x = c0; x < c1; x++) { const n = pc.gn[x][y]; row += '<td class="c' + n + '" data-g="' + y + '">' + (L === 2 && n ? n : '') + '</td>'; }
+		} else {
+			const s = y - 3, n = pc.rowN[s], base = s * pc.P;
+			row += '<th data-row="' + s + '" style="' + fz(nw) + ';font-size:' + (L === 1 ? '10px' : '12px') + '">' + ss[s].n + '</th><th class="cnt" style="' + fz(mw) + ';left:' + nw + 'px">' + n + '</th>';
+			for (let x = c0; x < c1; x++) row += tdB(pc.cell[base + x], pc.gpb[base + x], L);
+		}
+		h += row + '</tr>';
+	}
+	return h;
+}
+// (b) 全部描く。色は class・押したときの処理は表に1つ
+function tableB(ps, ss, L) {
+	const { cw, rh, nw } = dims(L), mw = 26, pc = precompute(ps, ss);
+	stage.innerHTML = '<table class="hm" style="table-layout:fixed"><thead>' + headRow(ps, pc, L, 0, pc.P, nw, cw, mw) + '</thead><tbody>' + bodyRows(ps, ss, pc, L, 0, pc.S + 3, 0, pc.P, nw, rh, mw) + '</tbody></table>';
+	stage.firstChild.onclick = () => {};
+}
+// (c) 見える範囲だけ。表全体の大きさの箱の中に、見える行・列（前後に少し余分）の表を置く。見出しは別の小さな表で上・左に重ねる
+const HEAD_H = { 1: 70, 2: 110 };
+function tableC(ps, ss, L) {
+	const { cw, rh, nw } = dims(L), mw = 26, pc = precompute(ps, ss), hh = HEAD_H[L];
+	const totalW = nw + mw + pc.P * cw, totalH = hh + (pc.S + 3) * rh;
+	stage.innerHTML = '<div class="vw-sizer" style="width:' + totalW + 'px;height:' + totalH + 'px"><div class="vw-part" id="vw-b"></div><div class="vw-part" id="vw-h"></div><div class="vw-part" id="vw-l"></div></div>';
+	const pb = stage.querySelector('#vw-b'), ph = stage.querySelector('#vw-h'), pl = stage.querySelector('#vw-l');
+	const OV = 4;
+	const draw = () => {
+		const st = stage.scrollTop, sl = stage.scrollLeft, vh = stage.clientHeight, vw = stage.clientWidth;
+		const r0 = Math.max(0, Math.floor((st) / rh) - OV), r1 = Math.min(pc.S + 3, Math.ceil((st + vh) / rh) + OV);
+		const c0 = Math.max(0, Math.floor(sl / cw) - OV), c1 = Math.min(pc.P, Math.ceil((sl + vw) / cw) + OV);
+		// 本体（名前・最大の列も含めて描き、左の固定は別の表で上に重ねる）
+		pb.style.cssText = 'left:' + (nw + mw + c0 * cw - nw - mw) + 'px;top:' + (hh + r0 * rh) + 'px';
+		pb.innerHTML = '<table class="hm" style="table-layout:fixed;width:' + (nw + mw + (c1 - c0) * cw) + 'px"><colgroup><col style="width:' + (nw + mw) + 'px">' + '<col style="width:' + cw + 'px">'.repeat(c1 - c0) + '</colgroup><tbody>' +bodyRows(ps, ss, pc, L, r0, r1, c0, c1, nw, rh, mw).replace(/<th[^>]*>.*?<\/th><th[^>]*>.*?<\/th>/g, '<td style="' + fz(nw + mw) + '"></td>') + '</tbody></table>';
+		ph.style.cssText = 'left:' + (c0 * cw) + 'px;top:' + st + 'px;z-index:2;background:var(--surface)';
+		ph.innerHTML = '<table class="hm" style="table-layout:fixed"><thead>' + headRow(ps, pc, L, c0, c1, nw, cw, mw).replace(/<th class="corner[^>]*>.*?<\/th><th class="corner[^>]*>.*?<\/th>/, '<th style="' + fz(nw + mw) + '"></th>') + '</thead></table>';
+		pl.style.cssText = 'left:' + sl + 'px;top:' + (hh + r0 * rh) + 'px;z-index:1';
+		let lh = ''; const labs = ['遺伝子：親', '遺伝子：祖1', '遺伝子：祖2'];
+		for (let y = r0; y < r1; y++) lh += '<tr style="height:' + rh + 'px"><th style="' + fz(nw) + '">' + (y < 3 ? labs[y] : ss[y - 3].n) + '</th><th class="cnt" style="' + fz(mw) + '">' + (y < 3 ? '' : pc.rowN[y - 3]) + '</th></tr>';
+		pl.innerHTML = '<table class="hm" style="table-layout:fixed"><tbody>' + lh + '</tbody></table>';
+	};
+	draw();
+	stage.onscroll = draw;
+	stage.firstChild.onclick = () => {};
+	return draw;
+}
+
+/* ── 2組を探す ─────────────────────── */
+// (a) モック版8 と同じ
+function pairsA(ps, ss) {
+	const ids = ss.map((s) => s.i), H = ps.map((p) => ids.map((i) => famHas(p, i))), res = [];
+	for (let a = 0; a < ps.length; a++) for (let b = a + 1; b < ps.length; b++) {
+		let n = 0; for (let k = 0; k < ids.length; k++) if (H[a][k] || H[b][k]) n++;
+		res.push({ a: ps[a], b: ps[b], n, g: famGenes(ps[a]) + famGenes(ps[b]) });
+	}
+	res.sort((x, y) => y.n - x.n || y.g - x.g);
+	return { count: res.length, top: res.slice(0, 8).map((x) => x.n) };
+}
+// (b) ビット列。上位8組だけ残す
+function popc(x) { x -= x >>> 1 & 0x55555555; x = (x & 0x33333333) + (x >>> 2 & 0x33333333); return ((x + (x >>> 4) & 0x0F0F0F0F) * 0x01010101) >>> 24; }
+function pairsB(ps, ss) {
+	const P = ps.length, S = ss.length, Wd = (S + 31) >>> 5, bits = new Uint32Array(P * Wd), gen = new Int32Array(P);
+	for (let x = 0; x < P; x++) {
+		const p = ps[x], f = p.fam; gen[x] = famGenes(p);
+		for (let y = 0; y < S; y++) { const i = ss[y].i; let h = false; for (let m = 0; m < 3; m++) { const v = f[m].stars[i]; if (v < 0 ? TH === 1 : v >= TH) { h = true; break; } } if (h) bits[x * Wd + (y >>> 5)] |= 1 << (y & 31); }
+	}
+	const K = 8, topN = [], topG = [];
+	let count = 0;
+	for (let a = 0; a < P; a++) {
+		const oa = a * Wd;
+		for (let b = a + 1; b < P; b++) {
+			const ob = b * Wd; let n = 0;
+			for (let w = 0; w < Wd; w++) n += popc(bits[oa + w] | bits[ob + w]);
+			count++;
+			const g = gen[a] + gen[b];
+			if (topN.length < K || n > topN[K - 1] || (n === topN[K - 1] && g > topG[K - 1])) {
+				let k = topN.length < K ? topN.length : K - 1;
+				while (k > 0 && (topN[k - 1] < n || (topN[k - 1] === n && topG[k - 1] < g))) { if (k < K) { topN[k] = topN[k - 1]; topG[k] = topG[k - 1]; } k--; }
+				topN[k] = n; topG[k] = g; if (topN.length > K) { topN.length = K; topG.length = K; }
+			}
+		}
+	}
+	return { count, top: topN.slice() };
+}
+
+/* ── 時間の取り方 ─────────────────────── */
+const frame = () => new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0)));
+const median = (a) => { const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+async function timeDraw(fn, reps) {
+	const out = [];
+	for (let k = 0; k < reps; k++) {
+		stage.onscroll = null; stage.innerHTML = ''; stage.scrollTop = 0; stage.scrollLeft = 0;
+		await frame();
+		const t0 = performance.now();
+		fn();
+		const t1 = performance.now();
+		void stage.scrollHeight; void (stage.lastElementChild && stage.lastElementChild.getBoundingClientRect());
+		const t2 = performance.now();
+		await frame();
+		const t3 = performance.now();
+		out.push({ js: t1 - t0, layout: t2 - t0, paint: t3 - t0 });
+		if (k === 0 && t3 - t0 > 3000) break;
+	}
+	return { js: median(out.map((o) => o.js)), layout: median(out.map((o) => o.layout)), paint: median(out.map((o) => o.paint)), n: out.length };
+}
+// (c) の「動かしたとき」：見える位置を10か所に動かして描き直す（1回あたりの平均・画面に出るまで）
+async function timeScroll(draw) {
+	const sw = stage.scrollWidth - stage.clientWidth, sh = stage.scrollHeight - stage.clientHeight;
+	stage.onscroll = null;
+	let sum = 0;
+	for (let k = 1; k <= 10; k++) {
+		stage.scrollTop = Math.round(sh * k / 10); stage.scrollLeft = Math.round(sw * ((k * 3) % 10) / 10);
+		await frame();
+		const t0 = performance.now(); draw(); void stage.scrollHeight; await frame(); sum += performance.now() - t0;
+	}
+	return sum / 10;
+}
+function timeCalc(fn, reps) { const out = []; let r; for (let k = 0; k < reps; k++) { const t0 = performance.now(); r = fn(); out.push(performance.now() - t0); } return { ms: median(out), r }; }
+
+/* ── 実行と表示 ─────────────────────── */
+const ROWS = [
+	['sec', 'データ'],
+	['size', 'JSON の大きさ（KB）'], ['pct', '5MB比 %（UTF-8 / 1文字2バイト）'], ['white', '白スキル（因子）の平均/人（祖を除く）'], ['links', '祖のうち紐づけ（%）'],
+	['save', '書き出し ms'], ['load', '読み込み（parse＋展開） ms'],
+	['sec', '全体（キャンバス）'], ['ovA', '(a) モック同等'], ['ovB', '(b) 色を先に読む'],
+	['sec', '縮小（表）'], ['t1A', '(a) モック同等'], ['t1B', '(b) class で色'], ['t1C', '(c) 見える範囲だけ・最初'], ['t1Cs', '(c) 動かしたとき'],
+	['sec', '拡大（表）'], ['t2A', '(a) モック同等'], ['t2B', '(b) class で色'], ['t2C', '(c) 見える範囲だけ・最初'], ['t2Cs', '(c) 動かしたとき'],
+	['sec', '2組を探す'], ['pairs', '組み合わせの数'], ['pA', '(a) モック同等'], ['pB', '(b) ビット列']
+];
+const R = {};
+const MS_KEYS = new Set(['save', 'load', 'ovA', 'ovB', 't1A', 't1B', 't1C', 't1Cs', 't2A', 't2B', 't2C', 't2Cs', 'pA', 'pB']);
+const colorMs = (v) => (v <= 100 ? 'ok' : v <= 500 ? 'warn' : 'ng');
+function fmt(k, v) {
+	if (v === undefined) return '';
+	if (k === 'pct') return v;
+	if (MS_KEYS.has(k)) return '<span class="' + colorMs(v) + '">' + (v < 10 ? v.toFixed(1) : Math.round(v)) + '</span>';
+	return String(v);
+}
+function render() {
+	$('res-h').innerHTML = '<tr><th>項目</th>' + COMBOS.map(([p, s]) => '<th>親' + p + '<br>×' + s + '</th>').join('') + '</tr>';
+	$('res-b').innerHTML = ROWS.map(([k, lab]) => (k === 'sec' ? '<tr class="sec"><td colspan="' + (COMBOS.length + 1) + '">' + esc(lab) + '</td></tr>'
+		: '<tr><td>' + esc(lab) + '</td>' + COMBOS.map((c) => '<td>' + fmt(k, (R[c.join('x')] || {})[k]) + '</td>').join('') + '</tr>')).join('');
+	const lines = ['T74 deck-perf  ' + navigator.userAgent, $('env').textContent];
+	lines.push(['項目'].concat(COMBOS.map((c) => c.join('x'))).join('\t'));
+	let sec = '';
+	ROWS.forEach(([k, lab]) => { if (k === 'sec') sec = lab; else lines.push([sec + '：' + lab].concat(COMBOS.map((c) => { const v = (R[c.join('x')] || {})[k]; return v === undefined ? '' : typeof v === 'number' ? (Math.round(v * 10) / 10) : v; })).join('\t')); });
+	$('txt').value = lines.join('\n');
+}
+async function runCombo(nP, nS) {
+	const key = nP + 'x' + nS, out = (R[key] = {});
+	const say = (t) => { $('now').textContent = '測っています: 親' + nP + '×スキル' + nS + '・' + t; };
+	say('データを作る'); await frame();
+	const { doc, ids } = makeDoc(nP, nS, nP * 1000 + nS);
+	const sv = timeCalc(() => JSON.stringify(doc), 3), json = sv.r;
+	const bytes = new TextEncoder().encode(json).length;
+	out.size = Math.round(bytes / 1024);
+	out.pct = (bytes / QUOTA * 100).toFixed(1) + ' / ' + (json.length * 2 / QUOTA * 100).toFixed(1);
+	out.white = (doc.parents.reduce((a, p) => a + Object.keys(p.skills).length, 0) / nP).toFixed(1);
+	const gps = doc.parents.flatMap((p) => p.gp); out.links = Math.round(gps.filter((g) => g.link).length / gps.length * 100);
+	out.save = sv.ms;
+	const ld = timeCalc(() => expand(JSON.parse(json), ids), 3);
+	out.load = ld.ms;
+	const { ps, ss } = ld.r;
+	render();
+	const steps = [
+		['ovA', '全体 (a)', () => overviewA(ps, ss)], ['ovB', '全体 (b)', () => overviewB(ps, ss)],
+		['t1A', '縮小 (a)', () => tableA(ps, ss, 1)], ['t1B', '縮小 (b)', () => tableB(ps, ss, 1)],
+		['t2A', '拡大 (a)', () => tableA(ps, ss, 2)], ['t2B', '拡大 (b)', () => tableB(ps, ss, 2)]
+	];
+	for (const [k, t, fn] of steps) { say(t); await frame(); out[k] = (await timeDraw(fn, 3)).paint; render(); }
+	for (const L of [1, 2]) {
+		say((L === 1 ? '縮小' : '拡大') + ' (c)'); await frame();
+		let draw;
+		out['t' + L + 'C'] = (await timeDraw(() => { draw = tableC(ps, ss, L); }, 3)).paint;
+		out['t' + L + 'Cs'] = await timeScroll(draw);
+		render();
+	}
+	stage.onscroll = null; stage.innerHTML = '';
+	say('2組を探す'); await frame();
+	const pa = timeCalc(() => pairsA(ps, ss), 5), pb = timeCalc(() => pairsB(ps, ss), 5);
+	out.pairs = pa.r.count; out.pA = pa.ms; out.pB = pb.ms;
+	// 2つの数え方の結果（上位8組の充足の数）が同じかを確かめる
+	out.same = JSON.stringify(pa.r.top) === JSON.stringify(pb.r.top);
+	if (!out.same) out.pB = NaN;
+	render();
+}
+async function run(list) {
+	document.querySelectorAll('button.go').forEach((b) => (b.disabled = true));
+	const t0 = performance.now();
+	try { for (const [p, s] of list) await runCombo(p, s); $('now').innerHTML = '<span class="ok">完了</span>（' + ((performance.now() - t0) / 1000).toFixed(0) + '秒）'; }
+	catch (e) { $('now').innerHTML = '<span class="ng">止まった: ' + esc(e && e.message || e) + '</span>'; }
+	stage.onscroll = null; stage.innerHTML = '';
+	document.querySelectorAll('button.go').forEach((b) => (b.disabled = false));
+	window.__deckPerfDone = true;
+}
+$('go-all').onclick = () => run(COMBOS);
+$('go-small').onclick = () => run([COMBOS[0]]);
+render();
+window.__deckPerf = { R, makeDoc, expand, pairsA, pairsB, overviewA, overviewB, tableA, tableB, tableC };
+</script>
+</body>
+</html>
