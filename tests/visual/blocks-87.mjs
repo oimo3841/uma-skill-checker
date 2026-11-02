@@ -102,7 +102,7 @@ export async function register87(env) {
 		const NOTE = '※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。';
 		const sp = await openSp({ w: 375 });
 		const s = await sp.page.evaluate(() => {
-			const p = document.getElementById('stitch-btn').nextElementSibling;
+			const p = [...document.querySelectorAll('#step-panel-2 > p')].find((x) => x.textContent.startsWith('※')); // T76: ボタンは画面の下に固定した欄（#upload-bar・body の直下）へ移ったので、注記は③の中の「※」の段落で探す（前は stitch-btn の次）
 			return { note: p ? p.textContent : null, html: document.body.innerHTML };
 		});
 		assert(s.note === NOTE, 'T57(3) UmaStar: 結合の注記は「※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。」', s.note);
@@ -110,7 +110,7 @@ export async function register87(env) {
 		await sp.ctx.close();
 		const ex = await openEx(375);
 		const e = await ex.page.evaluate(() => {
-			const p = document.getElementById('process-stitch-btn').nextElementSibling;
+			const p = [...document.querySelectorAll('#step-panel-2 > p')].find((x) => x.textContent.startsWith('※')); // T76: 前は process-stitch-btn の次
 			const melop = document.querySelector('#melop-mode-wrap p');
 			const panel = document.getElementById('stitch-show-panel');
 			return { note: p && p.tagName === 'P' ? p.textContent : null, melop: melop ? melop.textContent : null,

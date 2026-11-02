@@ -57,7 +57,8 @@ export async function register86(env) {
 		const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height), r: Math.round(b.right), b: Math.round(b.bottom) }; };
 		const panel2 = document.getElementById('step-panel-2');
 		const wrap = (id) => document.getElementById('personset-' + id + '-wrap');
-		const cardsOf = (w) => w ? [...w.querySelectorAll('.rounded-xl.border')].filter((c) => c.querySelector('.person-drop-zone')) : [];
+		// T76: 人の欄は枠の無い列（.upload-col）になった（前は枠つきの .rounded-xl.border）
+		const cardsOf = (w) => w ? [...w.querySelectorAll('.upload-col')].filter((c) => c.querySelector('.person-drop-zone')) : [];
 		const headsOf = (w) => cardsOf(w).map((c) => { const p = c.querySelector('p.text-xs.font-bold'); return { text: p.textContent.trim(), spans: p.querySelectorAll('span').length, h: Math.round(p.getBoundingClientRect().height) }; });
 		const setPanel = wrap('A').firstElementChild;
 		const clear = [...wrap('A').querySelectorAll('button')].find((b) => b.textContent.trim() === 'セットをクリア');
@@ -66,8 +67,10 @@ export async function register86(env) {
 		const adv = document.getElementById('adv-opts-btn');
 		const advSpan = adv ? adv.querySelector('span') : null;
 		const cards = cardsOf(wrap('A')).map(r);
-		const lg = [...panel2.querySelectorAll('button.uma-btn')].filter((b) => b.offsetParent);
-		const visibleBottoms = [...panel2.querySelectorAll('*')].filter((e) => e.offsetParent && e.getBoundingClientRect().height > 0).map((e) => Math.round(e.getBoundingClientRect().bottom));
+		// T76: 処理のボタンは画面の下に固定した欄（#upload-bar・body の直下）へ移った。欄のボタンを先に数える
+		const lg = [...document.querySelectorAll('#upload-bar button.uma-btn'), ...panel2.querySelectorAll('button.uma-btn')].filter((b) => b.offsetParent);
+		// T76: 画面の下に固定した欄（#upload-bar）の中のボタンは流れの外なので、「!」の下の見えるものには数えない
+		const visibleBottoms = [...panel2.querySelectorAll('*')].filter((e) => e.offsetParent && e.getBoundingClientRect().height > 0 && !e.closest('#upload-bar')).map((e) => Math.round(e.getBoundingClientRect().bottom));
 		const tokens = getComputedStyle(document.documentElement);
 		const probe = (cls) => { const b = document.createElement('button'); b.className = cls; document.body.appendChild(b); const c = getComputedStyle(b); const v = { bg: c.backgroundColor, fg: c.color }; b.remove(); return v; };
 		const hit = (el) => {
@@ -84,6 +87,7 @@ export async function register86(env) {
 			setPanel: r(setPanel), clear: r(clear), tabs, tabsH: r(document.getElementById('personset-tabs')).h,
 			cards, headsA: headsOf(wrap('A')), headsB: headsOf(wrap('B')),
 			setPanelTexts: [...document.querySelectorAll('#personset-A-wrap p, #personset-B-wrap p')].map((p) => p.textContent.trim()).filter((t) => /セット/.test(t)),
+			lgInBar: lg.length > 0 && lg.every((b) => !!b.closest('#upload-bar')),
 			lg: lg.map((b) => ({ id: b.id, text: b.textContent.trim(), cls: b.className, r: r(b), bg: getComputedStyle(b).backgroundColor, fg: getComputedStyle(b).color })),
 			primary: probe('uma-btn uma-btn--primary uma-btn--lg'),
 			adv: r(adv), advSpan: r(advSpan), advStyle: advSpan ? { border: getComputedStyle(advSpan).borderTopColor, bw: getComputedStyle(advSpan).borderTopWidth, color: getComputedStyle(advSpan).color, radius: getComputedStyle(advSpan).borderTopLeftRadius, text: advSpan.textContent } : null,
@@ -105,8 +109,8 @@ export async function register86(env) {
 
 	// モック（?scene=new&badge=a）の実測（T56 で測った値。special のモックは縦の位置がタブの行で 2px 下がるだけ。相対の値は同じ）
 	const MOCK = {
-		special: { 375: { cardTop: 97, cardH: [143, 142, 143], firstFromCard: 481 }, 1280: { cardTop: 97, cardH: [143, 143, 143], firstFromCard: 172 } },
-		exam: { 375: { cardTop: 89, cardH: [123, 122, 123], firstFromCard: 401 }, 1280: { cardTop: 97, cardH: [143, 143, 143], firstFromCard: 176 } },
+		special: { 375: { cardTop: 17, cardH: [116, 116, 116] }, 1280: { cardTop: 17, cardH: [116, 116, 116] } },  // T76: 3列・家系の図なし・人の欄の枠なし（前は cardTop 97・cardH 143 前後・firstFromCard 481／172）
+		exam: { 375: { cardTop: 9, cardH: [116, 116, 116] }, 1280: { cardTop: 17, cardH: [116, 116, 116] } },  // T76: 同上（前は 375 が 89・123 前後・401、1280 が 97・143・176）
 		tabs: { 375: { a: 59, b: 69 }, 1280: { a: 63, b: 74 } },
 	};
 
@@ -129,7 +133,8 @@ export async function register86(env) {
 					tag + ': 人の欄の見出しは文字だけ（丸の印なし）・高さ 24', { a: m.headsA, b: m.headsB });
 				assert(m.cards.length === 3 && m.cards[0].y - m.setPanel.y === mk.cardTop && m.cards.every((c, i) => Math.abs(c.h - mk.cardH[i]) <= 1),
 					tag + ': 人の欄の位置（パネルの上端から ' + mk.cardTop + '）と高さ（' + mk.cardH.join('・') + ' ±1）がモックと同じ', { cards: m.cards, panel: m.setPanel });
-				assert(m.lg.length > 0 && m.lg[0].r.y - m.cards[0].y === mk.firstFromCard, tag + ': 先頭のボタンの上端は親A の欄の上端から ' + mk.firstFromCard + '（モックと同じ）', { first: m.lg[0] && m.lg[0].r, card: m.cards[0] });
+				// T76: ボタンは画面の下に固定した欄へ移ったので、「親A の欄の上端からの距離」は測らない（欄の位置は blocks-96 の T76(2)）
+				assert(m.lg.length === 2 && m.lgInBar, tag + ': ボタン2つは画面の下に固定した欄（#upload-bar）の中', { lg: m.lg.map((b) => b.id), inBar: m.lgInBar });
 				assert(m.adv && m.adv.w === 44 && m.adv.h === 44 && m.advSpan.w === 22 && m.advSpan.h === 22 && m.advHit.w >= 44 && m.advHit.h >= 44 && m.adv.x - m.setPanel.x === -11 && m.advBelow === 0,
 					tag + ': 「!」は 44×44（丸 22px・押せる 44 以上）・パネルの左端から -11（いちばん下の左）・その下に見えるものが無い', { adv: m.adv, span: m.advSpan, hit: m.advHit, below: m.advBelow, panel: m.setPanel });
 				assert(m.advStyle.text === '!' && m.advStyle.border === m.tokBorderStrong && m.advStyle.bw === '1px' && m.advStyle.color === m.tokFaint && m.advStyle.radius === '999px',

@@ -122,6 +122,7 @@ import { register92 } from './blocks-92.mjs';
 import { register93 } from './blocks-93.mjs';
 import { register94 } from './blocks-94.mjs';
 import { register95 } from './blocks-95.mjs';
+import { register96 } from './blocks-96.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -8690,22 +8691,25 @@ await block('special の「OCR処理＋画像結合を開始する（高負荷�
 		const one = (id) => {
 			const b = document.getElementById(id);
 			const r = b.getBoundingClientRect();
-			return { cls: b.className, disabled: b.disabled, top: Math.round(r.top), h: Math.round(r.height) };
+			return { cls: b.className, disabled: b.disabled, top: Math.round(r.top), left: Math.round(r.left), h: Math.round(r.height) };
 		};
 		return { combo: one('process-stitch-btn'), ocr: document.getElementById('process-btn'), stitch: one('stitch-btn') };
 	});
 
 	let L = await look();
+	// T76（C-258 の T69 への回答 6）: 2つは画面の下に固定した欄の中。768px 以上（この塊は 1280px）は横に2つ（一体が左）で、高さは欄の行にそろう（モックと同じ 459×50 が2つ）。
+	// 前は縦に並び「一体の上端 ＜ 結合だけの上端」「一体の高さ ＞ 結合だけの高さ」を見ていた。並びは左右でも見る・高さは「結合だけより低くない」に（375px の縦2段の高さ 50 と 38 は blocks-96 の T76(2) で見る）
+	const firstInRow = (a, b) => a.top < b.top || (a.top === b.top && a.left < b.left);
 	// T56（C-258 の (2)-9）: special は「OCR処理を開始する」を消し、一体のボタンを先頭の黒塗りの主なボタンにした（（高負荷）も外した）。
 	// それまでの C-62 の (8)（並び・大きさ・色を exam と同じ「OCR単独 → 一体 → 結合だけ」）は置き換えた。exam は「OCR処理を開始する」を残す（blocks-86 の T56画像アップロード(3)）
-	assert(L.ocr === null && L.combo.top < L.stitch.top,
-		'T56: 「OCR処理を開始する」は無く、並びは「一体 → 結合だけ」', { ocr: L.ocr, combo: L.combo.top, stitch: L.stitch.top });
+	assert(L.ocr === null && firstInRow(L.combo, L.stitch),
+		'T56: 「OCR処理を開始する」は無く、並びは「一体 → 結合だけ」', { ocr: L.ocr, combo: [L.combo.top, L.combo.left], stitch: [L.stitch.top, L.stitch.left] });
 	assert(L.combo.cls.includes('uma-btn--primary') && L.combo.cls.includes('uma-btn--lg') && !L.combo.cls.includes('uma-btn--accent-outline'),
 		'T56: 一体は黒塗り・大（主なボタン）', L.combo.cls);
 	assert(L.stitch.cls.includes('uma-btn--secondary') && !L.stitch.cls.includes('uma-btn--lg'),
 		'C-62 (8): 「画像を結合する」だけは標準の大きさのまま', L.stitch.cls);
-	assert(L.combo.h > L.stitch.h,
-		'C-62 (8): 一体のほうが「画像を結合する」より高い', { combo: L.combo.h, stitch: L.stitch.h });
+	assert(L.combo.h >= L.stitch.h,
+		'C-62 (8): 一体は「画像を結合する」より低くない（T76: 1280px の横並びでは同じ高さ）', { combo: L.combo.h, stitch: L.stitch.h });
 	assert((await page.textContent('#process-stitch-btn')).trim() === 'OCR処理＋画像結合を開始する',
 		'T56: 文言は「OCR処理＋画像結合を開始する」（（高負荷）なし。exam と同じ）');
 	assert((await page.textContent('#stitch-btn')).trim() === '画像を結合する（OCRしない）',
@@ -9203,9 +9207,10 @@ await noticeBlock('C-62 の (11・裏）: 初めて開く人には最新の1件�
 		};
 	});
 	assert(btns.ocr.cls === 'uma-btn uma-btn--primary uma-btn--lg w-full'
-		&& btns.stitch.cls === 'uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2',
+		&& btns.stitch.cls === 'uma-btn uma-btn--accent-outline uma-btn--lg w-full',
 		'段1: exam の2つのボタンが special と同じ共通部品になっている', { ocr: btns.ocr.cls, stitch: btns.stitch.cls });
-	assert(btns.ocr.display === 'inline-flex' && btns.ocr.weight === '700' && btns.ocr.radius === '12px',
+	// T76: ボタンは画面の下に固定した欄（#upload-bar の中の flex の並び）へ移った。flex の子は inline-flex が flex に変わる（前は inline-flex・2つ目に mt-2）
+	assert(btns.ocr.display === 'flex' && btns.ocr.weight === '700' && btns.ocr.radius === '12px',
 		'段1: 共通部品の指定が実際に効いている（common.css を読めている）', btns.ocr);
 	assert(btns.css !== '', '段1: exam が common.css を読んでいる（版の印が取れる）', btns.css);
 	assert(btns.twReady === true,
@@ -15475,6 +15480,8 @@ await register93({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register94({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T77（2026-11-02）: スマホで止まらない動画の読み込み（ページに置いて load()。見出しは「T77動画の読み込み」）
 await register95({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T76（2026-11-02）: 画像をアップロードの作り直し（3列・縦1列・下に固定した欄。C-258 の T69 への回答。見出しは「T76画像アップロード」）
+await register96({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

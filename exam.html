@@ -794,6 +794,29 @@
 		.upload-set-clear { position: absolute; top: 10px; right: 14px; margin: 0 !important; z-index: 1; }
 		/* (2)-6: タブの帯を行いっぱいに広げる（「＋親Bセット」が帯の半分の幅〔.uma-subtab の max-width〕で「…」に切れないように。モックと同じ） */
 		.uma-subtabs-row > #personset-tabs { flex: 1 1 0; min-width: 0; }
+		/* T76（C-258 の T69 への回答 1〜6・12。モック lab/upload-layout-mock.html の tool=exam・scene=new・add=lg。special.html と同じ値）
+		   親A・祖A1・祖A2 はどの幅でも横に3列（列の間 8px）。人の欄の枠は無し。各列は 見出し → 「追加」（76px）→ サムネイルを縦1列 */
+		.upload-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+		.upload-col { min-width: 0; display: flex; flex-direction: column; }
+		.upload-col > p { margin-bottom: 8px; }
+		.upload-add.person-drop-zone { padding: 10px 4px; margin-bottom: 8px; min-height: 76px; display: flex; align-items: center; justify-content: center; }
+		.upload-add.person-drop-zone p { white-space: nowrap; }
+		.upload-thumbs { display: flex; flex-direction: column; gap: 8px; }
+		/* 処理のボタンは画面の下に固定した欄（②を開いている間だけ出る）。重なりの順は 欄（60）＜ 右下のナビ（70）＜ 引き出しの暗転。
+		   欄の中身の左右は②のパネルにそろえる・欄の高さは --upload-bar-h（syncUploadBar() が入れる） */
+		.upload-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: var(--uma-surface); border-top: 1px solid var(--uma-border);
+			box-shadow: 0 -4px 12px rgba(15, 23, 42, .08); padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px)); }
+		.upload-bar[hidden] { display: none; }
+		.upload-bar-in { display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+		.upload-bar-in > .uma-btn { width: 100%; margin-top: 0; }
+		@media (min-width: 768px) {
+			.upload-bar-in { flex-direction: row; }
+			.upload-bar-in > .uma-btn { flex: 1 1 0; width: auto; }
+		}
+		/* 欄が出ている間は、右下のナビを欄の高さだけ上げ（大きさ・右の位置は今のまま）、ページの下に欄の高さぶんの余白を足す */
+		body.has-upload-bar .uma-fab-nav,
+		body.has-upload-bar .uma-undo-fab { bottom: calc(var(--uma-fab-edge) + var(--upload-bar-h, 0px)); }
+		body.has-upload-bar { padding-bottom: var(--upload-bar-h, 0px); }
 		/* (2)-8: いちばん下の左の「!」（高度な解析オプション）。丸の線（--uma-border-strong）の中に灰の「!」（--uma-text-faint）・押せる範囲 44px */
 		.adv-opts { margin-top: var(--uma-sp-3); }
 		.adv-opts-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -11px; padding: 0; border: 0; background: transparent; cursor: pointer; }
@@ -1239,14 +1262,17 @@
 
 			<!-- ボタンは共通部品（css/common.css の .uma-btn）。59セッション目・段1 で
 			     生の Tailwind 直書きから移した（ホバーと無効の扱いが special と二重管理だったため）。 -->
+			<!-- T76（C-258 の T69 への回答 6・12）: 2つのボタンは画面の下に固定した欄（#upload-bar）に入れる。注記・「!」は今の流れのまま -->
+			<div id="upload-bar" class="upload-bar"><div class="upload-bar-in">
 			<button id="process-btn" type="button" onclick="processImages()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
 				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
 				<span>OCR処理を開始する</span>
 			</button>
-			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2" disabled>
+			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full" disabled>
 				<i data-lucide="layers" class="w-4 h-4"></i>
 				<span>OCR処理＋画像結合を開始する</span>
 			</button>
+			</div></div><!-- /#upload-bar -->
 			<!-- 結合の注記。**special.html と同じ文面**にしてある（段1）。
 			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
@@ -3497,47 +3523,27 @@
 		 * ============================================================ */
 		// 人の欄の見出しは、上の図と同じ「親A」「祖A1」「祖A2」を文字だけで出す（T56・C-258 の (2)-3 の (ア)。
 		// それまでの丸の印〔親・祖1・祖2〕は消した。高さは丸のあったときと同じ 24px。special と同じ）
+		// T76（C-258 の T69 への回答 1・3・4・12）: 人の欄は枠の無い列（.upload-col）。画像を足すボタンの見える字は「追加」（76px）、
+		// 今の文「親Aのスクショを選択」は読み上げ名と title に残す。サムネイルは縦1列（.upload-thumbs）。special と同じ
 		function buildPersonUploadCard(idx) {
 			const label = PERSON_LABELS[idx];
 			return `
-				<div class="exam-person-card rounded-xl border border-slate-200 bg-white/70 p-3">
-					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5 min-h-6">
+				<div class="upload-col" data-person="${idx}">
+					<p class="text-xs font-bold text-slate-700 flex items-center gap-1.5 min-h-6">
 						${label}
 					</p>
-					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-[var(--uma-control-soft)]/40 hover:border-[var(--uma-control-border-strong)] transition-all p-4 text-center mb-2" data-person="${idx}">
+					<label class="person-drop-zone upload-add group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-[var(--uma-control-soft)]/40 hover:border-[var(--uma-control-border-strong)] transition-all text-center" data-person="${idx}" aria-label="${label}のスクショを選択" title="${label}のスクショを選択">
 						<input type="file" accept="image/*" multiple class="hidden person-file-input" data-person="${idx}" />
 						<div class="flex flex-col items-center justify-center gap-1">
 							<i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500 group-hover:text-[var(--uma-control-mark)]"></i>
-							<p class="text-[11px] font-medium text-slate-600">${label}のスクショを選択</p>
+							<p class="text-[11px] font-medium text-slate-600">追加</p>
 						</div>
 					</label>
-					<div class="person-image-list grid grid-cols-2 gap-2" data-person="${idx}"></div>
+					<div class="person-image-list upload-thumbs" data-person="${idx}"></div>
 				</div>`;
 		}
 
-		// 親1体＋祖父母2体の系譜を、簡易的なツリー図（装飾・アップロード機能とは独立）で表現する。
-		// 参考UI（ウマ娘因子継承シミュレーター系ツール）の「1セット=系譜」という考え方を、
-		// 実際のアップロード欄と組み合わせて再現するための表示のみの要素。
-		// 親＝濃い色・白文字／祖父母＝薄い色・濃い文字で、同じ色相の中の世代差を表す。
-		function buildSetTreeDiagram(setIdx) {
-			const set = PERSON_SETS[setIdx];
-			const baseIdx = setIdx * 3;
-			const parentCls = personBadgeClasses(baseIdx);
-			const gp1Cls = personBadgeClasses(baseIdx + 1);
-			const gp2Cls = personBadgeClasses(baseIdx + 2);
-			return `
-				<div class="flex items-center justify-center gap-2 mb-3 select-none" aria-hidden="true">
-					<div class="w-9 h-9 rounded-full ${parentCls} text-[11px] font-bold flex items-center justify-center shadow-sm">親${set.id}</div>
-					<svg width="28" height="44" viewBox="0 0 28 44" class="shrink-0">
-						<path d="M2 22 H12 M12 22 V8 H26 M12 22 V36 H26" fill="none" stroke="#cbd5e1" stroke-width="2" />
-					</svg>
-					<div class="flex flex-col gap-3">
-						<div class="w-7 h-7 rounded-full ${gp1Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}1</div>
-						<div class="w-7 h-7 rounded-full ${gp2Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}2</div>
-					</div>
-				</div>`;
-		}
-
+		// T76（C-258 の T69 への回答 5・12）: 3列の上の家系の図（親A → 祖A1・祖A2 の丸。buildSetTreeDiagram）は消した（列の見出しと同じことを言っていたため）
 		function buildSetPanel(setIdx) {
 			const set = PERSON_SETS[setIdx];
 			const baseIdx = setIdx * 3;
@@ -3548,8 +3554,7 @@
 					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
-					${buildSetTreeDiagram(setIdx)}
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cards}</div>
+					<div class="upload-cols">${cards}</div>
 				</div>`;
 		}
 
@@ -3586,6 +3591,34 @@
 			persons.forEach((_, idx) => renderPersonImageList(idx));
 			renderPersonSetTabs();
 		}
+
+		/* 画面の下に固定した処理のボタンの欄（T76・C-258 の T69 への回答 6・12。special と同じ）。HTML では②のボタンの場所に書いてあるが、開くときに body の直下へ移す
+		   （.glass-card は backdrop-filter を持つので、その子孫だと position: fixed の基準が画面ではなくカードになる。F-61）。
+		   欄は②のパネルが見えている間だけ出す。出ている間は、中身の左右を②のパネルにそろえ、欄の高さを --upload-bar-h に入れて body に has-upload-bar を付ける
+		   （CSS が右下のナビを欄の高さだけ上げ、ページの下に同じだけ余白を足す）。欄の大きさ・②の大きさが変わるたびに呼ぶ */
+		function syncUploadBar() {
+			const bar = document.getElementById('upload-bar');
+			const panel = document.getElementById('step-panel-2');
+			if (!bar || !panel) return;
+			const shown = panel.getClientRects().length > 0;
+			if (bar.hidden !== !shown) bar.hidden = !shown;
+			if (shown) {
+				const pr = panel.getBoundingClientRect();
+				bar.firstElementChild.style.marginLeft = Math.round(pr.left) + 'px';
+				bar.firstElementChild.style.width = Math.round(pr.width) + 'px';
+			}
+			document.documentElement.style.setProperty('--upload-bar-h', (shown ? Math.round(bar.getBoundingClientRect().height) : 0) + 'px');
+			document.body.classList.toggle('has-upload-bar', shown);
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			const bar = document.getElementById('upload-bar');
+			const panel = document.getElementById('step-panel-2');
+			if (!bar || !panel) return;
+			document.body.appendChild(bar);
+			if (window.ResizeObserver) { const ro = new ResizeObserver(syncUploadBar); ro.observe(bar); ro.observe(panel); }
+			window.addEventListener('resize', syncUploadBar);
+			syncUploadBar();
+		});
 
 		/* 親A／親Bセットのタブ（T56・C-258 の (2)-7。それまでは「＋ 親Bセットも追加する」で B を開閉していた）。
 		   special.html の renderPersonSetTabs と同じ形・同じ動き。exam は core を読まないので、帯の HTML（core の tabStrip と同じ組み立て・
@@ -3725,6 +3758,8 @@
 			});
 			// 切り替えはすべてここを通るので、覚えるのもここ1か所でよい
 			writeStored(LAST_STEP_STORAGE_KEY, String(pick));
+			// 下に固定した欄（T76）はその場で出し入れする（ResizeObserver は次の描画まで遅れ、1こま欄の無い②・上がらないナビが見えるため）
+			syncUploadBar();
 		}
 
 		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）
