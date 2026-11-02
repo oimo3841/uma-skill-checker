@@ -5,398 +5,689 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta name="robots" content="noindex, nofollow, noarchive" />
 	<meta name="referrer" content="no-referrer" />
-	<!-- 外へは何も送らない（fetch・XHR・WebSocket・フォームの送信を、ブラウザの側で禁止する）。読むのは同じ場所の js だけ -->
+	<!-- 外へは何も送らない（fetch・XHR・WebSocket・フォームの送信を、ブラウザの側で禁止する）。読むのは同じ場所の js だけ。blob: は書き出すファイルの保存に使う -->
 	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
 	<title>動画の取り込みの診断（作業用）</title>
 	<!--
-		iPhone の Safari で、③の動画の取り込み（js/video-frames.js）がどの段で止まるか・どれだけかかるかを調べるページ（T68・2026-11-02）。
-		αテスト（iPhone 15・iOS 27.0.1・Safari）で、24秒の画面収録が「動画の読み込み」の段で10分近く進まなかったため。
+		iPhone の Safari で、③の動画の取り込み（js/video-frames.js）が「毎回同じ画」を作れているかを記録するページ（T90・2026-11-03。T68 の診断のページを作り直した）。
 		**ツール本体には組み込まない**（lab/capture-test.html と同じ扱い。どのページからもリンクしない）。
-		おいもさんが iPhone で開いて動画を選び、画面のスクリーンショットを返す。
+		おいもさんの操作は「動画を選ぶ → 終わったら『共有』か『保存』でファイルを Drive に置く」だけ。
 
 		■ 外へ何も送らない
 		- 動画はこの端末の中だけで読む。上の Content-Security-Policy で通信（connect-src）とフォームの送信を禁止している。
+		- 記録は1つの JSON のファイルにし、「共有」（iPhone の共有の画面）か「保存」（ダウンロード）で端末に出す。
 
-		■ 何をするか（動画を選ぶと、上から順に自動で進む。ページは止まらない）
-		- 端末: user agent と、使えるもの（WebCodecs・requestVideoFrameCallback など）の有無。
-		- A. 今の取り込み: UmaVideoFrames.videoSource → selectFrames を、製品と同じ js で通す。各段の時刻（選んでからの秒）と、
-		  シーク1回ごとの時間を出す。video の中の出来事（loadedmetadata・loadeddata・suspend など）も、製品の js を変えずに
-		  document.createElement を一時的に包んで拾う。10秒進まない段は「止まった」と出し、60秒進まなければ打ち切って B へ進む。
-		  T77（2026-11-02）で製品の読み込みを B2（ページに置いて load()）に変えたので、A はその読み込みを通る。
-		  最後まで通ると、見出しの横に全体の時間、「内訳」の行に 読み込み・読む・選ぶ・取り直す の時間が出る。
-		- B. 別のやり方: 同じ動画で、読み込み方・シークのしかた・フレームの取り方を変えて順に試し、動いたか・何秒かかったかを出す。
-		  各やり方の待ちには時間の上限があり、超えたら「止まった」として次のやり方へ進む。
+		■ 何をするか（動画を選ぶと、上から順に自動で進む）
+		- 端末: user agent・使えるもの（WebCodecs・requestVideoFrameCallback など）。
+		- 復号: MP4 を分解して WebCodecs（VideoDecoder）で全フレームを順に復号できるか・何枚・何秒。各フレームの小さな指紋（本文の帯のグレー）を持つ。
+		- 製品: 製品と同じ処理（UmaVideoFrames.videoSource → selectFrames → composePerson）を ?runs= 回（既定 10）くり返す。
+		  回ごとに 選んだ時刻・継ぎ目・取り直しの統計・人ごとの結合画像の高さと画素のハッシュ・時間 を記録し、
+		  シーク1回ごとに「頼んだ時刻」と「実際に描かれた画がどのフレームだったか」（復号の指紋と照らす）を記録する。
+		  結合画像は、画素のハッシュが違うものだけを JPEG で記録に入れる。
+		- シーク: 止まっている時刻・動いている時刻（製品の1回目の軌跡から）で、シーク→すぐ描く／次の画を待って描く／同じ時刻へもう一度 の画が
+		  どのフレームになるかを照らす。
+		- 試作: 復号のフレームを出どころにして同じ selectFrames → composePerson を ?proto= 回（既定 3）。製品の回と同じ記録。
+		- 書き出し: 記録の JSON（結合画像を含む）を「共有」か「保存」で端末に出す。ファイル名はこのページが付ける。
+		- 取り消し: 動画の一覧の画面で選ばずに戻ったときに input の cancel が来るかも記録する。
 	-->
 	<style>
-		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4; --chip: #e9eef6; --chip2: #f6ece0; }
-		@media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #232323; --chip: #26303d; --chip2: #3a2f22; } }
-		body { margin: 0; padding: 8px 10px 40px; background: var(--bg); color: var(--fg); font: 11px/1.4 -apple-system, system-ui, sans-serif; }
+		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #232323; } }
+		body { margin: 0; padding: 8px 10px 40px; background: var(--bg); color: var(--fg); font: 12px/1.45 -apple-system, system-ui, sans-serif; }
 		main { max-width: 760px; margin: 0 auto; }
 		h1 { font-size: 15px; margin: 0 0 6px; }
-		h2 { font-size: 12px; margin: 8px 0 2px; display: flex; gap: 8px; align-items: baseline; }
+		h2 { font-size: 13px; margin: 10px 0 3px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 		h2 small { font-weight: 400; color: var(--sub); }
 		.box { background: var(--box); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 		.ua { word-break: break-all; font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
 		.kv { margin: 2px 0 0; word-break: break-all; }
 		.kv i { font-style: normal; color: var(--sub); }
 		table { border-collapse: collapse; width: 100%; }
-		td { border-top: 1px solid var(--line); padding: 1px 3px; vertical-align: top; }
+		td, th { border-top: 1px solid var(--line); padding: 2px 4px; vertical-align: top; text-align: left; font-weight: 400; }
+		th { color: var(--sub); }
 		td.t { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; color: var(--sub); width: 1%; }
-		td.s { word-break: break-all; }
 		.ok { color: var(--ok); font-weight: 700; }
 		.ng { color: var(--ng); font-weight: 700; }
 		.warn { color: var(--warn); font-weight: 700; }
-		.now { margin: 4px 0; font-weight: 700; }
-		.chips { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
-		.chips span { background: var(--chip); border-radius: 3px; padding: 0 3px; font-size: 10px; font-variant-numeric: tabular-nums; }
-		.chips span.full { background: var(--chip2); }
-		.chips span.slow { outline: 1px solid var(--ng); }
-		.m { border-top: 1px solid var(--line); padding: 2px 0; }
-		.m .d { color: var(--sub); }
-		input[type=file] { font-size: 14px; margin: 2px 0; }
+		.now { margin: 6px 0; font-weight: 700; min-height: 1.4em; }
+		input[type=file] { font-size: 15px; margin: 4px 0; }
+		.btns { display: flex; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+		button { font: inherit; font-size: 15px; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--box); color: var(--fg); min-height: 44px; }
+		button.primary { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+		button:disabled { opacity: 0.5; }
+		.hint { color: var(--sub); }
 	</style>
 </head>
 <body>
 <main>
-	<h1>動画の取り込みの診断（作業用・T68）</h1>
+	<h1>動画の取り込みの診断（作業用・T90）</h1>
 	<div class="box">
 		<div class="ua" id="ua"></div>
 		<p class="kv" id="env"></p>
 	</div>
-	<h2>動画を選ぶ</h2>
+	<h2>動画を選ぶ <small>選ぶと自動で進みます。終わるまで画面を消さず、ほかのアプリに切り替えないでください</small></h2>
 	<input id="file" type="file" accept="video/*" />
-	<div id="file-info"></div>
-	<h2>A. 今の取り込み <small id="a-sum"></small></h2>
-	<div class="now" id="a-now"></div>
-	<table><tbody id="a-log"></tbody></table>
-	<div class="chips" id="a-seeks"><small>シーク1回ごとの ms（順に・薄茶＝等倍の取り直し）</small></div>
-	<h2>B. 別のやり方 <small id="b-sum"></small></h2>
-	<div class="now" id="b-now"></div>
-	<div id="b-list"></div>
+	<div id="file-info" class="hint"></div>
+	<div class="now" id="now"></div>
+	<h2>経過</h2>
+	<table><tbody id="log"></tbody></table>
+	<h2>結果 <small id="sum"></small></h2>
+	<table><thead><tr><th>段</th><th>回</th><th>秒</th><th>枚数（人ごと）</th><th>高さ（人ごと）</th><th>1回目と</th></tr></thead><tbody id="runs"></tbody></table>
+	<div class="btns" id="btns" hidden>
+		<button type="button" class="primary" id="share">共有（Drive へ）</button>
+		<button type="button" id="save">保存（ダウンロード）</button>
+	</div>
+	<div class="hint" id="out-info"></div>
 </main>
 
 <script src="../js/common.js?v=2026-09-26a"></script>
 <script src="../js/stitch.js?v=2026-11-01a"></script>
 <script src="../js/video-frames.js?v=2026-11-03a"></script>
 <script>
+/* T90 試作: MP4（断片化していない）の分解と WebCodecs（VideoDecoder）で、時刻 t の画を「必ず同じフレーム」で出すフレームの出どころ。
+ * UmaVideoFrames.selectFrames に渡す source と同じ形（{ kind, width, height, duration, drawAt(t, ctx, dw, dh, signal, how), close() }）。
+ * 時刻 t の画 ＝ 表示時刻（pts）が t 以下の最後のフレーム（video 要素のシークと同じ意味）。
+ * 復号は前へ進めるだけ。後ろへ戻る・先の区間へ飛ぶときは、目当てのフレームの手前のキーフレームから復号し直す。
+ * 公開: window.UmaMp4Source = { probe(blob), open(blob, o) }
+ */
+(function (global) {
+	'use strict';
+
+	function err(code, msg) { const e = new Error(msg); e.code = code; return e; }
+	function abortError() { try { return new DOMException('取り消しました', 'AbortError'); } catch (e) { const er = new Error('取り消しました'); er.name = 'AbortError'; return er; } }
+	function untilAbort(p, signal) {
+		if (!signal) return p;
+		if (signal.aborted) return Promise.reject(abortError());
+		return new Promise((res, rej) => {
+			const onAbort = () => rej(abortError());
+			signal.addEventListener('abort', onAbort, { once: true });
+			Promise.resolve(p).then((v) => { signal.removeEventListener('abort', onAbort); res(v); }, (e) => { signal.removeEventListener('abort', onAbort); rej(e); });
+		});
+	}
+	const str4 = (dv, o) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
+
+	/* ── 箱 ─────────────────────────────── */
+	async function readView(blob, off, len) { return new DataView(await blob.slice(off, Math.min(blob.size, off + len)).arrayBuffer()); }
+	// 先頭から箱の見出しだけを読んで並べる（moov が末尾にあっても、ファイル全体は読まない）
+	async function topBoxes(blob) {
+		const out = []; let off = 0;
+		while (off + 8 <= blob.size) {
+			const h = await readView(blob, off, 16);
+			if (h.byteLength < 8) break;
+			let sz = h.getUint32(0); const type = str4(h, 4); let hdr = 8;
+			if (sz === 1) { if (h.byteLength < 16) break; sz = Number(h.getBigUint64(8)); hdr = 16; } else if (sz === 0) sz = blob.size - off;
+			if (sz < hdr) throw err('mp4', '箱の大きさが不正: ' + type);
+			out.push({ type, off, sz, hdr }); off += sz;
+		}
+		return out;
+	}
+	const CONTAINERS = new Set(['moov', 'trak', 'mdia', 'minf', 'stbl', 'edts']);
+	function children(dv, start, end) {
+		const out = []; let off = start;
+		while (off + 8 <= end) {
+			let sz = dv.getUint32(off); const type = str4(dv, off + 4); let hdr = 8;
+			if (sz === 1) { sz = Number(dv.getBigUint64(off + 8)); hdr = 16; } else if (sz === 0) sz = end - off;
+			if (sz < hdr || off + sz > end) break;
+			out.push({ type, off, sz, hdr, body: off + hdr, end: off + sz }); off += sz;
+		}
+		return out;
+	}
+	const find = (list, type) => list.find((b) => b.type === type);
+
+	/* ── 映像トラック ─────────────────────────────── */
+	function parseMoov(dv) {
+		const moov = children(dv, 0, dv.byteLength)[0];
+		if (!moov || moov.type !== 'moov') throw err('mp4', 'moov が読めない');
+		const mv = children(dv, moov.body, moov.end);
+		for (const trak of mv.filter((b) => b.type === 'trak')) {
+			const tk = children(dv, trak.body, trak.end);
+			const mdia = find(tk, 'mdia'); if (!mdia) continue;
+			const md = children(dv, mdia.body, mdia.end);
+			const hdlr = find(md, 'hdlr'); if (!hdlr || str4(dv, hdlr.body + 8) !== 'vide') continue;
+			const mdhd = find(md, 'mdhd');
+			const v = dv.getUint8(mdhd.body);
+			const timescale = v === 1 ? dv.getUint32(mdhd.body + 20) : dv.getUint32(mdhd.body + 12);
+			const mediaDur = v === 1 ? Number(dv.getBigUint64(mdhd.body + 24)) : dv.getUint32(mdhd.body + 16);
+			const minf = find(md, 'minf'); const mf = children(dv, minf.body, minf.end);
+			const stbl = find(mf, 'stbl'); const st = children(dv, stbl.body, stbl.end);
+			// stsd: version/flags(4)・count(4)・entries
+			const stsd = find(st, 'stsd');
+			const entries = children(dv, stsd.body + 8, stsd.end);
+			const entry = entries.find((e) => /^(hvc1|hev1|avc1|avc3)$/.test(e.type));
+			if (!entry) throw err('codec', '対応していない映像の形式: ' + entries.map((e) => e.type).join(','));
+			const width = dv.getUint16(entry.body + 24), height = dv.getUint16(entry.body + 26);
+			const sub = children(dv, entry.body + 78, entry.end);
+			let codec = null, description = null, lengthSize = 4, hasParams = false;
+			const cfgBox = find(sub, entry.type[0] === 'h' ? 'hvcC' : 'avcC');
+			if (!cfgBox) throw err('codec', entry.type + ' の設定（' + (entry.type[0] === 'h' ? 'hvcC' : 'avcC') + '）が無い');
+			const cb = new Uint8Array(dv.buffer, dv.byteOffset + cfgBox.body, cfgBox.end - cfgBox.body);
+			description = cb.slice();
+			if (cfgBox.type === 'hvcC') {
+				const profileSpace = cb[1] >> 6, tier = (cb[1] >> 5) & 1, profile = cb[1] & 31;
+				const compat = (cb[2] << 24 | cb[3] << 16 | cb[4] << 8 | cb[5]) >>> 0;
+				let rev = 0; for (let i = 0; i < 32; i++) if (compat & (1 << (31 - i))) rev |= (1 << i);
+				const level = cb[12];
+				lengthSize = (cb[21] & 3) + 1;
+				const cons = Array.from(cb.subarray(6, 12)); while (cons.length > 1 && cons[cons.length - 1] === 0) cons.pop();
+				codec = 'hvc1.' + (profileSpace ? String.fromCharCode(64 + profileSpace) : '') + profile + '.' + (rev >>> 0).toString(16).toUpperCase() + '.' + (tier ? 'H' : 'L') + level + '.' + cons.map((x) => x.toString(16).toUpperCase()).join('.');
+				// パラメータ（VPS/SPS/PPS）が hvcC に入っているか
+				let p = 23; const arrays = cb[22];
+				for (let a = 0; a < arrays && p + 3 <= cb.length; a++) { const nt = cb[p] & 63; const num = cb[p + 1] << 8 | cb[p + 2]; p += 3; for (let k = 0; k < num && p + 2 <= cb.length; k++) { const len = cb[p] << 8 | cb[p + 1]; p += 2 + len; if (nt === 33) hasParams = true; } }
+			} else {
+				codec = 'avc1.' + [cb[1], cb[2], cb[3]].map((x) => x.toString(16).padStart(2, '0')).join('');
+				lengthSize = (cb[4] & 3) + 1;
+				hasParams = (cb[5] & 31) > 0;
+			}
+			// stts
+			const stts = find(st, 'stts'); const nS = dv.getUint32(stts.body + 4);
+			const dts = []; const dur = []; let t = 0;
+			for (let i = 0; i < nS; i++) { const c = dv.getUint32(stts.body + 8 + i * 8), d = dv.getUint32(stts.body + 12 + i * 8); for (let k = 0; k < c; k++) { dts.push(t); dur.push(d); t += d; } }
+			const n = dts.length;
+			// ctts（version 1 は符号つき。0 でも Int32 で読んで差し支えない）
+			const cto = new Int32Array(n);
+			const ctts = find(st, 'ctts');
+			if (ctts) { const nC = dv.getUint32(ctts.body + 4); let i = 0; for (let e = 0; e < nC; e++) { const c = dv.getUint32(ctts.body + 8 + e * 8), o = dv.getInt32(ctts.body + 12 + e * 8); for (let k = 0; k < c && i < n; k++) cto[i++] = o; } }
+			// stss
+			const sync = new Uint8Array(n);
+			const stss = find(st, 'stss');
+			if (stss) { const nK = dv.getUint32(stss.body + 4); for (let i = 0; i < nK; i++) { const s = dv.getUint32(stss.body + 8 + i * 4) - 1; if (s >= 0 && s < n) sync[s] = 1; } } else sync.fill(1);
+			// stsz
+			const stsz = find(st, 'stsz'); const fixedSize = dv.getUint32(stsz.body + 4); const sizes = new Uint32Array(n);
+			if (fixedSize) sizes.fill(fixedSize); else for (let i = 0; i < n; i++) sizes[i] = dv.getUint32(stsz.body + 12 + i * 4);
+			// stsc + stco/co64 → offsets
+			const stsc = find(st, 'stsc'); const nSC = dv.getUint32(stsc.body + 4);
+			const sc = []; for (let i = 0; i < nSC; i++) sc.push({ first: dv.getUint32(stsc.body + 8 + i * 12), per: dv.getUint32(stsc.body + 12 + i * 12) });
+			const stco = find(st, 'stco'), co64 = find(st, 'co64'); const co = stco || co64; const nCh = dv.getUint32(co.body + 4);
+			const chunkOff = []; for (let i = 0; i < nCh; i++) chunkOff.push(stco ? dv.getUint32(co.body + 8 + i * 4) : Number(dv.getBigUint64(co.body + 8 + i * 8)));
+			const offs = new Float64Array(n);
+			{ let si = 0; for (let c = 0; c < nCh && si < n; c++) { let per = 0; for (const e of sc) if (e.first - 1 <= c) per = e.per; let o = chunkOff[c]; for (let k = 0; k < per && si < n; k++) { offs[si] = o; o += sizes[si]; si++; } } if (si < n) throw err('mp4', 'サンプルの位置が足りない'); }
+			// elst（media_time を引く。-1 の空の区間は飛ばす）
+			let mediaTime = 0;
+			const edts = find(tk, 'edts');
+			if (edts) { const elst = find(children(dv, edts.body, edts.end), 'elst'); if (elst) { const ev = dv.getUint8(elst.body); const ne = dv.getUint32(elst.body + 4); for (let i = 0; i < ne; i++) { const mt = ev === 1 ? Number(dv.getBigInt64(elst.body + 16 + i * 20)) : dv.getInt32(elst.body + 12 + i * 12); if (mt >= 0) { mediaTime = mt; break; } } } }
+			const pts = new Float64Array(n); for (let i = 0; i < n; i++) pts[i] = dts[i] + cto[i] - mediaTime;
+			const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => pts[a] - pts[b] || a - b);
+			return { codec, description, hasParams, lengthSize, width, height, timescale, duration: mediaDur / timescale, n, dts, dur, pts, sync, sizes, offs, order, entryType: entry.type, keyframes: Array.from(sync).reduce((s, v) => s + v, 0) };
+		}
+		throw err('no-video-track', '映像トラックが無い');
+	}
+
+	async function parse(blob) {
+		const boxes = await topBoxes(blob);
+		const ftyp = find(boxes, 'ftyp');
+		const moov = find(boxes, 'moov');
+		if (!moov) throw err('mp4', 'moov が無い' + (find(boxes, 'moof') ? '（断片化した MP4）' : ''));
+		if (find(boxes, 'moof')) throw err('mp4', '断片化した MP4 には対応していない');
+		const dv = await readView(blob, moov.off, moov.sz);
+		const tr = parseMoov(dv);
+		tr.brand = ftyp ? str4(await readView(blob, ftyp.off + 8, 4), 0) : '';
+		tr.moovAt = moov.off;
+		return tr;
+	}
+
+	/** 使えるか: { ok, codec, width, height, duration, frames, keyframes, reason } */
+	async function probe(blob) {
+		if (typeof VideoDecoder === 'undefined' || typeof EncodedVideoChunk === 'undefined') return { ok: false, reason: 'no-webcodecs' };
+		let tr;
+		try { tr = await parse(blob); } catch (e) { return { ok: false, reason: e.code || 'parse', message: e.message }; }
+		let sup = null;
+		try { sup = await VideoDecoder.isConfigSupported({ codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, description: tr.hasParams ? tr.description : undefined }); } catch (e) { return { ok: false, reason: 'unsupported', message: e.message, codec: tr.codec }; }
+		return { ok: !!(sup && sup.supported), reason: sup && sup.supported ? '' : 'unsupported', codec: tr.codec, width: tr.width, height: tr.height, duration: tr.duration, frames: tr.n, keyframes: tr.keyframes, brand: tr.brand, entryType: tr.entryType, hasParams: tr.hasParams };
+	}
+
+	/** フレームの出どころを開く。o.onStat(name) で統計を知らせる */
+	async function open(blob, o) {
+		o = o || {};
+		const tr = await parse(blob);
+		const n = tr.n, ts = tr.timescale;
+		const stat = { fed: 0, out: 0, restarts: 0, skips: 0, reads: 0, bytes: 0, flushes: 0, leadingSkipped: 0, skipLog: [], restartLog: [] };
+		const cfg = { codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, optimizeForLatency: false };
+		if (tr.hasParams) cfg.description = tr.description;
+		if (o.hardware) cfg.hardwareAcceleration = o.hardware;
+		// 表示順 j ↔ サンプル i（復号順）。chunk の timestamp（µs）で出てきたフレームを引く
+		const presOf = new Int32Array(n); tr.order.forEach((i, j) => { presOf[i] = j; });
+		const usOf = new Float64Array(n); const jOfUs = new Map();
+		for (let j = 0; j < n; j++) { const i = tr.order[j]; let us = Math.round(tr.pts[i] * 1e6 / ts); while (jOfUs.has(us)) us++; usOf[i] = us; jOfUs.set(us, j); }
+		const ptsSorted = new Float64Array(n); for (let j = 0; j < n; j++) ptsSorted[j] = tr.pts[tr.order[j]];
+		const syncIdx = []; for (let i = 0; i < n; i++) if (tr.sync[i]) syncIdx.push(i);
+		if (!syncIdx.length || syncIdx[0] !== 0) throw err('mp4', '最初のサンプルがキーフレームでない');
+		// 表示順 j の目当てのフレームを復号できる、いちばん近いキーフレーム（復号順が手前で、表示時刻も手前）
+		function keyFor(j) {
+			const i = tr.order[j]; let best = 0;
+			for (const s of syncIdx) { if (s <= i && tr.pts[s] <= tr.pts[i]) best = s; else if (s > i) break; }
+			return best;
+		}
+		// 時刻 t（秒）→ 表示順 j（pts ≤ t の最後。無ければ 0）
+		function jAt(t) {
+			const tk = t * ts; let lo = 0, hi = n - 1;
+			if (ptsSorted[0] > tk) return 0;
+			while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ptsSorted[mid] <= tk) lo = mid; else hi = mid - 1; }
+			return lo;
+		}
+		// ファイルの読み（キーフレームから次のキーフレームの手前までをまとめて）
+		let buf = null, bufOff = 0, bufEnd = 0;
+		async function sampleData(i) {
+			const off = tr.offs[i], sz = tr.sizes[i];
+			if (!(buf && off >= bufOff && off + sz <= bufEnd)) {
+				let e = i, lo = off, hi = off + sz;
+				while (e + 1 < n && !tr.sync[e + 1]) { const o2 = tr.offs[e + 1], s2 = tr.sizes[e + 1]; if (Math.max(hi, o2 + s2) - Math.min(lo, o2) > 12e6) break; e++; lo = Math.min(lo, o2); hi = Math.max(hi, o2 + s2); }
+				buf = await blob.slice(lo, hi).arrayBuffer(); bufOff = lo; bufEnd = hi; stat.reads++; stat.bytes += hi - lo;
+			}
+			return new Uint8Array(buf, off - bufOff, sz);
+		}
+		// 復号
+		let dec = null, fed = 0, ended = false, flushing = false, failed = null, closed = false, gen = 0, startKey = 0;
+		let queue = []; // 出てきたフレーム（表示順）のうち、まだ渡していないもの
+		let cur = null, curJ = -1;
+		let waiters = [];
+		const wake = () => { const w = waiters; waiters = []; for (const r of w) r(); };
+		const waitEvent = (signal) => untilAbort(new Promise((r) => { waiters.push(r); setTimeout(r, 40); }), signal);
+		// 復号器は復号し直すたびに作り直す（世代 g）。前の世代の復号器から遅れて出てきたフレームは捨てる
+		// （reset() のあとに前の流れのフレームが届くと、後ろのフレームが列の先頭に残り、目当てのフレームを飛ばして代えてしまった）
+		function makeDecoder() {
+			const g = ++gen;
+			const d = new VideoDecoder({
+				output: (f) => { if (closed || g !== gen) { f.close(); return; } const j = jOfUs.get(f.timestamp); if (j == null) { f.close(); return; } stat.out++; queue.push({ j, frame: f }); wake(); },
+				error: (e) => { if (g === gen) failed = e; wake(); }
+			});
+			try { d.addEventListener('dequeue', () => { if (g === gen) wake(); }); } catch (e) { /* 無くてもよい（40ms で起きる） */ }
+			d.configure(cfg);
+			dec = d;
+		}
+		makeDecoder();
+		function dropQueue() { for (const q of queue) q.frame.close(); queue = []; }
+		function restart(s) {
+			dropQueue();
+			const old = dec;
+			makeDecoder();
+			try { old.close(); } catch (e) { /* 閉じていても */ }
+			fed = s; startKey = s; ended = false; flushing = false; failed = null; stat.restarts++;
+			if (stat.restartLog.length < 200) stat.restartLog.push([s, curJ]);
+		}
+		async function frameAt(t, signal) {
+			if (closed) throw err('closed', '閉じた出どころ');
+			const j = jAt(t);
+			if (j === curJ && cur) return cur;
+			const s = keyFor(j);
+			// 後ろへ戻る・まだ届いていない先の区間へ飛ぶ（間の区間を飛ばせる）: キーフレームから復号し直す
+			if (j < curJ || s > fed || (ended && j > curJ && !queue.some((q) => q.j === j))) restart(s);
+			let guard = 0;
+			while (true) {
+				if (signal && signal.aborted) throw abortError();
+				if (failed) throw err('decode', '復号に失敗: ' + (failed.message || failed));
+				while (queue.length) {
+					const q = queue[0];
+					if (q.j < j) { queue.shift(); q.frame.close(); continue; }
+					if (q.j === j) { queue.shift(); if (cur) cur.close(); cur = q.frame; curJ = j; return cur; }
+					// 目当てのフレームが出てこなかった（復号器が捨てた）。次のフレームで代える
+					if (ended || fed > tr.order[j] + 32) { stat.skips++; if (stat.skipLog.length < 50) stat.skipLog.push({ j, i: tr.order[j], s, headJ: q.j, fed, ended: ended ? 1 : 0, curJ, startKey }); queue.shift(); if (cur) cur.close(); cur = q.frame; curJ = j; return cur; }
+					break;
+				}
+				if (ended) { if (cur) { stat.skips++; if (stat.skipLog.length < 50) stat.skipLog.push({ j, i: tr.order[j], s, headJ: null, fed, ended: 1, curJ, startKey }); curJ = j; return cur; } throw err('decode', '動画の末尾を超えた'); }
+				if (fed < n && dec.decodeQueueSize < 12 && queue.length < 8) {
+					const i = fed++;
+					// キーフレームから復号し直した直後の「先行する画」（復号順はあとで表示時刻は前。前の区間を参照していて復号できないことがある）は渡さない。
+					// 目当てのフレームは表示時刻がキーフレーム以降（keyFor）なので要らず、あとのフレームはこれを参照しない
+					if (i > startKey && i < startKey + 16 && tr.pts[i] < tr.pts[startKey]) { stat.leadingSkipped++; continue; }
+					const data = await sampleData(i);
+					if (signal && signal.aborted) throw abortError();
+					dec.decode(new EncodedVideoChunk({ type: tr.sync[i] ? 'key' : 'delta', timestamp: usOf[i], duration: Math.round(tr.dur[i] * 1e6 / ts), data }));
+					stat.fed++;
+					continue;
+				}
+				// 末尾まで渡したら flush で残りを出す。復号し直し（世代が変わる）や close() で前の flush が拒まれても、今の世代の失敗にはしない
+				if (fed >= n && !flushing) { flushing = true; stat.flushes++; const g = gen; dec.flush().then(() => { if (g === gen) { ended = true; wake(); } }, (e) => { if (g === gen && !closed) failed = e; wake(); }); }
+				if (++guard > 200000) throw err('decode', '復号が進まない');
+				await waitEvent(signal);
+			}
+		}
+		return {
+			kind: 'webcodecs', width: tr.width, height: tr.height, duration: tr.duration, frames: n, info: { codec: tr.codec, keyframes: tr.keyframes, entryType: tr.entryType }, stat,
+			async drawAt(t, ctx, dw, dh, signal, how) {
+				const f = await frameAt(Math.max(0, t), signal);
+				ctx.drawImage(f, 0, 0, dw, dh);
+			},
+			frameAt,
+			close() { if (closed) return; closed = true; dropQueue(); if (cur) { cur.close(); cur = null; } try { dec.close(); } catch (e) { /* 何もしない */ } buf = null; }
+		};
+	}
+
+	global.UmaMp4Source = Object.freeze({ probe, open, parse });
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
 'use strict';
+const PAGE_VERSION = 'T90-2026-11-03a';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const Q = new URLSearchParams(location.search);
+const N_PROD = Math.max(0, Number(Q.get('runs') || 10));
+const N_PROTO = Math.max(0, Number(Q.get('proto') || 3));
+const SKIP = new Set((Q.get('skip') || '').split(',').filter(Boolean)); // decode, product, seek, proto
+const LABELS = ['親', '祖1', '祖2'];
+const JPEG_Q = 0.85;
+const T0 = performance.now();
 const sec = (ms) => (ms / 1000).toFixed(2) + '秒';
-const STALL_MS = 10000;        // これだけ進まない段は「止まった」
-const A_GIVEUP_MS = 60000;     // A がこれだけ進まなければ打ち切って B へ
-const B_LOAD_MS = 15000, B_SEEK_MS = 8000, B_PLAY_MS = 8000, B_RVFC_MS = 60000;
+let REC = null;
+let FP = null; // 復号した全フレームの指紋 { fw, fh, pts: [], g: [Uint8Array] }
+let STALL = null;
 
-/* ── 端末と、使えるもの ─────────────────────── */
+/* ── 記録と表示 ─────────────────────── */
+function log(what, detail, cls) {
+	const tr = document.createElement('tr');
+	tr.innerHTML = '<td class="t">' + sec(performance.now() - T0) + '</td><td>' + (cls ? '<span class="' + cls + '">' : '') + esc(what) + (cls ? '</span>' : '') + (detail ? '　' + esc(detail) : '') + '</td>';
+	$('log').appendChild(tr);
+	if (REC) REC.log.push([+((performance.now() - T0) / 1000).toFixed(2), what, detail || '']);
+}
+function now(s) { $('now').textContent = s ? 'いま: ' + s : ''; if (STALL) STALL.at = performance.now(); if (STALL) STALL.what = s; }
 function renderEnv() {
 	$('ua').textContent = navigator.userAgent;
 	const has = (b) => (b ? '<span class="ok">あり</span>' : '<span class="ng">なし</span>');
 	const v = document.createElement('video');
 	const cp = (t) => esc(v.canPlayType(t) || '（空）');
-	const rows = [
-		['画面', screen.width + '×' + screen.height + '・dpr ' + devicePixelRatio + '・表示幅 ' + innerWidth],
-		['CPU・メモリ', (navigator.hardwareConcurrency || '?') + 'コア・' + (navigator.deviceMemory ? navigator.deviceMemory + 'GB' : '（不明）')],
-		['js の版', 'video-frames ' + (window.UmaVideoFrames ? UmaVideoFrames.VERSION : '<span class="ng">読めない</span>') + '・stitch ' + (typeof STITCH_JS_VERSION !== 'undefined' ? STITCH_JS_VERSION : '?') + '・common ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '?')],
-		['WebCodecs', 'VideoDecoder ' + has(typeof VideoDecoder !== 'undefined') + '・VideoFrame ' + has(typeof VideoFrame !== 'undefined') + '・ImageDecoder ' + has(typeof ImageDecoder !== 'undefined')],
-		['H.264 / HEVC の復号器', '<span id="env-vd">（調べています）</span>'],
-		['requestVideoFrameCallback', has('requestVideoFrameCallback' in HTMLVideoElement.prototype)],
-		['fastSeek', has('fastSeek' in HTMLMediaElement.prototype)],
-		['ほか', 'createImageBitmap ' + has(typeof createImageBitmap === 'function') + '・OffscreenCanvas ' + has(typeof OffscreenCanvas !== 'undefined') + '・MediaSource ' + has(typeof MediaSource !== 'undefined') + '・ManagedMediaSource ' + has(typeof ManagedMediaSource !== 'undefined') + '・MessageChannel ' + has(typeof MessageChannel !== 'undefined')],
-		['canPlayType', 'mp4 ' + cp('video/mp4') + '・mov ' + cp('video/quicktime') + '・avc1 ' + cp('video/mp4; codecs="avc1.640028"') + '・hvc1 ' + cp('video/mp4; codecs="hvc1.1.6.L123.B0"')]
-	];
-	$('env').innerHTML = rows.map(([k, val]) => '<i>' + esc(k) + ':</i> ' + val).join('／');
-	if (typeof VideoDecoder !== 'undefined' && VideoDecoder.isConfigSupported) {
-		const q = (codec) => VideoDecoder.isConfigSupported({ codec, codedWidth: 1170, codedHeight: 2532 }).then((r) => r.supported, () => false);
-		Promise.all([q('avc1.640028'), q('hvc1.1.6.L123.B0')]).then(([a, h]) => { $('env-vd').innerHTML = 'H.264 ' + has(a) + '・HEVC ' + has(h); });
+	const env = {
+		screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, innerWidth, cores: navigator.hardwareConcurrency || null, memory: navigator.deviceMemory || null,
+		videoFrames: window.UmaVideoFrames ? UmaVideoFrames.VERSION : null, stitch: typeof STITCH_JS_VERSION !== 'undefined' ? STITCH_JS_VERSION : null, common: typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : null,
+		VideoDecoder: typeof VideoDecoder !== 'undefined', VideoFrame: typeof VideoFrame !== 'undefined', rvfc: 'requestVideoFrameCallback' in HTMLVideoElement.prototype, fastSeek: 'fastSeek' in HTMLMediaElement.prototype,
+		share: !!(navigator.share && navigator.canShare), wakeLock: !!navigator.wakeLock, mp4src: !!(window.UmaMp4Source || (window.UmaVideoFrames && UmaVideoFrames.mp4Source)),
+		canPlay: { mp4: v.canPlayType('video/mp4'), mov: v.canPlayType('video/quicktime'), hvc1: v.canPlayType('video/mp4; codecs="hvc1.1.6.L150.B0"'), avc1: v.canPlayType('video/mp4; codecs="avc1.640028"') }
+	};
+	$('env').innerHTML = [
+		['画面', env.screen + '・dpr ' + env.dpr + '・表示幅 ' + env.innerWidth + '・' + (env.cores || '?') + 'コア'],
+		['js の版', 'video-frames ' + (env.videoFrames || '<span class="ng">読めない</span>') + '・stitch ' + env.stitch + '・common ' + env.common + '・ページ ' + PAGE_VERSION],
+		['WebCodecs', 'VideoDecoder ' + has(env.VideoDecoder) + '・VideoFrame ' + has(env.VideoFrame) + '・<span id="env-vd">（調べています）</span>'],
+		['ほか', 'requestVideoFrameCallback ' + has(env.rvfc) + '・共有 ' + has(env.share) + '・MP4 の分解 ' + has(env.mp4src) + '・canPlayType hvc1 ' + cp('video/mp4; codecs="hvc1.1.6.L150.B0"')]
+	].map(([k, val]) => '<i>' + esc(k) + ':</i> ' + val).join('／');
+	if (env.VideoDecoder && VideoDecoder.isConfigSupported) {
+		const q = (codec) => VideoDecoder.isConfigSupported({ codec, codedWidth: 1180, codedHeight: 2554 }).then((r) => r.supported, () => false);
+		Promise.all([q('avc1.640028'), q('hvc1.1.6.L150.B0')]).then(([a, h]) => { env.h264 = a; env.hevc = h; $('env-vd').innerHTML = 'H.264 ' + has(a) + '・HEVC ' + has(h); });
 	} else $('env-vd').innerHTML = '<span class="ng">VideoDecoder なし</span>';
+	return env;
 }
+const ENV = renderEnv();
 
-/* ── 記録（段ごとの時刻・止まった段） ─────────────────────── */
-// stage(名前) で「今の段」を変える。log(…) は1行足す。STALL_MS 進まない段は「止まった」の行を足し、秒数を更新し続ける
-function makeLog(tbody, nowEl, t0) {
-	let last = performance.now(), stage = '', stallRow = null, timer = null, peek = null;
-	const add = (what, detail, cls) => {
-		const tr = document.createElement('tr');
-		tr.innerHTML = '<td class="t">' + sec(performance.now() - t0) + '</td><td class="s">' + (cls ? '<span class="' + cls + '">' : '') + esc(what) + (cls ? '</span>' : '') + (detail ? '　' + esc(detail) : '') + '</td>';
-		tbody.appendChild(tr);
-		return tr;
-	};
-	const L = {
-		log(what, detail, cls) { last = performance.now(); stallRow = null; return add(what, detail, cls); },
-		stage(name) { stage = name; last = performance.now(); stallRow = null; },
-		quiet() { return performance.now() - last; },
-		peek(fn) { peek = fn; },
-		start() {
-			timer = setInterval(() => {
-				const q = performance.now() - last;
-				nowEl.textContent = stage ? 'いま: ' + stage + '（' + (q / 1000).toFixed(0) + '秒）' : '';
-				if (q >= STALL_MS) {
-					const d = '止まった: ' + stage + '（' + (q / 1000).toFixed(0) + '秒 進まない）' + (peek ? '　' + peek() : '');
-					if (!stallRow) stallRow = add(d, '', 'ng');
-					else stallRow.lastChild.innerHTML = '<span class="ng">' + esc(d) + '</span>';
-				}
-			}, 500);
-		},
-		stop() { clearInterval(timer); nowEl.textContent = ''; }
-	};
-	return L;
+/* ── 小道具 ─────────────────────── */
+const fnv = (u8) => { let h = 0x811c9dc5; for (let i = 0; i < u8.length; i++) { h ^= u8[i]; h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
+function canvasHash(c) { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; return fnv(d) + ':' + c.width + 'x' + c.height; }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function meanAbs(a, b) { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; }
+// 指紋: 本文が入りうる帯（0.30H〜0.92H）を幅 W/16・高さ 1/3 に縮めたグレー
+const fpc = document.createElement('canvas'); const fpx = fpc.getContext('2d', { willReadFrequently: true });
+function makeFP(W, H) { const fw = Math.max(8, Math.round(W / 16)); const bandY0 = Math.round(H * 0.30), bandH = Math.round(H * 0.92) - bandY0; const fh = Math.round(bandH / 3); fpc.width = fw; fpc.height = fh; return { fw, fh, bandY0, bandH, W, H, pts: [], g: [] }; }
+function fingerprint(img, sw, sh) {
+	const y0 = Math.round(FP.bandY0 * sh / FP.H), bh = Math.round(FP.bandH * sh / FP.H);
+	fpx.drawImage(img, 0, y0, sw, bh, 0, 0, FP.fw, FP.fh);
+	const d = fpx.getImageData(0, 0, FP.fw, FP.fh).data; const g = new Uint8Array(FP.fw * FP.fh);
+	for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
+	return g;
 }
-// rs=readyState・ns=networkState・t=currentTime
-const vState = (v) => v ? 'rs=' + v.readyState + ' ns=' + v.networkState + ' t=' + v.currentTime.toFixed(2) + (v.error ? ' error=' + v.error.code + ' ' + (v.error.message || '') : '') : '（video はまだ無い）';
-const MEDIA_EVENTS = ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'suspend', 'stalled', 'waiting', 'emptied', 'abort', 'error'];
-// video の出来事を、それぞれ最初の1回だけ記録する（error は毎回）
-function watchMedia(v, L) {
-	const seen = new Set();
-	for (const ev of MEDIA_EVENTS) {
-		v.addEventListener(ev, () => {
-			if (ev !== 'error' && seen.has(ev)) return;
-			seen.add(ev);
-			const cls = ev === 'error' ? 'ng' : (ev === 'suspend' || ev === 'stalled' || ev === 'waiting' || ev === 'emptied' || ev === 'abort' ? 'warn' : '');
-			L.log('video: ' + ev, vState(v), cls);
-		});
-	}
+// 時刻 t に期待するフレーム（pts ≤ t の最後）
+function jAt(t) { const p = FP.pts; let lo = 0, hi = p.length - 1; if (!p.length || p[0] > t) return 0; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (p[m] <= t + 1e-9) lo = m; else hi = m - 1; } return lo; }
+// 指紋 g がどのフレームか: 期待の近く（±R）でいちばん近いもの。同点（差 ≤ best+0.6）の範囲も返す
+function identify(g, jc, R) {
+	if (!FP || !FP.g.length) return null;
+	let best = -1, bd = Infinity; const lo = Math.max(0, jc - R), hi = Math.min(FP.g.length - 1, jc + R);
+	const ds = new Float32Array(hi - lo + 1);
+	for (let j = lo; j <= hi; j++) { const d = meanAbs(g, FP.g[j]); ds[j - lo] = d; if (d < bd) { bd = d; best = j; } }
+	let tlo = best, thi = best;
+	for (let j = best - 1; j >= lo && ds[j - lo] <= bd + 0.6; j--) tlo = j;
+	for (let j = best + 1; j <= hi && ds[j - lo] <= bd + 0.6; j++) thi = j;
+	return { j: best, d: +bd.toFixed(2), lo: tlo, hi: thi, exp: jc, hit: jc >= tlo && jc <= thi, edge: best === lo || best === hi };
 }
+const vState = (v) => v ? { rs: v.readyState, ns: v.networkState, t: +v.currentTime.toFixed(4), err: v.error ? v.error.code : 0 } : null;
 
-/* ── A. 今の取り込み ─────────────────────── */
-async function runA(file) {
-	const t0 = performance.now();
-	const L = makeLog($('a-log'), $('a-now'), t0);
-	L.start();
-	L.log('ファイルを選んだ', (file.type || '（type なし）') + '・' + (file.size / 1048576).toFixed(1) + 'MB');
-	const ctrl = new AbortController();
-	let video = null, gaveUp = false;
-	L.peek(() => vState(video));
-	const giveUp = setInterval(() => { if (L.quiet() >= A_GIVEUP_MS) { gaveUp = true; ctrl.abort(); } }, 1000);
-	const orig = document.createElement;
-	document.createElement = function (tag, o) {
-		const el = orig.call(document, tag, o);
-		if (!video && String(tag).toLowerCase() === 'video') { video = el; watchMedia(el, L); }
-		return el;
-	};
-	let src = null, verdict = '';
-	const seeks = [];
-	const chips = $('a-seeks');
-	try {
-		L.stage('動画の読み込み（ページに置いて load()・loadeddata を待つ）');
-		const ls = performance.now();
-		try { src = await UmaVideoFrames.videoSource(file, { signal: ctrl.signal }); }
-		finally { document.createElement = orig; }
-		const loadMs = performance.now() - ls;
-		L.log('動画の情報が読めた', src.width + '×' + src.height + '・長さ ' + src.duration.toFixed(2) + '秒・読み込み ' + Math.round(loadMs) + 'ms', 'ok');
-		let phase = '';
-		const wrapped = Object.assign({}, src, {
-			async drawAt(t, ctx, dw, dh, signal) {
-				L.stage('シーク ' + (seeks.length + 1) + '回目（' + t.toFixed(2) + '秒の位置）');
-				const s = performance.now();
-				await src.drawAt(t, ctx, dw, dh, signal);
-				const ms = performance.now() - s;
-				seeks.push(ms);
-				const c = document.createElement('span');
-				c.textContent = Math.round(ms);
-				c.title = '#' + seeks.length + ' ' + t.toFixed(2) + 's';
-				if (dw === src.width) c.className = 'full';
-				if (ms >= 1000) c.className += ' slow';
-				chips.appendChild(c);
-				if (seeks.length === 1) L.log('最初のフレームが取れた', '1回目のシーク ' + Math.round(ms) + 'ms', 'ok');
-				else if (seeks.length % 20 === 0) L.log(seeks.length + '枚目まで', '直近20回の平均 ' + Math.round(seeks.slice(-20).reduce((a, b) => a + b, 0) / 20) + 'ms');
-			}
-		});
-		const PH = { read: '読む（4枚/秒で縮小して取る）', select: '選ぶ', grab: '選んだ時刻を等倍で取り直す' };
-		const sel = await UmaVideoFrames.selectFrames(wrapped, {
-			labels: ['親', '祖1', '祖2'], signal: ctrl.signal,
-			onProgress: (p) => { if (p.phase !== phase) { phase = p.phase; L.log('段: ' + (PH[p.phase] || p.phase), Math.round(p.ratio * 100) + '%'); } }
-		});
-		const avg = seeks.length ? Math.round(seeks.reduce((a, b) => a + b, 0) / seeks.length) : 0;
-		L.log('終わった', '選んだ ' + sel.picks.length + '枚・人 ' + sel.persons.length + '人（' + sel.persons.map((p) => p.files.length).join('／') + '）・シーク ' + seeks.length + '回（平均 ' + avg + 'ms・最大 ' + Math.round(Math.max(0, ...seeks)) + 'ms）', 'ok');
-		L.log('内訳', '読み込み ' + sec(loadMs) + '・読む ' + sec(sel.tm.sampleMs) + '・選ぶ ' + sec(sel.tm.selectMs) + '・取り直す ' + sec(sel.tm.grabMs) + '・捨てた白黒 ' + sel.stats.blankSkipped + '・取り直しのやり直し ' + sel.stats.grabRetries);
-		verdict = '<span class="ok">動いた</span>・' + sec(performance.now() - t0);
-	} catch (e) {
-		if (gaveUp) { L.log('打ち切った', (A_GIVEUP_MS / 1000) + '秒 進まないので B へ進む。' + vState(video), 'ng'); verdict = '<span class="ng">止まった</span>'; }
-		else { L.log('失敗', e.name + (e.code ? ' code=' + e.code : '') + '・' + e.message + '　' + vState(video), 'ng'); verdict = '<span class="ng">失敗</span>（' + esc(e.code || e.name) + '）'; }
-	} finally {
-		clearInterval(giveUp);
-		L.stop();
-		if (src) try { src.close(); } catch (e) { /* 閉じられなくてもよい */ }
-	}
-	$('a-sum').innerHTML = verdict;
-}
-
-/* ── B. 別のやり方 ─────────────────────── */
-// p を ms まで待つ。{ ok, ms, value } か { ok:false, timeout:true } か { ok:false, error }
-async function timed(p, ms) {
-	const s = performance.now();
-	let tm = null;
-	try {
-		const value = await Promise.race([p, new Promise((_, rej) => { tm = setTimeout(() => rej({ __timeout: true }), ms); })]);
-		return { ok: true, ms: performance.now() - s, value };
-	} catch (e) {
-		return e && e.__timeout ? { ok: false, timeout: true, ms: performance.now() - s } : { ok: false, error: e, ms: performance.now() - s };
-	} finally { clearTimeout(tm); }
-}
-const once = (v, ev) => new Promise((res, rej) => {
-	const ok = () => { v.removeEventListener('error', ng); res(); };
-	const ng = () => { v.removeEventListener(ev, ok); rej(new Error('video の error ' + (v.error ? v.error.code + ' ' + (v.error.message || '') : ''))); };
-	v.addEventListener(ev, ok, { once: true });
-	v.addEventListener('error', ng, { once: true });
-});
-const res2txt = (r) => r.ok ? Math.round(r.ms) + 'ms' : (r.timeout ? '止まった（' + Math.round(r.ms / 1000) + '秒）' : '失敗（' + (r.error && r.error.message || r.error) + '）');
-function makeVideo(url, o) {
-	const v = document.createElement('video');
-	v.muted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
-	v.preload = o.preload || 'auto';
-	if (o.inDom) { v.style.cssText = 'position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;pointer-events:none'; document.body.appendChild(v); }
-	v.src = url;
-	if (o.load) v.load();
-	return v;
-}
-function dropVideo(v) { try { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); } catch (e) { /* 何もしない */ } }
-// 縮小の画に描いて、ほぼ真っ白か真っ黒か（製品と同じ 0.985）
-function drawCheck(source, w, h) {
-	const c = document.createElement('canvas');
-	c.width = Math.max(16, Math.round(w / 6)); c.height = Math.round(h / 6);
-	const x = c.getContext('2d', { willReadFrequently: true });
-	x.drawImage(source, 0, 0, c.width, c.height);
-	const d = x.getImageData(0, 0, c.width, c.height).data;
-	let tot = 0, wh = 0, bl = 0;
-	for (let i = 0; i < d.length; i += 28) { const g = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8; tot++; if (g >= 250) wh++; else if (g <= 5) bl++; }
-	return !(wh / tot >= 0.985 || bl / tot >= 0.985);
-}
-function seekPoints(D) {
-	const pts = [0, 0.25, 0.5, 0.75, 1, D * 0.25, D * 0.5, D * 0.75, D - 0.3];
-	return pts.filter((t) => t >= 0 && t < D).map((t) => +t.toFixed(3));
-}
-// 読み込み → シークして描く、を共通で。o.how: 'seek' | 'fast' | 'bitmap'
-async function trySeeks(v, o, out, L) {
-	const pts = seekPoints(v.duration);
-	const times = [];
-	let drawn = 0, blank = 0, fails = 0, offs = [];
-	for (const t of pts) {
-		L.stage(o.title + ': シーク ' + t.toFixed(2) + '秒');
-		const p = once(v, 'seeked');
-		if (o.how === 'fast') v.fastSeek(t); else v.currentTime = t;
-		const r = await timed(p, B_SEEK_MS);
-		if (!r.ok) { fails++; out.push('シーク ' + t.toFixed(2) + '秒: ' + res2txt(r)); if (r.timeout) break; continue; }
-		if (o.how === 'fast') offs.push(Math.abs(v.currentTime - t));
-		let ok;
-		try {
-			if (o.how === 'bitmap') { const b = await createImageBitmap(v); ok = drawCheck(b, v.videoWidth, v.videoHeight); b.close(); }
-			else ok = drawCheck(v, v.videoWidth, v.videoHeight);
-		} catch (e) { out.push('描く: 失敗（' + e.message + '）'); fails++; continue; }
-		times.push(r.ms);
-		drawn++; if (!ok) blank++;
-	}
-	const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
-	out.push('シーク ' + times.length + '/' + pts.length + '回（平均 ' + avg + 'ms・最大 ' + Math.round(Math.max(0, ...times)) + 'ms）・描けた ' + (drawn - blank) + '枚・白黒 ' + blank + '枚'
-		+ (offs.length ? '・行き先のずれ 最大 ' + Math.max(...offs).toFixed(2) + '秒' : ''));
-	return fails === 0 && drawn === pts.length && blank === 0;
-}
-const METHODS = [
-	{ id: 'B1', title: '今と同じ（DOM の外・preload=auto・loadeddata）', make: { preload: 'auto' }, wait: 'loadeddata', how: 'seek' },
-	{ id: 'B2', title: 'DOM に入れる＋load()', make: { preload: 'auto', inDom: true, load: true }, wait: 'loadeddata', how: 'seek' },
-	{ id: 'B3', title: 'preload=metadata・一度 play() して pause()', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'seek' },
-	{ id: 'B4', title: 'B3＋fastSeek', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'fast', need: () => 'fastSeek' in HTMLMediaElement.prototype },
-	{ id: 'B5', title: 'B3＋createImageBitmap', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'bitmap', need: () => typeof createImageBitmap === 'function' },
-	{ id: 'B6', title: '2倍速で再生・requestVideoFrameCallback で4枚/秒', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', how: 'rvfc', need: () => 'requestVideoFrameCallback' in HTMLVideoElement.prototype },
-	{ id: 'B7', title: 'WebCodecs: video から new VideoFrame', make: { preload: 'metadata', inDom: true, load: true }, wait: 'loadedmetadata', play: true, how: 'videoframe', need: () => typeof VideoFrame !== 'undefined' }
-];
-async function runB(file) {
-	const t0 = performance.now();
-	const list = $('b-list');
-	const L = makeLog(document.createElement('tbody'), $('b-now'), t0);
-	L.start();
-	let okN = 0;
-	for (const m of METHODS) {
-		const box = document.createElement('div');
-		box.className = 'm';
-		box.innerHTML = '<b>' + esc(m.id + ' ' + m.title) + '</b> <span class="r">試しています…</span><div class="d"></div>';
-		list.appendChild(box);
-		const out = [];
-		let verdict;
-		const s = performance.now();
-		if (m.need && !m.need()) { box.querySelector('.r').innerHTML = '<span class="warn">使えない（この端末に無い）</span>'; continue; }
-		const url = URL.createObjectURL(file);
-		let v = null;
-		try {
-			L.stage(m.id + ': 読み込み');
-			v = makeVideo(url, m.make);
-			const r = await timed(once(v, m.wait), B_LOAD_MS);
-			out.push(m.wait + ' ' + res2txt(r) + (r.ok ? '' : '（' + vState(v) + '）'));
-			if (!r.ok) { verdict = r.timeout ? 'stall' : 'ng'; throw null; }
-			out.push(v.videoWidth + '×' + v.videoHeight + '・長さ ' + (isFinite(v.duration) ? v.duration.toFixed(2) + '秒' : String(v.duration)));
-			if (m.play) {
-				L.stage(m.id + ': play()');
-				const rp = await timed(v.play(), B_PLAY_MS);
-				v.pause();
-				out.push('play() ' + res2txt(rp));
-			}
-			if (m.how === 'rvfc') verdict = (await tryRvfc(v, out, L)) ? 'ok' : 'ng';
-			else if (m.how === 'videoframe') {
-				L.stage(m.id + ': シーク 1秒');
-				const rs = await timed((() => { const p = once(v, 'seeked'); v.currentTime = Math.min(1, v.duration / 2); return p; })(), B_SEEK_MS);
-				out.push('シーク ' + res2txt(rs));
-				if (!rs.ok) { verdict = rs.timeout ? 'stall' : 'ng'; throw null; }
-				const f = new VideoFrame(v, { timestamp: 0 });
-				out.push('VideoFrame ' + f.codedWidth + '×' + f.codedHeight + '・形式 ' + f.format + '・描けた ' + (drawCheck(f, f.displayWidth, f.displayHeight) ? 'はい' : '白黒'));
-				f.close();
-				verdict = 'ok';
-			} else verdict = (await trySeeks(v, Object.assign({ title: m.id }, m), out, L)) ? 'ok' : 'ng';
-		} catch (e) {
-			if (e) { out.push('失敗: ' + (e.message || e)); verdict = 'ng'; }
-		} finally {
-			if (v) dropVideo(v);
-			URL.revokeObjectURL(url);
+/* ── 製品／試作の1回 ─────────────────────── */
+// 出どころを包み、シークごとに（頼んだ時刻・大きさ・ms・描かれた画がどのフレームか）を記録する
+function wrapSource(src, seekLog, getVideo) {
+	return Object.assign({}, src, {
+		async drawAt(t, ctx, dw, dh, signal, how) {
+			const s = performance.now();
+			await src.drawAt(t, ctx, dw, dh, signal, how);
+			const ms = performance.now() - s;
+			const v = getVideo ? getVideo() : null;
+			const e = { t: +t.toFixed(4), sz: dw === src.width ? 'F' : 's', ms: Math.round(ms * 10) / 10 };
+			if (how && how.waitFrame) e.wait = 1;
+			if (v) e.cur = +v.currentTime.toFixed(4);
+			if (FP && FP.g.length) { const g = fingerprint(ctx.canvas, dw, dh); const id = identify(g, jAt(t), 40); if (id) { e.exp = id.exp; e.got = id.j; e.d = id.d; if (!id.hit) e.miss = 1; if (id.lo !== id.hi) e.tie = [id.lo, id.hi]; if (id.edge) e.edge = 1; } }
+			seekLog.push(e);
 		}
-		if (verdict === 'ok') okN++;
-		const head = verdict === 'ok' ? '<span class="ok">動いた</span>' : verdict === 'stall' ? '<span class="ng">止まった</span>' : '<span class="ng">うまくいかない</span>';
-		box.querySelector('.r').innerHTML = head + '・' + sec(performance.now() - s);
-		box.querySelector('.d').textContent = out.join('／');
-	}
-	L.stop();
-	$('b-sum').textContent = METHODS.length + '通り中 ' + okN + '通りが動いた・' + sec(performance.now() - t0);
-}
-// 2倍速で再生しながら、mediaTime が 0.25秒進むごとに縮小の画へ描く
-function tryRvfc(v, out, L) {
-	return new Promise((resolve) => {
-		const D = v.duration, s = performance.now();
-		let next = 0, got = 0, blank = 0, cbs = 0, finished = false;
-		const finish = (why) => {
-			if (finished) return; finished = true;
-			clearTimeout(cap); clearInterval(watch); v.pause();
-			const want = Math.ceil(D * 4);
-			out.push(why + '・コールバック ' + cbs + '回・取れた ' + got + '/' + want + '枚（白黒 ' + blank + '）・' + sec(performance.now() - s) + '（目安は動画の長さ ' + D.toFixed(1) + '秒の半分）');
-			resolve(got >= want * 0.9 && blank === 0);
-		};
-		let lastCb = performance.now();
-		const watch = setInterval(() => { if (performance.now() - lastCb > STALL_MS) finish('止まった（コールバックが ' + (STALL_MS / 1000) + '秒来ない）'); }, 500);
-		const cap = setTimeout(() => finish('時間の上限（' + B_RVFC_MS / 1000 + '秒）'), B_RVFC_MS);
-		const cb = (now, meta) => {
-			if (finished) return;
-			cbs++; lastCb = performance.now();
-			L.stage('B6: 再生中 ' + meta.mediaTime.toFixed(2) + '秒');
-			if (meta.mediaTime >= next) { got++; if (!drawCheck(v, v.videoWidth, v.videoHeight)) blank++; next = Math.floor(meta.mediaTime * 4 + 1) / 4; }
-			v.requestVideoFrameCallback(cb);
-		};
-		v.addEventListener('ended', () => finish('最後まで再生した'), { once: true });
-		v.requestVideoFrameCallback(cb);
-		v.playbackRate = 2;
-		v.play().catch((e) => finish('play() が失敗（' + e.message + '）'));
 	});
 }
+async function runOnce(kind, file, runNo, images) {
+	const rec = { run: runNo, seeks: [] };
+	const t0 = performance.now();
+	let video = null, src0 = null;
+	const orig = document.createElement;
+	if (kind === 'product') document.createElement = function (tag, o) { const el = orig.call(document, tag, o); if (!video && String(tag).toLowerCase() === 'video') video = el; return el; };
+	try {
+		now((kind === 'product' ? '製品' : '試作') + ' ' + runNo + '回目: 読み込み');
+		if (kind === 'product') { try { src0 = await UmaVideoFrames.videoSource(file); } finally { document.createElement = orig; } }
+		else src0 = await (window.UmaMp4Source ? UmaMp4Source.open(file) : UmaVideoFrames.mp4Source(file));
+		rec.openMs = Math.round(performance.now() - t0);
+		rec.video = { W: src0.width, H: src0.height, D: +src0.duration.toFixed(3) };
+		const src = wrapSource(src0, rec.seeks, () => video);
+		const dbg = {};
+		let phase = '';
+		const sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS, debug: dbg, onProgress: (p) => { if (p.phase !== phase) { phase = p.phase; now((kind === 'product' ? '製品' : '試作') + ' ' + runNo + '回目: ' + p.phase); } } });
+		rec.selectMs = Math.round(performance.now() - t0);
+		if (src0.stat) rec.srcStat = Object.assign({}, src0.stat);
+		src0.close(); src0 = null;
+		rec.header = sel.header; rec.anchors = sel.anchors; rec.picks = sel.picks; rec.stats = sel.stats; rec.tm = Object.fromEntries(Object.entries(sel.tm).map(([k, v]) => [k, Math.round(v)]));
+		rec.seams = sel.seams.map((s) => [s.from, s.to, s.shift, s.badRate, s.secondRatio, s.weak ? 1 : 0, s.uncertain ? 1 : 0, s.anchor ? 1 : 0]);
+		rec.files = [];
+		for (const f of sel.files) rec.files.push(fnv(new Uint8Array(await f.arrayBuffer())));
+		rec.track = dbg.track;
+		rec.persons = [];
+		for (let k = 0; k < sel.persons.length; k++) {
+			const p = sel.persons[k];
+			now((kind === 'product' ? '製品' : '試作') + ' ' + runNo + '回目: ' + p.label + ' を組み立て');
+			const pr = { label: p.label, startT: p.startT, anchorY: p.anchorY, n: p.files.length, times: p.times, shifts: p.shifts, uncertain: p.uncertain.map((u) => u ? 1 : 0) };
+			try {
+				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label);
+				pr.h = c.height; pr.w = c.width; pr.warn = c._stitchWarnings.length; pr.hash = canvasHash(c);
+				const key = k + ':' + pr.hash;
+				if (!images[key]) { const d = c.toDataURL('image/jpeg', JPEG_Q); images[key] = { person: k, hash: pr.hash, h: c.height, w: c.width, kind, firstRun: runNo, jpeg: d }; pr.newImage = 1; }
+				c.width = c.height = 0;
+			} catch (e) { pr.err = (e.code || '') + ' ' + String(e.message || e); }
+			rec.persons.push(pr);
+		}
+		rec.totalMs = Math.round(performance.now() - t0);
+	} catch (e) {
+		rec.error = (e.name || '') + ' ' + (e.code || '') + ' ' + String(e.message || e);
+		rec.totalMs = Math.round(performance.now() - t0);
+		if (video) rec.videoState = vState(video);
+		if (src0) try { src0.close(); } catch (e2) { /* 何もしない */ }
+	} finally { document.createElement = orig; }
+	return rec;
+}
+function addRunRow(stage, rec, first) {
+	const tr = document.createElement('tr');
+	const same = first && rec.persons && first.persons ? (rec.persons.length === first.persons.length && rec.persons.every((p, k) => p.hash && p.hash === first.persons[k].hash)) : null;
+	const cmp = rec.error ? '<span class="ng">失敗</span>' : rec === first ? '—' : same ? '<span class="ok">同じ</span>' : '<span class="ng">違う</span>';
+	tr.innerHTML = '<td>' + esc(stage) + '</td><td>' + rec.run + '</td><td class="t">' + (rec.totalMs / 1000).toFixed(1) + '</td><td>' + (rec.persons ? esc(rec.persons.map((p) => p.n).join('／')) : esc(rec.error || '')) + '</td><td>' + (rec.persons ? esc(rec.persons.map((p) => p.h || 'x').join('／')) : '') + '</td><td>' + cmp + '</td>';
+	$('runs').appendChild(tr);
+}
 
-/* ── 動画を選んだら A → B ─────────────────────── */
-$('file').addEventListener('change', async (ev) => {
+/* ── 復号（全フレーム）と指紋 ─────────────────────── */
+async function decodeAll(file) {
+	const d = { };
+	const M = window.UmaMp4Source || (window.UmaVideoFrames && UmaVideoFrames.mp4Source ? { probe: UmaVideoFrames.mp4Probe, open: UmaVideoFrames.mp4Source, parse: UmaVideoFrames.mp4Parse } : null);
+	if (!M) { d.error = 'no-mp4src'; return d; }
+	now('復号: 調べる');
+	d.probe = await M.probe(file);
+	log('復号: 使えるか', JSON.stringify(d.probe), d.probe.ok ? 'ok' : 'ng');
+	if (!d.probe.ok) return d;
+	const t0 = performance.now();
+	let src = null;
+	try {
+		src = await M.open(file);
+		const tr = await M.parse(file);
+		FP = makeFP(src.width, src.height);
+		const ptsList = []; for (let j = 0; j < tr.n; j++) ptsList.push(tr.pts[tr.order[j]] / tr.timescale);
+		let last = -1, mono = true, got = 0, maxGap = 0;
+		for (let j = 0; j < tr.n; j++) {
+			if (j % 20 === 0) now('復号: ' + j + '/' + tr.n + ' 枚');
+			const t = ptsList[j];
+			const s = performance.now();
+			const f = await src.frameAt(t + 1e-6);
+			maxGap = Math.max(maxGap, performance.now() - s);
+			if (f.timestamp <= last) mono = false; last = f.timestamp;
+			FP.pts.push(t); FP.g.push(fingerprint(f, src.width, src.height)); got++;
+		}
+		d.frames = tr.n; d.got = got; d.mono = mono; d.ms = Math.round(performance.now() - t0); d.maxFrameMs = Math.round(maxGap); d.fps = Math.round(tr.n / (d.ms / 1000)); d.stat = Object.assign({}, src.stat);
+		d.ptsFirst = ptsList.slice(0, 5); d.ptsLast = ptsList.slice(-3); d.duration = src.duration;
+		// となりのフレームどうしの指紋の差（止まっている所は 0 に近い）
+		const diffs = []; for (let j = 1; j < FP.g.length; j++) diffs.push(+meanAbs(FP.g[j - 1], FP.g[j]).toFixed(2));
+		d.neighborDiff = diffs;
+		log('復号: 全フレーム', tr.n + '枚・出てきた ' + got + '枚・順序 ' + (mono ? '正しい' : '乱れ') + '・' + sec(d.ms) + '（' + d.fps + '枚/秒・1枚の最大 ' + d.maxFrameMs + 'ms）', got === tr.n && mono ? 'ok' : 'warn');
+	} catch (e) { d.error = (e.code || '') + ' ' + String(e.message || e); log('復号: 失敗', d.error, 'ng'); }
+	finally { if (src) try { src.close(); } catch (e) { /* 何もしない */ } }
+	return d;
+}
+
+/* ── シークの照らし合わせ ─────────────────────── */
+async function seekProbe(file, track) {
+	const out = { points: [], note: '各時刻で a=シーク→すぐ描く・b=シーク→次の画（requestVideoFrameCallback・最長250ms）を待って描く・c=同じ時刻へもう一度シーク（強制）→描く・d=0.5秒先へ行ってから戻る→描く。got は復号の指紋と照らしたフレームの番号（exp が期待）' };
+	let src = null, video = null;
+	const orig = document.createElement;
+	document.createElement = function (tag, o) { const el = orig.call(document, tag, o); if (!video && String(tag).toLowerCase() === 'video') video = el; return el; };
+	try {
+		try { src = await UmaVideoFrames.videoSource(file); } finally { document.createElement = orig; }
+		const W = src.width, H = src.height;
+		const sw = Math.max(16, Math.round(W / 6));
+		const c = document.createElement('canvas'); c.width = sw; c.height = H; const x = c.getContext('2d', { willReadFrequently: true });
+		// 時刻: 軌跡から 止まっている代表 と 動いている（ずれが 20px 以上） を最大 20 ずつ、時間の順に間引く
+		const stills = (track || []).filter((f) => f.rep).map((f) => f.t);
+		const moving = (track || []).filter((f) => f.step != null && f.step >= 20 && !f.still).map((f) => f.t);
+		const pick = (arr, n) => { if (arr.length <= n) return arr; const o = []; for (let i = 0; i < n; i++) o.push(arr[Math.floor(i * arr.length / n)]); return o; };
+		const pts = pick(stills, 20).map((t) => ({ t, kind: 'still' })).concat(pick(moving, 20).map((t) => ({ t, kind: 'moving' }))).sort((p, q) => p.t - q.t);
+		if (!pts.length) { const D = src.duration; for (let k = 1; k <= 20; k++) pts.push({ t: +(D * k / 21).toFixed(3), kind: 'any' }); }
+		out.counts = { still: pts.filter((p) => p.kind === 'still').length, moving: pts.filter((p) => p.kind === 'moving').length };
+		const seekRaw = (t, force) => new Promise((res, rej) => {
+			if (!force && Math.abs(video.currentTime - t) < 1e-6 && !video.seeking) { res(0); return; }
+			const s = performance.now(); let tm = null;
+			const done = () => { video.removeEventListener('seeked', done); clearTimeout(tm); res(Math.round((performance.now() - s) * 10) / 10); };
+			video.addEventListener('seeked', done); tm = setTimeout(() => { video.removeEventListener('seeked', done); rej(new Error('seek timeout')); }, 20000);
+			video.currentTime = t;
+		});
+		const grab = () => { x.drawImage(video, 0, 0, sw, H); return fingerprint(c, sw, H); };
+		const ident = (g, t) => { const id = identify(g, jAt(t), 60); return id ? { got: id.j, d: id.d, lo: id.lo, hi: id.hi, hit: id.hit ? 1 : 0 } : null; };
+		for (let i = 0; i < pts.length; i++) {
+			const p = pts[i];
+			now('シーク: ' + (i + 1) + '/' + pts.length + '（' + p.t.toFixed(2) + '秒）');
+			const r = { t: p.t, kind: p.kind, exp: FP && FP.g.length ? jAt(p.t) : null };
+			try {
+				// a: 0.5秒手前から来て、シーク→すぐ描く
+				await seekRaw(Math.max(0, p.t - 0.5), true);
+				r.aMs = await seekRaw(p.t, true); r.aCur = +video.currentTime.toFixed(4); const ga = grab(); r.a = ident(ga, p.t);
+				// b: 次の画を待つ
+				let id = 0, tmr = null;
+				const frame = new Promise((res) => { if (typeof video.requestVideoFrameCallback === 'function') id = video.requestVideoFrameCallback((n, m) => res(m)); tmr = setTimeout(() => res(null), 250); });
+				const s2 = performance.now();
+				await seekRaw(p.t, true);
+				const meta = await frame; clearTimeout(tmr); try { video.cancelVideoFrameCallback(id); } catch (e) { /* 無い */ }
+				r.bMs = Math.round((performance.now() - s2) * 10) / 10; r.bMeta = meta ? { mediaTime: +meta.mediaTime.toFixed(4), presented: meta.presentedFrames } : null;
+				const gb = grab(); r.b = ident(gb, p.t); r.ab = +meanAbs(ga, gb).toFixed(2);
+				// c: 同じ時刻へもう一度（強制）
+				r.cMs = await seekRaw(p.t, true); const gc = grab(); r.c = ident(gc, p.t); r.bc = +meanAbs(gb, gc).toFixed(2);
+				// d: 先へ行ってから戻る
+				await seekRaw(Math.min(src.duration - 0.05, p.t + 0.5), true);
+				r.dMs = await seekRaw(p.t, true); const gd = grab(); r.d = ident(gd, p.t); r.ad = +meanAbs(ga, gd).toFixed(2);
+			} catch (e) { r.error = String(e.message || e); }
+			out.points.push(r);
+		}
+		const hits = (k) => out.points.filter((p) => p[k] && p[k].hit).length, n = out.points.filter((p) => p.a).length;
+		out.summary = { n, aHit: hits('a'), bHit: hits('b'), cHit: hits('c'), dHit: hits('d'), abSame: out.points.filter((p) => p.ab != null && p.ab < 1).length, bcSame: out.points.filter((p) => p.bc != null && p.bc < 1).length, adSame: out.points.filter((p) => p.ad != null && p.ad < 1).length };
+		log('シーク: 照らし合わせ', JSON.stringify(out.summary), 'ok');
+	} catch (e) { out.error = String(e.message || e); log('シーク: 失敗', out.error, 'ng'); }
+	finally { if (src) try { src.close(); } catch (e) { /* 何もしない */ } }
+	return out;
+}
+
+/* ── 全体の流れ ─────────────────────── */
+async function start(file) {
+	REC = { page: PAGE_VERSION, ua: navigator.userAgent, env: ENV, started: new Date().toISOString(), href: location.href, file: { name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }, params: { runs: N_PROD, proto: N_PROTO, skip: Array.from(SKIP) }, log: [], visibility: [], cancelEvents: CANCELS, decode: null, product: { js: window.UmaVideoFrames ? UmaVideoFrames.VERSION : null, runs: [] }, seek: null, proto: { runs: [] }, images: {} };
+	document.addEventListener('visibilitychange', () => REC.visibility.push([+((performance.now() - T0) / 1000).toFixed(2), document.visibilityState]));
+	let wake = null; try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { /* 無くてもよい */ }
+	STALL = { at: performance.now(), what: '' };
+	const stallTimer = setInterval(() => { const q = performance.now() - STALL.at; if (q > 15000) $('now').innerHTML = '<span class="ng">止まっている？ ' + esc(STALL.what) + '（' + Math.round(q / 1000) + '秒 進まない）</span>'; }, 1000);
+	log('ファイルを選んだ', file.name + '・' + (file.type || '（type なし）') + '・' + (file.size / 1048576).toFixed(1) + 'MB');
+	// 1. 復号（全フレーム）と指紋
+	if (!SKIP.has('decode')) { REC.decode = await decodeAll(file); }
+	// 2. 製品
+	let first = null;
+	if (!SKIP.has('product')) {
+		for (let r = 1; r <= N_PROD; r++) {
+			const rec = await runOnce('product', file, r, REC.images);
+			if (r > 1 && !rec.error && first && !first.error) { const same = rec.persons.every((p, k) => first.persons[k] && p.hash === first.persons[k].hash) && rec.picks.join() === first.picks.join(); if (same) { delete rec.track; } }
+			REC.product.runs.push(rec);
+			if (!first) first = rec;
+			addRunRow('製品', rec, first);
+			log('製品 ' + r + '回目', rec.error ? '失敗 ' + rec.error : (rec.persons.map((p) => p.n + '枚/' + (p.h || 'x') + 'px').join('・') + '・選んだ ' + rec.picks.length + '枚・' + sec(rec.totalMs) + '・取り直し合わず ' + rec.stats.grabMismatch + '（直った ' + rec.stats.grabFixed + '）・シーク外れ ' + rec.seeks.filter((s) => s.miss).length + '/' + rec.seeks.length), rec.error ? 'ng' : '');
+			await sleep(300);
+		}
+	}
+	// 3. シークの照らし合わせ
+	if (!SKIP.has('seek')) REC.seek = await seekProbe(file, first && first.track);
+	// 4. 試作
+	if (!SKIP.has('proto') && (window.UmaMp4Source || (window.UmaVideoFrames && UmaVideoFrames.mp4Source)) && REC.decode && REC.decode.probe && REC.decode.probe.ok) {
+		let pf = null;
+		for (let r = 1; r <= N_PROTO; r++) {
+			const rec = await runOnce('proto', file, r, REC.images);
+			if (r > 1 && pf && !rec.error && !pf.error && rec.persons.every((p, k) => pf.persons[k] && p.hash === pf.persons[k].hash) && rec.picks.join() === pf.picks.join()) delete rec.track;
+			REC.proto.runs.push(rec);
+			if (!pf) pf = rec;
+			addRunRow('試作', rec, pf);
+			log('試作 ' + r + '回目', rec.error ? '失敗 ' + rec.error : (rec.persons.map((p) => p.n + '枚/' + (p.h || 'x') + 'px').join('・') + '・選んだ ' + rec.picks.length + '枚・' + sec(rec.totalMs) + '・取り直し合わず ' + rec.stats.grabMismatch + '・シーク外れ ' + rec.seeks.filter((s) => s.miss).length + '/' + rec.seeks.length), rec.error ? 'ng' : '');
+			await sleep(300);
+		}
+	}
+	clearInterval(stallTimer); now('');
+	REC.finished = new Date().toISOString(); REC.totalSec = +((performance.now() - T0) / 1000).toFixed(1);
+	FP = null;
+	if (wake) try { wake.release(); } catch (e) { /* 何もしない */ }
+	finish();
+}
+let OUT = null;
+function finish() {
+	const same = (runs) => { const ok = runs.filter((r) => !r.error); if (!ok.length) return '—'; const h = (r) => r.persons.map((p) => p.hash).join(' '); const n = ok.filter((r) => h(r) === h(ok[0])).length; return n + '/' + runs.length + ' 回が1回目と同じ' + (runs.length !== ok.length ? '（失敗 ' + (runs.length - ok.length) + '）' : ''); };
+	$('sum').textContent = '製品 ' + same(REC.product.runs) + '／試作 ' + same(REC.proto.runs) + '・全体 ' + REC.totalSec + '秒';
+	const json = JSON.stringify(REC);
+	const d = new Date(), p2 = (n) => String(n).padStart(2, '0');
+	const stamp = d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()); // 端末の時刻
+	const base = (REC.file.name || 'video').replace(/\.[^.]+$/, '').replace(/[^\w぀-鿿-]+/g, '_').slice(0, 24);
+	const name = 'T90-diag-' + stamp + '-' + base + '.json';
+	const blob = new Blob([json], { type: 'application/json' });
+	OUT = { blob, name };
+	$('out-info').textContent = name + '・' + (blob.size / 1048576).toFixed(1) + 'MB';
+	$('btns').hidden = false;
+	log('終わった', '記録 ' + name + '（' + (blob.size / 1048576).toFixed(1) + 'MB）。「共有」か「保存」で端末に出してください', 'ok');
+}
+$('share').addEventListener('click', async () => {
+	if (!OUT) return;
+	const f = new File([OUT.blob], OUT.name, { type: 'application/json' });
+	if (navigator.share && navigator.canShare && navigator.canShare({ files: [f] })) {
+		try { await navigator.share({ files: [f], title: OUT.name }); log('共有した', OUT.name, 'ok'); } catch (e) { log('共有: ' + (e.name === 'AbortError' ? 'やめた' : '失敗'), String(e.message || e), e.name === 'AbortError' ? 'warn' : 'ng'); }
+	} else { log('共有: この端末では使えない。「保存」を押してください', '', 'warn'); }
+});
+$('save').addEventListener('click', () => {
+	if (!OUT) return;
+	const a = document.createElement('a'); a.href = URL.createObjectURL(OUT.blob); a.download = OUT.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+	log('保存した', OUT.name + '（ダウンロード）', 'ok');
+});
+const CANCELS = [];
+const fileInput = $('file');
+let openedAt = null;
+fileInput.addEventListener('click', () => { openedAt = performance.now(); });
+fileInput.addEventListener('cancel', () => { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null }; CANCELS.push(e); log('動画を選ばずに戻った（cancel）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); });
+fileInput.addEventListener('change', async (ev) => {
 	const f = ev.target.files && ev.target.files[0];
 	if (!f) return;
 	ev.target.disabled = true;
-	['a-log', 'b-list'].forEach((id) => { $(id).innerHTML = ''; });
-	$('a-seeks').querySelectorAll('span').forEach((e) => e.remove());
-	$('a-sum').textContent = ''; $('b-sum').textContent = '';
 	$('file-info').textContent = f.name + '・' + (f.type || '（type なし）') + '・' + (f.size / 1048576).toFixed(1) + 'MB';
-	try { await runA(f); } catch (e) { $('a-sum').textContent = '想定外の失敗: ' + e.message; }
-	try { await runB(f); } catch (e) { $('b-sum').textContent = '想定外の失敗: ' + e.message; }
+	try { await start(f); } catch (e) { log('想定外の失敗', String(e.stack || e.message || e), 'ng'); if (REC) { REC.fatal = String(e.stack || e.message || e); finish(); } }
 	ev.target.disabled = false;
 });
-renderEnv();
 </script>
 </body>
 </html>
