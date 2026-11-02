@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（fetch・XHR・WebSocket・フォームの送信を、ブラウザの側で禁止する）。js はこのファイルの中だけ -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>保存領域の計測（作業用）</title>
+	<!--
+		新しい Deck の保存の方式を決める（段2）ための計測のページ（T72・2026-11-02・Deck の作り直しの段1 の調査A）。
+		**ツール本体には組み込まない**（lab/video-diag.html と同じ扱い。どのページからもリンクしない）。
+		おいもさんが iPhone で開いて「測る」を押し、画面のスクリーンショットを返す。PC の値は Code が測る。
+
+		■ 外へ何も送らない
+		- 上の Content-Security-Policy で通信（connect-src）とフォームの送信を禁止している。読み込む外のファイルも無い。
+
+		■ 今のツールのデータには触らない（2026-11-02 おいもさんの決定）
+		- 書くのは localStorage のキー「uma-lab-probe:…」と IndexedDB のデータベース「uma-lab-probe」だけ。
+		  今のツールのキー（umaSkillDeck:… や uma-exam-… など）は、読む・書く・消すのどれもしない
+		  （localStorage.key() で一覧を取ることもしない。容量の残りを測るための詰め込みもしない）。
+		- 測り終えたら試しのデータを消し、消えたことを画面に出す。途中で閉じたときに残った分は、次に開いたときに見つけて消す。
+
+		■ navigator.storage.persist() は呼ばない（2026-11-02 おいもさんの決定）
+		- 呼ぶと oimo3841.github.io の保存領域全体が「消されにくい」扱いになり、サイトのデータを消すまで戻せないため。
+		  呼ばずに分かる persisted()・estimate() だけを読む。
+
+		■ 何を測るか
+		- 端末: user agent・ホーム画面から開いたか（display-mode: standalone / navigator.standalone）・使える API の有無。
+		- 保存領域: persisted()・estimate() の usage / quota（Chrome は usageDetails も）。試しのデータを書く前と書いた後。
+		- 読み書きの時間: 親 0・100・300・1000人分の試しのデータ（親1人＝本人と祖2人のスキルの★・因子・タグ。形は段1 調査C の
+		  案ではなく、大きさを見るための仮の形）で、次の4通りを各 N 回測り、1回目と中央値を出す。
+		    LS        … localStorage の1つのキーに全員を JSON で（stringify＋setItem／getItem＋parse）
+		    IDB 1件   … IndexedDB に全員を1つの値で（put 1回／get 1回。構造化複製なので JSON にしない）
+		    IDB 1人1件 … IndexedDB に1人1件で（1つのトランザクションで put を人数ぶん／getAll 1回）
+		    IDB 開く   … データベースを開く時間（ページを開いた直後に必ずかかる分）
+		  「1回目」はページを開いて最初に読む場面に近い。2回目以降はブラウザの中の写しが温まった値。
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4; --btn: #1d5fd1; --btn-fg: #fff; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #232323; --btn: #4d8cf5; --btn-fg: #fff; } }
+		body { margin: 0; padding: 8px 12px 40px; background: var(--bg); color: var(--fg); font: 12px/1.45 -apple-system, system-ui, sans-serif; }
+		main { max-width: 760px; margin: 0 auto; }
+		h1 { font-size: 16px; margin: 0 0 6px; }
+		h2 { font-size: 13px; margin: 12px 0 4px; }
+		p { margin: 4px 0; }
+		.sub { color: var(--sub); }
+		.box { background: var(--box); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+		.ua { word-break: break-all; font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
+		.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+		button { font: inherit; font-size: 14px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--btn); background: var(--btn); color: var(--btn-fg); }
+		button.sec { background: transparent; color: var(--btn); }
+		button:disabled { opacity: .5; }
+		label { display: inline-flex; gap: 4px; align-items: center; }
+		select { font: inherit; font-size: 13px; }
+		table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+		th, td { border: 1px solid var(--line); padding: 3px 4px; font-size: 11px; text-align: right; white-space: nowrap; }
+		th:first-child, td:first-child { text-align: left; }
+		thead th { background: var(--box); }
+		.wrap { overflow-x: auto; }
+		.ok { color: var(--ok); font-weight: 600; }
+		.ng { color: var(--ng); font-weight: 600; }
+		.warn { color: var(--warn); }
+		#status { min-height: 1.4em; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>保存領域の計測（作業用）</h1>
+	<p class="sub">Deck の作り直しの調査（T72）。試しのデータ（uma-lab-probe）だけを書いて測り、終わったら消します。今のツールのデータには触りません。外へは何も送りません。</p>
+
+	<div class="row">
+		<button id="run" type="button">測る</button>
+		<label>回数 <select id="reps"><option>3</option><option selected>5</option><option>10</option></select></label>
+		<button id="clean" type="button" class="sec">試しのデータを消す</button>
+		<button id="copy" type="button" class="sec">結果を文字でコピー</button>
+	</div>
+	<p id="status" class="box">押すと 30秒〜1分ほどかかります（iPhone は長めのことがあります）。終わるまで画面を閉じないでください。</p>
+
+	<h2>端末</h2>
+	<div id="env" class="box"></div>
+
+	<h2>保存領域（persisted・estimate）</h2>
+	<div id="storage" class="wrap"></div>
+
+	<h2>読み書きの時間（ミリ秒。上: 1回目・下: 中央値）</h2>
+	<div id="timing" class="wrap"><p class="sub">まだ測っていません。</p></div>
+
+	<h2>後片付け</h2>
+	<div id="cleanup" class="box"></div>
+</main>
+<script>
+(function () {
+	'use strict';
+
+	// 試しのデータの名前。**この2つ以外の名前には触らない**
+	var LS_PREFIX = 'uma-lab-probe:';
+	var LS_KEY = LS_PREFIX + 'parents';
+	var DB_NAME = 'uma-lab-probe';
+	var STORE_ONE = 'blob';     // 全員を1つの値で
+	var STORE_EACH = 'parents'; // 1人1件
+	var COUNTS = [0, 100, 300, 1000];
+	// 1人が持つスキルの数（本人・祖2人それぞれ）。UmaStar の欲しいスキル約100種のうち、1人が★を持つ数の目安
+	var SKILLS_PER_PERSON = 40;
+	var SKILL_POOL = 500;
+
+	var $ = function (id) { return document.getElementById(id); };
+	var lines = [];   // 「結果を文字でコピー」用
+	var busy = false;
+
+	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+	function status(msg, cls) { var el = $('status'); el.className = 'box' + (cls ? ' ' + cls : ''); el.textContent = msg; }
+	function fmtBytes(n) {
+		if (typeof n !== 'number' || !isFinite(n)) return '—';
+		if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+		if (n >= 1048576) return (n / 1048576).toFixed(2) + ' MB';
+		if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+		return n + ' B';
+	}
+	function ms(v) { return typeof v === 'number' ? (v < 10 ? v.toFixed(2) : v.toFixed(1)) : '—'; }
+	function median(a) { var s = a.slice().sort(function (x, y) { return x - y; }); var m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+	function now() { return performance.now(); }
+	function idle() { return new Promise(function (r) { setTimeout(r, 30); }); }
+
+	/* ---------- 端末 ---------- */
+	function envInfo() {
+		var standalone = false;
+		try { standalone = window.matchMedia('(display-mode: standalone)').matches; } catch (e) {}
+		var info = {
+			ua: navigator.userAgent,
+			standalone: standalone || navigator.standalone === true,
+			localStorage: lsAvailable(),
+			indexedDB: typeof indexedDB !== 'undefined',
+			storageManager: !!(navigator.storage && navigator.storage.estimate),
+			databases: typeof indexedDB !== 'undefined' && typeof indexedDB.databases === 'function',
+			origin: location.origin
+		};
+		$('env').innerHTML =
+			'<div class="ua">' + esc(info.ua) + '</div>' +
+			'<div>場所: ' + esc(info.origin) + '　ホーム画面から開いた: ' + (info.standalone ? 'はい' : 'いいえ') + '</div>' +
+			'<div>localStorage: ' + yn(info.localStorage) + '　IndexedDB: ' + yn(info.indexedDB) +
+			'　navigator.storage: ' + yn(info.storageManager) + '　indexedDB.databases(): ' + yn(info.databases) + '</div>';
+		lines.push('UA: ' + info.ua, 'origin: ' + info.origin + ' / standalone: ' + info.standalone,
+			'localStorage: ' + info.localStorage + ' / indexedDB: ' + info.indexedDB + ' / storage: ' + info.storageManager);
+		return info;
+	}
+	function yn(b) { return b ? '<span class="ok">使える</span>' : '<span class="ng">使えない</span>'; }
+	function lsAvailable() {
+		try { localStorage.setItem(LS_PREFIX + 'check', '1'); localStorage.removeItem(LS_PREFIX + 'check'); return true; } catch (e) { return false; }
+	}
+
+	/* ---------- persisted・estimate（persist() は呼ばない） ---------- */
+	async function readStorage(label) {
+		var row = { label: label, persisted: '—', usage: null, quota: null, details: '' };
+		if (navigator.storage && navigator.storage.persisted) {
+			try { row.persisted = String(await navigator.storage.persisted()); } catch (e) { row.persisted = 'エラー: ' + e.name; }
+		}
+		if (navigator.storage && navigator.storage.estimate) {
+			try {
+				var est = await navigator.storage.estimate();
+				row.usage = est.usage; row.quota = est.quota;
+				if (est.usageDetails) row.details = Object.keys(est.usageDetails).map(function (k) { return k + ' ' + fmtBytes(est.usageDetails[k]); }).join('・');
+			} catch (e) { row.details = 'エラー: ' + e.name; }
+		}
+		return row;
+	}
+	function renderStorage(rows) {
+		var h = '<table><thead><tr><th>時点</th><th>persisted()</th><th>usage<br>quota</th></tr></thead><tbody>';
+		rows.forEach(function (r) {
+			h += '<tr><td style="white-space:normal">' + esc(r.label) + (r.details ? '<br><span class="sub">' + esc(r.details) + '</span>' : '') +
+				'</td><td>' + esc(r.persisted) + '</td><td>' + fmtBytes(r.usage) + '<br>' + fmtBytes(r.quota) + '</td></tr>';
+		});
+		$('storage').innerHTML = h + '</tbody></table>';
+	}
+
+	/* ---------- 試しのデータ（仮の形。大きさを見るためのもの） ---------- */
+	function person(seed) {
+		var stars = {};
+		for (var i = 0; i < SKILLS_PER_PERSON; i++) stars['s' + ((seed * 37 + i * 11) % SKILL_POOL)] = 1 + ((seed + i) % 3);
+		return {
+			charaId: 'c' + (100000 + seed % 120), costumeId: 'k' + (seed % 300),
+			blue: { stat: ['speed', 'stamina', 'power', 'guts', 'wit'][seed % 5], stars: 1 + seed % 3 },
+			red: { apt: ['turf', 'dirt', 'short', 'mile', 'middle', 'long', 'front', 'pace', 'late', 'end'][seed % 10], stars: 1 + (seed >> 1) % 3 },
+			green: { uniqueId: 'u' + (seed % 200), stars: 1 + (seed >> 2) % 3 },
+			skills: stars,
+			genes: [{ id: 'g' + seed % 10, stars: 1 + seed % 3 }]
+		};
+	}
+	function makeParents(n) {
+		var out = [];
+		for (var i = 0; i < n; i++) {
+			out.push({
+				id: 'p' + i, createdAt: new Date(1762000000000 + i * 60000).toISOString(), friend: i % 7 === 0,
+				tags: ['11月LoH', ['短距離', 'マイル', '中距離', '長距離'][i % 4], ['逃げ', '先行', '差し', '追込'][i % 4]],
+				self: person(i * 3), grand1: person(i * 3 + 1), grand2: person(i * 3 + 2),
+				grand1LinkId: i > 3 && i % 3 === 0 ? 'p' + (i - 3) : null, grand2LinkId: null
+			});
+		}
+		return out;
+	}
+
+	/* ---------- localStorage ---------- */
+	function lsWrite(parents) {
+		var t0 = now();
+		localStorage.setItem(LS_KEY, JSON.stringify({ v: 1, parents: parents }));
+		return now() - t0;
+	}
+	function lsRead(expect) {
+		var t0 = now();
+		var raw = localStorage.getItem(LS_KEY);
+		var obj = raw ? JSON.parse(raw) : null;
+		var t = now() - t0;
+		var n = obj && obj.parents ? obj.parents.length : 0;
+		if (n !== expect) throw new Error('localStorage の読み戻しの件数が違う（' + n + '／' + expect + '）');
+		return t;
+	}
+
+	/* ---------- IndexedDB ---------- */
+	function req(r) { return new Promise(function (ok, ng) { r.onsuccess = function () { ok(r.result); }; r.onerror = function () { ng(r.error); }; }); }
+	function txDone(tx) { return new Promise(function (ok, ng) { tx.oncomplete = function () { ok(); }; tx.onerror = function () { ng(tx.error); }; tx.onabort = function () { ng(tx.error || new Error('abort')); }; }); }
+	function openDb() {
+		return new Promise(function (ok, ng) {
+			var r = indexedDB.open(DB_NAME, 1);
+			r.onupgradeneeded = function () {
+				var db = r.result;
+				if (!db.objectStoreNames.contains(STORE_ONE)) db.createObjectStore(STORE_ONE);
+				if (!db.objectStoreNames.contains(STORE_EACH)) db.createObjectStore(STORE_EACH, { keyPath: 'id' });
+			};
+			r.onsuccess = function () { ok(r.result); };
+			r.onerror = function () { ng(r.error); };
+			r.onblocked = function () { ng(new Error('blocked')); };
+		});
+	}
+	async function timeOpen() {
+		var t0 = now();
+		var db = await openDb();
+		var t = now() - t0;
+		db.close();
+		return t;
+	}
+	async function idbClear(db) {
+		var tx = db.transaction([STORE_ONE, STORE_EACH], 'readwrite');
+		tx.objectStore(STORE_ONE).clear();
+		tx.objectStore(STORE_EACH).clear();
+		await txDone(tx);
+	}
+	async function idbOneWrite(db, parents) {
+		var t0 = now();
+		var tx = db.transaction(STORE_ONE, 'readwrite');
+		tx.objectStore(STORE_ONE).put({ v: 1, parents: parents }, 'all');
+		await txDone(tx);
+		return now() - t0;
+	}
+	async function idbOneRead(db, expect) {
+		var t0 = now();
+		var tx = db.transaction(STORE_ONE, 'readonly');
+		var v = await req(tx.objectStore(STORE_ONE).get('all'));
+		var t = now() - t0;
+		var n = v && v.parents ? v.parents.length : 0;
+		if (n !== expect) throw new Error('IndexedDB（1件）の読み戻しの件数が違う（' + n + '／' + expect + '）');
+		return t;
+	}
+	async function idbEachWrite(db, parents) {
+		var t0 = now();
+		var tx = db.transaction(STORE_EACH, 'readwrite');
+		var st = tx.objectStore(STORE_EACH);
+		st.clear();
+		parents.forEach(function (p) { st.put(p); });
+		await txDone(tx);
+		return now() - t0;
+	}
+	async function idbEachRead(db, expect) {
+		var t0 = now();
+		var tx = db.transaction(STORE_EACH, 'readonly');
+		var all = await req(tx.objectStore(STORE_EACH).getAll());
+		var t = now() - t0;
+		if (all.length !== expect) throw new Error('IndexedDB（1人1件）の読み戻しの件数が違う（' + all.length + '／' + expect + '）');
+		return t;
+	}
+
+	/* ---------- 後片付け（試しのデータだけ） ---------- */
+	function deleteDb() {
+		return new Promise(function (ok) {
+			var r;
+			try { r = indexedDB.deleteDatabase(DB_NAME); } catch (e) { ok('エラー: ' + e.name); return; }
+			r.onsuccess = function () { ok('ok'); };
+			r.onerror = function () { ok('エラー: ' + (r.error && r.error.name)); };
+			r.onblocked = function () { ok('blocked'); };
+		});
+	}
+	async function probeLeft() {
+		var ls = null, db = null;
+		try { ls = localStorage.getItem(LS_KEY) !== null || localStorage.getItem(LS_PREFIX + 'check') !== null; } catch (e) { ls = null; }
+		if (typeof indexedDB !== 'undefined' && typeof indexedDB.databases === 'function') {
+			try { db = (await indexedDB.databases()).some(function (d) { return d.name === DB_NAME; }); } catch (e) { db = null; }
+		}
+		return { ls: ls, db: db };
+	}
+	async function cleanup(where) {
+		try { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_PREFIX + 'check'); } catch (e) {}
+		var del = typeof indexedDB !== 'undefined' ? await deleteDb() : '（IndexedDB なし）';
+		var left = await probeLeft();
+		var lsText = left.ls === null ? '確かめられない' : (left.ls ? '<span class="ng">残っている</span>' : '<span class="ok">消えた</span>');
+		var dbText = left.db === null ? '（一覧を取れないので、削除の結果 ' + esc(del) + ' で判断）' : (left.db ? '<span class="ng">残っている</span>' : '<span class="ok">消えた</span>');
+		$('cleanup').innerHTML = esc(where) + '：localStorage「' + esc(LS_KEY) + '」→ ' + lsText +
+			'　IndexedDB「' + esc(DB_NAME) + '」→ ' + dbText + '（deleteDatabase: ' + esc(del) + '）';
+		lines.push('cleanup(' + where + '): ls=' + (left.ls === null ? '?' : (left.ls ? 'LEFT' : 'gone')) + ' idb=' + (left.db === null ? '?' : (left.db ? 'LEFT' : 'gone')) + ' delete=' + del);
+		return left;
+	}
+
+	/* ---------- 計測 ---------- */
+	async function run() {
+		if (busy) return;
+		busy = true; $('run').disabled = true; $('clean').disabled = true;
+		lines = [];
+		var reps = Number($('reps').value) || 5;
+		var env = envInfo();
+		var storageRows = [];
+		var results = [];
+		try {
+			await cleanup('始める前');
+			storageRows.push(await readStorage('書く前'));
+			renderStorage(storageRows);
+
+			var openTimes = [];
+			if (env.indexedDB) {
+				status('IndexedDB を開く時間を測っています…');
+				for (var o = 0; o < reps; o++) { openTimes.push(await timeOpen()); await idle(); }
+			}
+			var maxUsage = null;
+			for (var ci = 0; ci < COUNTS.length; ci++) {
+				var n = COUNTS[ci];
+				var parents = makeParents(n);
+				var size = JSON.stringify({ v: 1, parents: parents }).length;
+				var r = { n: n, chars: size, ls: { w: [], r: [] }, one: { w: [], r: [] }, each: { w: [], r: [] }, err: '' };
+				for (var k = 0; k < reps; k++) {
+					status('親 ' + n + '人分（' + (k + 1) + '／' + reps + '回目）を測っています…');
+					if (env.localStorage) {
+						try { r.ls.w.push(lsWrite(parents)); await idle(); r.ls.r.push(lsRead(n)); }
+						catch (e) { r.err += 'LS: ' + e.name + ' ' + e.message + '　'; }
+						try { localStorage.removeItem(LS_KEY); } catch (e) {}
+					}
+					if (env.indexedDB) {
+						var db = await openDb();
+						try {
+							await idbClear(db);
+							r.one.w.push(await idbOneWrite(db, parents)); await idle(); r.one.r.push(await idbOneRead(db, n));
+							r.each.w.push(await idbEachWrite(db, parents)); await idle(); r.each.r.push(await idbEachRead(db, n));
+						} catch (e) { r.err += 'IDB: ' + e.name + ' ' + e.message + '　'; }
+						if (k === reps - 1 && ci === COUNTS.length - 1) {
+							// 最大の人数を書いたままの姿で estimate を読む（そのあと消す）
+							storageRows.push(await readStorage('親 ' + n + '人分を書いた後（IDB の2通り）'));
+						}
+						await idbClear(db).catch(function () {});
+						db.close();
+					}
+					await idle();
+				}
+				results.push(r);
+				renderTiming(results, openTimes);
+			}
+			renderStorage(storageRows);
+			var left = await cleanup('測り終えた後');
+			storageRows.push(await readStorage('消した後'));
+			renderStorage(storageRows);
+			storageRows.forEach(function (s) { lines.push('storage[' + s.label + ']: persisted=' + s.persisted + ' usage=' + s.usage + ' quota=' + s.quota + (s.details ? ' (' + s.details + ')' : '')); });
+			var bad = results.some(function (x) { return x.err; });
+			status(bad ? '測り終えました（一部でエラーがありました。表の下の赤い字を見てください）。' : '測り終えました。この画面全体のスクリーンショットを撮ってください（長いときは2枚に分けて）。',
+				bad || left.ls || left.db ? 'warn' : 'ok');
+		} catch (e) {
+			status('途中で止まりました: ' + e.name + ' ' + e.message, 'ng');
+			lines.push('ERROR: ' + e.name + ' ' + e.message);
+			await cleanup('止まった後');
+		} finally {
+			busy = false; $('run').disabled = false; $('clean').disabled = false;
+		}
+	}
+
+	function cell(a) { return a.length ? ms(a[0]) + '<br><span class="sub">' + ms(median(a)) + '</span>' : '—'; }
+	function renderTiming(results, openTimes) {
+		// 行＝やり方・列＝人数（iPhone の幅に収まるように、人数を横に並べる）
+		var rowsDef = [
+			['大きさ（文字）', function (r) { return r.chars.toLocaleString(); }],
+			['LS 書く', function (r) { return cell(r.ls.w); }], ['LS 読む', function (r) { return cell(r.ls.r); }],
+			['IDB 1件 書く', function (r) { return cell(r.one.w); }], ['IDB 1件 読む', function (r) { return cell(r.one.r); }],
+			['IDB 1人1件 書く', function (r) { return cell(r.each.w); }], ['IDB 1人1件 読む', function (r) { return cell(r.each.r); }]
+		];
+		var h = '<table><thead><tr><th>親の人数</th>' + results.map(function (r) { return '<th>' + r.n + '人</th>'; }).join('') + '</tr></thead><tbody>';
+		rowsDef.forEach(function (d) {
+			h += '<tr><td>' + d[0] + '</td>' + results.map(function (r) { return '<td>' + d[1](r) + '</td>'; }).join('') + '</tr>';
+		});
+		h += '</tbody></table>';
+		var errs = results.filter(function (r) { return r.err; });
+		if (errs.length) h += '<p class="ng">' + errs.map(function (r) { return esc(r.n + '人: ' + r.err); }).join('<br>') + '</p>';
+		h += '<p class="sub">IndexedDB を開く: 1回目 ' + (openTimes.length ? ms(openTimes[0]) + '・中央値 ' + ms(median(openTimes)) : '—') + ' ミリ秒（データベースが空の状態）。' +
+			'LS＝localStorage（JSON の文字列にして1つのキー）。IDB 1件＝全員を1つの値。IDB 1人1件＝1つのトランザクションで人数ぶん。</p>';
+		$('timing').innerHTML = h;
+		lines = lines.filter(function (l) { return l.indexOf('timing ') !== 0; });
+		lines.push('timing open: ' + openTimes.map(ms).join(','));
+		results.forEach(function (r) {
+			lines.push('timing n=' + r.n + ' chars=' + r.chars + ' lsW=' + r.ls.w.map(ms).join(',') + ' lsR=' + r.ls.r.map(ms).join(',') +
+				' oneW=' + r.one.w.map(ms).join(',') + ' oneR=' + r.one.r.map(ms).join(',') + ' eachW=' + r.each.w.map(ms).join(',') + ' eachR=' + r.each.r.map(ms).join(',') + (r.err ? ' ERR=' + r.err : ''));
+		});
+	}
+
+	async function copyText() {
+		var text = lines.join('\n');
+		try { await navigator.clipboard.writeText(text); status('結果をコピーしました（' + lines.length + '行）。', 'ok'); }
+		catch (e) {
+			var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+			try { document.execCommand('copy'); status('結果をコピーしました。', 'ok'); } catch (e2) { status('コピーできませんでした。スクリーンショットでお願いします。', 'warn'); }
+			ta.remove();
+		}
+	}
+
+	$('run').addEventListener('click', run);
+	$('clean').addEventListener('click', function () { cleanup('ボタンで').then(function () { status('試しのデータを消しました。', 'ok'); }); });
+	$('copy').addEventListener('click', copyText);
+
+	// 開いたとき: 端末の表示と、前回の残りがあれば消す
+	envInfo();
+	probeLeft().then(function (left) {
+		if (left.ls || left.db) cleanup('前回の残りを見つけたので消した');
+		else $('cleanup').textContent = '試しのデータは残っていません。';
+	});
+	readStorage('開いたとき').then(function (r) { renderStorage([r]); });
+})();
+</script>
+</body>
+</html>
