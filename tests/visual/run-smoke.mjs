@@ -125,6 +125,7 @@ import { register95 } from './blocks-95.mjs';
 import { register96 } from './blocks-96.mjs';
 import { register97 } from './blocks-97.mjs';
 import { register98 } from './blocks-98.mjs';
+import { register99 } from './blocks-99.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15488,6 +15489,8 @@ await register96({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register97({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T82（2026-11-02）: 動画の読み込みの上限 20秒と、取り込みが成功したあと自動で結合して③に出す流れ（C-259・C-258 の T69 への回答 7〜9。見出しは「T82動画の上限と成功後」）
 await register98({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T88（2026-11-02）: 新しい Deck の α版（deck-alpha.html・deck-alpha-register.html。C-275。見出しは「T88 Deck α」）
+await register99({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
