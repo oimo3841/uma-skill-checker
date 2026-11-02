@@ -182,12 +182,13 @@ export async function register13(env) {
 		await sp.page.click(T + OPEN); await settle(sp.page);
 		const v1 = await view();
 		assert(v1.text && v1.text.length === 1 && v1.text[0] === 'この組み合わせでは指定を満たせません' && v1.foot, 'オススメサポ段13A2 画面（組み合わせで満たせない）: 種類を並べず「この組み合わせでは指定を満たせません」の1行だけ', v1);
-		assert(v1.kids.every((k) => k === 'outside-slot') && v1.cardsH <= v1.tilesH + 1 && v1.gapHeadToList <= v1.cardsH + 16 && v1.listH <= v1.noteH + 4, 'オススメサポ段13A3 カードの欄は残りの枠のタイルの高さ（' + v1.cardsH + 'px）だけで、その下にすぐ文（間 ' + v1.gapHeadToList + 'px）・文の箱は文の高さ（' + v1.listH + 'px）。カードの欄の空白（120px）とチェックリストの高さ（268px）を取らない', v1);
+		// T75（C-266 の (5)）: カードの欄と文の間に、除外が無いときのアイコンだけの行（28px＋下の間 8px）が入る（間の上限 cardsH + 16 → cardsH + 52）
+		assert(v1.kids.every((k) => k === 'outside-slot') && v1.cardsH <= v1.tilesH + 1 && v1.gapHeadToList <= v1.cardsH + 52 && v1.listH <= v1.noteH + 4, 'オススメサポ段13A3 カードの欄は残りの枠のタイルの高さ（' + v1.cardsH + 'px）だけで、その下にすぐ文（間 ' + v1.gapHeadToList + 'px）・文の箱は文の高さ（' + v1.listH + 'px）。カードの欄の空白（120px）とチェックリストの高さ（268px）を取らない', v1);
 		await close(sp.page);
 		await sp.page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ typeMin: { 2: 3 } }));
 		await sp.page.click(T + OPEN); await settle(sp.page);
 		const v2 = await view();
-		assert(v2.text && v2.text.join('|') === '指定を満たす組み合わせがありません|足りない種類：スタミナ' && v2.cardsH <= v2.tilesH + 1 && v2.gapHeadToList <= v2.cardsH + 16 && v2.listH <= v2.noteH + 4,
+		assert(v2.text && v2.text.join('|') === '指定を満たす組み合わせがありません|足りない種類：スタミナ' && v2.cardsH <= v2.tilesH + 1 && v2.gapHeadToList <= v2.cardsH + 52 && v2.listH <= v2.noteH + 4,
 			'オススメサポ段13A2・A3 画面（候補が足りない）: 「指定を満たす組み合わせがありません」と「足りない種類：スタミナ」（今のまま）。空白は出さない', v2);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13A2 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
@@ -483,7 +484,7 @@ export async function register13(env) {
 		await pickBy(5, 'syn-P');
 		const t1 = await modalTiles(sp.page);
 		const d1 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
-		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /×$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
+		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /×対象\d+種$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
 			'オススメサポ段13C1 選ぶと、5枠目に番号の札つきで入り（「解除」。段13 の仕上げ）、セットに保存（pinned）。同じキャラクターの P2 はオススメに出ない', { t1, d1 });
 		// 同じキャラクターのカードは選べない
 		await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="6"]');

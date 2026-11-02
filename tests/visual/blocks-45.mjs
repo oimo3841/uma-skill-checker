@@ -106,7 +106,8 @@ export async function register45(env) {
 				return srcKey(t.type) !== 'type:' + KEYS[c.typeOrder] || t.typeAlt !== TYPE_NAMES[c.typeOrder] || srcKey(t.rar) !== wantRar || (wantRar && t.rarAlt !== c.rarity);
 			});
 			assert(bad.length === 0, tag + '種別アイコンとレアリティバッジは、データの種別・レアリティどおり（alt も同じ）', { bad });
-			assert(tiles.every((t) => t.typeBox[0] === 20 && t.typeBox[1] === 20 && t.typeLeft && t.rarRight && t.rarBox[0] >= 22 && t.rarBox[0] <= 24), tag + '種別アイコンは左に20px・バッジは右に22〜24px', tiles.map((t) => [t.typeBox, t.rarBox]));
+			// T75（C-266 の (4)・案2）: レアリティのバッジは右（22px）から左の種別アイコンの下（16px）へ移った
+			assert(tiles.every((t) => t.typeBox[0] === 20 && t.typeBox[1] === 20 && t.typeLeft && t.rarRight === false && t.rarBox[0] === 16 && t.rarBox[1] === 16), tag + '種別アイコンは左に20px・バッジはその下に16px（T75。それまでは右に22〜24px）', tiles.map((t) => [t.typeBox, t.rarBox]));
 			assert(new Set(tiles.map((t) => t.bg)).size === 1 && tiles.every((t) => t.bgImg === 'none'), tag + 'カードの面は種別によらず同じ無彩色の面（色の塗り・グラデーションなし）', tiles.map((t) => [t.bg, t.bgImg]));
 			const cand = tiles.filter((t) => !t.pinned), pin = tiles.filter((t) => t.pinned);
 			assert(cand.every((t) => t.bw === '1px') && pin.length === 1 && pin[0].bw === '2px' && new Set(tiles.map((t) => t.bc)).size <= 2, tag + '候補の外枠は細い線（1px）・編成に入れ済みのカードは少し太い線（2px）。枠の色は無彩色（種別・レアリティで変わらない）', tiles.map((t) => [t.pinned, t.bw, t.bc]));

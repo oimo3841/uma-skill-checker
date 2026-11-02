@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-02b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-02c';
 
 	/* ============================================================
 	 * 定数
@@ -5796,11 +5796,13 @@
 	// 収録データの入力ページは `isReferableSkillId()` で外しているので、残しても影響は無い。
 	function buildSkillTextIndex(opts) {
 		const searchableOnly = !!(opts && opts.searchableOnly);
+		// T75: opts.withGold … searchableOnly でも、拡張スキルの金スキル（スキルPt の区分が金）を入れる（ピン止めの検索だけ。選べない行として出す）
+		const withGold = !!(opts && opts.withGold);
 		// 進化スキルは照合の辞書に入れない（2026-10-12・おいもさんの方針。OCR・貼り付けの照合が重いため）。findSkill では引ける。
 		// 進化スキルの一覧は loadSkillEvolutions が読んだあとに分かる（読めていなければ外せないので、辞書を使う入口は先に待つこと）
 		const pool = masterSkills.map(sk => ({ id: sk.id, name: sk.name }))
 			.concat(searchableOnly ? [] : (ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })))
-			.concat(extraCatalog.filter(x => (!searchableOnly || isSearchableCatalogEntry(x)) && !isEvolvedSkillId(x.id)).map(x => ({ id: x.id, name: x.name })));
+			.concat(extraCatalog.filter(x => (!searchableOnly || isSearchableCatalogEntry(x) || (withGold && outsideIsGold(x.id))) && !isEvolvedSkillId(x.id)).map(x => ({ id: x.id, name: x.name })));
 		return pool.map(p => ({ id: p.id, name: p.name, norm: normalizeSkillText(p.name) }));
 	}
 
@@ -6282,6 +6284,14 @@
 		'.usd-out-card-xg { font-size: 15px; line-height: 1; color: var(--uma-text-subtle); }',
 		'.usd-out-card-xt { font-size: 11px; line-height: 1; color: var(--uma-text-subtle); text-decoration: underline; }',
 		'.usd-out-card-x:hover .usd-out-card-xg, .usd-out-card-x:hover .usd-out-card-xt { color: var(--uma-text-heading); }',
+		// T75（C-266 の (4)・T71 のモックの案2）: オススメのカードと残りの枠に指定したカードのタイル。SSR の札を左の種別アイコンの下へ（16px）・右の上の段に「＋X種」（右上の × の左）・
+		// 下の段に小さい字の「対象Y種」。× は右上（押せる範囲 44 × 44 のまま）。右の列が低くなるぶん、タイルの高さは今の 44.2px にそろえる（名前の押せる部分を低くしない）
+		'.usd-out-card--t2 { min-height: 44.2px; }',
+		'.usd-out-card--t2 .usd-out-card-lead { flex-direction: column; justify-content: center; gap: 0; align-self: stretch; }',
+		'.usd-out-card--t2 .usd-out-card-lead > .usd-card-ico--rarity { width: 16px; height: 16px; }',
+		'.usd-out-card--t2 .usd-out-card-x { top: 0; bottom: auto; align-items: flex-start; padding: 5px 5px 0 0; }',
+		'.usd-out-card--t2 .usd-out-card-sub--x { padding-right: 17px; }',
+		'.usd-out-card-target { font-size: 9px; line-height: 1.2; color: var(--uma-text-subtle); white-space: nowrap; }',
 		// 残りの枠（段13・C1）: 「N サポカを選ぶ」は①の空きのカード枠と同じ見た目（破線・薄い文字・番号の札）。指定したカードは番号の札を先頭に付ける
 		'.usd-out-slot { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; min-height: 44px; box-sizing: border-box; padding: 0 var(--uma-sp-1-5);',
 		'  border: 1px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-muted); font: inherit; font-size: var(--uma-fs-sm); line-height: 1.2; font-weight: 600; text-align: left; cursor: pointer; }',
@@ -6356,6 +6366,12 @@
 		'.usd-out-recalc { flex: none; padding: var(--uma-sp-1-5) var(--uma-sp-2-5); gap: var(--uma-sp-1); font-size: var(--uma-fs-xs); }',
 		'.usd-out-exbtn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; min-height: 28px; padding: 0 var(--uma-sp-2); border: 0; background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
 		'.usd-out-excl { margin-bottom: var(--uma-sp-2); }',
+		// T75（C-266 の (5)・T71 のモック）: 「除外中」の左の、ピン止めするスキルを探すアイコン（虫眼鏡＋ピン）。行のピンのボタン（.usd-out-pin）と同じ部品で見た目 24 × 24・押せる範囲 44 × 44。
+		// アイコンと「除外中…」の間に縦の線（区切り。色は今の線のトークン）。除外が1件も無いときは、同じ位置にアイコンだけの行（高さは除外中の行と同じ 28px・区切りは出さない）
+		'.usd-out-pin.usd-out-pinsearch { width: 24px; height: 24px; flex: none; }',
+		'.usd-out-pinsearch-ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }',
+		'.usd-out-pinsep { flex: none; width: 1px; height: 16px; margin-inline: 2px; background: var(--uma-border-strong); }',
+		'.usd-out-excl--none .usd-out-exhead { min-height: 28px; }',
 		'.usd-out-note { margin: 0; padding: var(--uma-sp-3); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-results.usd-out-list { height: 244px; }',
 		'.usd-out-row { min-width: 0; }',
@@ -6755,6 +6771,9 @@
 		'.usd-tsearch .usd-tsearch-row--active { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
 		// 追加候補の欄（下の帯のすぐ上）。札を2段まで見せ、3段目を上半分（14px）だけ覗かせ、それ以上は欄の中をスクロール
 		'.usd-tsearch-tray { flex: none; margin-top: 2px; border: 1px solid var(--usd-ui-line, var(--uma-border)); border-radius: 10px; background: var(--uma-surface-sunken); }',
+		// T75: ピン止めするスキルを探す小窓は、追加候補の欄を出さない（狭い幅の display: flex より強く）。オススメサポの小窓（.usd-modal・80）の上に重ねる
+		'.usd-tsearch-tray[hidden] { display: none; }',
+		'.usd-modal[data-usd-picker-over] { z-index: 95; }',
 		'.usd-tsearch-tray-in { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; max-height: calc(28px * 2 + 4px * 2 + 4px + 14px); overflow-y: auto; overscroll-behavior: contain; }',
 		/* スマホ幅（640px 以下）の寸法（T38・おいもさんの決定 2026-10-31・T35 のモックの a3 の写し）。PC 幅は上のまま（一覧が残りを受け取る・上限 720px）。
 		 *   - 小窓の高さは中身に合わせる（上限は画面の上 12px まで。見える高さに合わせているとき〔data-usd-fit・fitSearchPicker〕は器の高さ − 6px まで）
@@ -8187,6 +8206,8 @@
 	// ②への追加の知らせ（段F1）に出す、追加元の名前。入口のボタンの文字と同じ（緑スキルは1件ずつ足して知らせを出さないので無い）。
 	// T28（2026-10-31）: 貼り付けの照合（識別子 paste のまま）は「リストを貼り付けて追加」に改名。「テキストで検索」は新しい入口（search）の名前
 	const PICKER_NOTICE_LABELS = { filter: '条件で検索', search: 'テキストで検索', paste: 'リストを貼り付けて追加', ocr: 'スクショで追加' };
+	// T75（C-266 の (5)）: オススメサポの「除外中」の行の左のアイコンの読み上げ名・title と、そこから開く小窓の題
+	const PIN_SEARCH_LABEL = 'ピン止めするスキルを探す';
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
 		// 識別子 `filter` と、コード内の説明の「条件でスキルを検索」は変えない＝恒久ルール19）。
@@ -8204,6 +8225,11 @@
 		 * 「条件で検索」の「チェックしたスキルを追加」と同じ addCheckedSkills を通る。押したら小窓を閉じる。
 		 * 閉じると欄は捨てる（openPicker が picker.checked を空に戻す）。中身は renderSearchResults／renderSearchTray */
 		search: { title: 'テキストで検索', commit: true },
+		/* 7つ目（T75・2026-11-02・C-266 の (5)）。**オススメサポの「除外中」の行の左のアイコンから開く、ピン止めするスキルを探す小窓。**
+		 * 「テキストで検索」の部品（入力欄・件数・候補の一覧）をそのまま使い、追加候補の欄と「追加（N種）」は出さない＝ commit: false。
+		 * 候補は白スキルと金スキル（findSkillsByNameFragment の withGold）。選べる行を押すとすぐピン止めして閉じる（1つずつ）。
+		 * 選べるかと理由は呼び出し側（picker.onAdd.reasonOf）が決める。押したときの処理は picker.onAdd.pin。オススメサポの小窓の上に重ねる */
+		pin: { title: PIN_SEARCH_LABEL, commit: false },
 		// 【INTENTIONALLY_REMOVED・2026-09-27（C-100）】3つ目の `custom`（「未収録スキルを追加」＝名前とタグを
 		// 手入力してカスタムスキルを作る画面）は、カスタムスキルを作る手段ごと廃止した。
 		// 4つ目（スキルセットOCR・フェーズa コミット3）。外で照合を済ませた行（ID付きの候補一覧）を受け取って、
@@ -8335,6 +8361,8 @@
 		// preventDefault() を立てるので譲る。こちらも処理したら立てる（二重に閉じないため）。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape' || e.defaultPrevented) return;
+			// T75: ピン止めするスキルを探す小窓（オススメサポの上に重ねる）は Esc で閉じる（下のオススメサポは閉じない。オススメサポの側も、この小窓が開いている間は譲る）
+			if (pickerEl && !pickerEl.hidden && picker.mode === 'pin') { closePicker(); e.preventDefault(); return; }
 			if (!pickerEl || pickerEl.hidden || pasteName.row < 0) return;
 			closePasteNameFinder();
 			e.preventDefault();
@@ -8361,7 +8389,7 @@
 			else if (act === 'opts-more') scrollOptionsByRow(btn.dataset.usdAxis);
 			// テキストで検索（T28）は、まとめて足したら小窓を閉じる（足す処理・Undo・知らせは「条件で検索」と同じ）
 			else if (act === 'picker-add') { const closeAfter = picker.mode === 'search' && picker.checked.size > 0; addCheckedSkills(); if (closeAfter) closePicker(); }
-			else if (act === 'search-pick') enqueueSearchSkill(btn.dataset.skillId);
+			else if (act === 'search-pick') { if (picker.mode === 'pin') pinSearchSkill(btn.dataset.skillId); else enqueueSearchSkill(btn.dataset.skillId); }
 			else if (act === 'search-remove') dequeueSearchSkill(btn.dataset.skillId, btn);
 			else if (act === 'search-clear') { const inp = q(pickerEl, 'search-input'); inp.value = ''; searchUi.active = -1; renderSearchResults(); focusNoScroll(inp); }
 			else if (act === 'paste-run') runPasteMatch();
@@ -9248,17 +9276,23 @@
 	let searchUi = { active: -1, ids: [] };
 
 	function renderSearchResults() {
-		if (!pickerEl || picker.mode !== 'search') return;
+		if (!pickerEl || !isSearchPickerMode()) return;
 		const input = q(pickerEl, 'search-input');
 		const out = q(pickerEl, 'search-results');
 		const count = q(pickerEl, 'search-count');
 		if (!input || !out) return;
 		const added = new Set(picker.excludeIds);
+		const pin = picker.mode === 'pin';
 		// 開いている間に①が変わって選べなくなった（または追加済みになった）ものは、欄から落とす
-		Array.from(picker.checked).forEach(id => { if (added.has(id) || isPickerBlocked(id)) picker.checked.delete(id); });
-		renderSearchTray();
+		if (!pin) { Array.from(picker.checked).forEach(id => { if (added.has(id) || isPickerBlocked(id)) picker.checked.delete(id); }); renderSearchTray(); }
 		q(pickerEl, 'search-clear').hidden = !input.value;
-		const found = findSkillsByNameFragment(input.value, { searchableOnly: true, limit: Infinity, foldKana: true });
+		// T75: ピン止めの検索は金スキルも候補に出す（選べない行）。理由の文が無い（null）ものは出さない（母集団の元に無い白など）
+		const found = findSkillsByNameFragment(input.value, { searchableOnly: true, limit: Infinity, foldKana: true, withGold: pin });
+		const pinWhy = new Map();
+		if (pin && found.query) {
+			found.hits = found.hits.filter(h => { const w = added.has(h.id) ? '追加済み' : pickerPinReasonOf(h.id); if (w === null) return false; pinWhy.set(h.id, w); return true; });
+			found.total = found.hits.length;
+		}
 		if (!found.query) {
 			out.hidden = true; out.innerHTML = ''; count.textContent = '';
 			input.setAttribute('aria-expanded', 'false');
@@ -9277,6 +9311,16 @@
 		}
 		const keep = out.scrollTop;
 		out.innerHTML = found.hits.map((h, i) => {
+			// ピン止めの検索（T75）: 追加済みも、ほかの選べない行と同じ形（灰色・取り消し線・右に理由）。押せる行は＋の輪だけ（追加候補の状態は無い）
+			if (pin) {
+				const why = pinWhy.get(h.id) || '';
+				return '<div class="usd-row usd-tsearch-row' + (why ? ' usd-tsearch-row--excluded' : ' usd-tsearch-row--pick') + '" role="option" id="usd-tsearch-opt-' + i + '" data-skill-id="' + esc(h.id) + '"' +
+					(why ? ' aria-disabled="true"' : ' data-usd-act="search-pick" aria-selected="false"') + '>' +
+					'<span class="usd-tsearch-mark" aria-hidden="true">' + (why ? '' : '+') + '</span>' +
+					'<span class="usd-tsearch-name">' + boldSkillNameMatch(h.name, h.at, found.query.length) + '</span>' +
+					(why ? '<span class="usd-tsearch-side">' + esc(why) + '</span>' : '') +
+				'</div>';
+			}
 			const isAdded = added.has(h.id);
 			const blocked = !isAdded && isPickerBlocked(h.id);
 			const queued = !isAdded && !blocked && picker.checked.has(h.id);
@@ -9352,9 +9396,39 @@
 			const cur = searchUi.active >= 0 ? rows[searchUi.active] : null;
 			if (!cur || !cur.classList.contains('usd-tsearch-row--pick')) return;
 			e.preventDefault();
-			enqueueSearchSkill(cur.getAttribute('data-skill-id'));
+			if (picker.mode === 'pin') pinSearchSkill(cur.getAttribute('data-skill-id'));
+			else enqueueSearchSkill(cur.getAttribute('data-skill-id'));
 		}
 	}
+
+	/* ---- ピン止めするスキルを探す（T75・C-266 の (5)。「テキストで検索」の部品を使う picker.mode === 'pin'） ---- */
+	/** 「テキストで検索」の部品を使うモードか（テキストで検索・ピン止めの検索） */
+	function isSearchPickerMode() { return picker.mode === 'search' || picker.mode === 'pin'; }
+	/** ピン止めの検索の行の理由（'' … 選べる／文字 … 選べない理由／null … 候補に出さない）。決めるのは呼び出し側（picker.onAdd.reasonOf） */
+	function pickerPinReasonOf(skillId) {
+		const o = picker.onAdd;
+		if (!o || typeof o.reasonOf !== 'function') return '';
+		const w = o.reasonOf(skillId);
+		return w === null || w === undefined ? null : String(w);
+	}
+	/** 選べる行を押した（Enter も）。小窓を閉じてから、呼び出し側のピン止め（picker.onAdd.pin）を呼ぶ */
+	function pinSearchSkill(skillId) {
+		if (!skillId || picker.excludeIds.indexOf(skillId) !== -1 || pickerPinReasonOf(skillId) !== '') return;
+		const o = picker.onAdd;
+		picker.onAdd = null;
+		closePicker({ picked: true });
+		if (o && typeof o.pin === 'function') o.pin(skillId);
+	}
+	/**
+	 * ピン止めするスキルを探す小窓を開く（T75）。opts … { addedIds: ②に追加済みのスキル（「追加済み」の行）, reasonOf(id) → ''｜理由の文｜null, pin(id), onClose() … 選ばずに閉じたとき }。
+	 * 小窓はオススメサポの小窓の上に重ねる（data-usd-picker-over）
+	 */
+	function openPinSearchPicker(opts) {
+		const o = opts || {};
+		openPicker('pin', o.addedIds || [], { reasonOf: o.reasonOf, pin: o.pin, onClose: o.onClose });
+	}
+	/** ピン止めするスキルを探す小窓が開いているか（オススメサポの Esc がこの小窓に譲るため） */
+	function isPinSearchPickerOpen() { return !!pickerEl && !pickerEl.hidden && picker.mode === 'pin'; }
 
 	/** 候補を押したとき（Enter も）。追加候補の欄に入れる。もう入っていれば、欄の札を光らせて見える位置へ送るだけ */
 	function enqueueSearchSkill(skillId) {
@@ -9896,12 +9970,16 @@
 		syncPickerRosterSel();
 		// ocr モードは paste の枠を借りる（貼り付け欄だけ隠す）。要約は openSkillRowsPicker が入れる
 		const isOcr = picker.mode === 'ocr';
-		q(pickerEl, 'picker-panel').setAttribute('data-usd-mode', picker.mode);
+		// T75: ピン止めの検索は「テキストで検索」と同じ組み方（data-usd-mode="search" の寸法）で、追加候補の欄だけ出さない。オススメサポの小窓の上に重ねる
+		const isPin = picker.mode === 'pin';
+		q(pickerEl, 'picker-panel').setAttribute('data-usd-mode', isPin ? 'search' : picker.mode);
+		if (isPin) pickerEl.setAttribute('data-usd-picker-over', '1'); else pickerEl.removeAttribute('data-usd-picker-over');
 		q(pickerEl, 'mode-filter').hidden = picker.mode !== 'filter';
 		q(pickerEl, 'mode-paste').hidden = !(picker.mode === 'paste' || isOcr);
 		q(pickerEl, 'mode-passive').hidden = picker.mode !== 'passive';
 		// テキストで検索（T28）: 開くたびに入力も欄も空から（欄＝picker.checked は上で空にしている）
-		q(pickerEl, 'mode-search').hidden = picker.mode !== 'search';
+		q(pickerEl, 'mode-search').hidden = !isSearchPickerMode();
+		q(pickerEl, 'search-tray').hidden = isPin;
 		const searchInput = q(pickerEl, 'search-input');
 		searchInput.value = '';
 		searchUi = { active: -1, ids: [] };
@@ -9925,7 +10003,7 @@
 		renderPasteReport();
 		refreshIcons();
 		// 貼り付け欄へ focus を当てるのは、マウスで開いたときだけ（タッチ・ペンではキーボードが出てしまう。C-128）
-		const focusTarget = picker.mode === 'paste' ? pasteInput : picker.mode === 'search' ? searchInput : null;
+		const focusTarget = picker.mode === 'paste' ? pasteInput : isSearchPickerMode() ? searchInput : null;
 		if (focusTarget && openedByMouse()) focusNoScroll(focusTarget);
 	}
 
@@ -10007,8 +10085,12 @@
 		return lines.join('\n');
 	}
 
-	function closePicker() {
+	function closePicker(how) {
+		// T75: ピン止めの検索を選ばずに閉じたときは、呼び出し側へ知らせる（開いたアイコンへフォーカスを戻す）
+		const wasOpen = !!pickerEl && !pickerEl.hidden;
+		const pinClose = wasOpen && picker.mode === 'pin' && !(how && how.picked) && picker.onAdd && typeof picker.onAdd.onClose === 'function' ? picker.onAdd.onClose : null;
 		if (pickerEl) pickerEl.hidden = true;
+		if (pinClose) pinClose();
 		syncModalScrollLock();
 		fitSearchPicker();
 	}
@@ -10039,7 +10121,7 @@
 	}
 	function fitSearchPicker() {
 		if (!pickerEl) return;
-		const on = !pickerEl.hidden && picker.mode === 'search' && typeof global.matchMedia === 'function' && global.matchMedia(SEARCH_FIT_MQ).matches;
+		const on = !pickerEl.hidden && isSearchPickerMode() && typeof global.matchMedia === 'function' && global.matchMedia(SEARCH_FIT_MQ).matches;
 		const box = on ? searchViewportBox() : null;
 		const s = pickerEl.style;
 		if (!box) {
@@ -16535,6 +16617,7 @@
 				else if (act === 'outside-exclude-open') openOutsideExcludePopover(b);
 				else if (act === 'outside-exclude') { if (!outsidePinsSurviveOrToast({ excludeCardId: b.dataset.cardId })) return; if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
 				else if (act === 'outside-skill-pin') outsideTogglePin(b.dataset.skillId);
+				else if (act === 'outside-pinsearch') openOutsidePinSearch(b);
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
 				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
 				// 区分の除外は、戻すと反映の通知（recommendExcludedListeners）で計算し直す。このセットだけの除外（以前の保存値）は保存値を消して計算し直す
@@ -16562,10 +16645,12 @@
 				setRecommendExcluded(recommendDistKeyOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}), box.value, !box.checked, { silent: true, quiet: true });
 				updateOutsideFoot();
 			});
-			global.addEventListener('resize', () => { if (outsideUi.open && !el.hidden) outsideFitNicks(el); });
+			global.addEventListener('resize', () => { if (outsideUi.open && !el.hidden) { outsideFitNicks(el); outsideFitExcl(el); } });
 			recommendExcludedListeners.push(() => { if (outsideUi.open && outsideUi.el && !outsideUi.el.hidden) outsideRun(); });
 			global.document.addEventListener('keydown', (e) => {
 				if (e.key !== 'Escape' || e.defaultPrevented || !outsideUi.open || outsideUi.el.hidden) return;
+				// T75: 上に重ねたピン止めの検索の小窓が開いている間は、そちらが閉じる（オススメサポは閉じない）
+				if (isPinSearchPickerOpen()) return;
 				closeOutsideAdvisor();
 				e.preventDefault();
 			});
@@ -16764,6 +16849,86 @@
 				+ ' aria-label="' + esc(name + (on ? '：ピン止め中。押すとピン止めを外します' : '：ピン止めしていません。押すとピン止めします')) + '">' + OUTSIDE_PIN_SVG + '</button>';
 		}
 
+		/* ---- T75（C-266 の (4)(5)。T71 のモック lab/outside-tile-mock.html）---- */
+		/** 対象Y種: そのカードで得られるスキルのうち、今の計算の対象のもの（カード名の小窓で「対象」の札が付くスキル＝openOutsideCardInfo の targets）の種数（countSkillKinds。金と前段の白で1種） */
+		function outsideTargetKindsOf(c) {
+			return c ? countSkillKinds((c.skillIds || []).concat(c.goldIds || [])) : 0;
+		}
+		/** 虫眼鏡のレンズの中にピン（lucide の pin を縮めた形。T66 のモックの SVG） */
+		const OUTSIDE_PINSEARCH_SVG = '<svg class="usd-out-pinsearch-ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">'
+			+ '<circle cx="10" cy="10" r="7"/><path d="m15.2 15.2 5.3 5.3"/>'
+			+ '<path d="M10 12.6v2.4"/><path d="M7.2 12.6h5.6v-.7a.9.9 0 0 0-.5-.8l-.8-.4a.9.9 0 0 1-.5-.8V7.6h.4a.9.9 0 0 0 0-1.8H8.6a.9.9 0 0 0 0 1.8H9v2.3a.9.9 0 0 1-.5.8l-.8.4a.9.9 0 0 0-.5.8Z"/></svg>';
+		function outsidePinSearchBtnHtml() {
+			return '<button type="button" class="usd-out-pin usd-out-pinsearch" data-usd-act="outside-pinsearch" data-usd-el="outside-pinsearch" aria-haspopup="dialog" aria-expanded="false"'
+				+ ' aria-label="' + esc(PIN_SEARCH_LABEL) + '" title="' + esc(PIN_SEARCH_LABEL) + '">' + OUTSIDE_PINSEARCH_SVG + '</button>';
+		}
+		/**
+		 * 「除外中」の表記は、行に入らない幅のときだけ短くする（「除外中 X枚/Y種（距離）」。読み上げ名は今の全文）。描き直し・幅の変化のたびに呼ぶ。
+		 * 入らない＝行か文がはみ出す、または文が折り返す（1行の高さ 28px を超える）
+		 */
+		function outsideFitExcl(root) {
+			const tg = root ? root.querySelector('[data-usd-el="outside-excl-toggle"]') : null;
+			if (!tg) return;
+			const full = tg.getAttribute('data-usd-full'), short = tg.getAttribute('data-usd-short');
+			if (!full || !short) return;
+			tg.textContent = full;
+			tg.removeAttribute('aria-label');
+			tg.removeAttribute('data-usd-short-on');
+			const head = tg.closest('.usd-out-exhead');
+			const over = (head && head.scrollWidth > head.clientWidth + 1) || tg.scrollWidth > tg.clientWidth + 1 || tg.getBoundingClientRect().height > 29;
+			if (!over || short === full) return;
+			tg.textContent = short;
+			tg.setAttribute('data-usd-short-on', '1');
+			tg.setAttribute('aria-label', full.replace(/ [▴▾]$/, ''));
+		}
+		/**
+		 * ピン止めするスキルを探す（「除外中」の左のアイコン）。②の「テキストで検索」の部品の小窓（openPinSearchPicker）を、この小窓の上に重ねる。
+		 * 候補は白スキルと金スキル。選べないもの（理由の文つき）は、母集団の計算（outsidePopulationOf）に候補をピンとして渡して、入れ直せない理由を読む（今のピンの理由の文）。
+		 * 金は「金スキル」・②で追加済みは「追加済み」。母集団の元に無いもの（unknown）は候補に出さない。
+		 * 選べる行を押すと、行のピンのボタンと同じ扱い（outsideTogglePin。保存・計算）でピン止めする。もうピン止めしているスキルは変えない（ピンのボタンへ戻るだけ）
+		 */
+		function openOutsidePinSearch(btn) {
+			if (!rosterOutsideSink || outsideUi.computing) return;
+			const roster = rosterOutsideSink.getRoster() || {};
+			const addedIds = skillIdsOf(currentTarget()) || [];
+			const reasons = new Map();
+			let pop = null;
+			const reasonOf = (id) => {
+				if (reasons.has(id)) return reasons.get(id);
+				if (!pop) {
+					// 1回の計算で候補の全部の理由を読む（白の候補全部をピンとして渡す。金・母集団の元に無いものも理由が返る）
+					const ids = Array.from(new Set(buildSkillTextIndex({ searchableOnly: true, withGold: true }).map(p => p.id)));
+					pop = outsidePopulationOf(roster, { addedSkillIds: addedIds, pins: ids });
+					const rej = new Map(((pop && pop.pinRejected) || []).map(x => [x.skillId, x.reason]));
+					ids.forEach(x => {
+						const why = rej.get(x);
+						reasons.set(x, !why ? '' : why === OUTSIDE_PIN_REASON.gold ? '金スキル' : why === OUTSIDE_PIN_REASON.added ? '追加済み' : (OUTSIDE_PIN_REASON_TEXT[why] || null));
+					});
+				}
+				if (!reasons.has(id)) reasons.set(id, outsideIsGold(id) ? '金スキル' : null);
+				return reasons.get(id);
+			};
+			if (btn) btn.setAttribute('aria-expanded', 'true');
+			const refocus = () => {
+				const again = outsideUi.el ? outsideUi.el.querySelector('[data-usd-el="outside-pinsearch"]') : null;
+				if (again) { again.setAttribute('aria-expanded', 'false'); if (outsideUi.open) focusNoScroll(again); }
+			};
+			openPinSearchPicker({ addedIds: addedIds, reasonOf: reasonOf, onClose: refocus,
+				pin: (id) => {
+					const pb = outsideUi.el ? outsideUi.el.querySelector('[data-usd-el="outside-pinsearch"]') : null;
+					if (pb) pb.setAttribute('aria-expanded', 'false');
+					const saved = outsideOptionsOf(rosterOutsideSink.getRoster()).skillPins;
+					if (saved.indexOf(id) !== -1) {
+						const row = outsideUi.el ? outsideUi.el.querySelector('[data-usd-el="outside-pin"][data-skill-id="' + id + '"]') : null;
+						if (row) focusNoScroll(row); else refocus();
+						return;
+					}
+					outsideTogglePin(id);
+					// ng（トースト）で付けなかったときは、開いたアイコンへ戻す
+					if (outsideOptionsOf(rosterOutsideSink.getRoster()).skillPins.indexOf(id) === -1) refocus();
+				} });
+		}
+
 		/**
 		 * カードのタイル（2段）。[種別アイコン]｜[二つ名（小さめ）／名前]｜[レアリティのバッジ／＋N種 ×]。名前の部分を押すとカードの情報（outside-card-info）。
 		 * C-186: 面は無彩色・外枠は細い線1本（編成に入れ済みの番号つきは少し太い無彩色の線）。色が出るのは種別アイコンとレアリティバッジだけ。
@@ -16778,17 +16943,20 @@
 			const n = cardTypeOrderOf(card);
 			const kind = cardKindText(n, card && card.rarity);
 			const glyph = o.btnText === '外す' || o.btnText === '解除';
-			return '<div class="usd-out-card' + (o.slot ? ' usd-out-card--pinned' : '') + '" data-usd-el="' + o.el + '" data-card-id="' + esc(c.cardId) + '"' + (o.slot ? ' data-slot="' + o.slot + '"' : '')
+			// T75（C-266 の (4)・案2）: オススメのカードと残りの枠に指定したカードは、SSR の札を種別アイコンの下へ・下の段に「対象Y種」（o.target。結果に無いカードは出さない）。除外中のカード（「戻す」）は今のまま
+			const t2 = o.el === 'outside-card' || o.el === 'outside-pinned';
+			return '<div class="usd-out-card' + (o.slot ? ' usd-out-card--pinned' : '') + (t2 ? ' usd-out-card--t2' : '') + '" data-usd-el="' + o.el + '" data-card-id="' + esc(c.cardId) + '"' + (o.slot ? ' data-slot="' + o.slot + '"' : '')
 				+ (n !== null ? ' data-type-order="' + n + '"' : '') + (card && card.rarity ? ' data-rarity="' + esc(card.rarity) + '"' : '') + '>'
-				+ '<span class="usd-out-card-lead">' + cardTypeIconHtml(n) + '</span>'
+				+ '<span class="usd-out-card-lead">' + cardTypeIconHtml(n) + (t2 ? cardRarityIconHtml(card && card.rarity) : '') + '</span>'
 				+ '<button type="button" class="usd-out-card-main" data-usd-act="outside-card-info" data-usd-el="outside-card-main" data-card-id="' + esc(cardId) + '" aria-haspopup="dialog" aria-label="' + esc(label + (kind ? '（' + kind + '）' : '') + 'の情報') + '" title="' + esc(label) + '">'
 				// 残りの枠に指定したカード（段13・C1）は、①のカード枠と同じ番号の札を先頭に付けて、オススメで選んだカードと見分ける
 				+ (o.slot ? '<span class="usd-roster-legend-no usd-out-card-slot" aria-hidden="true">' + o.slot + '</span>' : '')
 				+ '<span class="usd-out-card-names">' + (nick ? '<span class="usd-out-card-nick" data-usd-el="outside-card-nick">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="outside-card-name">' + esc(name) + '</span></span></button>'
-				+ '<span class="usd-out-card-side">' + cardRarityIconHtml(card && card.rarity)
+				+ '<span class="usd-out-card-side">' + (t2 ? '' : cardRarityIconHtml(card && card.rarity))
 				+ '<span class="usd-out-card-sub' + (glyph ? ' usd-out-card-sub--x' : ' usd-out-card-sub--t') + '">' + (o.gain !== undefined ? '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + o.gain + '種</span>' : '')
 				+ '<button type="button" class="usd-out-card-btn usd-out-card-x" data-usd-act="' + o.act + '" data-usd-el="' + o.btnEl + '" data-card-id="' + esc(cardId) + '" aria-label="' + esc(name + 'を' + o.btnText) + '">'
-				+ (glyph ? '<span class="usd-out-card-xg" aria-hidden="true">×</span>' : '<span class="usd-out-card-xt">' + o.btnText + '</span>') + '</button></span></span></div>';
+				+ (glyph ? '<span class="usd-out-card-xg" aria-hidden="true">×</span>' : '<span class="usd-out-card-xt">' + o.btnText + '</span>') + '</button></span>'
+				+ (t2 && o.target !== undefined ? '<span class="usd-out-card-target" data-usd-el="outside-card-target">対象' + o.target + '種</span>' : '') + '</span></div>';
 		}
 		/** 二つ名が「[」＋3文字＋「…」も入らない幅のときは、二つ名を出さず名前だけにする（名前も入らなければ名前を省略）。描き直し・幅の変化のたびに呼ぶ */
 		function outsideFitNicks(root) {
@@ -17038,7 +17206,7 @@
 				(r.kindOrder || r.cards.map(c => c.cardId)).forEach(id => {
 					const c = by.get(id);
 					if (!c || c.pinned) return;
-					h += outsideCardTileHtml(c, { el: 'outside-card', gain: c.kindGain, act: 'outside-exclude', btnEl: 'outside-exclude', btnText: '外す' });
+					h += outsideCardTileHtml(c, { el: 'outside-card', gain: c.kindGain, target: outsideTargetKindsOf(c), act: 'outside-exclude', btnEl: 'outside-exclude', btnText: '外す' });
 				});
 			}
 			// 残りの枠（段13・C1。6 − 枚数）: 指定したカード（「外す」で指定を解除）か、「N サポカを選ぶ」（①のカード枠と同じ番号の札）
@@ -17046,7 +17214,7 @@
 				const pid = opt.pinned[s - opt.count - 1];
 				if (pid) {
 					const pc = by.get(pid);
-					h += outsideCardTileHtml({ cardId: pid }, { el: 'outside-pinned', gain: pc ? pc.kindGain : undefined, act: 'outside-unpin', btnEl: 'outside-unpin', btnText: '解除', slot: s });   // 段13 の仕上げ: 指定したカードは「解除」（オススメのカードの「外す」と分ける）
+					h += outsideCardTileHtml({ cardId: pid }, { el: 'outside-pinned', gain: pc ? pc.kindGain : undefined, target: pc ? outsideTargetKindsOf(pc) : undefined, act: 'outside-unpin', btnEl: 'outside-unpin', btnText: '解除', slot: s });   // 段13 の仕上げ: 指定したカードは「解除」（オススメのカードの「外す」と分ける）
 				} else {
 					h += '<button type="button" class="usd-out-slot" data-usd-act="outside-pin-pick" data-usd-el="outside-slot" data-slot="' + s + '" aria-label="' + s + '枚目のサポカを選ぶ">'
 						+ '<span class="usd-roster-legend-no" aria-hidden="true">' + s + '</span><span class="usd-out-slot-text">サポカを選ぶ</span></button>';
@@ -17057,12 +17225,21 @@
 			const exDist = outsideUi.appliedDist.filter(id => !!findSkill(id));
 			const exSet = outsideUi.appliedLegacy.filter(id => !!findSkill(id));
 			const exSkillN = new Set(exDist.concat(exSet)).size;
+			// T75（C-266 の (5)）: 左端にピン止めするスキルを探すアイコン。除外が1件も無いときは、同じ位置にアイコンだけの行（区切り・除外中の文・？・すべて戻す は出さない）
+			if (excl.length === 0 && exSkillN === 0) {
+				h += '<div class="usd-out-excl usd-out-excl--none" data-usd-el="outside-pinrow"><div class="usd-out-exhead"><span class="usd-out-exleft">' + outsidePinSearchBtnHtml() + '</span></div></div>';
+			}
 			if (excl.length > 0 || exSkillN > 0) {
 				const parts = [];
 				if (excl.length > 0) parts.push('カード' + excl.length + '枚');
 				if (exSkillN > 0) parts.push('スキル' + exSkillN + '種（' + recommendDistLabel(outsideUi.appliedKey) + '）');
+				// 行に入らない幅のときだけ「除外中 X枚/Y種（距離）」に短くする（outsideFitExcl。読み上げ名は今の全文）
+				const shortParts = (excl.length > 0 ? excl.length + '枚' : '') + (excl.length > 0 && exSkillN > 0 ? '/' : '') + (exSkillN > 0 ? exSkillN + '種（' + recommendDistLabel(outsideUi.appliedKey) + '）' : '');
+				const arrow = outsideUi.excludedOpen ? '▴' : '▾';
 				h += '<div class="usd-out-excl" data-usd-el="outside-excl"><div class="usd-out-exhead"><span class="usd-out-exleft">'
-					+ '<button type="button" class="usd-out-exbtn" data-usd-act="outside-excl-toggle" data-usd-el="outside-excl-toggle" aria-expanded="' + (outsideUi.excludedOpen ? 'true' : 'false') + '">除外中 ' + parts.join('・') + ' ' + (outsideUi.excludedOpen ? '▴' : '▾') + '</button>'
+					+ outsidePinSearchBtnHtml() + '<span class="usd-out-pinsep" data-usd-el="outside-pinsep" aria-hidden="true"></span>'
+					+ '<button type="button" class="usd-out-exbtn" data-usd-act="outside-excl-toggle" data-usd-el="outside-excl-toggle" aria-expanded="' + (outsideUi.excludedOpen ? 'true' : 'false') + '"'
+					+ ' data-usd-full="' + esc('除外中 ' + parts.join('・') + ' ' + arrow) + '" data-usd-short="' + esc('除外中 ' + shortParts + ' ' + arrow) + '">除外中 ' + parts.join('・') + ' ' + arrow + '</button>'
 					+ (exSkillN > 0 ? '<button type="button" class="uma-help-btn" data-usd-act="outside-excl-help" data-usd-el="outside-excl-help" aria-haspopup="dialog" aria-expanded="false" aria-label="除外中の説明" title="除外中の説明">?</button>' : '')
 					+ '</span><button type="button" class="usd-out-card-btn usd-out-restore-all" data-usd-act="outside-restore-all" data-usd-el="outside-restore-all">すべて戻す</button></div>';
 				if (outsideUi.excludedOpen) {
@@ -17135,6 +17312,7 @@
 			if (inc) inc.hidden = outsideRosterReady(roster);
 			syncOutsideRosterSel(roster);
 			outsideFitNicks(main);
+			outsideFitExcl(main);
 			// T18: ピンを押したあとの描き直しでは、同じスキルのピンのボタンへ戻す（計算が終わってから）
 			if (!outsideUi.computing && outsideUi.focusPin) {
 				const pb = main.querySelector('[data-usd-el="outside-pin"][data-skill-id="' + outsideUi.focusPin + '"]');

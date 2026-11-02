@@ -312,7 +312,8 @@ export async function register11(env) {
 			assert(s.cards.every((c, i) => i === 0 || c.gain <= s.cards[i - 1].gain), 'オススメサポ(C) ' + n + '枚: カードは増分の大きい順', s.cards.map((c) => c.gain));
 			assert(geo.cols === 2 && geo.rowsN === Math.ceil(Number(n) / 2) && geo.hs.join() === '44' && geo.ell === 'ellipsis' && geo.ws === 'nowrap' && geo.within && geo.bodyOver <= 0,
 				'オススメサポ(C) ' + n + '枚: カードは2列・各44px（C-186）・名前は長いとき省略（…）・はみ出さない（行数 ' + geo.rowsN + '）', geo);
-			assert(geo.texts.every((t) => /^\S.*＋\d+種×$/.test(t)), 'オススメサポ(C) ' + n + '枚: 各カードは「[二つ名]キャラクター名 ＋N種 ×」（C-186 で「外す」を×印に）', geo.texts);
+			// T75（C-266 の (4)・案2）: 「×」の後ろ（下の段）に「対象Y種」が付いた
+			assert(geo.texts.every((t) => /^\S.*＋\d+種×対象\d+種$/.test(t)), 'オススメサポ(C) ' + n + '枚: 各カードは「[二つ名]キャラクター名 ＋N種 × 対象Y種」（C-186 で「外す」を×印に・T75 で対象Y種）', geo.texts);
 		}
 		const exp = await solveIn(sp.page, { count: 6, addedSkillIds: [] });
 		const s6 = await snap(sp.page);
@@ -1269,7 +1270,8 @@ export async function register11(env) {
 	});
 
 	await block('オススメサポ(G) 小窓の高さ（375×812 はスクロールなし・375×667 は約25px 以下）・？の文章（一字一句）・「ヒント」の語が出ない・ほかの画面にボタンが出ない', async () => {
-		for (const [h, maxScroll] of [[812, 0], [667, 26]]) {
+		// T75（C-266 の (5)）: 除外が無いときも「除外中」の位置にアイコンだけの行（28px＋下の間 8px）が出るので、375×667 の上限を 26 → 62px（実測 24 → 60px）
+		for (const [h, maxScroll] of [[812, 0], [667, 62]]) {
 			const sp = await openSp({ w: 375, h, roster: FULL });
 			await open(sp.page);
 			const g = await sp.page.evaluate(() => {
