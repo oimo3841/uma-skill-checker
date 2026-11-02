@@ -121,6 +121,7 @@ import { register91 } from './blocks-91.mjs';
 import { register92 } from './blocks-92.mjs';
 import { register93 } from './blocks-93.mjs';
 import { register94 } from './blocks-94.mjs';
+import { register95 } from './blocks-95.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15472,6 +15473,8 @@ await register92({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register93({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T75（2026-11-02）: オススメサポのタイル（案2・対象Y種）とピン止めの検索（C-266 の (4)(5)。見出しは「T75タイルとピン止め」）
 await register94({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T77（2026-11-02）: スマホで止まらない動画の読み込み（ページに置いて load()。見出しは「T77動画の読み込み」）
+await register95({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

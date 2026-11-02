@@ -37,7 +37,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-02a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-02b';
 
 	const DEFAULTS = {
 		fps: 4,              // 調べる間隔（1秒あたり）
@@ -133,15 +133,22 @@
 		});
 	}
 
-	/** 動画ファイル（File / Blob / URL の文字列）から。close() で後片付け。o.signal で読み込みの待ちの途中でも取り消せる（T68） */
+	/** 動画ファイル（File / Blob / URL の文字列）から。close() で後片付け。o.signal で読み込みの待ちの途中でも取り消せる（T68）
+	 * iPhone の Safari は、ページに置いていない video だと loadedmetadata のあと suspend して loadeddata が来ない（T68 の診断の A・B1）。
+	 * 見えない大きさでページに置いてから load() を呼ぶ（診断の B2。T77）。close() でページから外す。 */
 	async function videoSource(input, o) {
 		const signal = (o && o.signal) || null;
 		if (signal && signal.aborted) throw abortError();
 		const own = typeof input !== 'string';
 		const url = own ? URL.createObjectURL(input) : input;
 		const v = document.createElement('video');
-		v.muted = true; v.preload = 'auto'; v.playsInline = true; v.src = url;
-		const close = () => { try { v.removeAttribute('src'); v.load(); } catch (e) { /* 何もしない */ } if (own) URL.revokeObjectURL(url); };
+		v.muted = true; v.preload = 'auto'; v.playsInline = true;
+		v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-hidden', 'true'); v.tabIndex = -1;
+		v.style.cssText = 'position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:0.01;pointer-events:none';
+		(document.body || document.documentElement).appendChild(v);
+		v.src = url;
+		v.load();
+		const close = () => { try { v.removeAttribute('src'); v.load(); v.remove(); } catch (e) { /* 何もしない */ } if (own) URL.revokeObjectURL(url); };
 		try {
 			await untilAbort(new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(framesError('decode', '動画を読めない')); }), signal);
 			if (!v.videoWidth || !v.videoHeight) throw framesError('no-video-track', '映像を復号できない');
