@@ -1,0 +1,273 @@
+/* lab/deck-v10/deck-v10.css — 新しい Deck のモック版10（段3・T81）の見た目。版9 の見た目のまま、C-271 の部品（見出しのセットのボタン・
+ * 引き出しの1行の横スクロール・本育成設計の系譜図・セットの選択欄）を足した。見た目は今回の判定の外（C-269）。
+ * 色は css/tokens.css（製品のトークン）を読み、ここでは組み合わせだけを決める。
+ * 【提案】ヒートマップの4段（--dk-h0〜h3）と青・赤・緑の札の色は、今のトークン（card-type-1/2/5・mark-tier-2）の値を
+ * 新しい意味（★の段・因子の種類）で使っている。承認が要る（報告の「新しい色」）。
+ * sticky の表で opacity は使わない（恒久ルール9）。
+ */
+:root {
+	--dk-h0: var(--uma-surface-sunken);
+	--dk-hl: #eef4fb;                        /* 基準（★2以上）に満たない★1 */
+	--dk-h1: var(--uma-card-type-1-bg);      /* ★1 */
+	--dk-h2: var(--uma-card-type-1-border);  /* ★2 */
+	--dk-h3: var(--uma-mark-tier-2);         /* ★3 */
+	--dk-h3-text: #ffffff;
+	--dk-unk: var(--uma-text-faint);
+	--dk-gp: var(--uma-text-subtle);
+	--dk-friend: var(--uma-stitch-soft-text);
+	--dk-sel: var(--uma-control);
+	--dk-sel-text: var(--uma-control-text);
+	--dk-blue-bg: var(--uma-card-type-1-bg); --dk-blue-bd: var(--uma-card-type-1-border); --dk-blue-tx: var(--uma-card-type-1-text);
+	--dk-red-bg: var(--uma-card-type-2-bg); --dk-red-bd: var(--uma-card-type-2-border); --dk-red-tx: var(--uma-card-type-2-text);
+	--dk-green-bg: var(--uma-card-type-5-bg); --dk-green-bd: var(--uma-card-type-5-border); --dk-green-tx: var(--uma-card-type-5-text);
+	--dk-ground: var(--uma-surface-sunken);
+}
+:root:where([data-theme="dark"]) {
+	--dk-hl: #1f2b3c;
+	--dk-h1: #22365a;
+	--dk-h2: #3b6fb8;
+	--dk-h3: #6aa8ff;
+	--dk-h3-text: #0f1318;
+	--dk-ground: var(--uma-page-ground);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--dk-ground); color: var(--uma-text); font: 14px/1.45 -apple-system, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; -webkit-text-size-adjust: 100%; overflow: hidden; }
+body.page { overflow: auto; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
+.mono { font-family: var(--uma-font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--uma-text-subtle); }
+.small { font-size: 12px; }
+.fr { color: var(--dk-friend); font-weight: 700; }
+.nowrap { white-space: nowrap; }
+[hidden] { display: none !important; }
+
+/* ---------- 骨格（スマホ: 縦に 見出し／道具／引き出し／表／下の帯。PC: 左に引き出し） ---------- */
+.app { height: 100dvh; display: flex; flex-direction: column; min-height: 0; }
+.hd { display: flex; align-items: center; gap: 8px; padding: 6px max(12px, env(safe-area-inset-right)) 4px max(12px, env(safe-area-inset-left)); background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); min-height: 44px; }
+.hd h1 { font-size: 15px; margin: 0; font-weight: 700; white-space: nowrap; }
+.hd .sp { flex: 1; }
+.tb { display: flex; align-items: center; gap: 6px; padding: 6px max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left)); background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); overflow-x: auto; scrollbar-width: none; }
+.tb::-webkit-scrollbar { display: none; }
+.panes { background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); max-height: 46dvh; overflow: auto; padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 8px; }
+.stage { flex: 1; min-height: 0; overflow: auto; position: relative; background: var(--uma-surface); touch-action: pan-x pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.stage.ov { overflow-x: hidden; }
+.dock { background: var(--uma-surface); border-top: 1px solid var(--uma-border); padding: 6px max(12px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 4px; }
+.dock .r1 { display: flex; align-items: center; gap: 6px; min-height: 44px; }
+.dock .r2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.slot { display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex: 1; border: 1px solid var(--uma-border); border-radius: 8px; padding: 4px 6px; min-height: 44px; background: var(--uma-surface); text-align: left; }
+.slot b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--dk-sel); color: var(--dk-sel-text); font-size: 12px; flex: none; }
+.slot .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.slot .nm.none { color: var(--uma-text-faint); }
+.cov { font-size: 22px; font-weight: 500; min-width: 3.6em; text-align: center; line-height: 1; }
+.cov small { display: block; font-size: 10px; color: var(--uma-text-subtle); font-weight: 400; margin-top: 2px; }
+.miss { font-size: 12px; color: var(--uma-text-subtle); max-height: 2.9em; overflow: auto; line-height: 1.4; }
+@media (min-width: 721px) {
+	/* PC: 道具の行のボタンで開いた引き出しを左の列（360px）に出す。開いていなければ表が全幅 */
+	.app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "hd" "tb" "stage" "dock"; }
+	.app.has-pane { grid-template-columns: 360px minmax(0, 1fr); grid-template-areas: "hd hd" "tb tb" "panes stage" "dock dock"; }
+	.hd { grid-area: hd; } .tb { grid-area: tb; } .panes { grid-area: panes; max-height: none; border-bottom: 0; border-right: 1px solid var(--uma-border); } .stage { grid-area: stage; } .dock { grid-area: dock; }
+	.dock { flex-direction: row; align-items: center; flex-wrap: wrap; }
+	.dock .r1 { flex: 1; min-width: 360px; }
+}
+/* 見出しの行: レース/周回セットのボタン（UmaStar の「レース」の欄と同じく、押すと一覧の小窓）・ツール切り替え・ライト／ダーク */
+.hd { gap: 6px; }
+.rsel { flex: 0 1 auto; margin-left: auto; min-width: 0; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; border: 1px solid var(--uma-control-border); background: var(--uma-surface); color: var(--uma-text); border-radius: 8px; padding: 0 8px; min-height: 44px; font-size: 12px; }
+.rsel .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rsel .car { color: var(--uma-text-subtle); flex: none; }
+.hd .nudge { flex: none; }
+/* 道具の行の5つ（親(列)・スキル(行)・表示・ソート・本育成設計）を 375px に収める。絞り込み中の印（点）は幅を取らない */
+.tb { gap: 4px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+.tb .chip { position: relative; padding: 0 6px; }
+.tb .dot { position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+@media (min-width: 721px) { .tb { gap: 6px; } .tb .chip { padding: 0 12px; } }
+/* 引き出しの項目（項目名と選択肢を1行に。スマホは選択肢を横スクロール。C-271 の 12） */
+.it { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.it .opts { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 1px 0; }
+.it .opts::-webkit-scrollbar { display: none; }
+.it .opts > * { flex: none; }
+.it .opts input.txt { flex: 1 1 auto; min-width: 8em; width: auto; }
+@media (min-width: 721px) { .it .opts { flex-wrap: wrap; overflow-x: visible; } }
+.legend .old, .vl th.old { color: var(--uma-text-subtle); }
+.vl th.old { font-style: italic; box-shadow: inset 3px 0 0 var(--uma-border-strong); }
+.legend .old { font-style: italic; border-left: 3px solid var(--uma-border-strong); padding-left: 4px; }
+/* 表の角: 親(列)とスキル(行)の数・「最大」（版9 の .vc より後で効くように .vp.vc で書く） */
+.vp.vc { flex-direction: column; align-items: stretch; justify-content: flex-end; }
+.vp.vc .cnt { font-size: 10px; color: var(--uma-text-subtle); padding: 2px 6px 0; line-height: 1.25; }
+.vp.vc button { height: auto; min-height: 20px; flex: none; }
+.vh th.m1 .vt { font-weight: 700; }
+/* 本育成設計の系譜図（横向き: 親 → 祖2人を縦に。線でつなぐ。C-271 の 13） */
+.ped { display: flex; gap: 8px; align-items: stretch; }
+.ped .grp { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
+.ped .gps { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ped .br { flex: none; width: 10px; align-self: stretch; position: relative; }
+.ped .br::before { content: ""; position: absolute; left: 0; width: 6px; top: 50%; border-top: 1px solid var(--uma-border-strong); }
+.ped .br::after { content: ""; position: absolute; left: 6px; right: 0; top: 25%; bottom: 25%; border: 1px solid var(--uma-border-strong); border-right: 0; }
+.pslot { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; border: 1px solid var(--uma-control-border); background: var(--uma-surface); color: var(--uma-text); border-radius: 8px; padding: 3px 5px; min-height: 48px; text-align: left; width: 100%; }
+.pslot.pp { align-self: stretch; }
+.pslot.empty { border-style: dashed; }
+.pslot .pl { font-size: 10px; font-weight: 700; color: var(--uma-text-subtle); }
+.pslot .pn, .pslot .pt { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.3; }
+.pslot .pn { font-weight: 700; }
+.pslot .pt { font-size: 10px; color: var(--uma-text-subtle); }
+.ped .gps .pslot { min-height: 48px; }
+.list [aria-current="true"] { font-weight: 700; }
+.gpl { margin: 0; padding-left: 1.2em; font-size: 12px; color: var(--uma-text-subtle); display: flex; flex-direction: column; gap: 2px; }
+/* レース/周回セットの選択欄（UmaStar の「レース」の欄の形: 指定なし → 一覧の行〔1行目＝日付＋名前、2行目＝条件〕） */
+.rlist { display: flex; flex-direction: column; }
+.ropt { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--uma-border); padding: 6px 2px; min-height: 48px; cursor: pointer; font-size: 13px; }
+.ropt.on { font-weight: 700; }
+.ropt input { width: 18px; height: 18px; flex: none; accent-color: var(--uma-control); }
+.ropt .rtx { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ropt .l2 { font-size: 11px; color: var(--uma-text-subtle); font-weight: 400; }
+.ropt .rn { font-size: 11px; color: var(--uma-text-subtle); font-family: var(--uma-font-mono); white-space: nowrap; font-weight: 400; }
+.rgh { font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); padding: 10px 2px 2px; }
+
+/* ---------- 部品 ---------- */
+.chip, .btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--uma-control-border); background: var(--uma-surface); color: var(--uma-text); border-radius: 999px; padding: 0 12px; min-height: 36px; font-size: 13px; white-space: nowrap; }
+.btn { border-radius: 8px; }
+.chip[aria-pressed="true"], .btn[aria-pressed="true"] { background: var(--dk-sel); color: var(--dk-sel-text); border-color: var(--dk-sel); font-weight: 700; }
+.btn.pri { background: var(--uma-control); color: var(--uma-control-text); border-color: var(--uma-control); font-weight: 700; }
+.btn.danger { color: var(--uma-danger-text); border-color: var(--uma-danger-border); }
+.btn:disabled, .chip:disabled { color: var(--uma-control-disabled); background: var(--uma-control-disabled-bg); border-color: var(--uma-control-disabled-bg); cursor: default; }
+.chip .n { font-size: 11px; color: inherit; background: var(--uma-surface-muted); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+.tb .chip { padding: 0 10px; }
+.chip[aria-pressed="true"] .n { background: rgba(255,255,255,.2); }
+.seg { display: inline-flex; border: 1px solid var(--uma-control-border); border-radius: 8px; overflow: hidden; background: var(--uma-surface); flex: none; }
+.seg button { border: 0; background: transparent; color: var(--uma-text); padding: 0 10px; min-height: 36px; font-size: 13px; }
+.seg button + button { border-left: 1px solid var(--uma-control-border); }
+.seg button[aria-pressed="true"] { background: var(--dk-sel); color: var(--dk-sel-text); font-weight: 700; }
+.seg.sm button { min-height: 32px; padding: 0 8px; font-size: 12px; }
+@media (max-width: 720px) { .chip, .btn, .seg button { min-height: 44px; } .seg.sm button { min-height: 40px; } }
+.icon { width: 44px; min-width: 44px; padding: 0; font-size: 18px; }
+select.sel { border: 1px solid var(--uma-control-border); border-radius: 8px; background: var(--uma-surface); color: var(--uma-text); padding: 0 8px; min-height: 36px; font-size: 13px; max-width: 100%; }
+@media (max-width: 720px) { select.sel { min-height: 44px; } }
+input.txt { border: 1px solid var(--uma-control-border); border-radius: 8px; background: var(--uma-surface); color: var(--uma-text); padding: 0 10px; min-height: 36px; font-size: 14px; width: 100%; }
+@media (max-width: 720px) { input.txt { min-height: 44px; } }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lab { font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); min-width: 4.5em; letter-spacing: .03em; }
+.pane { display: flex; flex-direction: column; gap: 6px; }
+.pane h3 { font-size: 12px; margin: 0; color: var(--uma-text-subtle); font-weight: 700; }
+.pane .row + .row { margin-top: 2px; }
+.pane .hint { font-size: 11px; color: var(--uma-text-faint); }
+.legend { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--uma-text-subtle); }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 3px; border: 1px solid var(--uma-border); }
+.sw.unk { background-image: repeating-linear-gradient(45deg, var(--dk-unk) 0 2px, transparent 2px 5px); }
+.sw.gp { position: relative; } .sw.gp::after { content: ""; position: absolute; right: 1px; top: 1px; width: 4px; height: 4px; border-radius: 50%; background: var(--dk-gp); }
+
+/* 因子の札（青・赤・緑）。色なしの案は .mono-chips */
+.fz { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--uma-border); border-radius: 6px; padding: 1px 6px; font-size: 12px; white-space: nowrap; background: var(--uma-surface-muted); }
+.fz.b { background: var(--dk-blue-bg); border-color: var(--dk-blue-bd); color: var(--dk-blue-tx); }
+.fz.r { background: var(--dk-red-bg); border-color: var(--dk-red-bd); color: var(--dk-red-tx); }
+.fz.g { background: var(--dk-green-bg); border-color: var(--dk-green-bd); color: var(--dk-green-tx); }
+.fz.none { color: var(--uma-text-faint); }
+.mono-chips .fz.b, .mono-chips .fz.r, .mono-chips .fz.g { background: var(--uma-surface-muted); border-color: var(--uma-border); color: var(--uma-text); }
+.fz .k { font-size: 10px; opacity: 1; font-weight: 700; }
+
+/* ---------- 表（見える範囲だけ描く） ---------- */
+.vs { position: relative; }
+.vp { position: absolute; left: 0; top: 0; will-change: transform; }
+.vp table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 11px; }
+.vp td, .vp th { padding: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.vb td { text-align: center; border-right: 1px solid var(--uma-surface); border-bottom: 1px solid var(--uma-surface); font-family: var(--uma-font-mono); position: relative; color: var(--uma-text); }
+.vb td.c0 { background: var(--dk-h0); color: var(--uma-text-faint); }
+.vb td.cl { background: var(--dk-hl); color: var(--uma-text-faint); }
+.vb td.c1 { background: var(--dk-h1); }
+.vb td.c2 { background: var(--dk-h2); color: #0f1318; }
+.vb td.c3 { background: var(--dk-h3); color: var(--dk-h3-text); font-weight: 700; }
+.vb td.unk { background: var(--dk-h0); background-image: repeating-linear-gradient(45deg, var(--dk-unk) 0 2px, transparent 2px 5px); color: var(--uma-text-muted); }
+.vb td.gp::after { content: ""; position: absolute; right: 2px; top: 2px; width: 4px; height: 4px; border-radius: 50%; background: var(--dk-gp); }
+.vb td.gsep, .vl th.gsep { border-bottom: 2px solid var(--uma-border-strong); }
+.vb td.sA, .vb td.sB { box-shadow: inset 1px 0 0 var(--dk-sel), inset -1px 0 0 var(--dk-sel); }
+.vb tr.rf td { box-shadow: inset 0 1px 0 var(--dk-sel), inset 0 -1px 0 var(--dk-sel); }
+.vh { z-index: 3; background: var(--uma-surface); }
+.vh th { vertical-align: bottom; border-bottom: 1px solid var(--uma-border); border-right: 1px solid var(--uma-surface); cursor: pointer; font-weight: 500; background: var(--uma-surface); }
+.vh th .vt { writing-mode: vertical-rl; white-space: nowrap; margin: 0 auto; line-height: 1.1; display: block; }
+.vh th .cn { display: block; font-family: var(--uma-font-mono); font-size: 10px; color: var(--uma-text-subtle); text-align: center; border-top: 1px solid var(--uma-border); padding-top: 2px; margin-top: 3px; }
+.vh th.fr .vt { color: var(--dk-friend); font-weight: 700; }
+.vh th.sA, .vh th.sB { background: var(--dk-sel); color: var(--dk-sel-text); }
+.vh th.sA .cn, .vh th.sB .cn { color: var(--dk-sel-text); }
+.vh th.sA .vt, .vh th.sB .vt { color: var(--dk-sel-text); }
+.vh th.role .vt { font-weight: 700; }
+.vl { z-index: 2; background: var(--uma-surface); }
+.vl th { text-align: left; font-weight: 500; border-right: 1px solid var(--uma-border); border-bottom: 1px solid var(--uma-surface); padding: 0 6px; cursor: pointer; background: var(--uma-surface); }
+.vl th.gl { color: var(--uma-text-subtle); }
+.vl th.mx { text-align: center; padding: 0; font-family: var(--uma-font-mono); font-size: 10px; color: var(--uma-text); border-right: 1px solid var(--uma-border); }
+.vl th.mx.c0 { background: var(--dk-h0); color: var(--uma-text-faint); } .vl th.mx.c1 { background: var(--dk-h1); } .vl th.mx.c2 { background: var(--dk-h2); color: #0f1318; } .vl th.mx.c3 { background: var(--dk-h3); color: var(--dk-h3-text); }
+.vl tr.rf th { box-shadow: inset 0 1px 0 var(--dk-sel), inset 0 -1px 0 var(--dk-sel); }
+:root:where([data-theme="dark"]) .vb td.c2, :root:where([data-theme="dark"]) .vl th.mx.c2 { color: #ffffff; }
+.vc { z-index: 4; background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); border-right: 1px solid var(--uma-border); display: flex; align-items: flex-end; }
+.vc button { border: 0; background: transparent; color: var(--uma-text-subtle); font-size: 11px; text-align: left; padding: 2px 6px; height: 100%; width: 100%; }
+.vc .sorted { font-weight: 700; color: var(--uma-text); }
+.lv2 .vp table { font-size: 12px; }
+.empty { padding: 24px 16px; color: var(--uma-text-subtle); font-size: 13px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+canvas.ov { display: block; }
+
+/* ---------- 小窓（下から出る） ---------- */
+.scrim { position: fixed; inset: 0; background: var(--uma-scrim); z-index: 30; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 84dvh; overflow: auto; background: var(--uma-surface); border-top: 1px solid var(--uma-border); border-radius: 14px 14px 0 0; z-index: 31; padding: 10px max(14px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); box-shadow: var(--uma-shadow-3); overscroll-behavior: contain; }
+.sheet .in { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.sheet h2 { font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sheet h2 .sub { font-size: 12px; color: var(--uma-text-subtle); font-weight: 400; }
+.sheet .acts { display: flex; gap: 8px; flex-wrap: wrap; position: sticky; bottom: 0; background: var(--uma-surface); padding-top: 6px; }
+.sheet .acts .btn { flex: 1; }
+@media (min-width: 721px) { .sheet { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: min(720px, 92vw); border-radius: 14px; border: 1px solid var(--uma-border); max-height: 86vh; } }
+.kv { display: grid; grid-template-columns: 5em 1fr; gap: 4px 8px; font-size: 13px; }
+.kv dt { color: var(--uma-text-subtle); } .kv dd { margin: 0; }
+.gpb { border: 1px solid var(--uma-border); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.gpb .gph { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.gpb .gph b { font-weight: 700; }
+.gpb .gg { color: var(--uma-text-subtle); font-size: 12px; }
+.list { display: flex; flex-direction: column; font-size: 13px; }
+.list > div, .list > button { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--uma-border); padding: 6px 0; min-height: 44px; background: transparent; border-left: 0; border-right: 0; border-top: 0; text-align: left; width: 100%; color: inherit; }
+.list .sc { font-family: var(--uma-font-mono); font-size: 12px; color: var(--uma-text-subtle); white-space: nowrap; }
+.rec { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; border: 1px solid var(--uma-border); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+.rec .sc { grid-column: 1; font-family: var(--uma-font-mono); font-size: 12px; color: var(--uma-text-subtle); }
+.rec .btn { grid-row: 1 / span 2; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(110px + env(safe-area-inset-bottom)); background: var(--uma-toast-bg); color: #fff; border: 1px solid var(--uma-toast-border); font-size: 13px; padding: 8px 14px; border-radius: 10px; z-index: 50; max-width: 92vw; }
+.nudge { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--uma-warn-border); background: var(--uma-warn-bg); color: var(--uma-warn-text); border-radius: 999px; padding: 0 10px; min-height: 32px; font-size: 12px; white-space: nowrap; }
+.nudge.ok { border-color: var(--uma-border); background: var(--uma-surface-muted); color: var(--uma-text-subtle); }
+.tier { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.tslot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tslot .tl { font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.tslot label { font-weight: 500; color: var(--uma-text); display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
+.tslot select { width: 100%; }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.opt .k { font-size: 12px; color: var(--uma-text-subtle); }
+.warnbox { border: 1px solid var(--uma-warn-border); background: var(--uma-warn-bg); color: var(--uma-warn-text); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+.errbox { border: 1px solid var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+.okbox { border: 1px solid var(--uma-success-bg); background: var(--uma-success-bg); color: var(--uma-success-text); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+
+/* ---------- 登録の画面 ---------- */
+.reg { max-width: 720px; margin: 0 auto; padding: 8px max(12px, env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--uma-surface); border: 1px solid var(--uma-border); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.card h2 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card h2 .role { display: inline-grid; place-items: center; min-width: 40px; height: 24px; padding: 0 6px; border-radius: 6px; background: var(--dk-sel); color: var(--dk-sel-text); font-size: 12px; }
+.card.off { color: var(--uma-text-faint); }
+.card.off .role { background: var(--uma-control-disabled-bg); color: var(--uma-control-disabled); }
+.need { display: inline-flex; align-items: center; border-radius: 999px; background: var(--uma-warn-bg); color: var(--uma-warn-text); border: 1px solid var(--uma-warn-border); padding: 0 8px; min-height: 22px; font-size: 11px; font-weight: 700; }
+.line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; font-size: 13px; }
+.line .k { font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); min-width: 3.5em; }
+.cands { display: flex; flex-direction: column; gap: 4px; }
+.cand { display: flex; align-items: center; gap: 8px; border: 1px solid var(--uma-control-border); border-radius: 10px; padding: 8px 10px; min-height: 44px; background: var(--uma-surface); text-align: left; width: 100%; font-size: 13px; }
+.cand[aria-pressed="true"] { border-color: var(--dk-sel); box-shadow: inset 0 0 0 1px var(--dk-sel); font-weight: 700; }
+.cand .sc { margin-left: auto; font-family: var(--uma-font-mono); font-size: 12px; color: var(--uma-text-subtle); white-space: nowrap; }
+.stars { display: inline-flex; border: 1px solid var(--uma-control-border); border-radius: 8px; overflow: hidden; }
+.stars button { border: 0; background: transparent; min-width: 40px; min-height: 36px; font-size: 13px; }
+@media (max-width: 720px) { .stars button { min-width: 44px; min-height: 44px; } }
+.stars button + button { border-left: 1px solid var(--uma-control-border); }
+.stars button[aria-pressed="true"] { background: var(--dk-sel); color: var(--dk-sel-text); font-weight: 700; }
+.sklist { display: flex; flex-direction: column; }
+.sklist .sk { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--uma-border); padding: 4px 0; font-size: 13px; min-height: 44px; }
+.sklist .sk.unk .nm::after { content: " ★?"; color: var(--uma-warn-text); font-weight: 700; }
+.regbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); border-top: 1px solid var(--uma-border); padding: 8px max(12px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 8px; z-index: 20; }
+.regbar .btn.pri { flex: 1; }
+.regbar .sum { font-size: 12px; color: var(--uma-text-subtle); }
+.topline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.topline h1 { font-size: 15px; margin: 0; }
+details.fold > summary { cursor: pointer; font-size: 13px; min-height: 44px; display: flex; align-items: center; gap: 6px; list-style: none; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::before { content: "▸"; color: var(--uma-text-subtle); }
+details.fold[open] > summary::before { content: "▾"; }
