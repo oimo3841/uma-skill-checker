@@ -24,8 +24,8 @@ export async function register49(env) {
 	const OM = '[data-usd-el="outside-modal"] ';
 	const SM = '[data-usd-el="style-modal"] ';
 	const sleep = (page, ms) => page.waitForTimeout(ms);
-	const HELP_SENTENCE = (label) => 'ここで除外したスキルは、他の' + label + 'のレース条件でも除外されます。';
-	const HELP_NONE = 'ここで除外したスキルは、距離を指定していないときも除外されます。';
+	// 【T80・C-270・2026-11-02 で置き換え】それまでの「除外中」の隣の？の1文（HELP_SENTENCE(label)・HELP_NONE）は無くなり、見出しの？の小窓の [除外中] の項目（区分によらず同じ文）になった
+	const HELP_EXCL = '[除外中]ここで除外したスキルは、距離区分（短距離/マイル/中距離/長距離/距離指定なし）ごとに保存され、レース条件が変わっても適用されます。例：京都3000mで除外したスキルは、中山2500mのオススメサポの計算においても除外される。';
 
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 844 }, o.userData || EMPTY);
@@ -236,7 +236,7 @@ export async function register49(env) {
 	});
 
 	await block('段F1(b) 見出し「除外中 スキルN種（区分）」と？: 区分の名前を括弧に（長距離・距離指定なし）／？は見出しの右・押すと1文だけ（区分の名前は見出しと同じ）／戻す（元に戻すに積む）／カードだけのときは？なし', async () => {
-		for (const [roster, key, help] of [[FULL_LONG, 'long', null], [NO_DIST, 'none', HELP_NONE]]) {
+		for (const [roster, key] of [[FULL_LONG, 'long'], [NO_DIST, 'none']]) {
 			const sp = await openSp({ roster });
 			const p = sp.page;
 			const label = await labelOf(p, key);
@@ -246,14 +246,14 @@ export async function register49(env) {
 			const [X, Y] = await firstIds(p, 2);
 			await p.click(rowCheck(X)); await p.click(rowCheck(Y));
 			await recalcNow(p);
-			assert(await exHead(p) === '除外中 スキル2種（' + label + '） ▾', tag + '見出しは「除外中 スキル2種（' + label + '） ▾」', await exHead(p));
-			const geo = await p.evaluate(() => { const t = document.querySelector('[data-usd-el="outside-excl-toggle"]').getBoundingClientRect(), h = document.querySelector('[data-usd-el="outside-excl-help"]'), a = document.querySelector('[data-usd-el="outside-restore-all"]').getBoundingClientRect();
-				const r = h ? h.getBoundingClientRect() : null; return { has: !!h, label: h ? h.getAttribute('aria-label') : null, text: h ? h.textContent : null, right: !!r && r.left >= t.right - 1 && r.right <= a.left + 1, sameRow: !!r && Math.abs((r.top + r.bottom) / 2 - (t.top + t.bottom) / 2) < 12 }; });
-			assert(geo.has && geo.right && geo.sameRow && geo.text === '?', tag + '？のボタンは見出しの右（「すべて戻す」の左）', geo);
-			await p.click('[data-usd-el="outside-excl-help"]');
+			assert(await exHead(p) === '除外中：2種（' + label + '）▾', tag + '見出しは「除外中：2種（' + label + '）▾」', await exHead(p));
+			// T80（C-270・2026-11-02）: 「除外中」の隣の？は無くし、説明は見出しの？の小窓の [除外中] の項目（区分によらず同じ文）になった
+			const geo = await p.evaluate(() => ({ has: !!document.querySelector('[data-usd-el="outside-excl-help"]'), restore: !!document.querySelector('[data-usd-el="outside-restore-all"]') }));
+			assert(!geo.has && geo.restore, tag + '「除外中」の隣に？は無い（「すべて戻す」はある）', geo);
+			await p.click(OM + '[data-usd-el="outside-help"]');
 			await sleep(p, 300);
-			const pop = await p.evaluate(() => { const t = document.querySelector('[data-usd-el="outside-excl-help-text"]'); return { text: t ? t.textContent : null, kids: t && t.parentElement ? t.parentElement.children.length : null }; });
-			assert(pop.text === (help || HELP_SENTENCE(label)) && pop.kids === 1, tag + '？を押すと、1文だけを出す（「' + (help || HELP_SENTENCE(label)) + '」）。ほかの説明は足さない', pop);
+			const pop = await p.evaluate(() => { const t = document.querySelector('[data-usd-el="outside-help-text"]'); const items = t ? Array.from(t.querySelectorAll('[data-usd-el="outside-help-item"]')) : []; return { n: items.length, last: items.length ? items[items.length - 1].textContent : null }; });
+			assert(pop.n === 2 && pop.last === HELP_EXCL, tag + '見出しの？の小窓の2つ目の項目が [除外中] の説明（区分によらず同じ文）', pop);
 			await p.keyboard.press('Escape');
 			await sleep(p, 300);
 			// 一覧: ［名前・戻す］。このセットのみの札は無い
@@ -265,7 +265,7 @@ export async function register49(env) {
 			await waitOutside(p); await sleep(p, 300);
 			const d = await userData(p);
 			assert(JSON.stringify(d.recommendExcluded[key]) === JSON.stringify([Y]) && await undoCount(p) === u0 + 1 && await inPopulation(p, X) && !(await inPopulation(p, Y)), tag + '「戻す」で区分の除外から外れ（母集団に戻る）、元に戻すに1回積まれ、その場で計算し直される', d.recommendExcluded);
-			assert(await exHead(p) === '除外中 スキル1種（' + label + '） ▴', tag + '見出しの種数が減る（一覧は開いたまま）', await exHead(p));
+			assert(await exHead(p) === '除外中：1種（' + label + '）▴', tag + '見出しの種数が減る（一覧は開いたまま）', await exHead(p));
 			await sp.ctx.close();
 		}
 		// カードだけ: ？は出ない
@@ -275,7 +275,7 @@ export async function register49(env) {
 		await sp.page.click(OM + '[data-usd-el="outside-exclude"][data-card-id="' + c0 + '"]');
 		await waitOutside(sp.page); await sleep(sp.page, 200);
 		const only = await sp.page.evaluate(() => ({ head: document.querySelector('[data-usd-el="outside-excl-toggle"]').textContent.replace(/\s+/g, ' ').trim(), help: !!document.querySelector('[data-usd-el="outside-excl-help"]') }));
-		assert(only.head === '除外中 カード1枚 ▾' && !only.help, '段F1(b) カードだけのとき「除外中 カード1枚」・？は出ない（スキルの説明なので）', only);
+		assert(only.head === '除外中：1枚▾' && !only.help, '段F1(b) カードだけのとき「除外中 カード1枚」・？は出ない（スキルの説明なので）', only);
 		await sp.ctx.close();
 	});
 
@@ -296,7 +296,7 @@ export async function register49(env) {
 		// 一覧は計算の結果の組なので、A・B を除くと顔ぶれが変わりうる（skill-step-up 2026-10-27a で金と下位の白の組が増え、3つ目が一覧から外れた）
 		const C = rows.find((id) => id !== A && id !== B);
 		assert(!rows.includes(A) && !rows.includes(B) && !!C && !(await inPopulation(p, A)) && !(await inPopulation(p, B)), '段F1(b) 以前の保存値のスキルは、これまでどおり母集団から除かれる（一覧に出ない）', rows.length);
-		assert(await exHead(p) === '除外中 スキル2種（中距離） ▾', '段F1(b) 見出しの種数に数える（引けない古いIDは数えない）', await exHead(p));
+		assert(await exHead(p) === '除外中：2種（中距離）▾', '段F1(b) 見出しの種数に数える（引けない古いIDは数えない）', await exHead(p));
 		await p.click(OM + '[data-usd-el="outside-excl-toggle"]');
 		const list = await p.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-excl-skill"]')).map((r) => ({ id: r.getAttribute('data-skill-id'), scope: r.getAttribute('data-scope'), tag: (r.querySelector('[data-usd-el="outside-excl-scope"]') || {}).textContent || null })));
 		assert(list.length === 2 && list.every((r) => r.scope === 'set' && r.tag === 'このセットのみ'), '段F1(b) 一覧の各行に小さく「このセットのみ」が付く', list);
@@ -320,7 +320,7 @@ export async function register49(env) {
 		// 区分の除外と以前の保存値の両方: 同じIDは1種と数える
 		const both = await openSp({ roster: Object.assign({}, FULL, { outsideSkillExcluded: [A] }), userData: Object.assign({}, EMPTY, { recommendExcluded: { medium: [A, B] } }) });
 		await openOutside(both.page);
-		assert(await exHead(both.page) === '除外中 スキル2種（中距離） ▾', '段F1(b) 区分の除外（A・B）と以前の保存値（A）が重なるときは、同じスキルを1種と数える（2種）', await exHead(both.page));
+		assert(await exHead(both.page) === '除外中：2種（中距離）▾', '段F1(b) 区分の除外（A・B）と以前の保存値（A）が重なるときは、同じスキルを1種と数える（2種）', await exHead(both.page));
 		await both.ctx.close();
 	});
 
@@ -332,7 +332,7 @@ export async function register49(env) {
 		const sp = await openSp({ roster: Object.assign({}, FULL, { outsideSkillExcluded: [C] }), userData: Object.assign({}, EMPTY, { recommendExcluded: { medium: [A, B], long: [A] } }) });
 		const p = sp.page;
 		await openOutside(p);
-		assert(await exHead(p) === '除外中 スキル3種（中距離） ▾', '段F1(b) 前提: 区分の除外2種と以前の保存値1種で「スキル3種」', await exHead(p));
+		assert(await exHead(p) === '除外中：3種（中距離）▾', '段F1(b) 前提: 区分の除外2種と以前の保存値1種で「スキル3種」', await exHead(p));
 		const u0 = await undoCount(p);
 		await p.click(OM + '[data-usd-el="outside-restore-all"]');
 		await waitOutside(p); await sleep(p, 300);

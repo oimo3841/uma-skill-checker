@@ -7,7 +7,7 @@
 //  (5) 「除外中」の行の左に、虫眼鏡とピンのアイコン・縦の線の区切り。除外が無いときは同じ位置にアイコンだけの行（28px・区切りなし）。
 //      アイコンの読み上げ名・title と小窓の題は「ピン止めするスキルを探す」。押すと②の「テキストで検索」の部品の小窓（追加候補の欄と「追加（N種）」なし）。
 //      候補は白と金。金は「金スキル」・②で追加済みは「追加済み」・ほかは今のピンの理由の文で選べない行。選べる行を押すとすぐピン止め（結果の先頭にピンの状態で出る）。
-//      「除外中」の表記は、行に入らない幅のときだけ「除外中 X枚/Y種（距離）」（読み上げ名は今の全文）。
+//      「除外中」の表記は、行に入らない幅のときだけ「除外中 X枚/Y種（距離）」（読み上げ名は今の全文）。→ T80（C-270）で、いつも短い形「除外中：X枚・Y種（距離）▾」・区切りなし・丸い枠に変えた（blocks-97）
 // 見た目の正は T71 のモック lab/outside-tile-mock.html（既定・?excl=none・?excl=long・?scene=search・?scene=pinned）。同じ状態の製品とモックの寸法（タイルの中の位置と大きさ・除外中の行）を比べる。
 // 名前の押せる部分の高さ（36.2px）と × の押せる範囲（44 × 44）は、変更前（bc17568）の製品を測った値。
 // 変更前の製品では、タイルに「対象Y種」もアイコンも無いので、この塊は NG になる（T75 の報告に結果）。
@@ -149,38 +149,36 @@ export async function register94(env) {
 		}
 	});
 
-	await block('T75タイルとピン止め(5a) 除外中の行の左のアイコン・区切り・除外が無いときのアイコンだけの行（28px）・短い表記は入らない幅でだけ = モック（375px・1280px）', async () => {
+	// T80（C-270・2026-11-02）で直した: 区切りの縦の線は消え、アイコンは丸い枠（28px）、「除外中」はピルの部品で表記はいつも短い形（部品と表記の検査は blocks-97）。
+	// ここでは T75 で決めた「行の位置と高さ（28px）・アイコンの読み上げ名と押せる範囲・除外が無いときのアイコンだけの行と下の一覧の位置（モックと同じ）」だけを見る
+	await block('T75タイルとピン止め(5a) 除外中の行の左のアイコン（読み上げ名・押せる範囲）・行の高さ 28px・除外が無いときのアイコンだけの行（下の一覧の位置はモックと同じ）・数の多い除外も1行（375px・1280px）', async () => {
 		const M = await loadMock();
 		for (const w of [375, 1280]) {
-			// 既定（カード1枚・スキル2種〔長距離〕）: 今の表記のまま・アイコン → 区切り → 除外中…
+			// 既定（カード1枚・スキル2種〔長距離〕）: アイコン → 除外中…（T80: 区切りなし・短い表記）
 			const sp = await openSp(R4, w, R4_EX_SKILLS);
 			await openOut(sp.page);
 			const a = await readOut(sp.page);
 			const ma = M.m['auto' + w].rel;
-			assert(near(a.excl.head, ma.head) && near(a.excl.icon, ma.icon) && near(a.excl.sep, ma.sep) && near(a.excl.toggle, ma.toggle), 'T75(5a) ' + w + 'px: アイコン・区切り・「除外中…」の位置と大きさがモックと同じ', { got: a.excl, mock: ma });
+			assert(near(a.excl.head, ma.head) && !a.excl.sep && a.excl.icon && a.excl.icon[0] === 0 && a.excl.toggle && a.excl.toggle[3] === 28 && a.excl.toggle[0] > a.excl.icon[0] + a.excl.icon[2], 'T75(5a) ' + w + 'px: 行の位置と高さがモックと同じ・左端にアイコン → 「除外中…」（区切りなし・T80）', { got: a.excl, mock: ma });
 			assert(a.excl.iconLabel === 'ピン止めするスキルを探す' && a.excl.iconTitle === 'ピン止めするスキルを探す' && a.excl.iconHit && a.excl.iconHit[0] === '44px' && a.excl.iconHit[1] === '44px', 'T75(5a) ' + w + 'px: アイコンの読み上げ名・title は「ピン止めするスキルを探す」・押せる範囲 44 × 44', a.excl);
-			assert(a.excl.text === '除外中 カード1枚・スキル2種（長距離） ▾' && !a.excl.short && a.excl.label === null, 'T75(5a) ' + w + 'px: 入る幅では今の表記のまま（読み上げ名も今のまま）', a.excl);
+			assert(a.excl.text === '除外中：1枚・2種（長距離）▾', 'T75(5a) ' + w + 'px: 表記は短い形（T80）', a.excl);
 			assert(jsErrors(sp.errors).length === 0, 'T75(5a) ' + w + 'px: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
-			// 除外が1件も無い: 同じ位置にアイコンだけの行（28px・区切り・文・すべて戻す なし）
+			// 除外が1件も無い: 同じ位置にアイコンだけの行（28px・文・すべて戻す なし）
 			const sp2 = await openSp(R4_NONE, w);
 			await openOut(sp2.page);
 			const n = await readOut(sp2.page);
 			const mn = M.m['none' + w].rel;
-			assert(n.excl.pinrow && !n.excl.exclRow && !n.excl.sep && !n.excl.toggle && !n.excl.restore && n.excl.head && n.excl.head[3] === 28 && near(n.excl.head, mn.head) && near(n.excl.icon, mn.icon) && near(n.excl.list, mn.list),
-				'T75(5a) ' + w + 'px: 除外が無いときは、同じ位置にアイコンだけの行（高さ 28px・区切りなし。下の一覧の位置もモックと同じ）', { got: n.excl, mock: mn });
+			assert(n.excl.pinrow && !n.excl.exclRow && !n.excl.sep && !n.excl.toggle && !n.excl.restore && n.excl.head && n.excl.head[3] === 28 && near(n.excl.head, mn.head) && n.excl.icon && n.excl.icon[0] === 0 && near(n.excl.list, mn.list),
+				'T75(5a) ' + w + 'px: 除外が無いときは、同じ位置にアイコンだけの行（高さ 28px。下の一覧の位置もモックと同じ）', { got: n.excl, mock: mn });
 			assert(!n.scrollX && jsErrors(sp2.errors).length === 0, 'T75(5a) ' + w + 'px: 除外なしで横スクロールなし・コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
 			await sp2.ctx.close();
-			// 数の多い除外（カード3枚・スキル12種〔距離指定なし〕）: 375px だけ短い表記
+			// 数の多い除外（カード3枚・スキル12種〔距離指定なし〕）: どの幅でも短い表記で1行（T80）
 			const ex12 = M.data.cand.filter((c) => !c[2] && IDS2.indexOf(c[0]) === -1).slice(0, 12).map((c) => c[0]);
 			const sp3 = await openSp(RL, w, ex12);
 			await openOut(sp3.page);
 			const l = await readOut(sp3.page);
-			const full = '除外中 カード3枚・スキル12種（距離指定なし）';
-			if (w === 375) assert(l.excl.short && l.excl.text === '除外中 3枚/12種（距離指定なし） ▾' && l.excl.label === full, 'T75(5a) 375px: 入らない幅では「除外中 3枚/12種（距離指定なし）」（読み上げ名は今の全文）', l.excl);
-			else assert(!l.excl.short && l.excl.text === full + ' ▾' && l.excl.label === null, 'T75(5a) 1280px: 入る幅では今の表記のまま', l.excl);
-			const ml = M.m['long' + w].rel;
-			assert(near(l.excl.toggle, ml.toggle) && l.excl.toggle[3] === 28, 'T75(5a) ' + w + 'px: 数の多い除外の「除外中…」の幅と高さ（1行）がモック（?excl=long）と同じ', { got: l.excl.toggle, mock: ml.toggle });
+			assert(l.excl.text === '除外中：3枚・12種（距離指定なし）▾' && l.excl.toggle && l.excl.toggle[3] === 28, 'T75(5a) ' + w + 'px: 数の多い除外も「除外中：3枚・12種（距離指定なし）▾」で1行（T80）', l.excl);
 			assert(!l.scrollX && jsErrors(sp3.errors).length === 0, 'T75(5a) ' + w + 'px: 数の多い除外で横スクロールなし・コンソールのエラー0', jsErrors(sp3.errors).slice(0, 3));
 			await sp3.ctx.close();
 		}

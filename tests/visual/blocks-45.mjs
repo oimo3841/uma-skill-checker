@@ -206,7 +206,8 @@ export async function register45(env) {
 			await sp.page.fill('[data-usd-el="find"]', labelOf(R_CARD));
 			await sleep(sp.page, 400);
 			const rc = await sp.page.evaluate((nm) => { const b = Array.from(document.querySelectorAll('[data-usd-el="hits"] .usd-name-hit')).find((x) => x.textContent.indexOf(nm) !== -1 && x.getAttribute('data-type-order')); return b ? { has: true, rar: !!b.querySelector('[data-usd-el="card-rarity-icon"]'), type: !!b.querySelector('[data-usd-el="card-type-icon"]') } : { has: false }; }, labelOf(R_CARD));
-			assert(rc.has && rc.rar === false && rc.type === true, tag + 'R のカードは、レアリティのバッジを出さない（種別アイコンは出る）', rc);
+			// T80（C-270・2026-11-02）: ②から開いた小窓に R は出ない（それまでは「出るがバッジ無し」だった）
+			assert(!rc.has, tag + 'R のカードは、②から開いた小窓の候補に出ない（T80）', rc);
 			assert(jsErrors(sp.errors).length === 0 && sp.bad.length === 0, tag + 'コンソールのエラー0・素材の404なし', { e: jsErrors(sp.errors).slice(0, 3), bad: sp.bad });
 			await sp.ctx.close();
 		}

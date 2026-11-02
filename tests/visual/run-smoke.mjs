@@ -123,6 +123,7 @@ import { register93 } from './blocks-93.mjs';
 import { register94 } from './blocks-94.mjs';
 import { register95 } from './blocks-95.mjs';
 import { register96 } from './blocks-96.mjs';
+import { register97 } from './blocks-97.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15482,6 +15483,8 @@ await register94({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register95({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T76（2026-11-02）: 画像をアップロードの作り直し（3列・縦1列・下に固定した欄。C-258 の T69 への回答。見出しは「T76画像アップロード」）
 await register96({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T80（2026-11-02）: オススメサポの「除外中」の行の部品と短い表記・見出しの？の2項目・②の小窓に R を出さない（C-270。見出しは「T80除外中と説明とR」）
+await register97({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
