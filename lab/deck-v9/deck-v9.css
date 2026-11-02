@@ -144,6 +144,7 @@ input.txt { border: 1px solid var(--uma-control-border); border-radius: 8px; bac
 .vl th.mx { text-align: center; padding: 0; font-family: var(--uma-font-mono); font-size: 10px; color: var(--uma-text); border-right: 1px solid var(--uma-border); }
 .vl th.mx.c0 { background: var(--dk-h0); color: var(--uma-text-faint); } .vl th.mx.c1 { background: var(--dk-h1); } .vl th.mx.c2 { background: var(--dk-h2); color: #0f1318; } .vl th.mx.c3 { background: var(--dk-h3); color: var(--dk-h3-text); }
 .vl tr.rf th { box-shadow: inset 0 1px 0 var(--dk-sel), inset 0 -1px 0 var(--dk-sel); }
+:root:where([data-theme="dark"]) .vb td.c2, :root:where([data-theme="dark"]) .vl th.mx.c2 { color: #ffffff; }
 .vc { z-index: 4; background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); border-right: 1px solid var(--uma-border); display: flex; align-items: flex-end; }
 .vc button { border: 0; background: transparent; color: var(--uma-text-subtle); font-size: 11px; text-align: left; padding: 2px 6px; height: 100%; width: 100%; }
 .vc .sorted { font-weight: 700; color: var(--uma-text); }
