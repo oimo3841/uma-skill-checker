@@ -11,7 +11,7 @@
 	const isNarrow = () => matchMedia('(max-width: 720px)').matches;
 
 	const S = { doc: null, settings: null, M: null, lv: 1, pane: null, A: null, B: null, rs: 'def', cs: 'def',
-		pf: { bundle: null, style: new Set(), owner: new Set(), tier: false }, sf: { cat: new Set(), dist: new Set(), style: new Set(), q: '' },
+		pf: { bundle: null, style: new Set(), owner: new Set(), tier: false }, sf: { cat: new Set(), dist: new Set(), style: new Set(), q: '', want: true },
 		onlyMiss: false, six: false, fixedTheme: null, perf: {} };
 
 	/* ---------- 起動 ---------- */
@@ -61,9 +61,12 @@
 		else if (S.cs === 'owner') ps.sort((a, b) => (a.owner === b.owner ? (b.date.localeCompare(a.date) || b.no - a.no) : a.owner === 'self' ? -1 : 1));
 		return ps;
 	}
+	function wantBundle() { const b = S.pf.bundle && S.doc.bundles.find((x) => x.id === S.pf.bundle); return b && b.want && b.want.length ? b : null; }
 	function visRowsRaw() {
 		const f = S.sf, q = f.q.trim();
-		return S.M.rows.filter((s) => {
+		const wb = f.want ? wantBundle() : null;
+		const base = wb ? wb.want.map(K.skill) : S.M.rows;
+		return base.filter((s) => {
 			if (f.cat.size && !f.cat.has(s.cat)) return false;
 			if (f.dist.size && !s.dist.some((d) => f.dist.has(d))) return false;
 			if (f.style.size && !s.style.some((d) => f.style.has(d))) return false;
@@ -108,6 +111,8 @@
 		chips($('#pf-style'), Object.entries(K.STYLE), (v) => S.pf.style.has(v), (v) => toggleSet(S.pf.style, v));
 		chips($('#pf-owner'), [['self', '自分'], ['friend', 'フレンド']], (v) => S.pf.owner.has(v), (v) => toggleSet(S.pf.owner, v));
 		chips($('#pf-tier'), [[true, '目標に合う家系だけ', !K.tierActive(t)]], () => S.pf.tier, () => { S.pf.tier = !S.pf.tier; });
+		const wb = wantBundle();
+		chips($('#sf-want'), [[true, wb ? wb.name + ' の欲しいスキルだけ（' + wb.want.length + '種）' : 'まとまりの欲しいスキルだけ', !wb]], () => S.sf.want && !!wb, () => { S.sf.want = !S.sf.want; });
 		chips($('#sf-cat'), Object.entries(K.CAT), (v) => S.sf.cat.has(v), (v) => toggleSet(S.sf.cat, v));
 		chips($('#sf-dist'), Object.entries(K.DIST), (v) => S.sf.dist.has(v), (v) => toggleSet(S.sf.dist, v));
 		chips($('#sf-style'), Object.entries(K.STYLE), (v) => S.sf.style.has(v), (v) => toggleSet(S.sf.style, v));
@@ -152,13 +157,13 @@
 	function renderStage(force) {
 		const t0 = performance.now();
 		const ps = visParents(), rows = visRows(ps), cols = columns(ps);
-		const pfOn = S.pf.bundle || S.pf.style.size || S.pf.owner.size || S.pf.tier, sfOn = S.sf.cat.size || S.sf.dist.size || S.sf.style.size || S.sf.q.trim() || S.onlyMiss;
+		const pfOn = S.pf.bundle || S.pf.style.size || S.pf.owner.size || S.pf.tier, sfOn = S.sf.cat.size || S.sf.dist.size || S.sf.style.size || S.sf.q.trim() || S.onlyMiss || (S.sf.want && wantBundle());
 		$('#nParent').textContent = pfOn ? ps.length : ''; $('#nParent').hidden = !pfOn; $('#nSkill').textContent = sfOn ? rows.length : ''; $('#nSkill').hidden = !sfOn;
 		const t = S.doc.targets; $('#tierSum').textContent = K.tierActive(t) ? t.t1.filter(Boolean).length + '人' + (t.t2.length ? '＋次善' + t.t2.length : '') : '';
 		stage.classList.toggle('ov', S.lv === 0); stage.classList.toggle('lv2', S.lv === 2);
 		stage.onscroll = null;
 		if (!S.doc.parents.length) { V = null; stage.innerHTML = '<div class="empty"><span>まだ親がいません。UmaStar の OCR から送るか、バックアップを読み込んでください。</span><button class="btn" type="button" id="emptyData">バックアップ・仮のデータ</button></div>'; $('#emptyData').onclick = openData; return; }
-		if (!cols.length || !rows.length) { V = null; stage.innerHTML = '<div class="empty"><span>条件に合う親かスキルがありません。</span><button class="btn" type="button" id="emptyClear">絞り込みを外す</button></div>'; $('#emptyClear').onclick = () => { S.pf = { bundle: null, style: new Set(), owner: new Set(), tier: false }; S.sf = { cat: new Set(), dist: new Set(), style: new Set(), q: '' }; $('#sf-q').value = ''; S.onlyMiss = false; renderAll(); }; return; }
+		if (!cols.length || !rows.length) { V = null; stage.innerHTML = '<div class="empty"><span>条件に合う親かスキルがありません。</span><button class="btn" type="button" id="emptyClear">絞り込みを外す</button></div>'; $('#emptyClear').onclick = () => { S.pf = { bundle: null, style: new Set(), owner: new Set(), tier: false }; S.sf = { cat: new Set(), dist: new Set(), style: new Set(), q: '', want: true }; $('#sf-q').value = ''; S.onlyMiss = false; renderAll(); }; return; }
 		if (S.lv === 0) drawOverview(ps, rows, cols); else drawTable(ps, rows, cols, force);
 		S.perf.lastRender = performance.now() - t0;
 	}

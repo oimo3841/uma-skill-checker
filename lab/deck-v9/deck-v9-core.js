@@ -120,7 +120,9 @@
 		// 同じ日の管理番号（登録順）
 		const byDate = {}; parents.forEach((p) => (byDate[p.date] = byDate[p.date] || []).push(p));
 		Object.values(byDate).forEach((a) => a.forEach((p, k) => { p.no = k + 1; }));
-		return { format: 'uma-deck', schema: 1, tool: 'star', savedAt: null, data: D.versions, next: n + 1, bundles: MOCK_BUNDLES.map((b) => Object.assign({}, b)), parents,
+		// 【提案】まとまりごとの「欲しいスキル」（UmaStar の②で選んだスキルを送る想定。40種前後）。データの形の第1版には無い項目
+		const wantFor = (b) => { const sc = pool.filter((s) => s.cat === 'scenario'), out = pool.filter((s) => s.cat === 'outside'); const tg = pool.filter((s) => s.cat === 'other' && (s.dist.includes(b.dist) || s.surface.includes(b.surface))); return sc.concat(out, tg).map((s) => s.id).slice(0, 40); };
+		return { format: 'uma-deck', schema: 1, tool: 'star', savedAt: null, data: D.versions, next: n + 1, bundles: MOCK_BUNDLES.map((b) => Object.assign({}, b, { want: wantFor(b) })), parents,
 			targets: { t1: [null, null, null, null, null, null], t2: [], must: { A: false, B: false } } };
 	}
 
