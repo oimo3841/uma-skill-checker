@@ -28,12 +28,16 @@
  * 動画の読み込み・シーク・描画の待ちが返ってこないときも、取り消したらその場で止まる（untilAbort。T68）。
  * opts.onProgress({ phase, done, total, ratio, persons }) に進捗を知らせる（phase: 'read' | 'select' | 'grab' | 'compose'）。
  *
+ * フレームの出どころ（T90）: openSource は、まず MP4 を自分で分解して WebCodecs（VideoDecoder）で復号する出どころ（mp4Source。
+ * 時刻 t の画が必ず同じフレームになる）を試し、使えなければ video 要素のシーク（videoSource）に倒す。iPhone の Safari のシークは
+ * 頼んだ時刻の画が毎回同じには描かれない（T90 の iPhone の記録）ので、同じ動画から毎回同じ結合画像を作るには復号の出どころが要る。
+ *
  * 使い方（V1-2 の想定）:
- *   const src = await UmaVideoFrames.videoSource(file, { signal }); // File / Blob / URL
+ *   const src = await UmaVideoFrames.openSource(file, { signal }); // File / Blob / URL（T90。videoSource だけなら video 要素のシーク）
  *   try {
  *     const sel = await UmaVideoFrames.selectFrames(src, { signal, onProgress });
  *     for (const p of sel.persons) {
- *       const canvas = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, label, { signal });
+ *       const canvas = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, label, { signal, still: p.still });
  *       // canvas は stitchOnePerson の戻り値と同じ形（_stitchWarnings・_sourcePlacements・_profileHeader）
  *     }
  *   } finally { src.close(); }
@@ -41,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-03a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-03b';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -203,12 +207,261 @@
 	function canvasSource(spec) {
 		return {
 			kind: spec.kind || 'canvas', width: spec.width, height: spec.height, duration: spec.duration,
+			exact: !!spec.exact,   // 同じ時刻には必ず同じ画を描く（エフェクトの置き換えは、これが真のときだけ。T90）
 			async drawAt(t, ctx, dw, dh, signal, how) {
 				if (signal && signal.aborted) throw abortError();
 				await untilAbort(spec.draw(t, ctx, dw, dh, how), signal);
 			},
 			close() { if (spec.close) spec.close(); }
 		};
+	}
+
+	/* ── MP4 を分解して WebCodecs で復号する出どころ（T90） ─────────────────────────────
+	 * iPhone の Safari では、video 要素のシークで「頼んだ時刻の画」が毎回同じには描かれない（T90 の iPhone の記録）。
+	 * 動画ファイル（断片化していない MP4。iPhone の画面収録は hvc1）を自分で分解し、WebCodecs（VideoDecoder）で
+	 * フレームを順に復号して、時刻 t の画を「表示時刻が t 以下の最後のフレーム」と決めて描く。同じ動画なら何回通しても同じフレーム。
+	 * 復号は前へ進めるだけ。後ろへ戻る・まだ届いていない先の区間へ飛ぶときは、目当てのフレームの手前のキーフレームから復号し直す
+	 * （間の区間は飛ばせる）。復号し直した直後の「先行する画」（復号順はあとで表示時刻は前。前の区間を参照していて復号できないことがある）は渡さない。
+	 * WebCodecs が無い・MP4 でない・コーデックを復号できないときは openSource が videoSource（video 要素）に倒す。 */
+
+	const str4 = (dv, o) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
+	async function mp4ReadView(blob, off, len) { return new DataView(await blob.slice(off, Math.min(blob.size, off + len)).arrayBuffer()); }
+	// 先頭から箱の見出しだけを読んで並べる（moov が末尾にあっても、ファイル全体は読まない）
+	async function mp4TopBoxes(blob) {
+		const out = []; let off = 0;
+		while (off + 8 <= blob.size) {
+			const h = await mp4ReadView(blob, off, 16);
+			if (h.byteLength < 8) break;
+			let sz = h.getUint32(0); const type = str4(h, 4); let hdr = 8;
+			if (sz === 1) { if (h.byteLength < 16) break; sz = Number(h.getBigUint64(8)); hdr = 16; } else if (sz === 0) sz = blob.size - off;
+			if (sz < hdr) throw framesError('mp4', '箱の大きさが不正: ' + type);
+			out.push({ type, off, sz, hdr }); off += sz;
+		}
+		return out;
+	}
+	function mp4Children(dv, start, end) {
+		const out = []; let off = start;
+		while (off + 8 <= end) {
+			let sz = dv.getUint32(off); const type = str4(dv, off + 4); let hdr = 8;
+			if (sz === 1) { sz = Number(dv.getBigUint64(off + 8)); hdr = 16; } else if (sz === 0) sz = end - off;
+			if (sz < hdr || off + sz > end) break;
+			out.push({ type, off, sz, hdr, body: off + hdr, end: off + sz }); off += sz;
+		}
+		return out;
+	}
+	const mp4Find = (list, type) => list.find((b) => b.type === type);
+	// moov から映像トラック（最初の 'vide'）の表を読む
+	function mp4ParseMoov(dv) {
+		const moov = mp4Children(dv, 0, dv.byteLength)[0];
+		if (!moov || moov.type !== 'moov') throw framesError('mp4', 'moov が読めない');
+		for (const trak of mp4Children(dv, moov.body, moov.end).filter((b) => b.type === 'trak')) {
+			const tk = mp4Children(dv, trak.body, trak.end);
+			const mdia = mp4Find(tk, 'mdia'); if (!mdia) continue;
+			const md = mp4Children(dv, mdia.body, mdia.end);
+			const hdlr = mp4Find(md, 'hdlr'); if (!hdlr || str4(dv, hdlr.body + 8) !== 'vide') continue;
+			const mdhd = mp4Find(md, 'mdhd');
+			const v = dv.getUint8(mdhd.body);
+			const timescale = v === 1 ? dv.getUint32(mdhd.body + 20) : dv.getUint32(mdhd.body + 12);
+			const mediaDur = v === 1 ? Number(dv.getBigUint64(mdhd.body + 24)) : dv.getUint32(mdhd.body + 16);
+			const minf = mp4Find(md, 'minf'); const stbl = mp4Find(mp4Children(dv, minf.body, minf.end), 'stbl'); const st = mp4Children(dv, stbl.body, stbl.end);
+			const stsd = mp4Find(st, 'stsd');
+			const entries = mp4Children(dv, stsd.body + 8, stsd.end);
+			const entry = entries.find((e) => /^(hvc1|hev1|avc1|avc3)$/.test(e.type));
+			if (!entry) throw framesError('codec', '対応していない映像の形式: ' + entries.map((e) => e.type).join(','));
+			const width = dv.getUint16(entry.body + 24), height = dv.getUint16(entry.body + 26);
+			const sub = mp4Children(dv, entry.body + 78, entry.end);
+			const cfgBox = mp4Find(sub, entry.type[0] === 'h' ? 'hvcC' : 'avcC');
+			if (!cfgBox) throw framesError('codec', entry.type + ' の設定が無い');
+			const cb = new Uint8Array(dv.buffer, dv.byteOffset + cfgBox.body, cfgBox.end - cfgBox.body);
+			const description = cb.slice();
+			let codec, hasParams = false;
+			if (cfgBox.type === 'hvcC') {
+				const profileSpace = cb[1] >> 6, tier = (cb[1] >> 5) & 1, profile = cb[1] & 31;
+				const compat = (cb[2] << 24 | cb[3] << 16 | cb[4] << 8 | cb[5]) >>> 0;
+				let rev = 0; for (let i = 0; i < 32; i++) if (compat & (1 << (31 - i))) rev |= (1 << i);
+				const cons = Array.from(cb.subarray(6, 12)); while (cons.length > 1 && cons[cons.length - 1] === 0) cons.pop();
+				codec = 'hvc1.' + (profileSpace ? String.fromCharCode(64 + profileSpace) : '') + profile + '.' + (rev >>> 0).toString(16).toUpperCase() + '.' + (tier ? 'H' : 'L') + cb[12] + '.' + cons.map((x) => x.toString(16).toUpperCase()).join('.');
+				let p = 23; const arrays = cb[22];
+				for (let a = 0; a < arrays && p + 3 <= cb.length; a++) { const nt = cb[p] & 63; const num = cb[p + 1] << 8 | cb[p + 2]; p += 3; for (let k = 0; k < num && p + 2 <= cb.length; k++) { const len = cb[p] << 8 | cb[p + 1]; p += 2 + len; if (nt === 33) hasParams = true; } }
+			} else {
+				codec = 'avc1.' + [cb[1], cb[2], cb[3]].map((x) => x.toString(16).padStart(2, '0')).join('');
+				hasParams = (cb[5] & 31) > 0;
+			}
+			const stts = mp4Find(st, 'stts'); const nS = dv.getUint32(stts.body + 4);
+			const dts = []; const dur = []; let t = 0;
+			for (let i = 0; i < nS; i++) { const c = dv.getUint32(stts.body + 8 + i * 8), d = dv.getUint32(stts.body + 12 + i * 8); for (let k = 0; k < c; k++) { dts.push(t); dur.push(d); t += d; } }
+			const n = dts.length;
+			if (!n) throw framesError('mp4', 'サンプルが無い');
+			const cto = new Int32Array(n);
+			const ctts = mp4Find(st, 'ctts');
+			if (ctts) { const nC = dv.getUint32(ctts.body + 4); let i = 0; for (let e = 0; e < nC; e++) { const c = dv.getUint32(ctts.body + 8 + e * 8), o = dv.getInt32(ctts.body + 12 + e * 8); for (let k = 0; k < c && i < n; k++) cto[i++] = o; } }
+			const sync = new Uint8Array(n);
+			const stss = mp4Find(st, 'stss');
+			if (stss) { const nK = dv.getUint32(stss.body + 4); for (let i = 0; i < nK; i++) { const s = dv.getUint32(stss.body + 8 + i * 4) - 1; if (s >= 0 && s < n) sync[s] = 1; } } else sync.fill(1);
+			const stsz = mp4Find(st, 'stsz'); const fixedSize = dv.getUint32(stsz.body + 4); const sizes = new Uint32Array(n);
+			if (fixedSize) sizes.fill(fixedSize); else for (let i = 0; i < n; i++) sizes[i] = dv.getUint32(stsz.body + 12 + i * 4);
+			const stsc = mp4Find(st, 'stsc'); const nSC = dv.getUint32(stsc.body + 4);
+			const sc = []; for (let i = 0; i < nSC; i++) sc.push({ first: dv.getUint32(stsc.body + 8 + i * 12), per: dv.getUint32(stsc.body + 12 + i * 12) });
+			const stco = mp4Find(st, 'stco'), co = stco || mp4Find(st, 'co64'); const nCh = dv.getUint32(co.body + 4);
+			const chunkOff = []; for (let i = 0; i < nCh; i++) chunkOff.push(stco ? dv.getUint32(co.body + 8 + i * 4) : Number(dv.getBigUint64(co.body + 8 + i * 8)));
+			const offs = new Float64Array(n);
+			{ let si = 0; for (let c = 0; c < nCh && si < n; c++) { let per = 0; for (const e of sc) if (e.first - 1 <= c) per = e.per; let o = chunkOff[c]; for (let k = 0; k < per && si < n; k++) { offs[si] = o; o += sizes[si]; si++; } } if (si < n) throw framesError('mp4', 'サンプルの位置が足りない'); }
+			// elst（media_time を引く。-1 の空の区間は飛ばす）
+			let mediaTime = 0;
+			const edts = mp4Find(tk, 'edts');
+			if (edts) { const elst = mp4Find(mp4Children(dv, edts.body, edts.end), 'elst'); if (elst) { const ev = dv.getUint8(elst.body); const ne = dv.getUint32(elst.body + 4); for (let i = 0; i < ne; i++) { const mt = ev === 1 ? Number(dv.getBigInt64(elst.body + 16 + i * 20)) : dv.getInt32(elst.body + 12 + i * 12); if (mt >= 0) { mediaTime = mt; break; } } } }
+			const pts = new Float64Array(n); for (let i = 0; i < n; i++) pts[i] = dts[i] + cto[i] - mediaTime;
+			const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => pts[a] - pts[b] || a - b);
+			let keyframes = 0; for (let i = 0; i < n; i++) keyframes += sync[i];
+			return { codec, description, hasParams, width, height, timescale, duration: mediaDur / timescale, n, dur, pts, sync, sizes, offs, order, entryType: entry.type, keyframes };
+		}
+		throw framesError('no-video-track', '映像トラックが無い');
+	}
+	async function mp4Parse(blob) {
+		if (!blob || typeof blob.slice !== 'function' || !(blob.size > 16)) throw framesError('mp4', 'ファイルでない');
+		const boxes = await mp4TopBoxes(blob);
+		const moov = mp4Find(boxes, 'moov');
+		if (!moov) throw framesError('mp4', 'moov が無い' + (mp4Find(boxes, 'moof') ? '（断片化した MP4）' : ''));
+		if (mp4Find(boxes, 'moof')) throw framesError('mp4', '断片化した MP4 には対応していない');
+		return mp4ParseMoov(await mp4ReadView(blob, moov.off, moov.sz));
+	}
+	/** この動画を WebCodecs で復号できるか: { ok, reason, codec, width, height, duration, frames, keyframes, track } */
+	async function mp4Probe(blob) {
+		if (typeof VideoDecoder === 'undefined' || typeof EncodedVideoChunk === 'undefined') return { ok: false, reason: 'no-webcodecs' };
+		let tr;
+		try { tr = await mp4Parse(blob); } catch (e) { return { ok: false, reason: e.code || 'parse', message: e.message }; }
+		let sup = null;
+		try { sup = await VideoDecoder.isConfigSupported({ codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, description: tr.hasParams ? tr.description : undefined }); } catch (e) { return { ok: false, reason: 'unsupported', message: e.message, codec: tr.codec }; }
+		const ok = !!(sup && sup.supported);
+		return { ok, reason: ok ? '' : 'unsupported', codec: tr.codec, width: tr.width, height: tr.height, duration: tr.duration, frames: tr.n, keyframes: tr.keyframes, entryType: tr.entryType, track: ok ? tr : null };
+	}
+	/** MP4（File / Blob）を WebCodecs で復号する出どころ。o.track（mp4Probe の track）があれば分解を省く。stat に復号の統計 */
+	async function mp4Source(blob, o) {
+		o = o || {};
+		const signal = o.signal || null;
+		if (signal && signal.aborted) throw abortError();
+		const tr = o.track || await untilAbort(mp4Parse(blob), signal);
+		const n = tr.n, ts = tr.timescale;
+		const stat = { fed: 0, out: 0, restarts: 0, skips: 0, reads: 0, leadingSkipped: 0 };
+		const cfg = { codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, optimizeForLatency: false };
+		if (tr.hasParams) cfg.description = tr.description;
+		// 表示順 j ↔ サンプル i（復号順）。出てきたフレームは chunk の timestamp（µs）で引く
+		const usOf = new Float64Array(n); const jOfUs = new Map();
+		for (let j = 0; j < n; j++) { const i = tr.order[j]; let us = Math.round(tr.pts[i] * 1e6 / ts); while (jOfUs.has(us)) us++; usOf[i] = us; jOfUs.set(us, j); }
+		const ptsSorted = new Float64Array(n); for (let j = 0; j < n; j++) ptsSorted[j] = tr.pts[tr.order[j]];
+		const syncIdx = []; for (let i = 0; i < n; i++) if (tr.sync[i]) syncIdx.push(i);
+		if (!syncIdx.length || syncIdx[0] !== 0) throw framesError('mp4', '最初のサンプルがキーフレームでない');
+		// 表示順 j の目当てのフレームを復号できる、いちばん近いキーフレーム（復号順が手前で、表示時刻も手前）
+		function keyFor(j) {
+			const i = tr.order[j]; let best = 0;
+			for (const s of syncIdx) { if (s <= i && tr.pts[s] <= tr.pts[i]) best = s; else if (s > i) break; }
+			return best;
+		}
+		// 時刻 t（秒）→ 表示順 j（pts ≤ t の最後。無ければ 0）
+		function jAt(t) {
+			const tk = t * ts; let lo = 0, hi = n - 1;
+			if (ptsSorted[0] > tk) return 0;
+			while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ptsSorted[mid] <= tk) lo = mid; else hi = mid - 1; }
+			return lo;
+		}
+		// ファイルの読み（キーフレームから次のキーフレームの手前までをまとめて。12MB まで）
+		let buf = null, bufOff = 0, bufEnd = 0;
+		async function sampleData(i) {
+			const off = tr.offs[i], sz = tr.sizes[i];
+			if (!(buf && off >= bufOff && off + sz <= bufEnd)) {
+				let e = i, lo = off, hi = off + sz;
+				while (e + 1 < n && !tr.sync[e + 1]) { const o2 = tr.offs[e + 1], s2 = tr.sizes[e + 1]; if (Math.max(hi, o2 + s2) - Math.min(lo, o2) > 12e6) break; e++; lo = Math.min(lo, o2); hi = Math.max(hi, o2 + s2); }
+				buf = await untilAbort(blob.slice(lo, hi).arrayBuffer(), signal); bufOff = lo; bufEnd = hi; stat.reads++;
+			}
+			return new Uint8Array(buf, off - bufOff, sz);
+		}
+		let dec = null, fed = 0, ended = false, flushing = false, failed = null, closed = false, gen = 0, startKey = 0;
+		let queue = []; // 出てきたフレーム（表示順）のうち、まだ渡していないもの
+		let cur = null, curJ = -1;
+		let waiters = [];
+		const wake = () => { const w = waiters; waiters = []; for (const r of w) r(); };
+		const waitEvent = () => untilAbort(new Promise((r) => { waiters.push(r); setTimeout(r, 40); }), signal);
+		// 復号器は復号し直すたびに作り直す（世代 g）。前の世代から遅れて出てきたフレーム・拒まれた flush は今の世代に関係させない
+		function makeDecoder() {
+			const g = ++gen;
+			const d = new VideoDecoder({
+				output: (f) => { if (closed || g !== gen) { f.close(); return; } const j = jOfUs.get(f.timestamp); if (j == null) { f.close(); return; } stat.out++; queue.push({ j, frame: f }); wake(); },
+				error: (e) => { if (g === gen) failed = e; wake(); }
+			});
+			try { d.addEventListener('dequeue', () => { if (g === gen) wake(); }); } catch (e) { /* 無くてもよい（40ms で起きる） */ }
+			d.configure(cfg);
+			dec = d;
+		}
+		makeDecoder();
+		function dropQueue() { for (const q of queue) q.frame.close(); queue = []; }
+		function restart(s) {
+			dropQueue();
+			const old = dec;
+			makeDecoder();
+			try { old.close(); } catch (e) { /* 閉じていても */ }
+			fed = s; startKey = s; ended = false; flushing = false; failed = null; stat.restarts++;
+		}
+		async function frameAt(t) {
+			if (closed) throw framesError('closed', '閉じた出どころ');
+			const j = jAt(t);
+			if (j === curJ && cur) return cur;
+			const s = keyFor(j);
+			if (j < curJ || s > fed || (ended && j > curJ && !queue.some((q) => q.j === j))) restart(s);
+			let guard = 0;
+			while (true) {
+				if (signal && signal.aborted) throw abortError();
+				if (failed) throw framesError('decode', '復号に失敗: ' + (failed.message || failed));
+				while (queue.length) {
+					const q = queue[0];
+					if (q.j < j) { queue.shift(); q.frame.close(); continue; }
+					if (q.j === j) { queue.shift(); if (cur) cur.close(); cur = q.frame; curJ = j; return cur; }
+					// 目当てのフレームが出てこなかった（復号器が捨てた）。次のフレームで代える
+					if (ended || fed > tr.order[j] + 32) { stat.skips++; queue.shift(); if (cur) cur.close(); cur = q.frame; curJ = j; return cur; }
+					break;
+				}
+				if (ended) { if (cur) { stat.skips++; curJ = j; return cur; } throw framesError('decode', '動画の末尾を超えた'); }
+				if (fed < n && dec.decodeQueueSize < 12 && queue.length < 8) {
+					const i = fed++;
+					if (i > startKey && i < startKey + 16 && tr.pts[i] < tr.pts[startKey]) { stat.leadingSkipped++; continue; }
+					const data = await sampleData(i);
+					if (signal && signal.aborted) throw abortError();
+					dec.decode(new EncodedVideoChunk({ type: tr.sync[i] ? 'key' : 'delta', timestamp: usOf[i], duration: Math.round(tr.dur[i] * 1e6 / ts), data }));
+					stat.fed++;
+					continue;
+				}
+				// 末尾まで渡したら flush で残りを出す
+				if (fed >= n && !flushing) { flushing = true; const g = gen; dec.flush().then(() => { if (g === gen) { ended = true; wake(); } }, (e) => { if (g === gen && !closed) failed = e; wake(); }); }
+				if (++guard > 200000) throw framesError('decode', '復号が進まない');
+				await waitEvent();
+			}
+		}
+		return {
+			kind: 'webcodecs', exact: true, width: tr.width, height: tr.height, duration: tr.duration, frames: n, codec: tr.codec, stat,
+			async drawAt(t, ctx, dw, dh, sig) {
+				const f = await frameAt(Math.max(0, t));
+				if (sig && sig.aborted) throw abortError();
+				ctx.drawImage(f, 0, 0, dw, dh);
+			},
+			frameAt,
+			close() { if (closed) return; closed = true; dropQueue(); if (cur) { cur.close(); cur = null; } try { dec.close(); } catch (e) { /* 何もしない */ } buf = null; }
+		};
+	}
+	/** 動画（File / Blob / URL の文字列）から、まず WebCodecs の出どころ（mp4Source）を試し、使えなければ video 要素（videoSource）に倒す。
+	 * 戻り値の kind は 'webcodecs' か 'video'。倒したときは fallback に理由（no-webcodecs・mp4・codec・unsupported など） */
+	async function openSource(input, o) {
+		const signal = (o && o.signal) || null;
+		if (signal && signal.aborted) throw abortError();
+		let why = null;
+		if (typeof input !== 'string') {
+			try {
+				const p = await untilAbort(mp4Probe(input), signal);
+				if (p.ok) return await mp4Source(input, Object.assign({}, o, { track: p.track }));
+				why = p.reason;
+			} catch (e) { if (isAbortError(e)) throw e; why = e.code || 'probe'; }
+		} else why = 'url';
+		const src = await videoSource(input, o);
+		src.fallback = why;
+		return src;
 	}
 
 	/* ── 画素の小道具 ─────────────────────────────── */
@@ -685,13 +938,19 @@
 				}
 			}
 			let picked = false;
-			const tryList = async (list) => {
+			// 止まっている候補は、継ぎ目の基準を少しゆるめて（不一致 okBad の2倍まで・次点との比 warnSecondRatio 以上）認める（T90）。
+			// 動いている1枚（タッチのエフェクトが写る）からの継ぎ目は不一致が膨らみ、iPhone と PC で画素がわずかに違うだけで基準をまたいで、
+			// 止まっている画の代わりに動いている画が選ばれることがあった（動画A の祖A2: PC は 15.5秒の止まり・iPhone は 16.625秒の動き）。
+			// 継ぎ目は取り直した画で測り直すので、ここでの基準は選ぶ画を決めるだけ。ゆるめて認めた継ぎ目は「弱い」として持つ
+			const okStill = (r) => r && r.shift > 0 && isFinite(r.badRate) && r.badRate < opts.okBad * 2 && ratioOf(r) >= opts.warnSecondRatio;
+			const tryList = async (list, accept) => {
 				for (const j of list) {
 					if (nextA >= 0 && j === nextA) continue;
 					await pause();
 					const f = same[j];
 					const r = verifySeam(key.plane, f.plane, pos.get(f) - pk);
 					if (ok(r)) { pushPick(key, f, r); key = f; return true; }
+					if (accept && accept(r)) { pushPick(key, f, r, true); key = f; return true; }
 				}
 				return false;
 			};
@@ -700,7 +959,7 @@
 				// 止まっている候補（位置が minShift〜maxGap 先）を遠いほうから
 				const st = [];
 				for (let j = end; j > k; j--) if (same[j].stillRep && gapOf(j) >= opts.minShift && gapOf(j) <= maxGap) st.push(j);
-				if (await tryList(st)) continue;
+				if (await tryList(st, okStill)) continue;
 				// 次の止まり（かアンカー）が maxGap より遠い: 間の動いているフレームを足す。次の止まりに届く範囲で、真ん中に近いものから
 				let goal = -1;
 				for (let j = k + 1; j <= end; j++) if ((same[j].stillRep || anchorSet.has(same[j])) && gapOf(j) > maxGap) { goal = j; break; }
@@ -764,6 +1023,223 @@
 		// 取り直した等倍の画を縮めて、選ぶときの縮小画と比べる（T85。T83 の案1 (b)）。iPhone の Safari ではシークした時刻と描かれた画が
 		// 合わないことがある（T83 §2）。合わなければ、同じ時刻（次の画が出るのを待つ＝案4）→ 少し後 の順に取り直し、いちばん合う画を使う
 		const grabPlanes = [], grabDeltas = [];
+		// タッチのエフェクトの置き換え（T90）: 動いている画（止まっている区間の画でない）のうち、止まっている画に覆われない所だけが
+		// 結合画像に残る（composePerson の o.still）。その所に写るエフェクト（蹄鉄・星・光。指の位置＝画面に付いていて、中身と一緒には
+		// 動かない）を、前後の実フレーム（1/60秒刻み・中身が 120px 以上ずれているもの2枚）との区画（16行×24列の縮小画）ごとの多数決で
+		// 見分ける: 自分だけが2枚と違い、2枚どうしは合う区画を、近いほうの画の画素で置き換える。出どころが正確（復号・作り物）なときだけ
+		// BH・BW は半分の幅の画（W/2）での区画の大きさ。T は区画の平均の差の基準。DMIN は候補の画の中身のずれの下限（エフェクトの大きさより大きく）
+		// 出どころが「同じ時刻には必ず同じ画」（復号の出どころ・作り物）のときだけ。video 要素のシークでは、前後の画そのものが頼んだ時刻と合わない
+		// DSEP は候補どうしの中身のずれの下限（エフェクトが2枚で同じ中身の位置に重ならないように。最大3枚で、全部が互いに合う区画だけ置き換える）
+		const E3 = { on: opts.effectVote !== false && source.exact === true, BH: 16, BW: 16, T: 5, DMIN: 120, DSEP: 140, NALT: 3, Q: 6 };
+		const posG = [0];
+		for (let i = 0; i < seams.length; i++) posG.push(posG[i] + (seams[i].overlap != null ? cH - seams[i].overlap : cH));
+		const stillIdx = []; picks.forEach((p, i) => { if (p.still) stillIdx.push(i); });
+		let effectPicks = 0, effectBlocks = 0, effectNoAlt = 0, effectCands = 0, effectCopiedRows = 0;
+		const altCanvas = document.createElement('canvas');
+		if (E3.on) { altCanvas.width = W; altCanvas.height = H; }
+		const actx = altCanvas.width ? altCanvas.getContext('2d', { willReadFrequently: true }) : null;
+		const wideBand = () => ({ gray: toGray(sctx.getImageData(0, hE, sw, cH).data), w: sw, h: cH });
+		// 多数決は半分の幅の画で（1/6 では小さな粒子が平均に出ない）。ずれ（縦）は等倍と同じ
+		const hw = Math.max(32, Math.round(W / 2));
+		const hc = document.createElement('canvas');
+		if (E3.on) { hc.width = hw; hc.height = H; }
+		const hctx = hc.width ? hc.getContext('2d', { willReadFrequently: true }) : null;
+		// gray のほかに col（色の鮮やかさ＝RGB の最大−最小。灰色の地に乗るパステルの粒子は、明るさの差は小さくても鮮やかさの差が大きい）
+		async function halfBand(t) {
+			await pause(); await untilAbort(source.drawAt(t, hctx, hw, H, signal), signal);
+			const d = hctx.getImageData(0, hE, hw, cH).data;
+			const col = new Uint8Array(d.length / 4);
+			for (let i = 0, p = 0; i < col.length; i++, p += 4) { const r = d[p], g = d[p + 1], b = d[p + 2]; col[i] = Math.max(r, g, b) - Math.min(r, g, b); }
+			return { gray: toGray(d), col: { gray: col, w: hw, h: cH }, w: hw, h: cH };
+		}
+		const sameGray = (a, b) => { for (let i = 0; i < a.length; i += 61) if (a[i] !== b[i]) return false; return true; };
+		// 区画の平均の差（a の行 ya〜・b の行 yb〜、列 x0〜x0+bw）
+		// 区画の差: 平均（mean）と、行の平均が 3 を超える行の数（rows。横の縁の1行だけが違うものを除く）
+		const blockDiff = (a, ya, b, yb, x0, bw, n) => { let s = 0, c = 0, rows = 0; for (let y = 0; y < n; y++) { const ra = (ya + y) * a.w, rb = (yb + y) * b.w; let rs = 0; for (let x = x0; x < x0 + bw; x++) rs += Math.abs(a.gray[ra + x] - b.gray[rb + x]); s += rs; c += bw; if (rs > 3 * bw) rows++; } return { mean: c ? s / c : 0, rows }; };
+		// owned[y]（画の中の行）が 0 の区間（[lo, hi)・8行以上）
+		function regionsOf(owned) {
+			const out = [];
+			for (let y = 0; y < cH;) { if (owned[y]) { y++; continue; } let e = y; while (e < cH && !owned[e]) e++; if (e - y >= 8) out.push([y, e]); y = e; }
+			return out;
+		}
+		const e3Trace = (o) => { if (opts.debug) (opts.debug.e3 = opts.debug.e3 || []).push(o); };
+		async function voteOutEffects(i, p) {
+			const isStill = !!p.still;
+			const owned = new Uint8Array(cH);
+			let covers = [];
+			if (!isStill) {
+				// 1. 動いている画: 止まっている画（どの人のでも）に覆われる行は、その画の画素をそのまま写す（composePerson はその人の画しか
+				//    使えない。人の1枚目〔区切り〕の頭より上の行は前の人の末尾で、前の人の止まっている画に覆われていることが多い）。
+				//    時間の近い画から。先に取り直した画（k < i）はエフェクトを消したあとの静止画（files[k]）から写す
+				covers = stillIdx.map((k) => ({ k, lo: Math.max(posG[k], posG[i]) - posG[i], hi: Math.min(posG[k] + cH, posG[i] + cH) - posG[i] })).filter((c) => c.hi - c.lo >= 8)
+					.sort((a, b) => Math.abs(picks[a.k].t - p.t) - Math.abs(picks[b.k].t - p.t));
+				//    あとで取り直す画（k > i）に覆われる行は、写さずに「覆われる」とだけ覚える（同じ人の画なら composePerson がその画で上書きし、
+				//    次の人の画なら区切りの頭より下で切り落とされる。復号し直しも減る）
+				for (const c of covers) {
+					let need = false;
+					for (let y = c.lo; y < c.hi; y++) if (!owned[y]) { need = true; break; }
+					if (!need) continue;
+					if (c.k > i || !files[c.k]) { for (let y = c.lo; y < c.hi; y++) owned[y] = 1; continue; }
+					// 写す前に、選ぶときの縮小画どうしで重なりを測って確かめる（継ぎ目のずれの見込みが外れていたら写さない）
+					let off = posG[i] - posG[c.k];   // 自分の行 y は、止まっている画の行 y + off
+					const sp = picks[c.k].plane, mp = p.plane;
+					let okOff = false;
+					if (!sp || !mp) okOff = false;
+					// 確かめは「ずれの見込みの近くに、はっきりした最小がある」ことで（不一致の絶対値では見ない。動いている画にエフェクトが写っていると
+					// 正しいずれでも不一致が 5% を超え、写せなくなる）: 見込み ±6 の最小が、±8〜14 の最小の 0.6 倍未満で、0.2 未満
+					else {
+						const peak = (a, b, d0) => { const c = scanRange(a, b, d0 - 6, d0 + 6, 2, 2), lo = scanRange(a, b, d0 - 14, d0 - 8, 2, 2), hi = scanRange(a, b, d0 + 8, d0 + 14, 2, 2); const edge = Math.min(lo.badRate, hi.badRate); return c.shift > 0 && c.badRate < 0.2 && c.badRate < edge * 0.6 ? c.shift : 0; };
+						if (off > 0) { const s2 = peak(sp, mp, off); if (s2) { okOff = true; off = s2; } }
+						else if (off < 0) { const s2 = peak(mp, sp, -off); if (s2) { okOff = true; off = -s2; } }
+						else okOff = badNear0(mp, sp) < 0.08;
+					}
+					if (!okOff) continue;
+					await pause();
+					actx.drawImage(await untilAbort(loadImage(files[c.k]), signal), 0, 0, W, H);
+					for (let y = c.lo; y < c.hi;) {
+						if (owned[y]) { y++; continue; }
+						let e = y; while (e < c.hi && !owned[e]) e++;
+						fctx.drawImage(altCanvas, 0, hE + y + off, W, e - y, 0, hE + y, W, e - y);
+						for (let q = y; q < e; q++) owned[q] = 1;
+						effectCopiedRows += e - y;
+						y = e;
+					}
+				}
+			}
+			const regions = isStill ? [[0, cH]] : regionsOf(owned);
+			e3Trace({ i, t: p.t, still: isStill, posG: posG[i], copied: covers.map((c) => [picks[c.k].t, c.lo, c.hi]), regions });
+			if (!regions.length) { effectPicks++; return; }
+			// 2. 多数決: 自分と前後の実フレーム（1/60秒刻み）の縮小画（帯の全幅のグレー）。止まっている画は、止まっている区間（same の still が続く所）の
+			//    外の実フレームを候補にする（区間の中は同じ中身で、指を止めたまま残る粒子も同じ）。時間の順に取る（復号は前へ進めるだけなので）
+			const ts = [];
+			let t0 = p.t, t1 = p.t;
+			if (isStill) {
+				let a = same.indexOf(p), b = a;
+				while (a > 0 && same[a - 1].still) a--;
+				while (b < same.length - 1 && same[b + 1].still) b++;
+				t0 = same[a].t; t1 = same[b].t;
+			}
+			// 候補は後ろ 1〜Q 枚 → 足りなければ前 1〜Q 枚 → それでも足りなければ後ろ・前の Q+1〜2Q 枚（ゆっくりのスクロールは 1/60秒で数px しか動かない）
+			const Q = E3.Q * 2;
+			const after = [], before = [], after2 = [], before2 = [];
+			for (let q = 1; q <= Q; q++) after.push(t1 + q / 60);
+			for (let q = Q; q >= 1; q--) before.push(t0 - q / 60);
+			for (let q = Q + 1; q <= Q * 2; q++) after2.push(t1 + q / 60);
+			for (let q = Q * 2; q > Q; q--) before2.push(t0 - q / 60);
+			const cands = [];
+			let pm = null;
+			// 自分に対するずれ d（候補の行 y ＝ 自分の行 y + d。正＝候補のほうが先へ進んでいる）。
+			// まず軌跡（same の前後の記録を時間で按分）の見込みの近く（±100）を細かく、外れたら粗い全範囲
+			const pPos = pos.get(p);
+			const guess = (tt) => {
+				let b0 = null, a0 = null;
+				for (const f of same) { if (!pos.has(f)) continue; if (f.t <= tt) b0 = f; else { a0 = f; break; } }
+				if (b0 && a0) return pos.get(b0) + (pos.get(a0) - pos.get(b0)) * (tt - b0.t) / (a0.t - b0.t) - pPos;
+				return b0 ? pos.get(b0) - pPos : a0 ? pos.get(a0) - pPos : null;
+			};
+			const measure = (c) => {
+				let r = null;
+				const g0 = pPos != null ? guess(c.t) : null;
+				if (g0 != null && Math.abs(g0) >= 1) {
+					const d0 = Math.round(g0);
+					const rr = d0 > 0 ? scanRange(pm, c.plane, d0 - 100, d0 + 100, 2, 2) : scanRange(c.plane, pm, -d0 - 100, -d0 + 100, 2, 2);
+					if (rr.shift > 0 && rr.badRate < 0.04) r = { d: d0 > 0 ? rr.shift : -rr.shift, rate: rr.badRate };
+				}
+				if (!r) {
+					const f = coarseScan(pm, c.plane, opts.coarseYs, opts.coarseXs), b = coarseScan(c.plane, pm, opts.coarseYs, opts.coarseXs);
+					if (f.shift > 0 && f.badRate <= b.badRate) { const rr = scanRange(pm, c.plane, f.shift - 10, f.shift + 10, 2, 2); if (rr.shift > 0) r = { d: rr.shift, rate: rr.badRate }; }
+					else if (b.shift > 0) { const rr = scanRange(c.plane, pm, b.shift - 10, b.shift + 10, 2, 2); if (rr.shift > 0) r = { d: -rr.shift, rate: rr.badRate }; }
+				}
+				if (r && r.rate < 0.04) { c.d = r.d; c.rate = r.rate; }
+			};
+			const choose = () => {
+				const usable = cands.filter((c) => c.d != null && Math.abs(c.d) >= E3.DMIN).sort((a, b) => Math.abs(a.t - p.t) - Math.abs(b.t - p.t));
+				const out = [];
+				for (const c of usable) { if (out.every((a) => Math.abs(a.d - c.d) >= E3.DSEP)) out.push(c); if (out.length === E3.NALT) break; }
+				return out;
+			};
+			// 自分 → 後ろの候補（復号は前へ進むだけで済む）→ 足りなければ前の候補（キーフレームから復号し直す）
+			const take = async (list) => {
+				let prevG = null;
+				for (const tt of list) {
+					if (tt < 0 || tt > D - 0.02) continue;
+					await pause();
+					await untilAbort(source.drawAt(tt, sctx, sw, H, signal), signal);
+					const g = wideBand();
+					if (isBlankGray([g.gray], opts.blankRatio) || (prevG && sameGray(prevG, g.gray))) continue;
+					prevG = g.gray;
+					// 自分とほぼ同じ画（止まっている区間の中）は候補にしない（ずれ 0 は測れず、残る粒子も同じ）
+					if (badNear0(pm, g) < opts.stillBad) continue;
+					const c = { t: tt, plane: g };
+					measure(c);
+					cands.push(c);
+				}
+			};
+			await pause();
+			await untilAbort(source.drawAt(p.t, sctx, sw, H, signal), signal);
+			pm = wideBand();
+			await take(after);
+			let alts = choose();
+			if (alts.length < 2) { await take(before); alts = choose(); }
+			if (alts.length < 2) { await take(after2); alts = choose(); }
+			if (alts.length < 2) { await take(before2); alts = choose(); }
+			effectCands += cands.length;
+			e3Trace({ i, t: p.t, cands: cands.map((c) => [c.t, c.d == null ? null : c.d, c.rate == null ? null : +c.rate.toFixed(3)]), alts: alts.map((c) => c.t) });
+			if (alts.length < 2) { effectNoAlt++; return; }
+			// 区画ごとの多数決（半分の幅の画で。自分と候補を時間の順に取る）
+			const trio = [{ t: p.t, d: 0, me: true }, ...alts].sort((x, y) => x.t - y.t);
+			for (const e of trio) e.half = await halfBand(e.t);
+			const hm = trio.find((e) => e.me).half;
+			const coverOk = (a, y, n) => y - a.d >= 0 && y - a.d + n <= cH;
+			const cells = new Map(); // key → { y, n, x0, bw, d, ee, rows, k, ke, flag }
+			// 両端の約3.5%（右はスクロールバー〔動いている間だけ出る〕、左は一覧の外の背景。結合画像では両側を削る）は見ない
+			const xMin = Math.ceil(hw * 0.035), xMax = Math.floor(hw * 0.965);
+			for (const [lo, hi] of regions) {
+				for (let y = lo; y + 8 <= hi; y += E3.BH) {
+					const n = Math.min(E3.BH, hi - y);
+					// その行を写している候補だけで（2枚以上）。遠くへ進んだ候補は上のほうの行を写していない
+					const av = alts.filter((a) => coverOk(a, y, n));
+					if (av.length < 2) continue;
+					for (let x0 = xMin; x0 < xMax; x0 += E3.BW) {
+						const bw = Math.min(E3.BW, xMax - x0);
+						if (bw < 6) continue;
+						// 自分と各候補の差（明るさ b・鮮やかさ c）と、候補どうしの差の最大（ee・ce）
+						const bs = av.map((a) => blockDiff(hm, y, a.half, y - a.d, x0, bw, n)), cs = av.map((a) => blockDiff(hm.col, y, a.half.col, y - a.d, x0, bw, n));
+						let ee = 0, ce = 0;
+						for (let u = 0; u < av.length; u++) for (let v = u + 1; v < av.length; v++) {
+							ee = Math.max(ee, blockDiff(av[u].half, y - av[u].d, av[v].half, y - av[v].d, x0, bw, n).mean);
+							ce = Math.max(ce, blockDiff(av[u].half.col, y - av[u].d, av[v].half.col, y - av[v].d, x0, bw, n).mean);
+						}
+						const d = Math.min(...bs.map((b) => b.mean)), rows = Math.min(...bs.map((b) => b.rows)), k = Math.min(...cs.map((c) => c.mean)), krows = Math.min(...cs.map((c) => c.rows));
+						// 自分だけが全部の候補と違い（2行以上で）、候補どうしは全部合う区画。明るさで（大きなエフェクト）、または鮮やかさで（淡い粒子）
+						// （16行の区画では、小数点以下の位置で描かれた横の縁の1行の差は平均 3 ほどで T に届かないので、明るさの側に行数の条件は置かない）
+						const flag = (d > E3.T && ee < 8 && ee < d * 0.5) || (k > 4 && krows >= 2 && ce < 1.5 && ce < k / 3) || (k > 3 && krows >= 3 && ce < 0.6);
+						cells.set(y + ':' + x0, { y, n, x0, bw, d, ee, rows, k, ke: ce, flag, src: av[0] });   // 置き換えの元は、その行を写す候補のうち時間の近いもの
+					}
+				}
+			}
+			const flagged = Array.from(cells.values()).filter((c) => c.flag);
+			if (opts.debug && opts.debug.cells) opts.debug.cells.push({ t: p.t, alts: alts.map((x) => [x.t, x.d]), cells: Array.from(cells.values()).map((c) => [c.y, c.x0, +c.d.toFixed(1), +c.ee.toFixed(1), c.rows, c.flag ? 1 : 0, +c.k.toFixed(1), +c.ke.toFixed(1)]) });
+			if (!flagged.length) return;
+			// 隣の区画も、候補どうしがよく合い（ee < 3）自分が少し違う（2.5 以上・2行以上）なら置き換える（エフェクトの淡い縁）
+			for (const c of flagged.slice()) {
+				for (const [dy, dx] of [[-E3.BH, 0], [E3.BH, 0], [0, -E3.BW], [0, E3.BW]]) {
+					const nb = cells.get((c.y + dy) + ':' + (c.x0 + dx));
+					if (nb && !nb.flag && ((nb.ee < 3 && nb.d > 2.5 && nb.rows >= 2) || (nb.ke < 1 && nb.k > 2))) { nb.flag = true; flagged.push(nb); }
+				}
+			}
+			// 等倍で置き換える（区画ごとに、その行を写す時間の近い候補の画素で。候補ごとに等倍で1回描く）
+			const fx = (x) => Math.round(x * W / hw);
+			for (const a of alts) {
+				const mine = flagged.filter((c) => c.src === a);
+				if (!mine.length) continue;
+				await pause();
+				await untilAbort(source.drawAt(a.t, actx, W, H, signal), signal);
+				for (const c of mine) fctx.drawImage(altCanvas, fx(c.x0), hE + c.y - a.d, fx(c.x0 + c.bw) - fx(c.x0), c.n, fx(c.x0), hE + c.y, fx(c.x0 + c.bw) - fx(c.x0), c.n);
+			}
+			effectPicks++; effectBlocks += flagged.length;
+			if (opts.debug) (opts.debug.effects = opts.debug.effects || []).push({ t: p.t, regions, alts: alts.map((x) => ({ t: x.t, d: x.d, rate: +x.rate.toFixed(4) })), blocks: flagged.map((c) => [c.y, c.x0, +c.d.toFixed(1), +c.ee.toFixed(1), +c.k.toFixed(1), +c.ke.toFixed(1)]) });
+		}
 		let grabMismatch = 0, grabFixed = 0, grabShifted = 0;
 		// 取り直した画が、縮小画の何 px 先（後）の画か。重なりがほぼ全面なので、となりの画どうしより確かに測れる
 		const grabDelta = (sp, gp) => {
@@ -815,6 +1291,13 @@
 				fctx.putImageData(best.img, 0, 0);
 				m = best.m;
 			}
+			// 動いている画のエフェクトを前後の実フレームとの多数決で置き換える（T90）。置き換えたら、測り直しに使う縮小画も作り直す
+			if (opts.debug && i === 0) e3Trace({ on: E3.on, kind: source.kind, moving: picks.filter((q) => !q.still).length });
+			if (E3.on) {
+				const before = effectBlocks + effectCopiedRows;
+				await voteOutEffects(i, p);
+				if (effectBlocks + effectCopiedRows !== before) { sctx.drawImage(full, 0, 0, W, H, 0, 0, sw, H); const g = planeFromSmall(); if (g) m = { plane: g, bad: m ? m.bad : 0, delta: m ? m.delta : null }; }
+			}
 			grabPlanes.push(m ? m.plane : p.plane);
 			// 縮小画に対する取り直した画のずれ（正＝取り直した画のほうが下へ進んでいる）。合っていれば 0・測れなければ null
 			grabDeltas.push(!m ? 0 : m.bad < opts.grabMatch ? 0 : m.delta);
@@ -827,7 +1310,7 @@
 			files.push(new File([blob], 'frame-' + String(Math.round(p.t * 1000)).padStart(6, '0') + ext, { type: opts.grabType }));
 			progress('grab', i + 1, picks.length);
 		}
-		full.width = full.height = 0; sc.width = sc.height = 0;
+		full.width = full.height = 0; sc.width = sc.height = 0; altCanvas.width = altCanvas.height = 0; hc.width = hc.height = 0;
 		// となりどうしのずれを、取り直した画どうしで測り直す（T85。T83 の案1 (c)）。まず選ぶときのずれの近く（±remeasureWin）、
 		// 外れたら粗い全範囲 → 近くだけ。どちらも確かでなければ選ぶときの値のまま「確かでない継ぎ目」にする
 		let remeasureMoved = 0, remeasureFull = 0, remeasureFail = 0, remeasureByDelta = 0;
@@ -870,7 +1353,8 @@
 				times: fi.map((k) => picks[k].t),
 				shifts: sm.map((x) => (x.overlap != null ? cH - x.overlap : cH)),
 				weak: sm.map((x) => x.weak),
-				uncertain: sm.map((x) => x.uncertain)
+				uncertain: sm.map((x) => x.uncertain),
+				still: fi.map((k) => !!picks[k].still)   // 止まっている区間の画か（組み立てで、その画素を優先する。T90）
 			};
 		});
 		tm.totalMs = performance.now() - T0;
@@ -883,7 +1367,8 @@
 			anchors: anchorEntries.map((a) => ({ t: a.t, y: a.anchorY })),
 			picks: picks.map((p) => p.t), seams, files, persons,
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
-				nears, headHints, predVerifies, loose, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail },
+				nears, headHints, predVerifies, loose, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
+				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows },
 			tm
 		};
 	}
@@ -896,6 +1381,8 @@
 	 * （stitchResolveOrder）だけを飛ばし、それ以外（扱える画像かの確かめ・帯の検出・先頭のパネル・キャラクターの情報の欄・
 	 * 末尾の切り方）は stitch.js の関数をそのまま呼ぶ。
 	 * shifts[i] は files[i] → files[i+1] のスクロール量（px）。uncertain[i] が真の継ぎ目は _stitchWarnings に入れる。
+	 * o.still[i] が真の画（止まっている区間の画。タッチのエフェクトが写っていない）は、本文の帯を全部描いて、重なる所では
+	 * 動いている画の画素を上書きする（T90）。動いている画の画素が残るのは、止まっている画どうしの間で見えていない所だけ。
 	 */
 	async function composePerson(files, shifts, uncertain, groupLabel, o) {
 		o = o || {};
@@ -954,9 +1441,10 @@
 		out.width = w0;
 		out.height = totalContentHeight - skipFirst;
 		const octx = out.getContext('2d');
-		const placements = [];
+		let placements = [];
 		let cursorY = 0;
 		const firstSrcY = headerEnd + skipFirst, firstDrawH = contentHeight - skipFirst;
+		const tops = [-skipFirst];   // 各画の本文の帯の上端が、出力のどの行に当たるか
 		octx.drawImage(canvases[0], 0, firstSrcY, w0, firstDrawH, 0, 0, w0, firstDrawH);
 		placements.push({ fileIndex: 0, srcY0: firstSrcY, srcY1: firstSrcY + firstDrawH, outY0: 0 });
 		cursorY += firstDrawH;
@@ -965,7 +1453,53 @@
 			const drawH = contentHeight - ov;
 			if (drawH > 0) octx.drawImage(canvases[i], 0, headerEnd + ov, w0, drawH, 0, cursorY, w0, drawH);
 			placements.push({ fileIndex: i, srcY0: headerEnd + ov, srcY1: headerEnd + ov + drawH, outY0: cursorY });
+			tops.push(cursorY - ov);
 			cursorY += drawH;
+		}
+		// 止まっている画の画素を優先する（T90）: 止まっている画は本文の帯を全部描き直し、動いている画と重なる所を上書きする。
+		// 出力の行ごとにどの画の画素かを持ち直して、_sourcePlacements（結合画像の上の枠の置き場所の表引き）も合わせる
+		const still = (o.still || []).map(Boolean);
+		if (still.some(Boolean) && canvases.length > 1) {
+			const owner = new Int16Array(out.height);
+			for (const p of placements) for (let y = p.outY0; y < p.outY0 + (p.srcY1 - p.srcY0) && y < out.height; y++) owner[y] = p.fileIndex;
+			let redrawn = 0;
+			for (let i = 1; i < canvases.length; i++) {
+				if (!still[i]) continue;
+				let y0 = Math.max(0, tops[i]);
+				const y1 = Math.min(out.height, tops[i] + contentHeight);
+				if (y1 <= y0) continue;
+				// 描き直しの上端（継ぎ目）は、上端から 160行の中で、いま描いてある画とこの画がいちばん合う行に置く（継ぎ目のずれが 1px あっても、
+				// 段の切れ目など平らな所なら目立たない）。先頭の画（0番）の行は動かさない
+				{
+					const span = Math.min(160, y1 - y0);
+					if (span > 8 && y0 > 0) {
+						const a = octx.getImageData(0, y0, w0, span).data, b = canvases[i].getContext('2d').getImageData(0, headerEnd + (y0 - tops[i]), w0, span).data;
+						let best = y0, bestD = Infinity;
+						for (let y = 0; y < span; y++) {
+							let s = 0, n = 0;
+							for (let x = 0; x < w0; x += 4) { const q = (y * w0 + x) * 4; s += Math.abs(a[q] - b[q]) + Math.abs(a[q + 1] - b[q + 1]) + Math.abs(a[q + 2] - b[q + 2]); n += 3; }
+							const d = s / n;
+							if (d < bestD - 0.05) { bestD = d; best = y0 + y; }
+						}
+						y0 = best;
+					}
+				}
+				let changed = false;
+				for (let y = y0; y < y1; y++) if (owner[y] !== i) { owner[y] = i; changed = true; }
+				if (!changed) continue;
+				octx.drawImage(canvases[i], 0, headerEnd + (y0 - tops[i]), w0, y1 - y0, 0, y0, w0, y1 - y0);
+				redrawn++;
+			}
+			if (redrawn) {
+				placements = [];
+				for (let y = 0; y < out.height;) {
+					const f = owner[y]; let e = y + 1;
+					while (e < out.height && owner[e] === f) e++;
+					placements.push({ fileIndex: f, srcY0: headerEnd + (y - tops[f]), srcY1: headerEnd + (e - tops[f]), outY0: y });
+					y = e;
+				}
+				stitchLog(groupLabel + ': 止まっている画の画素を優先（' + redrawn + '枚を描き直し・動いている画の画素が残る区間 ' + placements.filter((p) => !still[p.fileIndex]).length + '）');
+			}
 		}
 		await pause();
 		const cutY = stitchFindTrailingCutY(out, Math.round(w0 * 0.15) + profileHeight);
@@ -996,6 +1530,9 @@
 		DEFAULTS: Object.freeze(Object.assign({}, DEFAULTS)),
 		videoSource,
 		canvasSource,
+		mp4Probe,
+		mp4Source,
+		openSource,
 		selectFrames,
 		composePerson,
 		isAbortError,

@@ -83,7 +83,11 @@ window.__synth85 = (function () {
 	// passSlow: 0.25秒で 500px（となりどうしは測れる＝細かく取り直さない）／passFast: 0.25秒で 900px（帯より速い＝細かく取り直す。動画B）
 	const h1 = heads[1] - 300;
 	const pass = (jump) => [[0, 0], [0.5, 0], [2.5, h1], [3.5, h1], [3.75, h1 + jump], [4.25, h1 + jump], [7.0, maxScroll], [8.0, maxScroll]];
-	const PATHS = { stops, passSlow: pass(500), passFast: pass(900) };
+	// wide: 止まり→止まりが帯の 80〜99%（700・860・680・540・680px）。860px の所は止まりだけではつながらず、間の動いている1枚が選ばれるが、
+	// その1枚の行は前後の止まっている画に全部覆われる（T90 の「止まっている画の画素を優先する組み立て」の検査）。頭は窓の中で止まる（1560 で 76px・2780 で 68px）
+	const wide = [[0, 0]];
+	{ const at = [0, 700, 1560, 2240, 2780, 3460, maxScroll]; let t = 0.75; for (let k = 1; k < at.length; k++) { wide.push([t, at[k - 1]], [t + 0.5, at[k]]); t += 1.25; } wide.push([t + 0.75, maxScroll]); }
+	const PATHS = { stops, wide, passSlow: pass(500), passFast: pass(900) };
 	function make(o) {
 		o = o || {};
 		const path = PATHS[o.path || 'stops'];

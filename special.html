@@ -58,7 +58,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
-	<script src="js/video-frames.js?v=2026-11-03a"></script>
+	<script src="js/video-frames.js?v=2026-11-03b"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -940,7 +940,8 @@
 				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
 				<button id="video-import-btn" type="button" class="video-btn" onclick="openVideoImport()"></button>
 			</div>
-			<input id="video-file-input" type="file" accept="video/*" class="hidden" onchange="onVideoFileInput(this)" />
+			<!-- multiple: iPhone の写真の一覧の画面を複数選択にする。1本も選ばずに完了（右上のチェック）すると 0本で戻り、何も読まずに③のまま（T90）。使うのは1本目だけ -->
+			<input id="video-file-input" type="file" accept="video/*" multiple class="hidden" onchange="onVideoFileInput(this)" />
 			<div id="personset-A-wrap" class="mb-3"></div>
 			<div id="personset-B-wrap" class="mb-3" hidden></div>
 
@@ -1642,6 +1643,7 @@
 		function onVideoFileInput(input) {
 			const f = input.files && input.files[0];
 			if (f) onVideoChosen(f);
+			else { videoPending = null; input.value = ''; }   // 選ばずに戻った（0本）: 何も読まずに③のまま（T90）
 		}
 
 		// 前の取り込みの箱（進捗・知らせ・失敗）を消す
@@ -1814,8 +1816,10 @@
 			let src = null;
 			try {
 				// 読み込み・シークの待ちが返ってこなくても「取り消す」でその場で抜ける（T68。前は読み込みの待ちが取り消しを聞いておらず、押しても何も起きなかった）
-				src = (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.videoSource(input, { signal: ctrl.signal });
+				// 出どころは openSource（T90。MP4 を分解して WebCodecs で復号。使えなければ video 要素のシークに倒す）
+				src = (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.openSource(input, { signal: ctrl.signal });
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
+				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
 				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress }), ctrl.signal);
 				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
 				const counts = [];
@@ -1823,7 +1827,7 @@
 					const idx = setIdx * 3 + r;
 					const frames = p.files.slice();
 					persons[idx].files = (pend.mode === 'append') ? persons[idx].files.concat(frames) : frames;
-					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), expanded: false };
+					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), expanded: false };
 					counts.push(frames.length);
 				});
 				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + ': ' + counts.join('／') + '枚を入れました（' + (pend.mode === 'append' ? '後ろに足す' : '置き換え') + '・'
@@ -4115,7 +4119,7 @@
 				const files = persons[idx].files;
 				const fromVideo = !!(v && window.UmaVideoFrames && v.files.length === files.length && v.files.every((f, i) => f === files[i]));
 				const contentCanvas = fromVideo
-					? await UmaVideoFrames.composePerson(files, v.shifts, v.uncertain, label)
+					? await UmaVideoFrames.composePerson(files, v.shifts, v.uncertain, label, { still: v.still })
 					: await stitchOnePerson(files, label);
 				if (!contentCanvas) continue;
 				if (fromVideo) {

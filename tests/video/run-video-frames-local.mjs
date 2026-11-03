@@ -88,7 +88,8 @@ async function runSpecial(v) {
 	});
 	const stitchS = (Date.now() - t1) / 1000;
 	const hs = st.lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
-	check(st.img && st.lines.length === 3 && hs.join('/') === v.heights.join('/'), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.join('／'), hs.join('／'));
+	// 高さは ±2px（T90: special.html の流れは止まっている画の画素を優先して組み立てるので、末尾の切る行が 1px 動くことがある。動画1 は 1999／1708／1648）
+	check(st.img && st.lines.length === 3 && hs.length === 3 && hs.every((h, i) => h != null && Math.abs(h - v.heights[i]) <= 2), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.join('／') + '（±2）', hs.join('／'));
 	console.log('  取り込み ' + importS.toFixed(1) + '秒・結合（OCRしない）' + stitchS.toFixed(1) + '秒・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
 	await ctx.close();
 }
