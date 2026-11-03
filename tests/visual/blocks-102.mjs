@@ -219,8 +219,9 @@ export async function register102(env) {
 			await ev(() => document.getElementById('scrim').click());
 			const other = theme === 'light' ? 'dark' : 'light';
 			await page.click('#themeBtn'); await page.waitForTimeout(150);
-			const th1 = await ev(() => ({ attr: document.documentElement.getAttribute('data-theme'), saved: localStorage.getItem('uma-tools-theme'), btn: document.getElementById('themeBtn').textContent }));
-			assert(th1.attr === other && th1.saved === other && th1.btn === (other === 'dark' ? '☀' : '☾'), tag + ' Deck α の ☾☀ は uma-tools-theme に書く', th1);
+			// T94（追加4）からボタンは svg で、アイコンは利用者の選択（data-theme-state）を示す
+			const th1 = await ev(() => ({ attr: document.documentElement.getAttribute('data-theme'), saved: localStorage.getItem('uma-tools-theme'), btn: document.getElementById('themeBtn').getAttribute('data-theme-state') }));
+			assert(th1.attr === other && th1.saved === other && th1.btn === other, tag + ' Deck α のライト／ダークのボタンは uma-tools-theme に書く（アイコンは選択を示す。T94）', th1);
 			await page.goto(base + '/special.html', { waitUntil: 'load' }); await waitPageReady(page);
 			for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 			const th2 = await ev(() => document.documentElement.getAttribute('data-theme'));

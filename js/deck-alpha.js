@@ -1,6 +1,8 @@
 /* js/deck-alpha.js — 新しい Deck の α版（T88・C-275）の本体。モック版13（lab/deck-v13/deck-v13-deck.js。T87）の見た目と動きをそのまま移した。
  * 版13 から変えたのは、C-275 の 5（「⋯」の仮のデータ・終了をまねる・登録の画面を試すを入れない）・6（文の直し）・4（「ホーム画面に追加」の案内）と、
- * ツール切り替えの行をほかのツールのページへのリンクにしたこと。T92（段4 の 4-2）で「ホーム画面に追加」の案内を外し、ライト／ダークを js/theme.js の設定にそろえた。以下は版13 の説明。
+ * ツール切り替えの行をほかのツールのページへのリンクにしたこと。T92（段4 の 4-2）で「ホーム画面に追加」の案内を外し、ライト／ダークを js/theme.js の設定にそろえた。
+ * T94（方眼紙デザイン・C-282）: 見出しのボタン（ツール切り替え・ライト／ダーク）を UmaStar と同じ形の svg にし、ライト／ダークのアイコンは利用者の選択（自動／ライト／ダーク）を示す。
+ * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。以下は版13 の説明。
  * Deck 本体（ヒートマップの表・親の小窓・2組・本育成設計・レース/周回セット・バックアップ）。版12（T86・C-273）:
  * マスの塗りと数字は親と祖の合計の5段・親本人の★は左上の小さな数字・PC は左の列に5つの欄を全部並べる・1つだけ選ぶ欄は帯・複数選べる欄は札。
  * 版13（T87・C-274）: 縮小と遺伝子の行にも左上の親本人の★・分類の「そのほか」の札を外す・親の小窓と祖の詳細に対象スキルの列挙（序盤／中盤／終盤／その他）・
@@ -11,7 +13,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-03b';
+	const DECK_ALPHA_JS_VERSION = '2026-11-04a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -164,8 +166,9 @@
 		$('#setText').textContent = K.setShort(s);
 		$('#setBtn').setAttribute('aria-label', 'レース/周回セット：' + K.setName(s));
 		$('#setBtn').title = K.setName(s);
-		const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-		$('#themeBtn').textContent = dark ? '☀' : '☾';
+		// ライト／ダークのボタンのアイコンは、UmaStar と同じく利用者の選択（自動／ライト／ダーク）を示す（T94・追加4。svg は data-theme-state で出し分け）
+		const st = window.UmaTheme && window.UmaTheme.get ? window.UmaTheme.get() : (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+		$('#themeBtn').setAttribute('data-theme-state', st === 'light' || st === 'dark' ? st : 'auto');
 	}
 
 	/* ---------- 本育成設計の系譜図（横向き: 親A → 祖A1・祖A2、親B → 祖B1・祖B2。C-271 の 13） ---------- */
@@ -593,6 +596,7 @@
 	$('#themeBtn').onclick = () => {
 		const dark = document.documentElement.getAttribute('data-theme') === 'dark';
 		S.fixedTheme = null; window.UmaTheme.set(dark ? 'light' : 'dark');
+		renderHeader(); // 自動 → ライトのように色が変わらないときもアイコンを付け替える
 	};
 
 	/* ---------- 書き出しを促す（版9 の形。C-271 の 31） ---------- */
@@ -672,7 +676,7 @@
 	// ?theme= で固定しているあいだは、ほかから付け替えられても固定の色に戻す（撮影用）
 	new MutationObserver(() => {
 		if (S.fixedTheme && document.documentElement.getAttribute('data-theme') !== S.fixedTheme) { K.applyTheme(S.fixedTheme); return; }
-		if (!S.doc) return; renderHeader(); renderStage(true);
+		if (!S.doc || !S.M) return; renderHeader(); renderStage(true); // 表のモデルを作る前（?theme= で開いた直後）は描かない（T94-4）
 	}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 	function renderAll() { renderHeader(); renderFilters(); renderPlan(); applyPanes(); renderStage(true); renderDock(); renderNudge(); }

@@ -130,6 +130,7 @@ import { register100 } from './blocks-100.mjs';
 import { register101 } from './blocks-101.mjs';
 import { register102 } from './blocks-102.mjs';
 import { register103 } from './blocks-103.mjs';
+import { register104 } from './blocks-104.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15482,6 +15483,8 @@ await register101({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register102({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T93（2026-11-03）: 動画の画の OCR の直し（小窓の外の暗い端・次の人の固有スキル帯から下を塗る。動画の画だけ）
 await register103({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T94（2026-11-04）: Deck α の方眼紙デザイン（緑の帯・方眼のマス・UmaStar と同じ見出しのボタン・拡張スキルの名前・?theme= のエラー。C-282。見出しは「T94 Deck α 方眼紙」）
+await register104({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

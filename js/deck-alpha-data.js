@@ -1,12 +1,12 @@
 /* js/deck-alpha-data.js — 新しい Deck の α版（T88・C-275）が使う公開データを読み、window.DECK_ALPHA_DATA に置いてから、ページの JS を順に読む。
  * モック版13 は lab/deck-v13/make-snapshot.mjs で作った写し（data-snapshot.js）を読んでいた。α版は同じ形をページを開くたびに公開データから作る
- * （データを受け入れたときに写しを作り直す手間を無くすため）。読む項目は make-snapshot.mjs と同じ。
+ * （データを受け入れたときに写しを作り直す手間を無くすため）。読む項目は make-snapshot.mjs と同じ。T94（2026-11-04）から拡張スキルの名前と札も skills に入れる。
  * 使い方: <script src="js/deck-alpha-data.js?v=…" data-next="js/deck-alpha-core.js?v=… js/deck-alpha.js?v=…"></script>
  * 公開先の Cache-Control（max-age=600）で古い JSON が残らないように、fetch は cache: 'no-cache'（毎回 ETag で確かめる）で読む。
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_DATA_VERSION = '2026-11-02a';
+	const DECK_ALPHA_DATA_VERSION = '2026-11-04a';
 	const me = document.currentScript;
 	const next = ((me && me.dataset.next) || '').split(/\s+/).filter(Boolean);
 	const get = (p) => fetch(p, { cache: 'no-cache' }).then((r) => { if (!r.ok) throw new Error(p + ' ' + r.status); return r.json(); });
@@ -20,6 +20,12 @@
 			dist: s.tags.distance || [], style: s.tags.style || [], surface: s.tags.surface || [], scenario: s.tags.scenario || [], phase: s.tags.phase || [],
 			passive: (s.tags.passive || []).length > 0,
 		}));
+		// 拡張スキル（data/extended-skills.json の ex- の id）もマスターと同じ形で足す（並びはマスターのあと）。
+		// UmaStar から送られる親のスキルと②の一覧には ex- の id が入るので、Deck でも名前と札を引けるようにする（T94・追加3。それまでは id のまま出ていた）
+		for (const e of ext.entries || ext.skills || []) {
+			const t = e.tags || {};
+			skills.push({ id: e.id, name: e.name, dist: t.distance || [], style: t.style || [], surface: t.surface || [], scenario: t.scenario || [], phase: t.phase || [], passive: (t.passive || []).length > 0 });
+		}
 		const costumes = uma.entries.map((u) => {
 			const uniq = [];
 			for (const row of u.initialSkills || []) for (const sk of row.skills || []) {
