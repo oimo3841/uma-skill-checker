@@ -87,7 +87,7 @@
 
 <script>
 'use strict';
-const PAGE_VERSION = 'T90-2026-11-03b';
+const PAGE_VERSION = 'T90-2026-11-03c';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const Q = new URLSearchParams(location.search);
@@ -101,6 +101,7 @@ const JPEG_Q = 0.85;
 const T0 = performance.now();
 const sec = (ms) => (ms / 1000).toFixed(2) + '秒';
 let REC = null;
+const PRELOG = [];   // 記録（REC）ができる前の経過（ファイルの選択の change・cancel など）。REC に写す
 let FP = null; // 復号した全フレームの指紋 { fw, fh, pts: [], g: [Uint8Array] }
 let STALL = null;
 
@@ -109,7 +110,7 @@ function log(what, detail, cls) {
 	const tr = document.createElement('tr');
 	tr.innerHTML = '<td class="t">' + sec(performance.now() - T0) + '</td><td>' + (cls ? '<span class="' + cls + '">' : '') + esc(what) + (cls ? '</span>' : '') + (detail ? '　' + esc(detail) : '') + '</td>';
 	$('log').appendChild(tr);
-	if (REC) REC.log.push([+((performance.now() - T0) / 1000).toFixed(2), what, detail || '']);
+	(REC ? REC.log : PRELOG).push([+((performance.now() - T0) / 1000).toFixed(2), what, detail || '']);
 }
 function now(s) { $('now').textContent = s ? 'いま: ' + s : ''; if (STALL) STALL.at = performance.now(); if (STALL) STALL.what = s; }
 function renderEnv() {
@@ -347,6 +348,7 @@ async function seekProbe(file, track) {
 /* ── 全体の流れ ─────────────────────── */
 async function start(file) {
 	REC = { page: PAGE_VERSION, ua: navigator.userAgent, env: ENV, started: new Date().toISOString(), href: location.href, file: { name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }, params: { runs: N_PROD, proto: N_PROTO, video: N_VIDEO, skip: Array.from(SKIP) }, log: [], visibility: [], cancelEvents: CANCELS, decode: null, product: { js: window.UmaVideoFrames ? UmaVideoFrames.VERSION : null, openSource: !!(window.UmaVideoFrames && UmaVideoFrames.openSource), runs: [] }, seek: null, proto: { runs: [] }, videoEl: { runs: [] }, images: {} };
+	REC.log.push(...PRELOG.splice(0));
 	document.addEventListener('visibilitychange', () => REC.visibility.push([+((performance.now() - T0) / 1000).toFixed(2), document.visibilityState]));
 	let wake = null; try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { /* 無くてもよい */ }
 	STALL = { at: performance.now(), what: '' };
@@ -401,7 +403,7 @@ function finish() {
 	const base = (REC.file.name || 'video').replace(/\.[^.]+$/, '').replace(/[^\w぀-鿿-]+/g, '_').slice(0, 24);
 	const name = 'T90-diag-' + stamp + '-' + base + '.json';
 	const blob = new Blob([json], { type: 'application/json' });
-	OUT = { blob, name };
+	OUT = { blob, name, full: true };
 	$('out-info').textContent = name + '・' + (blob.size / 1048576).toFixed(1) + 'MB';
 	$('btns').hidden = false;
 	log('終わった', '記録 ' + name + '（' + (blob.size / 1048576).toFixed(1) + 'MB）。「共有」か「保存」で端末に出してください', 'ok');
@@ -422,11 +424,21 @@ const CANCELS = [];
 const fileInput = $('file');
 let openedAt = null;
 fileInput.addEventListener('click', () => { openedAt = performance.now(); });
-fileInput.addEventListener('cancel', () => { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null }; CANCELS.push(e); log('動画を選ばずに戻った（cancel）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); });
+fileInput.addEventListener('cancel', () => { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null }; CANCELS.push(e); log('動画を選ばずに戻った（cancel）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); offerCancelRecord(); });
+// 動画を選ばずに戻ったときは、その記録だけでも書き出せるようにする（動画を通す前でも「共有」「保存」が押せる）
+function offerCancelRecord() {
+	if (REC || OUT && OUT.full) return;
+	const rec = { page: PAGE_VERSION, ua: navigator.userAgent, env: ENV, started: new Date().toISOString(), href: location.href, kind: 'cancel-only', cancelEvents: CANCELS.slice(), log: PRELOG.slice() };
+	const d = new Date(), p2 = (n) => String(n).padStart(2, '0');
+	const name = 'T90-cancel-' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()) + '.json';
+	OUT = { blob: new Blob([JSON.stringify(rec)], { type: 'application/json' }), name, full: false };
+	$('out-info').textContent = name + '（選ばずに戻った記録だけ。このまま動画を選んで続けてもよい）';
+	$('btns').hidden = false;
+}
 fileInput.addEventListener('change', async (ev) => {
 	const n = ev.target.files ? ev.target.files.length : 0;
 	const f = n ? ev.target.files[0] : null;
-	if (!f) { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null, files: 0 }; CANCELS.push(e); log('動画を選ばずに戻った（change・0本）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); ev.target.value = ''; return; }
+	if (!f) { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null, files: 0 }; CANCELS.push(e); log('動画を選ばずに戻った（change・0本）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); ev.target.value = ''; offerCancelRecord(); return; }
 	log('動画を選んだ（change・' + n + '本）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '');
 	ev.target.disabled = true;
 	$('file-info').textContent = f.name + '・' + (f.type || '（type なし）') + '・' + (f.size / 1048576).toFixed(1) + 'MB';

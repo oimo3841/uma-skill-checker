@@ -938,13 +938,19 @@
 				}
 			}
 			let picked = false;
-			const tryList = async (list) => {
+			// 止まっている候補は、継ぎ目の基準を少しゆるめて（不一致 okBad の2倍まで・次点との比 warnSecondRatio 以上）認める（T90）。
+			// 動いている1枚（タッチのエフェクトが写る）からの継ぎ目は不一致が膨らみ、iPhone と PC で画素がわずかに違うだけで基準をまたいで、
+			// 止まっている画の代わりに動いている画が選ばれることがあった（動画A の祖A2: PC は 15.5秒の止まり・iPhone は 16.625秒の動き）。
+			// 継ぎ目は取り直した画で測り直すので、ここでの基準は選ぶ画を決めるだけ。ゆるめて認めた継ぎ目は「弱い」として持つ
+			const okStill = (r) => r && r.shift > 0 && isFinite(r.badRate) && r.badRate < opts.okBad * 2 && ratioOf(r) >= opts.warnSecondRatio;
+			const tryList = async (list, accept) => {
 				for (const j of list) {
 					if (nextA >= 0 && j === nextA) continue;
 					await pause();
 					const f = same[j];
 					const r = verifySeam(key.plane, f.plane, pos.get(f) - pk);
 					if (ok(r)) { pushPick(key, f, r); key = f; return true; }
+					if (accept && accept(r)) { pushPick(key, f, r, true); key = f; return true; }
 				}
 				return false;
 			};
@@ -953,7 +959,7 @@
 				// 止まっている候補（位置が minShift〜maxGap 先）を遠いほうから
 				const st = [];
 				for (let j = end; j > k; j--) if (same[j].stillRep && gapOf(j) >= opts.minShift && gapOf(j) <= maxGap) st.push(j);
-				if (await tryList(st)) continue;
+				if (await tryList(st, okStill)) continue;
 				// 次の止まり（かアンカー）が maxGap より遠い: 間の動いているフレームを足す。次の止まりに届く範囲で、真ん中に近いものから
 				let goal = -1;
 				for (let j = k + 1; j <= end; j++) if ((same[j].stillRep || anchorSet.has(same[j])) && gapOf(j) > maxGap) { goal = j; break; }
@@ -1079,9 +1085,14 @@
 					const sp = picks[c.k].plane, mp = p.plane;
 					let okOff = false;
 					if (!sp || !mp) okOff = false;
-					else if (off > 0) { const r = scanRange(sp, mp, off - 6, off + 6, 2, 2); if (r.shift > 0 && r.badRate < opts.warnBadRate) { okOff = true; off = r.shift; } }
-					else if (off < 0) { const r = scanRange(mp, sp, -off - 6, -off + 6, 2, 2); if (r.shift > 0 && r.badRate < opts.warnBadRate) { okOff = true; off = -r.shift; } }
-					else okOff = badNear0(mp, sp) < opts.warnBadRate;
+					// 確かめは「ずれの見込みの近くに、はっきりした最小がある」ことで（不一致の絶対値では見ない。動いている画にエフェクトが写っていると
+					// 正しいずれでも不一致が 5% を超え、写せなくなる）: 見込み ±6 の最小が、±8〜14 の最小の 0.6 倍未満で、0.2 未満
+					else {
+						const peak = (a, b, d0) => { const c = scanRange(a, b, d0 - 6, d0 + 6, 2, 2), lo = scanRange(a, b, d0 - 14, d0 - 8, 2, 2), hi = scanRange(a, b, d0 + 8, d0 + 14, 2, 2); const edge = Math.min(lo.badRate, hi.badRate); return c.shift > 0 && c.badRate < 0.2 && c.badRate < edge * 0.6 ? c.shift : 0; };
+						if (off > 0) { const s2 = peak(sp, mp, off); if (s2) { okOff = true; off = s2; } }
+						else if (off < 0) { const s2 = peak(mp, sp, -off); if (s2) { okOff = true; off = -s2; } }
+						else okOff = badNear0(mp, sp) < 0.08;
+					}
 					if (!okOff) continue;
 					await pause();
 					actx.drawImage(await untilAbort(loadImage(files[c.k]), signal), 0, 0, W, H);
@@ -1454,8 +1465,25 @@
 			let redrawn = 0;
 			for (let i = 1; i < canvases.length; i++) {
 				if (!still[i]) continue;
-				const y0 = Math.max(0, tops[i]), y1 = Math.min(out.height, tops[i] + contentHeight);
+				let y0 = Math.max(0, tops[i]);
+				const y1 = Math.min(out.height, tops[i] + contentHeight);
 				if (y1 <= y0) continue;
+				// 描き直しの上端（継ぎ目）は、上端から 160行の中で、いま描いてある画とこの画がいちばん合う行に置く（継ぎ目のずれが 1px あっても、
+				// 段の切れ目など平らな所なら目立たない）。先頭の画（0番）の行は動かさない
+				{
+					const span = Math.min(160, y1 - y0);
+					if (span > 8 && y0 > 0) {
+						const a = octx.getImageData(0, y0, w0, span).data, b = canvases[i].getContext('2d').getImageData(0, headerEnd + (y0 - tops[i]), w0, span).data;
+						let best = y0, bestD = Infinity;
+						for (let y = 0; y < span; y++) {
+							let s = 0, n = 0;
+							for (let x = 0; x < w0; x += 4) { const q = (y * w0 + x) * 4; s += Math.abs(a[q] - b[q]) + Math.abs(a[q + 1] - b[q + 1]) + Math.abs(a[q + 2] - b[q + 2]); n += 3; }
+							const d = s / n;
+							if (d < bestD - 0.05) { bestD = d; best = y0 + y; }
+						}
+						y0 = best;
+					}
+				}
 				let changed = false;
 				for (let y = y0; y < y1; y++) if (owner[y] !== i) { owner[y] = i; changed = true; }
 				if (!changed) continue;
