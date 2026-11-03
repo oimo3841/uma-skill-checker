@@ -66,7 +66,8 @@
 		<p class="kv" id="env"></p>
 	</div>
 	<h2>動画を選ぶ <small>選ぶと自動で進みます。終わるまで画面を消さず、ほかのアプリに切り替えないでください</small></h2>
-	<input id="file" type="file" accept="video/*" />
+	<!-- multiple: iPhone の写真の一覧の画面が「複数選択」になり、選ばずに完了したときに 0本で戻ってくるか（第2回で確かめる。製品も同じにする） -->
+	<input id="file" type="file" accept="video/*" multiple />
 	<div id="file-info" class="hint"></div>
 	<div class="now" id="now"></div>
 	<h2>経過</h2>
@@ -82,288 +83,19 @@
 
 <script src="../js/common.js?v=2026-09-26a"></script>
 <script src="../js/stitch.js?v=2026-11-01a"></script>
-<script src="../js/video-frames.js?v=2026-11-03a"></script>
-<script>
-/* T90 試作: MP4（断片化していない）の分解と WebCodecs（VideoDecoder）で、時刻 t の画を「必ず同じフレーム」で出すフレームの出どころ。
- * UmaVideoFrames.selectFrames に渡す source と同じ形（{ kind, width, height, duration, drawAt(t, ctx, dw, dh, signal, how), close() }）。
- * 時刻 t の画 ＝ 表示時刻（pts）が t 以下の最後のフレーム（video 要素のシークと同じ意味）。
- * 復号は前へ進めるだけ。後ろへ戻る・先の区間へ飛ぶときは、目当てのフレームの手前のキーフレームから復号し直す。
- * 公開: window.UmaMp4Source = { probe(blob), open(blob, o) }
- */
-(function (global) {
-	'use strict';
+<script src="video-frames-t90.js?v=2026-11-03b"></script>
 
-	function err(code, msg) { const e = new Error(msg); e.code = code; return e; }
-	function abortError() { try { return new DOMException('取り消しました', 'AbortError'); } catch (e) { const er = new Error('取り消しました'); er.name = 'AbortError'; return er; } }
-	function untilAbort(p, signal) {
-		if (!signal) return p;
-		if (signal.aborted) return Promise.reject(abortError());
-		return new Promise((res, rej) => {
-			const onAbort = () => rej(abortError());
-			signal.addEventListener('abort', onAbort, { once: true });
-			Promise.resolve(p).then((v) => { signal.removeEventListener('abort', onAbort); res(v); }, (e) => { signal.removeEventListener('abort', onAbort); rej(e); });
-		});
-	}
-	const str4 = (dv, o) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
-
-	/* ── 箱 ─────────────────────────────── */
-	async function readView(blob, off, len) { return new DataView(await blob.slice(off, Math.min(blob.size, off + len)).arrayBuffer()); }
-	// 先頭から箱の見出しだけを読んで並べる（moov が末尾にあっても、ファイル全体は読まない）
-	async function topBoxes(blob) {
-		const out = []; let off = 0;
-		while (off + 8 <= blob.size) {
-			const h = await readView(blob, off, 16);
-			if (h.byteLength < 8) break;
-			let sz = h.getUint32(0); const type = str4(h, 4); let hdr = 8;
-			if (sz === 1) { if (h.byteLength < 16) break; sz = Number(h.getBigUint64(8)); hdr = 16; } else if (sz === 0) sz = blob.size - off;
-			if (sz < hdr) throw err('mp4', '箱の大きさが不正: ' + type);
-			out.push({ type, off, sz, hdr }); off += sz;
-		}
-		return out;
-	}
-	const CONTAINERS = new Set(['moov', 'trak', 'mdia', 'minf', 'stbl', 'edts']);
-	function children(dv, start, end) {
-		const out = []; let off = start;
-		while (off + 8 <= end) {
-			let sz = dv.getUint32(off); const type = str4(dv, off + 4); let hdr = 8;
-			if (sz === 1) { sz = Number(dv.getBigUint64(off + 8)); hdr = 16; } else if (sz === 0) sz = end - off;
-			if (sz < hdr || off + sz > end) break;
-			out.push({ type, off, sz, hdr, body: off + hdr, end: off + sz }); off += sz;
-		}
-		return out;
-	}
-	const find = (list, type) => list.find((b) => b.type === type);
-
-	/* ── 映像トラック ─────────────────────────────── */
-	function parseMoov(dv) {
-		const moov = children(dv, 0, dv.byteLength)[0];
-		if (!moov || moov.type !== 'moov') throw err('mp4', 'moov が読めない');
-		const mv = children(dv, moov.body, moov.end);
-		for (const trak of mv.filter((b) => b.type === 'trak')) {
-			const tk = children(dv, trak.body, trak.end);
-			const mdia = find(tk, 'mdia'); if (!mdia) continue;
-			const md = children(dv, mdia.body, mdia.end);
-			const hdlr = find(md, 'hdlr'); if (!hdlr || str4(dv, hdlr.body + 8) !== 'vide') continue;
-			const mdhd = find(md, 'mdhd');
-			const v = dv.getUint8(mdhd.body);
-			const timescale = v === 1 ? dv.getUint32(mdhd.body + 20) : dv.getUint32(mdhd.body + 12);
-			const mediaDur = v === 1 ? Number(dv.getBigUint64(mdhd.body + 24)) : dv.getUint32(mdhd.body + 16);
-			const minf = find(md, 'minf'); const mf = children(dv, minf.body, minf.end);
-			const stbl = find(mf, 'stbl'); const st = children(dv, stbl.body, stbl.end);
-			// stsd: version/flags(4)・count(4)・entries
-			const stsd = find(st, 'stsd');
-			const entries = children(dv, stsd.body + 8, stsd.end);
-			const entry = entries.find((e) => /^(hvc1|hev1|avc1|avc3)$/.test(e.type));
-			if (!entry) throw err('codec', '対応していない映像の形式: ' + entries.map((e) => e.type).join(','));
-			const width = dv.getUint16(entry.body + 24), height = dv.getUint16(entry.body + 26);
-			const sub = children(dv, entry.body + 78, entry.end);
-			let codec = null, description = null, lengthSize = 4, hasParams = false;
-			const cfgBox = find(sub, entry.type[0] === 'h' ? 'hvcC' : 'avcC');
-			if (!cfgBox) throw err('codec', entry.type + ' の設定（' + (entry.type[0] === 'h' ? 'hvcC' : 'avcC') + '）が無い');
-			const cb = new Uint8Array(dv.buffer, dv.byteOffset + cfgBox.body, cfgBox.end - cfgBox.body);
-			description = cb.slice();
-			if (cfgBox.type === 'hvcC') {
-				const profileSpace = cb[1] >> 6, tier = (cb[1] >> 5) & 1, profile = cb[1] & 31;
-				const compat = (cb[2] << 24 | cb[3] << 16 | cb[4] << 8 | cb[5]) >>> 0;
-				let rev = 0; for (let i = 0; i < 32; i++) if (compat & (1 << (31 - i))) rev |= (1 << i);
-				const level = cb[12];
-				lengthSize = (cb[21] & 3) + 1;
-				const cons = Array.from(cb.subarray(6, 12)); while (cons.length > 1 && cons[cons.length - 1] === 0) cons.pop();
-				codec = 'hvc1.' + (profileSpace ? String.fromCharCode(64 + profileSpace) : '') + profile + '.' + (rev >>> 0).toString(16).toUpperCase() + '.' + (tier ? 'H' : 'L') + level + '.' + cons.map((x) => x.toString(16).toUpperCase()).join('.');
-				// パラメータ（VPS/SPS/PPS）が hvcC に入っているか
-				let p = 23; const arrays = cb[22];
-				for (let a = 0; a < arrays && p + 3 <= cb.length; a++) { const nt = cb[p] & 63; const num = cb[p + 1] << 8 | cb[p + 2]; p += 3; for (let k = 0; k < num && p + 2 <= cb.length; k++) { const len = cb[p] << 8 | cb[p + 1]; p += 2 + len; if (nt === 33) hasParams = true; } }
-			} else {
-				codec = 'avc1.' + [cb[1], cb[2], cb[3]].map((x) => x.toString(16).padStart(2, '0')).join('');
-				lengthSize = (cb[4] & 3) + 1;
-				hasParams = (cb[5] & 31) > 0;
-			}
-			// stts
-			const stts = find(st, 'stts'); const nS = dv.getUint32(stts.body + 4);
-			const dts = []; const dur = []; let t = 0;
-			for (let i = 0; i < nS; i++) { const c = dv.getUint32(stts.body + 8 + i * 8), d = dv.getUint32(stts.body + 12 + i * 8); for (let k = 0; k < c; k++) { dts.push(t); dur.push(d); t += d; } }
-			const n = dts.length;
-			// ctts（version 1 は符号つき。0 でも Int32 で読んで差し支えない）
-			const cto = new Int32Array(n);
-			const ctts = find(st, 'ctts');
-			if (ctts) { const nC = dv.getUint32(ctts.body + 4); let i = 0; for (let e = 0; e < nC; e++) { const c = dv.getUint32(ctts.body + 8 + e * 8), o = dv.getInt32(ctts.body + 12 + e * 8); for (let k = 0; k < c && i < n; k++) cto[i++] = o; } }
-			// stss
-			const sync = new Uint8Array(n);
-			const stss = find(st, 'stss');
-			if (stss) { const nK = dv.getUint32(stss.body + 4); for (let i = 0; i < nK; i++) { const s = dv.getUint32(stss.body + 8 + i * 4) - 1; if (s >= 0 && s < n) sync[s] = 1; } } else sync.fill(1);
-			// stsz
-			const stsz = find(st, 'stsz'); const fixedSize = dv.getUint32(stsz.body + 4); const sizes = new Uint32Array(n);
-			if (fixedSize) sizes.fill(fixedSize); else for (let i = 0; i < n; i++) sizes[i] = dv.getUint32(stsz.body + 12 + i * 4);
-			// stsc + stco/co64 → offsets
-			const stsc = find(st, 'stsc'); const nSC = dv.getUint32(stsc.body + 4);
-			const sc = []; for (let i = 0; i < nSC; i++) sc.push({ first: dv.getUint32(stsc.body + 8 + i * 12), per: dv.getUint32(stsc.body + 12 + i * 12) });
-			const stco = find(st, 'stco'), co64 = find(st, 'co64'); const co = stco || co64; const nCh = dv.getUint32(co.body + 4);
-			const chunkOff = []; for (let i = 0; i < nCh; i++) chunkOff.push(stco ? dv.getUint32(co.body + 8 + i * 4) : Number(dv.getBigUint64(co.body + 8 + i * 8)));
-			const offs = new Float64Array(n);
-			{ let si = 0; for (let c = 0; c < nCh && si < n; c++) { let per = 0; for (const e of sc) if (e.first - 1 <= c) per = e.per; let o = chunkOff[c]; for (let k = 0; k < per && si < n; k++) { offs[si] = o; o += sizes[si]; si++; } } if (si < n) throw err('mp4', 'サンプルの位置が足りない'); }
-			// elst（media_time を引く。-1 の空の区間は飛ばす）
-			let mediaTime = 0;
-			const edts = find(tk, 'edts');
-			if (edts) { const elst = find(children(dv, edts.body, edts.end), 'elst'); if (elst) { const ev = dv.getUint8(elst.body); const ne = dv.getUint32(elst.body + 4); for (let i = 0; i < ne; i++) { const mt = ev === 1 ? Number(dv.getBigInt64(elst.body + 16 + i * 20)) : dv.getInt32(elst.body + 12 + i * 12); if (mt >= 0) { mediaTime = mt; break; } } } }
-			const pts = new Float64Array(n); for (let i = 0; i < n; i++) pts[i] = dts[i] + cto[i] - mediaTime;
-			const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => pts[a] - pts[b] || a - b);
-			return { codec, description, hasParams, lengthSize, width, height, timescale, duration: mediaDur / timescale, n, dts, dur, pts, sync, sizes, offs, order, entryType: entry.type, keyframes: Array.from(sync).reduce((s, v) => s + v, 0) };
-		}
-		throw err('no-video-track', '映像トラックが無い');
-	}
-
-	async function parse(blob) {
-		const boxes = await topBoxes(blob);
-		const ftyp = find(boxes, 'ftyp');
-		const moov = find(boxes, 'moov');
-		if (!moov) throw err('mp4', 'moov が無い' + (find(boxes, 'moof') ? '（断片化した MP4）' : ''));
-		if (find(boxes, 'moof')) throw err('mp4', '断片化した MP4 には対応していない');
-		const dv = await readView(blob, moov.off, moov.sz);
-		const tr = parseMoov(dv);
-		tr.brand = ftyp ? str4(await readView(blob, ftyp.off + 8, 4), 0) : '';
-		tr.moovAt = moov.off;
-		return tr;
-	}
-
-	/** 使えるか: { ok, codec, width, height, duration, frames, keyframes, reason } */
-	async function probe(blob) {
-		if (typeof VideoDecoder === 'undefined' || typeof EncodedVideoChunk === 'undefined') return { ok: false, reason: 'no-webcodecs' };
-		let tr;
-		try { tr = await parse(blob); } catch (e) { return { ok: false, reason: e.code || 'parse', message: e.message }; }
-		let sup = null;
-		try { sup = await VideoDecoder.isConfigSupported({ codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, description: tr.hasParams ? tr.description : undefined }); } catch (e) { return { ok: false, reason: 'unsupported', message: e.message, codec: tr.codec }; }
-		return { ok: !!(sup && sup.supported), reason: sup && sup.supported ? '' : 'unsupported', codec: tr.codec, width: tr.width, height: tr.height, duration: tr.duration, frames: tr.n, keyframes: tr.keyframes, brand: tr.brand, entryType: tr.entryType, hasParams: tr.hasParams };
-	}
-
-	/** フレームの出どころを開く。o.onStat(name) で統計を知らせる */
-	async function open(blob, o) {
-		o = o || {};
-		const tr = await parse(blob);
-		const n = tr.n, ts = tr.timescale;
-		const stat = { fed: 0, out: 0, restarts: 0, skips: 0, reads: 0, bytes: 0, flushes: 0, leadingSkipped: 0, skipLog: [], restartLog: [] };
-		const cfg = { codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, optimizeForLatency: false };
-		if (tr.hasParams) cfg.description = tr.description;
-		if (o.hardware) cfg.hardwareAcceleration = o.hardware;
-		// 表示順 j ↔ サンプル i（復号順）。chunk の timestamp（µs）で出てきたフレームを引く
-		const presOf = new Int32Array(n); tr.order.forEach((i, j) => { presOf[i] = j; });
-		const usOf = new Float64Array(n); const jOfUs = new Map();
-		for (let j = 0; j < n; j++) { const i = tr.order[j]; let us = Math.round(tr.pts[i] * 1e6 / ts); while (jOfUs.has(us)) us++; usOf[i] = us; jOfUs.set(us, j); }
-		const ptsSorted = new Float64Array(n); for (let j = 0; j < n; j++) ptsSorted[j] = tr.pts[tr.order[j]];
-		const syncIdx = []; for (let i = 0; i < n; i++) if (tr.sync[i]) syncIdx.push(i);
-		if (!syncIdx.length || syncIdx[0] !== 0) throw err('mp4', '最初のサンプルがキーフレームでない');
-		// 表示順 j の目当てのフレームを復号できる、いちばん近いキーフレーム（復号順が手前で、表示時刻も手前）
-		function keyFor(j) {
-			const i = tr.order[j]; let best = 0;
-			for (const s of syncIdx) { if (s <= i && tr.pts[s] <= tr.pts[i]) best = s; else if (s > i) break; }
-			return best;
-		}
-		// 時刻 t（秒）→ 表示順 j（pts ≤ t の最後。無ければ 0）
-		function jAt(t) {
-			const tk = t * ts; let lo = 0, hi = n - 1;
-			if (ptsSorted[0] > tk) return 0;
-			while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ptsSorted[mid] <= tk) lo = mid; else hi = mid - 1; }
-			return lo;
-		}
-		// ファイルの読み（キーフレームから次のキーフレームの手前までをまとめて）
-		let buf = null, bufOff = 0, bufEnd = 0;
-		async function sampleData(i) {
-			const off = tr.offs[i], sz = tr.sizes[i];
-			if (!(buf && off >= bufOff && off + sz <= bufEnd)) {
-				let e = i, lo = off, hi = off + sz;
-				while (e + 1 < n && !tr.sync[e + 1]) { const o2 = tr.offs[e + 1], s2 = tr.sizes[e + 1]; if (Math.max(hi, o2 + s2) - Math.min(lo, o2) > 12e6) break; e++; lo = Math.min(lo, o2); hi = Math.max(hi, o2 + s2); }
-				buf = await blob.slice(lo, hi).arrayBuffer(); bufOff = lo; bufEnd = hi; stat.reads++; stat.bytes += hi - lo;
-			}
-			return new Uint8Array(buf, off - bufOff, sz);
-		}
-		// 復号
-		let dec = null, fed = 0, ended = false, flushing = false, failed = null, closed = false, gen = 0, startKey = 0;
-		let queue = []; // 出てきたフレーム（表示順）のうち、まだ渡していないもの
-		let cur = null, curJ = -1;
-		let waiters = [];
-		const wake = () => { const w = waiters; waiters = []; for (const r of w) r(); };
-		const waitEvent = (signal) => untilAbort(new Promise((r) => { waiters.push(r); setTimeout(r, 40); }), signal);
-		// 復号器は復号し直すたびに作り直す（世代 g）。前の世代の復号器から遅れて出てきたフレームは捨てる
-		// （reset() のあとに前の流れのフレームが届くと、後ろのフレームが列の先頭に残り、目当てのフレームを飛ばして代えてしまった）
-		function makeDecoder() {
-			const g = ++gen;
-			const d = new VideoDecoder({
-				output: (f) => { if (closed || g !== gen) { f.close(); return; } const j = jOfUs.get(f.timestamp); if (j == null) { f.close(); return; } stat.out++; queue.push({ j, frame: f }); wake(); },
-				error: (e) => { if (g === gen) failed = e; wake(); }
-			});
-			try { d.addEventListener('dequeue', () => { if (g === gen) wake(); }); } catch (e) { /* 無くてもよい（40ms で起きる） */ }
-			d.configure(cfg);
-			dec = d;
-		}
-		makeDecoder();
-		function dropQueue() { for (const q of queue) q.frame.close(); queue = []; }
-		function restart(s) {
-			dropQueue();
-			const old = dec;
-			makeDecoder();
-			try { old.close(); } catch (e) { /* 閉じていても */ }
-			fed = s; startKey = s; ended = false; flushing = false; failed = null; stat.restarts++;
-			if (stat.restartLog.length < 200) stat.restartLog.push([s, curJ]);
-		}
-		async function frameAt(t, signal) {
-			if (closed) throw err('closed', '閉じた出どころ');
-			const j = jAt(t);
-			if (j === curJ && cur) return cur;
-			const s = keyFor(j);
-			// 後ろへ戻る・まだ届いていない先の区間へ飛ぶ（間の区間を飛ばせる）: キーフレームから復号し直す
-			if (j < curJ || s > fed || (ended && j > curJ && !queue.some((q) => q.j === j))) restart(s);
-			let guard = 0;
-			while (true) {
-				if (signal && signal.aborted) throw abortError();
-				if (failed) throw err('decode', '復号に失敗: ' + (failed.message || failed));
-				while (queue.length) {
-					const q = queue[0];
-					if (q.j < j) { queue.shift(); q.frame.close(); continue; }
-					if (q.j === j) { queue.shift(); if (cur) cur.close(); cur = q.frame; curJ = j; return cur; }
-					// 目当てのフレームが出てこなかった（復号器が捨てた）。次のフレームで代える
-					if (ended || fed > tr.order[j] + 32) { stat.skips++; if (stat.skipLog.length < 50) stat.skipLog.push({ j, i: tr.order[j], s, headJ: q.j, fed, ended: ended ? 1 : 0, curJ, startKey }); queue.shift(); if (cur) cur.close(); cur = q.frame; curJ = j; return cur; }
-					break;
-				}
-				if (ended) { if (cur) { stat.skips++; if (stat.skipLog.length < 50) stat.skipLog.push({ j, i: tr.order[j], s, headJ: null, fed, ended: 1, curJ, startKey }); curJ = j; return cur; } throw err('decode', '動画の末尾を超えた'); }
-				if (fed < n && dec.decodeQueueSize < 12 && queue.length < 8) {
-					const i = fed++;
-					// キーフレームから復号し直した直後の「先行する画」（復号順はあとで表示時刻は前。前の区間を参照していて復号できないことがある）は渡さない。
-					// 目当てのフレームは表示時刻がキーフレーム以降（keyFor）なので要らず、あとのフレームはこれを参照しない
-					if (i > startKey && i < startKey + 16 && tr.pts[i] < tr.pts[startKey]) { stat.leadingSkipped++; continue; }
-					const data = await sampleData(i);
-					if (signal && signal.aborted) throw abortError();
-					dec.decode(new EncodedVideoChunk({ type: tr.sync[i] ? 'key' : 'delta', timestamp: usOf[i], duration: Math.round(tr.dur[i] * 1e6 / ts), data }));
-					stat.fed++;
-					continue;
-				}
-				// 末尾まで渡したら flush で残りを出す。復号し直し（世代が変わる）や close() で前の flush が拒まれても、今の世代の失敗にはしない
-				if (fed >= n && !flushing) { flushing = true; stat.flushes++; const g = gen; dec.flush().then(() => { if (g === gen) { ended = true; wake(); } }, (e) => { if (g === gen && !closed) failed = e; wake(); }); }
-				if (++guard > 200000) throw err('decode', '復号が進まない');
-				await waitEvent(signal);
-			}
-		}
-		return {
-			kind: 'webcodecs', width: tr.width, height: tr.height, duration: tr.duration, frames: n, info: { codec: tr.codec, keyframes: tr.keyframes, entryType: tr.entryType }, stat,
-			async drawAt(t, ctx, dw, dh, signal, how) {
-				const f = await frameAt(Math.max(0, t), signal);
-				ctx.drawImage(f, 0, 0, dw, dh);
-			},
-			frameAt,
-			close() { if (closed) return; closed = true; dropQueue(); if (cur) { cur.close(); cur = null; } try { dec.close(); } catch (e) { /* 何もしない */ } buf = null; }
-		};
-	}
-
-	global.UmaMp4Source = Object.freeze({ probe, open, parse });
-})(typeof window !== 'undefined' ? window : globalThis);
-</script>
 <script>
 'use strict';
-const PAGE_VERSION = 'T90-2026-11-03a';
+const PAGE_VERSION = 'T90-2026-11-03b';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const Q = new URLSearchParams(location.search);
 const N_PROD = Math.max(0, Number(Q.get('runs') || 10));
-const N_PROTO = Math.max(0, Number(Q.get('proto') || 3));
-const SKIP = new Set((Q.get('skip') || '').split(',').filter(Boolean)); // decode, product, seek, proto
+const N_PROTO = Math.max(0, Number(Q.get('proto') || 3));   // ページの中の試作（UmaMp4Source）があるときだけ
+const N_VIDEO = Math.max(0, Number(Q.get('video') || 0));   // video 要素のシークの出どころ（videoSource）だけで通す回数（比べる用）
+const SKIP = new Set((Q.get('skip') || '').split(',').filter(Boolean)); // decode, product, seek, proto, video
+const KIND_NAME = { product: '製品', proto: '試作', video: 'video要素' };
 const LABELS = ['親', '祖1', '祖2'];
 const JPEG_Q = 0.85;
 const T0 = performance.now();
@@ -458,17 +190,23 @@ async function runOnce(kind, file, runNo, images) {
 	const t0 = performance.now();
 	let video = null, src0 = null;
 	const orig = document.createElement;
-	if (kind === 'product') document.createElement = function (tag, o) { const el = orig.call(document, tag, o); if (!video && String(tag).toLowerCase() === 'video') video = el; return el; };
+	const name = KIND_NAME[kind] || kind;
+	// product … 製品と同じ出どころ（openSource があればそれ。無い版なら videoSource）／video … video 要素のシーク／proto … ページの中の試作
+	if (kind !== 'proto') document.createElement = function (tag, o) { const el = orig.call(document, tag, o); if (!video && String(tag).toLowerCase() === 'video') video = el; return el; };
 	try {
-		now((kind === 'product' ? '製品' : '試作') + ' ' + runNo + '回目: 読み込み');
-		if (kind === 'product') { try { src0 = await UmaVideoFrames.videoSource(file); } finally { document.createElement = orig; } }
-		else src0 = await (window.UmaMp4Source ? UmaMp4Source.open(file) : UmaVideoFrames.mp4Source(file));
+		now(name + ' ' + runNo + '回目: 読み込み');
+		try {
+			if (kind === 'product') src0 = await (UmaVideoFrames.openSource ? UmaVideoFrames.openSource(file) : UmaVideoFrames.videoSource(file));
+			else if (kind === 'video') src0 = await UmaVideoFrames.videoSource(file);
+			else src0 = await UmaMp4Source.open(file);
+		} finally { document.createElement = orig; }
 		rec.openMs = Math.round(performance.now() - t0);
+		rec.kind = src0.kind || null; if (src0.fallback) rec.fallback = src0.fallback; if (src0.codec) rec.codec = src0.codec;
 		rec.video = { W: src0.width, H: src0.height, D: +src0.duration.toFixed(3) };
 		const src = wrapSource(src0, rec.seeks, () => video);
 		const dbg = {};
 		let phase = '';
-		const sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS, debug: dbg, onProgress: (p) => { if (p.phase !== phase) { phase = p.phase; now((kind === 'product' ? '製品' : '試作') + ' ' + runNo + '回目: ' + p.phase); } } });
+		const sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS, debug: dbg, onProgress: (p) => { if (p.phase !== phase) { phase = p.phase; now(name + ' ' + runNo + '回目: ' + p.phase); } } });
 		rec.selectMs = Math.round(performance.now() - t0);
 		if (src0.stat) rec.srcStat = Object.assign({}, src0.stat);
 		src0.close(); src0 = null;
@@ -480,10 +218,10 @@ async function runOnce(kind, file, runNo, images) {
 		rec.persons = [];
 		for (let k = 0; k < sel.persons.length; k++) {
 			const p = sel.persons[k];
-			now((kind === 'product' ? '製品' : '試作') + ' ' + runNo + '回目: ' + p.label + ' を組み立て');
-			const pr = { label: p.label, startT: p.startT, anchorY: p.anchorY, n: p.files.length, times: p.times, shifts: p.shifts, uncertain: p.uncertain.map((u) => u ? 1 : 0) };
+			now(name + ' ' + runNo + '回目: ' + p.label + ' を組み立て');
+			const pr = { label: p.label, startT: p.startT, anchorY: p.anchorY, n: p.files.length, times: p.times, shifts: p.shifts, uncertain: p.uncertain.map((u) => u ? 1 : 0), still: (p.still || []).map((u) => u ? 1 : 0) };
 			try {
-				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label);
+				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still });
 				pr.h = c.height; pr.w = c.width; pr.warn = c._stitchWarnings.length; pr.hash = canvasHash(c);
 				const key = k + ':' + pr.hash;
 				if (!images[key]) { const d = c.toDataURL('image/jpeg', JPEG_Q); images[key] = { person: k, hash: pr.hash, h: c.height, w: c.width, kind, firstRun: runNo, jpeg: d }; pr.newImage = 1; }
@@ -511,17 +249,19 @@ function addRunRow(stage, rec, first) {
 /* ── 復号（全フレーム）と指紋 ─────────────────────── */
 async function decodeAll(file) {
 	const d = { };
-	const M = window.UmaMp4Source || (window.UmaVideoFrames && UmaVideoFrames.mp4Source ? { probe: UmaVideoFrames.mp4Probe, open: UmaVideoFrames.mp4Source, parse: UmaVideoFrames.mp4Parse } : null);
+	// 製品の js の出どころ（UmaVideoFrames.mp4Probe／mp4Source）があればそれ、無ければページの中の試作（UmaMp4Source）
+	const M = (window.UmaVideoFrames && UmaVideoFrames.mp4Source) ? { probe: UmaVideoFrames.mp4Probe, open: UmaVideoFrames.mp4Source, parse: null } : window.UmaMp4Source || null;
 	if (!M) { d.error = 'no-mp4src'; return d; }
 	now('復号: 調べる');
-	d.probe = await M.probe(file);
-	log('復号: 使えるか', JSON.stringify(d.probe), d.probe.ok ? 'ok' : 'ng');
-	if (!d.probe.ok) return d;
+	const probe = await M.probe(file);
+	d.probe = Object.assign({}, probe); delete d.probe.track;
+	log('復号: 使えるか', JSON.stringify(d.probe), probe.ok ? 'ok' : 'ng');
+	if (!probe.ok) return d;
 	const t0 = performance.now();
 	let src = null;
 	try {
-		src = await M.open(file);
-		const tr = await M.parse(file);
+		src = await M.open(file, { track: probe.track });
+		const tr = probe.track || await M.parse(file);
 		FP = makeFP(src.width, src.height);
 		const ptsList = []; for (let j = 0; j < tr.n; j++) ptsList.push(tr.pts[tr.order[j]] / tr.timescale);
 		let last = -1, mono = true, got = 0, maxGap = 0;
@@ -606,7 +346,7 @@ async function seekProbe(file, track) {
 
 /* ── 全体の流れ ─────────────────────── */
 async function start(file) {
-	REC = { page: PAGE_VERSION, ua: navigator.userAgent, env: ENV, started: new Date().toISOString(), href: location.href, file: { name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }, params: { runs: N_PROD, proto: N_PROTO, skip: Array.from(SKIP) }, log: [], visibility: [], cancelEvents: CANCELS, decode: null, product: { js: window.UmaVideoFrames ? UmaVideoFrames.VERSION : null, runs: [] }, seek: null, proto: { runs: [] }, images: {} };
+	REC = { page: PAGE_VERSION, ua: navigator.userAgent, env: ENV, started: new Date().toISOString(), href: location.href, file: { name: file.name, type: file.type, size: file.size, lastModified: file.lastModified }, params: { runs: N_PROD, proto: N_PROTO, video: N_VIDEO, skip: Array.from(SKIP) }, log: [], visibility: [], cancelEvents: CANCELS, decode: null, product: { js: window.UmaVideoFrames ? UmaVideoFrames.VERSION : null, openSource: !!(window.UmaVideoFrames && UmaVideoFrames.openSource), runs: [] }, seek: null, proto: { runs: [] }, videoEl: { runs: [] }, images: {} };
 	document.addEventListener('visibilitychange', () => REC.visibility.push([+((performance.now() - T0) / 1000).toFixed(2), document.visibilityState]));
 	let wake = null; try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { /* 無くてもよい */ }
 	STALL = { at: performance.now(), what: '' };
@@ -629,16 +369,19 @@ async function start(file) {
 	}
 	// 3. シークの照らし合わせ
 	if (!SKIP.has('seek')) REC.seek = await seekProbe(file, first && first.track);
-	// 4. 試作
-	if (!SKIP.has('proto') && (window.UmaMp4Source || (window.UmaVideoFrames && UmaVideoFrames.mp4Source)) && REC.decode && REC.decode.probe && REC.decode.probe.ok) {
+	// 4. 試作（ページの中の UmaMp4Source があるときだけ）・video 要素のシークだけ（?video=N）
+	const stages = [];
+	if (!SKIP.has('proto') && window.UmaMp4Source && REC.decode && REC.decode.probe && REC.decode.probe.ok) stages.push(['proto', N_PROTO, REC.proto.runs]);
+	if (!SKIP.has('video') && N_VIDEO > 0) stages.push(['video', N_VIDEO, REC.videoEl.runs]);
+	for (const [kind, N, runs] of stages) {
 		let pf = null;
-		for (let r = 1; r <= N_PROTO; r++) {
-			const rec = await runOnce('proto', file, r, REC.images);
+		for (let r = 1; r <= N; r++) {
+			const rec = await runOnce(kind, file, r, REC.images);
 			if (r > 1 && pf && !rec.error && !pf.error && rec.persons.every((p, k) => pf.persons[k] && p.hash === pf.persons[k].hash) && rec.picks.join() === pf.picks.join()) delete rec.track;
-			REC.proto.runs.push(rec);
+			runs.push(rec);
 			if (!pf) pf = rec;
-			addRunRow('試作', rec, pf);
-			log('試作 ' + r + '回目', rec.error ? '失敗 ' + rec.error : (rec.persons.map((p) => p.n + '枚/' + (p.h || 'x') + 'px').join('・') + '・選んだ ' + rec.picks.length + '枚・' + sec(rec.totalMs) + '・取り直し合わず ' + rec.stats.grabMismatch + '・シーク外れ ' + rec.seeks.filter((s) => s.miss).length + '/' + rec.seeks.length), rec.error ? 'ng' : '');
+			addRunRow(KIND_NAME[kind], rec, pf);
+			log(KIND_NAME[kind] + ' ' + r + '回目', rec.error ? '失敗 ' + rec.error : (rec.persons.map((p) => p.n + '枚/' + (p.h || 'x') + 'px').join('・') + '・選んだ ' + rec.picks.length + '枚・' + sec(rec.totalMs) + '・取り直し合わず ' + rec.stats.grabMismatch + '・シーク外れ ' + rec.seeks.filter((s) => s.miss).length + '/' + rec.seeks.length), rec.error ? 'ng' : '');
 			await sleep(300);
 		}
 	}
@@ -651,7 +394,7 @@ async function start(file) {
 let OUT = null;
 function finish() {
 	const same = (runs) => { const ok = runs.filter((r) => !r.error); if (!ok.length) return '—'; const h = (r) => r.persons.map((p) => p.hash).join(' '); const n = ok.filter((r) => h(r) === h(ok[0])).length; return n + '/' + runs.length + ' 回が1回目と同じ' + (runs.length !== ok.length ? '（失敗 ' + (runs.length - ok.length) + '）' : ''); };
-	$('sum').textContent = '製品 ' + same(REC.product.runs) + '／試作 ' + same(REC.proto.runs) + '・全体 ' + REC.totalSec + '秒';
+	$('sum').textContent = '製品 ' + same(REC.product.runs) + (REC.proto.runs.length ? '／試作 ' + same(REC.proto.runs) : '') + (REC.videoEl.runs.length ? '／video要素 ' + same(REC.videoEl.runs) : '') + '・全体 ' + REC.totalSec + '秒';
 	const json = JSON.stringify(REC);
 	const d = new Date(), p2 = (n) => String(n).padStart(2, '0');
 	const stamp = d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()); // 端末の時刻
@@ -681,8 +424,10 @@ let openedAt = null;
 fileInput.addEventListener('click', () => { openedAt = performance.now(); });
 fileInput.addEventListener('cancel', () => { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null }; CANCELS.push(e); log('動画を選ばずに戻った（cancel）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); });
 fileInput.addEventListener('change', async (ev) => {
-	const f = ev.target.files && ev.target.files[0];
-	if (!f) return;
+	const n = ev.target.files ? ev.target.files.length : 0;
+	const f = n ? ev.target.files[0] : null;
+	if (!f) { const e = { at: +((performance.now() - T0) / 1000).toFixed(2), afterMs: openedAt ? Math.round(performance.now() - openedAt) : null, files: 0 }; CANCELS.push(e); log('動画を選ばずに戻った（change・0本）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '', 'ok'); ev.target.value = ''; return; }
+	log('動画を選んだ（change・' + n + '本）', openedAt ? Math.round(performance.now() - openedAt) + 'ms 後' : '');
 	ev.target.disabled = true;
 	$('file-info').textContent = f.name + '・' + (f.type || '（type なし）') + '・' + (f.size / 1048576).toFixed(1) + 'MB';
 	try { await start(f); } catch (e) { log('想定外の失敗', String(e.stack || e.message || e), 'ng'); if (REC) { REC.fatal = String(e.stack || e.message || e); finish(); } }
