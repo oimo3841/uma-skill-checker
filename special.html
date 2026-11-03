@@ -2338,6 +2338,11 @@
 					user_defined_dpi: '300'
 				});
 
+				// T95: 全スキルの名前の辞書は、この OCR のあいだ1つを使い回す（②・遺伝子・読み込み済みのデータが変わるので押すたびに作り直す）。
+				// 進化スキルを辞書から外すには進化の一覧が要るので、読めていなければ先に待つ（読めなくても照合は続ける＝外さないだけ）
+				allSkillNamesDict = null;
+				if (deckMode) { try { await UmaSkillDeckCore.loadSkillEvolutions(false); } catch (e) {} }
+
 				for (let p = 0; p < persons.length; p++) {
 					const files = persons[p].files;
 					if (files.length === 0) continue;
@@ -2348,9 +2353,9 @@
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
 					// 因子は照合の後で絞る（言い切れないものを落とす。C-2b）。スキルの判定には触らない
 					// T60: レース条件で外した遺伝子の行は照合に回さない（行の番号は保つ。写しの行〔personLines〕はそのまま）
+					// T95: 新UI では全スキルの名前で照合し、②（と対象の遺伝子）に無い名前に当たった行は捨てる（matchWithAllSkillNames）
 					const matchLines = maskOutOfScopeFactorLines(result.lines);
-					personResults[p] = applyFactorStrictMatch(
-						matchAllSkillsWithStars(matchLines, skillList, skillIndex, ocrErrorDictionary), matchLines);
+					personResults[p] = applyFactorStrictMatch(matchWithAllSkillNames(matchLines), matchLines);
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
 					// T92: Deck α へ送るときの緑因子（継承固有）。新UI のときだけ読む。読めなくても判定は続ける
@@ -2780,6 +2785,11 @@
 				if (res.devAmbiguous && res.devAmbiguous.length) {
 					lines.push('  曖昧タイの解決内訳 ' + res.devAmbiguous.length + '件:');
 					res.devAmbiguous.forEach(u => lines.push(formatAmbiguousEntry(u)));
+				}
+				// T95: 全スキルの名前で照合して、②（と対象の遺伝子）に無い名前に当たった行（結果からは外してある）
+				if (res.devOutsideScope && res.devOutsideScope.length) {
+					lines.push('  全スキルで照合して②に無い名前に当たった行（捨てた）' + res.devOutsideScope.length + '件:');
+					res.devOutsideScope.forEach(u => lines.push('    ' + u.name + '（★' + ((u.stars === null || u.stars === undefined) ? '?' : u.stars) + ' / ' + u.reason + '）'));
 				}
 				if (lines.length) parts.push('■ ' + label + '\n' + lines.join('\n'));
 			});
@@ -4868,6 +4878,46 @@
 				delete res.skillSources[name];
 				if (res.skillStars) delete res.skillStars[name];
 			});
+			return res;
+		}
+
+		/* ------------------------------------------------------------
+		 * ③の照合は「全スキルの名前」で行い、②に無い名前に当たった行は捨てる（T95。おいもさんの決定 2026-11-04〔T93-2 の回答〕）
+		 *
+		 * 新UI の照合の辞書は②（と対象の遺伝子）の名前だけなので、②が少ないと OCR の行が似た名前の別のスキルに寄る
+		 * （画の「差しためらい」が「逃げためらい」に、「アオハル点火・賢」が「アオハル点火・速」に。T93 の §4-3）。
+		 * common.js の照合（凍結）は変えず、呼び出し側で辞書を全スキルの名前にし、②に無い名前に当たったものを結果から外す。
+		 *   - 辞書の並びは skillList（②＋対象の遺伝子）→ マスター → 追加カタログ（シナリオ因子・遺伝子・拡張スキル）。
+		 *     buildSkillDictionary は正規化後が同じ名前を先のもので残すので、②の名前は skillList の表記のまま検出される
+		 *     （②に無い名前〔カスタムスキルなど〕も skillList にあればそのまま辞書に入る）。
+		 *   - 進化スキルは入れない（因子の画面には出ない。Deck の取り込みの辞書と同じ扱い。core の isEvolvedSkillId は
+		 *     進化の一覧を読めていなければ false なので、processImages が先に loadSkillEvolutions を待つ）。
+		 *   - 外したものは detectedSkills・matchReasons・skillSources・skillStars から消し、開発ログ用に devOutsideScope に残す
+		 *     （画面の文は足さない）。因子の絞り込み（applyFactorStrictMatch）はこのあと今までどおり掛かる。
+		 *   - 旧UI（deckMode でない）は今までどおり skillList だけで照合する。
+		 * ------------------------------------------------------------ */
+		let allSkillNamesDict = null;   // processImages が押すたびに null にし、最初の人の照合で作る
+		function allSkillNamesDictionary() {
+			const names = skillList.slice();
+			try { UmaSkillDeckCore.getMasterSkills().forEach(s => names.push(s.name)); } catch (e) {}
+			try { UmaSkillDeckCore.getExtraCatalog().forEach(x => { if (!UmaSkillDeckCore.isEvolvedSkillId(x.id)) names.push(x.name); }); } catch (e) {}
+			return buildSkillDictionary(names);
+		}
+		function matchWithAllSkillNames(lines) {
+			if (!deckMode) return matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionary);
+			if (!allSkillNamesDict) allSkillNamesDict = allSkillNamesDictionary();
+			const res = matchAllSkillsWithStars(lines, allSkillNamesDict.list, allSkillNamesDict.index, ocrErrorDictionary);
+			const inScope = new Set(skillList);
+			const outside = [];
+			Array.from(res.detectedSkills).forEach(name => {
+				if (inScope.has(name)) return;
+				outside.push({ name: name, stars: res.skillStars ? res.skillStars[name] : undefined, reason: res.matchReasons[name] || '' });
+				res.detectedSkills.delete(name);
+				delete res.matchReasons[name];
+				delete res.skillSources[name];
+				if (res.skillStars) delete res.skillStars[name];
+			});
+			res.devOutsideScope = outside;
 			return res;
 		}
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
