@@ -477,8 +477,7 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-11-03（T92・123・124）: 旧 UmaSkill Deck を実質停止にしたので、special の③の取り込みの案内の箱（#deck-handoff-*）・
 	// FAB の旧 Deck の項目とバッジ（#deck-drawer-trigger・#fab-dot-deck。項目は #fab-item-deck に替えた）・中で開く引き出し（#deck-drawer 一式）を消した。
 	// commit が進んだら免除は空に戻す。
-	'special.html': ['deck-handoff-note', 'deck-handoff-box', 'deck-handoff-dot', 'deck-handoff-title', 'deck-handoff-detail', 'deck-handoff-btn-label',
-		'deck-drawer-trigger', 'fab-dot-deck', 'deck-drawer', 'deck-drawer-close', 'deck-drawer-frame'],
+	// → T92 の commit（555d950）で HEAD から消えたので、免除は空に戻した。
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
