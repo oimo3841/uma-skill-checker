@@ -11,7 +11,10 @@
 		新しい Deck の α版の登録の画面（T88・C-275）。UmaStar の OCR から送ったときに開く（送る流れと入口は段4 の 4-2）。
 		モック版13（lab/deck-v13/register.html）の見た目と動きをそのまま移した。受け取りの口（localStorage の umaDeck:send の形）は js/deck-alpha-register.js の冒頭。
 		保存先は deck-alpha.html と同じ IndexedDB（uma-deck）。?theme=light|dark で見た目を固定（撮影用）。
+		UmaStar の③の照合結果の「Deck α に送る」から、新しいタブでこのページを開く（T92。URL に ? も # も付けない＝恒久ルール32）。
 	-->
+	<!-- 画面の色はほかのツールと同じ設定（js/theme.js。T92） -->
+	<script src="js/theme.js?v=2026-10-08b"></script>
 	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
 	<link rel="stylesheet" href="css/deck-alpha.css?v=2026-11-02a" />
 </head>
@@ -24,6 +27,6 @@
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/deck-alpha-data.js?v=2026-11-02a" data-next="js/deck-alpha-core.js?v=2026-11-02a js/deck-alpha-register.js?v=2026-11-02a"></script>
+<script src="js/deck-alpha-data.js?v=2026-11-02a" data-next="js/deck-alpha-core.js?v=2026-11-02a js/deck-alpha-register.js?v=2026-11-03a"></script>
 </body>
 </html>

@@ -10,11 +10,13 @@
 	<title>Deck α</title>
 	<!--
 		新しい UmaSkill Deck の α版（T88・2026-11-02・C-275）。モック版13（lab/deck-v13/。T87・C-274）の見た目と動きを製品に移した。
-		入口は段4 の 4-2 で UmaStar のツール切り替えに足す（それまでは、どのページからもリンクしない）。
+		入口は UmaStar のツール切り替えの「Deck α」（段4 の 4-2・T92）。
 		■ 画面: このページ（Deck 本体とバックアップ）と deck-alpha-register.html（UmaStar の OCR から送ったときの登録の画面）。
-		■ 保存: IndexedDB の uma-deck（親1人1件 ＋ meta）。今のツールの localStorage には触れない。
+		■ 保存: IndexedDB の uma-deck（親1人1件 ＋ meta）。今のツールの localStorage には触れない（ライト／ダークだけは、ほかのツールと同じ js/theme.js の設定を読み書きする。T92）。
 		■ 見え方の確認: ?theme=light|dark で見た目を固定できる（設定より優先。撮影用）。
 	-->
+	<!-- 画面の色（ライト／ダーク）は、ほかのツールと同じ設定（T88 の決めてほしいこと4 → B）。body の解析より前に色を決めるので同期で読む -->
+	<script src="js/theme.js?v=2026-10-08b"></script>
 	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
 	<link rel="stylesheet" href="css/deck-alpha.css?v=2026-11-02a" />
 </head>
@@ -100,6 +102,6 @@
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden />
-<script src="js/deck-alpha-data.js?v=2026-11-02a" data-next="js/deck-alpha-core.js?v=2026-11-02a js/deck-alpha.js?v=2026-11-02a"></script>
+<script src="js/deck-alpha-data.js?v=2026-11-02a" data-next="js/deck-alpha-core.js?v=2026-11-02a js/deck-alpha.js?v=2026-11-03a"></script>
 </body>
 </html>

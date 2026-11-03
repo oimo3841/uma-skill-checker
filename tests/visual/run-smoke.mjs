@@ -128,6 +128,7 @@ import { register98 } from './blocks-98.mjs';
 import { register99 } from './blocks-99.mjs';
 import { register100 } from './blocks-100.mjs';
 import { register101 } from './blocks-101.mjs';
+import { register102 } from './blocks-102.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15496,6 +15497,8 @@ await register99({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 // T85（2026-11-02）: 動画の結合の品質の安定化（止まっている1枚を選ぶ・取り直しを確かめて測り直す・区切りを帯のどこでも。C-259 の T83 への回答。見出しは「T85動画の品質」）
 await register100({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register101({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T92（2026-11-03）: UmaStar から Deck α へ送る・ツール切り替えの「Deck α」・Deck α のテーマと「⋯」（段4 の 4-2。見出しは「T92 Deck α へ送る」）
+await register102({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

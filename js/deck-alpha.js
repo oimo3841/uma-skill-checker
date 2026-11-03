@@ -1,6 +1,6 @@
 /* js/deck-alpha.js — 新しい Deck の α版（T88・C-275）の本体。モック版13（lab/deck-v13/deck-v13-deck.js。T87）の見た目と動きをそのまま移した。
  * 版13 から変えたのは、C-275 の 5（「⋯」の仮のデータ・終了をまねる・登録の画面を試すを入れない）・6（文の直し）・4（「ホーム画面に追加」の案内）と、
- * ツール切り替えの行をほかのツールのページへのリンクにしたこと。以下は版13 の説明。
+ * ツール切り替えの行をほかのツールのページへのリンクにしたこと。T92（段4 の 4-2）で「ホーム画面に追加」の案内を外し、ライト／ダークを js/theme.js の設定にそろえた。以下は版13 の説明。
  * Deck 本体（ヒートマップの表・親の小窓・2組・本育成設計・レース/周回セット・バックアップ）。版12（T86・C-273）:
  * マスの塗りと数字は親と祖の合計の5段・親本人の★は左上の小さな数字・PC は左の列に5つの欄を全部並べる・1つだけ選ぶ欄は帯・複数選べる欄は札。
  * 版13（T87・C-274）: 縮小と遺伝子の行にも左上の親本人の★・分類の「そのほか」の札を外す・親の小窓と祖の詳細に対象スキルの列挙（序盤／中盤／終盤／その他）・
@@ -11,7 +11,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-02a';
+	const DECK_ALPHA_JS_VERSION = '2026-11-03a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -29,7 +29,8 @@
 		try { loaded = await K.store.load(); } catch (e) { stage.innerHTML = '<div class="empty">この端末では保存が使えません（' + K.esc(e.message) + '）</div>'; return; }
 		S.perf.load = loaded.ms;
 		S.settings = Object.assign({}, K.DEFAULT_SETTINGS, loaded.meta.settings || {});
-		K.applyTheme(S.fixedTheme || S.settings.theme);
+		// 色は js/theme.js が <head> で付けてある（T92）。?theme= のときだけ上書きする（撮影用）
+		if (S.fixedTheme) K.applyTheme(S.fixedTheme);
 		S.doc = K.assemble(loaded);
 		await runArchive();
 		if (Q.has('set')) S.settings.cur = Q.get('set');
@@ -587,9 +588,11 @@
 		});
 	}
 	$('#toolBtn').onclick = openTool;
+	// ライト／ダークは、ほかのツールと同じ設定（js/theme.js の uma-tools-theme。T92・T88 の決めてほしいこと4 → B）。
+	// 描き直しは下の「色が変わったとき」が受け持つ（ほかのタブでの切り替え・OS の設定の変化も同じ道）。保存データの settings.theme は読まない（形は変えない）
 	$('#themeBtn').onclick = () => {
 		const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-		S.settings.theme = dark ? 'light' : 'dark'; S.fixedTheme = null; saveSettings(); K.applyTheme(S.settings.theme); renderHeader(); renderStage(true);
+		S.fixedTheme = null; window.UmaTheme.set(dark ? 'light' : 'dark');
 	};
 
 	/* ---------- 書き出しを促す（版9 の形。C-271 の 31） ---------- */
@@ -602,7 +605,8 @@
 	}
 	$('#nudge').onclick = openData;
 
-	/* ---------- データ（バックアップと「ホーム画面に追加」の案内。C-275 の 3・4。版13 の仮のデータ・終了をまねる・登録の画面を試すは入れない＝C-275 の 5） ---------- */
+	/* ---------- データ（バックアップ。C-275 の 3。版13 の仮のデータ・終了をまねる・登録の画面を試すは入れない＝C-275 の 5。
+	   「ホーム画面に追加」の案内は T92 で外した〔11/3 の C の却下〕） ---------- */
 	function openData() {
 		if (curView !== dataView) nav(dataView); else dataView();
 	}
@@ -612,11 +616,6 @@
 			'<div class="opt"><span>最後の書き出し：' + (d == null ? 'まだ' : d === 0 ? '今日' : d + '日前') + '　<span class="muted small">親' + S.doc.parents.length + '人</span></span></div>' +
 			'<div class="row"><button class="btn pri" type="button" id="exportBtn" style="flex:1">書き出す（JSON）</button><button class="btn" type="button" id="importBtn" style="flex:1">読み込む</button></div>' +
 			'<p class="small muted">iPhone の Safari は、しばらく開かないとデータを消すことがあります。書き出したファイルを「ファイル」に残してください。</p>' +
-			// 「ホーム画面に追加」の案内（よく使う人向け。データが分かれることと移し方をセットで。C-275 の 4・C-268 の C）
-			'<h2 style="font-size:14px" id="homeGuide">ホーム画面に追加<span class="sub">よく使う人向け</span></h2>' +
-			'<p class="small muted">Safari の共有ボタン →「ホーム画面に追加」で、ホーム画面のアイコンから Deck を開けます。アイコンから開くと、しばらく開かなくてもデータが消えにくくなります。</p>' +
-			'<p class="small muted">ただし、Safari で開いたときとアイコンから開いたときでは、データが別々になります。今のデータをアイコンの側へ移すには：</p>' +
-			'<ol class="small muted" style="margin:4px 0 0;padding-left:1.6em"><li>ここで「書き出す」</li><li>ホーム画面のアイコンから Deck を開く</li><li>「⋯」→「読み込む」で書き出したファイルを選び、「置き換える」</li></ol>' +
 			'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>', '[data-close]');
 		$('#exportBtn').onclick = doExport; $('#importBtn').onclick = () => { $('#importFile').value = ''; $('#importFile').click(); };
 		bindClose();
@@ -669,7 +668,12 @@
 	$('#gpToggle').onclick = () => { S.settings.gp = !S.settings.gp; saveSettings(); rebuild(); renderAll(); };
 	$('#geneToggle').onclick = () => { S.settings.geneRows = !S.settings.geneRows; saveSettings(); renderAll(); };
 	let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => renderStage(true), 150); });
-	matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!S.doc) return; K.applyTheme(S.fixedTheme || S.settings.theme); renderHeader(); renderStage(true); });
+	// 色が変わったとき（☾☀ のボタン・ほかのタブでの切り替え・OS の設定の変化。どれも js/theme.js が <html data-theme> を付け替える）に描き直す。
+	// ?theme= で固定しているあいだは、ほかから付け替えられても固定の色に戻す（撮影用）
+	new MutationObserver(() => {
+		if (S.fixedTheme && document.documentElement.getAttribute('data-theme') !== S.fixedTheme) { K.applyTheme(S.fixedTheme); return; }
+		if (!S.doc) return; renderHeader(); renderStage(true);
+	}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 	function renderAll() { renderHeader(); renderFilters(); renderPlan(); applyPanes(); renderStage(true); renderDock(); renderNudge(); }
 

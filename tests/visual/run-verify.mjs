@@ -189,6 +189,9 @@ for (const [p, pat, ver, name] of [
 	['uma-skill-deck.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
 	// 段7（C-135）: スタイルガイドも同じ切り替えの部品を使うので theme.js を読む
 	['css/styleguide.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
+	// T92: Deck α（本体と登録の画面）も、ほかのツールと同じ色の設定を読む
+	['deck-alpha.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
+	['deck-alpha-register.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
 ]) {
 	const q = [...read(p).matchAll(pat)].map((m) => m[1]);
 	check(q.length === 1 && q[0] === ver, `${p} の ${name} の ?v= が ${ver}`, q);

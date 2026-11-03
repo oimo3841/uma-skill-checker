@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-11-02a",
+	"dataVersion": "2026-11-03a",
 	"category": "deckCostumeAbbrev",
 	"trainingVersion": "2026-10-26a",
 	"maxLength": 5,
@@ -7,15 +7,15 @@
 	"entries": [
 		{
 			"id": "uma-0001",
-			"abbr": "通常スぺ"
+			"abbr": "通常スペ"
 		},
 		{
 			"id": "uma-0002",
-			"abbr": "水着スぺ"
+			"abbr": "水着スペ"
 		},
 		{
 			"id": "uma-0003",
-			"abbr": "総大将スぺ"
+			"abbr": "総大将スペ"
 		},
 		{
 			"id": "uma-0004",
@@ -531,7 +531,7 @@
 		},
 		{
 			"id": "uma-0132",
-			"abbr": "通常ビコぺ"
+			"abbr": "通常ビコペ"
 		},
 		{
 			"id": "uma-0133",

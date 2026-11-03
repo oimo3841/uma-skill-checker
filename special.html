@@ -639,6 +639,14 @@
 								</div>
 							</a>
 
+							<!-- 新しい Deck の α版（T92・段4 の 4-2）。URL に ? も # も付けない（恒久ルール32） -->
+							<a href="deck-alpha.html" id="tool-deck-alpha" class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 transition-colors group cursor-pointer">
+								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+									<i data-lucide="layers" class="w-4 h-4"></i>
+								</div>
+								<p class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">Deck α</p>
+							</a>
+
 							<!-- お知らせ（2nd Edition の告知）を、いつでも読み直せる（C-140・微調整2・E） -->
 							<button type="button" id="announce-menu-btn" onclick="openAnnounceFromMenu()" class="flex w-full items-center gap-3 p-2.5 mt-1 rounded-xl hover:bg-slate-100/80 transition-colors cursor-pointer text-left">
 								<span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><i data-lucide="bell" class="w-4 h-4"></i></span>
@@ -2228,6 +2236,7 @@
 			personResults = persons.map(() => null);
 			personLines = persons.map(() => null);
 			personGeometry = persons.map(() => null);
+			personGreen = persons.map(() => null);
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
@@ -2272,6 +2281,10 @@
 						matchAllSkillsWithStars(matchLines, skillList, skillIndex, ocrErrorDictionary), matchLines);
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
+					// T92: Deck α へ送るときの緑因子（継承固有）。新UI のときだけ読む。読めなくても判定は続ける
+					if (deckMode) {
+						try { personGreen[p] = await readGreenFactor(worker, files); } catch (e) { personGreen[p] = null; }
+					}
 				}
 			} catch (err) {
 				console.error(err);
@@ -2517,6 +2530,7 @@
 			renderPreview();
 			renderDevLog();
 			writeOcrHandoff();
+			updateDeckAlphaSendButton();
 		}
 
 		function starBadge(stars) {
@@ -5850,6 +5864,231 @@
 		});
 
 		/* ============================================================
+		 * Deck α へ送る（T92・段4 の 4-2。C-275 の 1）
+		 *
+		 * ③の照合結果の「Deck α に送る」で、親セット（親と祖2人、または親だけ）の結果を
+		 * localStorage の umaDeck:send に書き、新しいタブで deck-alpha-register.html を開く
+		 * （URL に ? も # も付けない＝恒久ルール32。形は js/deck-alpha-register.js の冒頭）。
+		 * 新しいタブにするのは、③の結果（画像・照合）をこのページに残すため。開けなければこのタブで開く。
+		 * - 送るのは親セットの単位。親が読めているセットだけ。祖2人とも読めていれば3人、そうでなければ親だけ。
+		 *   親Aセット・親Bセットの両方で親が読めているときは、どちらを送るかを小窓で選ぶ。
+		 * - 白スキルは②のスキルの id（deckSkillIdByName）、遺伝子は遺伝子の id。★を測れなかったものは -1。
+		 *   シナリオ因子は③で読まない（FACTOR_SCOPE_OCR）ので送らない。
+		 * - 緑因子は、判定のときに readGreenFactor() が読んだもの（personGreen）。青・赤因子は読まない（null）。
+		 * - 持ち主（自分／フレンド）は登録の画面で選ぶ（ここでは 'self'）。
+		 * - 新UI（Deck連携）のあいだだけボタンを出す。旧UIは変えない。
+		 * ============================================================ */
+		const DECK_ALPHA_SEND_KEY = 'umaDeck:send';
+		const DECK_ALPHA_REGISTER_URL = 'deck-alpha-register.html';
+
+		/* ------------------------------------------------------------
+		 * 緑因子（継承固有）の読み取り（T92）
+		 *
+		 * 因子の画面のいちばん上の段（左上＝青因子・右上＝赤因子・左下＝緑因子〔継承固有〕）は、いつもの読み取り
+		 * （detectSkillRows の listTop より下）では読まない。UmaExam のめろっぷ拡張モード（exam.html の
+		 * findMelopTopLayout・C-101）と同じ手がかり ――「青い帯のすぐ下に、全幅でない緑の帯」―― で左下のチップの位置を決め、
+		 * その白抜きの文字だけを OCR にかけて、育成ウマ娘の固有スキルの名前（data/training-umamusume.json の initialSkills）から選ぶ。
+		 * - 誤った名前を入れるより null を優先する: 1文字ずつの違い（levenshtein）が名前の長さの 1/3 以下で、
+		 *   2番目に近い名前より2文字以上近いときだけ決める。決まらなければ、近い名前が2つ以上あれば候補（greenCands）、無ければ null。
+		 * - 白い文字を拾う明るさの境を 215 → 180 の2段で試す（画質が落ちると白が濁る）。名前が決まった段で止める。
+		 * - ★はチップの下の金色の数（めろっぷと同じ数え方）。数えられなければ -1。
+		 * - 位置の見つかった最初の画像だけを使う（いちばん上の段が写っていない画像だけなら null）。
+		 * test-images の実物14人（Archive を含む）で 14人とも正しい名前・誤り 0（2026-11-03）。検査は tests/ocr/run-green-tests.mjs。
+		 * ------------------------------------------------------------ */
+		const GREEN_TEXT_LEVELS = [215, 180];
+		let personGreen = PERSON_LABELS.map(() => null); // 人ごとの { name, stars, cands } か null（判定のときに読む）
+		function greenUniqueNames() {
+			const src = UmaSkillDeckCore.getTrainingSources().trainingUmamusume;
+			const names = [];
+			((src && src.entries) || []).forEach(u => (u.initialSkills || []).forEach(row => (row.skills || []).forEach(sk => {
+				if (sk && sk.name && names.indexOf(sk.name) === -1) names.push(sk.name);
+			})));
+			return names;
+		}
+		function findGreenFactorLayout(base) {
+			const W = base.width, H = base.height;
+			const imageData = getPixels(base);
+			const green = greenMaskOf(imageData);
+			const gRows = rowCountsOf(green, W, H);
+			const thickGreen = findRuns(gRows, Math.round(W * 0.12), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const blue = blueMaskOf(imageData);
+			const bRows = rowCountsOf(blue, W, H);
+			const blueBands = findRuns(bRows, Math.round(W * 0.08), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const gapLimit = Math.round(H * 0.02);
+			function isWide(g) {
+				const c = colCountsOf(green, W, g.a, g.b);
+				let covered = 0;
+				for (let x = 0; x < W; x++) if (c[x] > 0) covered++;
+				return covered / W > 0.7;
+			}
+			function widestRun(mask, y0, y1) {
+				const runs = findRuns(colCountsOf(mask, W, y0, y1), Math.max(1, Math.round((y1 - y0 + 1) * 0.5)), 3, 0, W);
+				let best = null;
+				runs.forEach(r => { if (!best || (r.b - r.a) > (best.b - best.a)) best = r; });
+				return best;
+			}
+			for (const bb of blueBands) {
+				const g = thickGreen.find(t => t.a - bb.b >= 0 && t.a - bb.b <= gapLimit && !isWide(t));
+				if (!g) continue;
+				const blueRun = widestRun(blue, bb.a, bb.b);
+				if (!blueRun) continue;
+				// 緑因子は青因子と同じ左の列・1段下（帯の高さ h が単位）
+				return { imageData: imageData, W: W, H: H, h: bb.b - bb.a + 1, top: g.a, x0: blueRun.a, x1: blueRun.b };
+			}
+			return null;
+		}
+		function greenFactorStars(L) {
+			const d = L.imageData.data, n = L.W * L.H;
+			const mask = new Uint8Array(n);
+			for (let i = 0, p = 0; i < n; i++, p += 4) {
+				if (d[p] > 200 && d[p + 1] > 140 && (d[p] - d[p + 2]) > 60 && d[p + 2] < 140) mask[i] = 1;
+			}
+			return countGoldBlobs(mask, L.W, Math.round(L.x0 + L.h * 1.0), L.x1 + 1,
+				Math.round(L.top + L.h * 0.7), Math.min(L.H, Math.round(L.top + L.h * 1.3)));
+		}
+		/** チップの白抜きの文字だけを黒に、それ以外を白にした切り出し（丸いアイコンの右から、チップの右端の少し手前まで） */
+		function greenFactorTextCanvas(base, L, level) {
+			const h = L.h;
+			const cx0 = Math.round(L.x0 + h * 0.76);
+			const cx1 = Math.max(cx0 + 1, Math.round(L.x1 - h * 0.15));
+			const cy0 = Math.round(L.top + h * 0.08);
+			const cy1 = Math.round(L.top + h * 0.76);
+			const w = cx1 - cx0 + 1, hh = cy1 - cy0 + 1;
+			const scale = Math.max(1, Math.min(4, 64 / hh));
+			const pad = 24;
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.round(w * scale) + pad * 2;
+			canvas.height = Math.round(hh * scale) + pad * 2;
+			const ctx = canvas.getContext('2d');
+			ctx.fillStyle = '#FFFFFF';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(base, cx0, cy0, w, hh, pad, pad, Math.round(w * scale), Math.round(hh * scale));
+			const img = ctx.getImageData(pad, pad, canvas.width - pad * 2, canvas.height - pad * 2);
+			const px = img.data;
+			for (let p = 0; p < px.length; p += 4) {
+				const v = Math.min(px[p], px[p + 1], px[p + 2]) > level ? 0 : 255;
+				px[p] = px[p + 1] = px[p + 2] = v;
+			}
+			ctx.putImageData(img, pad, pad);
+			return canvas;
+		}
+		/** OCR の文字列を固有スキルの名前に決める。{ name, cands }（決まらなければ name は null） */
+		function pickGreenFactorName(text, names) {
+			const norm = normalizeText(text);
+			if (norm.length < 2 || names.length === 0) return { name: null, cands: null };
+			const scored = names.map(n => {
+				const nn = normalizeText(n);
+				return { n: n, d: levenshtein(norm, nn), len: Math.max(nn.length, norm.length) };
+			}).sort((a, b) => a.d - b.d);
+			const best = scored[0], second = scored[1];
+			if (best.d / best.len <= 1 / 3 && (!second || second.d - best.d >= 2)) return { name: best.n, cands: null };
+			const close = scored.filter(s => s.d / s.len <= 1 / 3 && s.d - best.d <= 1).slice(0, 5).map(s => s.n);
+			return { name: null, cands: close.length >= 2 ? close : null };
+		}
+		/** 1人分の画像から緑因子を読む。いちばん上の段が見つからなければ null */
+		async function readGreenFactor(worker, files) {
+			const names = greenUniqueNames();
+			for (let i = 0; i < files.length; i++) {
+				let base;
+				try { base = toBaseCanvas(await loadImage(files[i])); } catch (e) { continue; }
+				if (!assessImageQuality(base).ok) continue;
+				const L = findGreenFactorLayout(base);
+				if (!L) continue;
+				const out = { name: null, stars: greenFactorStars(L), cands: null, texts: [] };
+				for (const level of GREEN_TEXT_LEVELS) {
+					const res = await worker.recognize(greenFactorTextCanvas(base, L, level));
+					const text = ((res.data && res.data.text) || '').replace(/\s+/g, '');
+					out.texts.push(text);
+					const pick = pickGreenFactorName(text, names);
+					if (pick.name) { out.name = pick.name; out.cands = null; break; }
+					if (pick.cands && !out.cands) out.cands = pick.cands;
+				}
+				return out;
+			}
+			return null;
+		}
+
+		/** 親セット（0＝親A・1＝親B）の送る人の番号。親が読めていなければ空 */
+		function deckAlphaSendIndexes(setIdx) {
+			const p = setIdx * 3;
+			if (!personResults[p]) return [];
+			return personResults[p + 1] && personResults[p + 2] ? [p, p + 1, p + 2] : [p];
+		}
+		/** 送れる親セットの番号の一覧 */
+		function deckAlphaSendableSets() {
+			return PERSON_SETS.map((s, i) => i).filter(i => deckAlphaSendIndexes(i).length > 0);
+		}
+		function updateDeckAlphaSendButton() {
+			const btn = document.getElementById('deck-alpha-send-btn');
+			if (btn) btn.classList.toggle('hidden', !(deckMode && deckAlphaSendableSets().length > 0));
+		}
+		/** 送る JSON（js/deck-alpha-register.js の冒頭の形） */
+		function buildDeckAlphaSend(setIdx) {
+			const idByName = deckSkillIdByName();
+			const geneIdByName = {};
+			UmaSkillDeckCore.getCatalogEntries('geneFactor').forEach(e => { geneIdByName[e.name] = e.id; });
+			const starOf = (v) => (typeof v === 'number' && v > 0) ? v : -1;
+			const persons = deckAlphaSendIndexes(setIdx).map(i => {
+				const skills = {}, genes = {};
+				skillList.forEach(name => {
+					const v = starsFor(i, name);
+					if (v === undefined) return;
+					if (factorNormSet.has(normalizeText(name))) { if (geneIdByName[name]) genes[geneIdByName[name]] = starOf(v); }
+					else if (idByName[name]) skills[idByName[name]] = starOf(v);
+				});
+				const g = personGreen[i];
+				return {
+					uma: null,
+					green: g ? [g.name, starOf(g.stars)] : null,
+					greenCands: g && !g.name && g.cands ? g.cands.slice() : null,
+					blue: null, red: null, skills: skills, genes: genes
+				};
+			});
+			let race = null, style = null;
+			try {
+				const roster = deckRosterPanel ? deckRosterPanel.getRoster() : null;
+				race = roster && roster.race && roster.race.id ? roster.race.id : null;
+				const sel = roster ? UmaSkillDeckCore.outside.resolvedFilterOf(roster) : {};
+				style = sel.style || null;
+			} catch (e) { race = null; style = null; }
+			const send = deckScope ? UmaSkillDeckCore.getSkillEntries(deckScope.skillIds)
+				.filter(e => !factorNormSet.has(normalizeText(e.name))).map(e => e.id) : [];
+			return { format: 'uma-deck-send', v: 1, sentAt: new Date().toISOString(), from: 'star', race: race, style: style, send: send, owner: 'self', persons: persons };
+		}
+		function sendSetToDeckAlpha(setIdx) {
+			try { localStorage.setItem(DECK_ALPHA_SEND_KEY, JSON.stringify(buildDeckAlphaSend(setIdx))); }
+			catch (e) { showToast('送れませんでした'); return; }
+			const w = window.open(DECK_ALPHA_REGISTER_URL, '_blank');
+			if (w) { try { w.opener = null; } catch (e) { /* 開いたタブとつながっていなくてよい */ } }
+			else location.href = DECK_ALPHA_REGISTER_URL;
+		}
+		/** 「Deck α に送る」。送れる親セットが2つあれば小窓で選ぶ（ボタンの文はセットの呼び名。親だけのときは「親A」など） */
+		function sendToDeckAlpha(btn) {
+			const sets = deckAlphaSendableSets();
+			if (sets.length === 0) return;
+			if (sets.length === 1) { sendSetToDeckAlpha(sets[0]); return; }
+			UmaSkillDeckCore.openPopover({
+				key: 'deck-alpha-send', title: 'Deck α に送る', btn: btn, opener: btn,
+				build: (body) => {
+					const row = document.createElement('div');
+					row.className = 'flex gap-2';
+					sets.forEach(i => {
+						const b = document.createElement('button');
+						b.type = 'button';
+						b.className = 'uma-btn uma-btn--neutral flex-1';
+						b.dataset.deckAlphaSet = String(i);
+						b.textContent = deckAlphaSendIndexes(i).length === 3 ? PERSON_SETS[i].label : PERSON_LABELS[i * 3];
+						b.addEventListener('click', () => { UmaSkillDeckCore.closeSkillInfo(); sendSetToDeckAlpha(i); });
+						row.appendChild(b);
+					});
+					body.appendChild(row);
+				}
+			});
+		}
+
+		/* ============================================================
 		 * OCR結果の受け渡し（UmaSkill Deck側で取り込む）
 		 *
 		 * 判定が終わるたびに、スキル名と★の数を専用のlocalStorageキーへ書き出す。
@@ -5931,6 +6170,7 @@
 			if (trigger) trigger.hidden = !deckMode;
 			fabSyncSetItems();
 			refreshDeckHandoffState();
+			updateDeckAlphaSendButton();
 			// Deck の項目を出し入れしたら、畳んでいるときの赤丸も数え直す
 			updateFabUnseenDot();
 		}
@@ -6085,7 +6325,12 @@
 
 					<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
 					     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。 -->
-					<div id="result-copy-slot" class="flex justify-end mb-2">
+					<div id="result-copy-slot" class="flex justify-end gap-2 mb-2">
+						<!-- T92: Deck α へ送る（新UI で、親が読めている親セットがあるときだけ出す。sendToDeckAlpha） -->
+						<button type="button" id="deck-alpha-send-btn" onclick="sendToDeckAlpha(this)" class="uma-btn uma-btn--neutral hidden" aria-haspopup="dialog">
+							<i data-lucide="send" class="w-3.5 h-3.5"></i>
+							<span>Deck α に送る</span>
+						</button>
 						<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
 							<i data-lucide="copy" class="w-3.5 h-3.5"></i>
 							<span id="copy-btn-label">★の数をコピー</span>

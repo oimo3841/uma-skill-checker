@@ -13,6 +13,8 @@
  *       各人 = { uma: 衣装の id か null, green: [固有スキル名か null, ★（-1 は★不明）] か null, greenCands: [固有スキル名…] か null（衣装を決められないときの候補）,
  *               blue: [speed|stamina|power|guts|wit, ★] か null, red: [芝・距離・脚質の鍵, ★] か null, skills: { スキルの id: ★ }, genes: { 'ap-…': ★ } } }
  *   ★不明は -1、読めなかった因子は null（T73 の形）。uma が無くても green の固有スキル名から衣装を引く。
+ *   T92（段4 の 4-2）: UmaStar（special.html の sendToDeckAlpha）がこの形で書く。uma・blue・red は null、green は③の画像の緑因子の読み取り
+ *   （名前が決まらなければ [null, ★] と greenCands、緑因子の欄が見つからなければ null）。owner は 'self'（持ち主はこの画面で選ぶ）。
  *
  * 以下は版13 の説明。
  * 考え方: 確かめる所を最小にする。読めて決まったものは1行にたたみ（青・赤・緑の因子は1行の3つのボタン。C-272 の 8）、押すと直す形に入る（9）。
@@ -26,7 +28,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-02a';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-03a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -38,7 +40,8 @@
 		let loaded;
 		try { loaded = await K.store.load(); } catch (e) { $('#body').innerHTML = '<div class="empty"><span>この端末では保存が使えません（' + K.esc(e.message) + '）</span></div>'; $('#regbar').hidden = true; return; }
 		S.settings = Object.assign({}, K.DEFAULT_SETTINGS, loaded.meta.settings || {});
-		K.applyTheme(th === 'light' || th === 'dark' ? th : S.settings.theme);
+		// 色は js/theme.js（ほかのツールと同じ設定）が <head> で付けてある（T92）。?theme= のときだけ上書きする（撮影用）
+		if (th === 'light' || th === 'dark') K.applyTheme(th);
 		S.doc = K.assemble(loaded);
 		const ar = K.archiveEnded(S.doc);
 		if (ar.moved.length) { await K.store.putParents(ar.changed); await K.store.putHead(S.doc); }

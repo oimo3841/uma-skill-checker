@@ -53,10 +53,10 @@ export async function register99(env) {
 		abbrevDoc.entries.forEach((e) => { if (seen.has(e.abbr)) dup.push(e.abbr); seen.set(e.abbr, e.id); });
 		const stray = abbrevDoc.entries.filter((e) => !UMA.has(e.id)).map((e) => e.id);
 		assert(missing.length === 0 && long.length === 0 && dup.length === 0 && stray.length === 0, '略称のデータ（' + abbrevDoc.entries.length + '件）: 全衣装にあり・5文字以内・重なりなし・知らない衣装なし', { missing, long, dup, stray });
-		// どこからもリンクしない（入口は段4 の 4-2）: 新しいファイルのほかに deck-alpha を指すものが無い
+		// 入口は段4 の 4-2（T92）で UmaStar（special.html）にだけ足した。ほかの既存のページと JS は deck-alpha を指さない
 		const scan = ['index.html', 'special.html', 'exam.html', 'uma-skill-deck.html', 'card-event-input.html'].concat(fs.readdirSync(path.join(REPO_ROOT, 'js')).filter((f) => f.endsWith('.js') && !f.startsWith('deck-alpha')).map((f) => 'js/' + f));
 		const linked = scan.filter((p) => /deck-alpha/.test(read(p)));
-		assert(linked.length === 0, '既存のページと JS が deck-alpha を指していない（どこからもリンクしない）', linked);
+		assert(linked.join() === 'special.html', '既存のページと JS で deck-alpha を指すのは UmaStar（special.html）だけ（T92 の入口）', linked);
 		// 画面に出る文字列（JS の文字列と HTML の本文）に「家系」が無い（コメントも含めて0）
 		const kakei = NEW_FILES.filter((p) => read(p).includes('家系'));
 		assert(kakei.length === 0, '新しいファイルに「家系」の語が無い（C-276）', kakei);
@@ -192,10 +192,10 @@ export async function register99(env) {
 			await page.click('#sheetIn [data-b]'); await page.waitForTimeout(150);
 			await page.click('#slotA'); await look('11-oya-komado'); await closeSheet();
 
-			// (7) 「⋯」→ バックアップと「ホーム画面に追加」の案内。仮のデータ・終了をまねる・登録の画面を試すは無い
+			// (7) 「⋯」→ バックアップ。「ホーム画面に追加」の案内は T92 で外した（91）。仮のデータ・終了をまねる・登録の画面を試すは無い
 			await page.click(more);
 			const data = await ev(() => { const t = document.getElementById('sheetIn').innerText; return { t, home: !!document.getElementById('homeGuide'), btns: [...document.querySelectorAll('#sheetIn button, #sheetIn a')].map((b) => b.textContent) }; });
-			assert(data.home && /よく使う人向け/.test(data.t) && /データが別々になります/.test(data.t) && /ホーム画面のアイコンから Deck を開く/.test(data.t) && /「⋯」→「読み込む」/.test(data.t), tag + ' 「⋯」にバックアップと「ホーム画面に追加」の案内（データが分かれること・移し方）', data.t.slice(0, 400));
+			assert(!data.home && !/ホーム画面/.test(data.t) && /書き出す/.test(data.t), tag + ' 「⋯」にバックアップがあり、「ホーム画面に追加」の案内は無い（T92）', data.t.slice(0, 400));
 			assert(!/仮のデータ|終了をまねる|登録の画面を試す|親30人|全部消す/.test(data.t), tag + ' 「⋯」に版13 の確認用の項目が無い（C-275 の 5）', data.btns);
 			await look('12-backup', true);
 			const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 8000 }), page.click('#exportBtn')]);
