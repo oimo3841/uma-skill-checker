@@ -2105,8 +2105,69 @@
 		 * OCR処理本体
 		 * ============================================================ */
 
+		// 動画から取った画の、小窓（ウマ娘詳細）の外に写る左右の端の背景を白で塗る（T93。大きさと座標は変えない）。
+		// 画面収録は画面の全幅なので、小窓の外の背景が左右に約13pxずつ写る。背景が暗い場面（実測 灰色 約110）だと、
+		// detectSkillRows（common.js）の「暗い画素が横に12px以上の行＝文字帯」に一覧のどの行も当たり、行のすきまが消えて
+		// 数百pxの1本の帯になり、行の検出が全部の画で止まっていた。端から続く「全体の半分以上の行で暗い」列だけを塗る
+		// （文字が縦に並んで半分を超える列は無い。背景が明るい動画では1列も当たらず、画は変わらない）。
+		function maskVideoFrameMargins(base, diag) {
+			const W = base.width, H = base.height;
+			const gray = toGray(getPixels(base));
+			const maxM = Math.round(W * 0.05);
+			const isDark = (x) => { let n = 0; for (let y = 0; y < H; y++) if (gray[y * W + x] < DARK_LEVEL) n++; return n >= H * 0.5; };
+			let left = 0, right = 0;
+			while (left < maxM && isDark(left)) left++;
+			while (right < maxM && isDark(W - 1 - right)) right++;
+			if (!left && !right) return;
+			const ctx = base.getContext('2d');
+			ctx.fillStyle = '#fff';
+			if (left) ctx.fillRect(0, 0, left, H);
+			if (right) ctx.fillRect(W - right, 0, right, H);
+			diag.push('動画の画: 小窓の外の暗い端を白で塗った（左 ' + left + 'px・右 ' + right + 'px）');
+		}
+
+		// 固有スキル帯（青帯のすぐ下の、全幅でない緑帯）の青帯の上端の y（上から順）。detectSkillRows（common.js）と同じ基準で探す（T93）
+		function uniqueSkillBandTops(base) {
+			const W = base.width, H = base.height;
+			const imageData = getPixels(base);
+			const green = greenMaskOf(imageData);
+			const thickGreen = findRuns(rowCountsOf(green, W, H), Math.round(W * 0.12), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const blueBands = findRuns(rowCountsOf(blueMaskOf(imageData), W, H), Math.round(W * 0.08), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const gapLimit = Math.round(H * 0.02);
+			const isWide = (g) => { const cc = colCountsOf(green, W, g.a, g.b); let n = 0; for (let x = 0; x < W; x++) if (cc[x] > 0) n++; return n / W > 0.7; };
+			return blueBands.filter(bb => thickGreen.some(g => g.a - bb.b >= 0 && g.a - bb.b <= gapLimit && !isWide(g))).map(bb => bb.a);
+		}
+
+		// 動画の画で、自分の固有スキル帯が画面の上へ流れ去ったあとに写る「次の人の固有スキル帯」から下を白で塗る（T93）。
+		// detectSkillRows は最初に見つけた固有スキル帯を自分のものとみなしてその下を読むので、塗らないと
+		// 自分の一覧の終わりの行（その画にしか写っていない行）を読まずに次の人の行を読む（または数行しかなく止まる）。
+		// 結合のために各人の画の最後に入れている「次の人の1枚目」も同じ形になる（塗らないと次の人のスキルが混ざる）。
+		// 自分の帯の位置は、1枚目（区画の頭＝自分の帯が写る画）の帯の位置から、選ぶ側のずれ（video.shifts）を引いて見込む。
+		// st … 人ごとの控え（1枚目の帯の位置）。戻り値: 塗ったか
+		function cutNextPersonInVideoFrame(base, video, k, st, diag) {
+			const H = base.height;
+			const tops = uniqueSkillBandTops(base);
+			if (k === 0) { st.ownTop = tops.length ? tops[0] : null; return false; }
+			if (st.ownTop == null || !tops.length) return false;
+			const scale = base.height / st.naturalH;
+			let moved = 0;
+			for (let i = 0; i < k && i < video.shifts.length; i++) moved += video.shifts[i];
+			const expected = st.ownTop - moved * scale;
+			const tol = Math.round(H * 0.03);
+			// いちばん上の帯が自分の帯の見込みの位置より下なら、それは次の人の帯（自分の帯は流れ去っている）
+			if (tops[0] <= expected + tol) return false;
+			const y = Math.max(0, tops[0] - Math.round(H * 0.004));
+			const ctx = base.getContext('2d');
+			ctx.fillStyle = '#fff';
+			ctx.fillRect(0, y, base.width, H - y);
+			diag.push('動画の画: 次の人の固有スキル帯（y=' + tops[0] + '・自分の帯の見込み y=' + Math.round(expected) + '）から下を白で塗った');
+			return true;
+		}
+
 		// 1人分の画像群を処理し、★情報つきのOCR行配列を返す
-		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview) {
+		// video … 動画から取った画の控え（persons[].video）。その画だけ OCR の前に整える（T93）
+		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview, video) {
+			const videoState = {};
 			const lines = [];
 			const skipped = [];
 			// 足切りはしないが品質が推奨を下回った画像（利用者への注意表示用）
@@ -2117,7 +2178,7 @@
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
-				let base = null, detection = null, img = null;
+				let base = null, detection = null, img = null, cutNext = false;
 				try {
 					img = await loadImage(file);
 					base = toBaseCanvas(img);
@@ -2157,6 +2218,12 @@
 						});
 					}
 
+					const vk = video ? video.files.indexOf(file) : -1;
+					if (vk >= 0) {
+						videoState.naturalH = img.naturalHeight;
+						maskVideoFrameMargins(base, diag);
+						cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
+					}
 					detection = detectSkillRows(base, diag);
 				} catch (err) {
 					console.error(err);
@@ -2177,6 +2244,11 @@
 					target = stacked.canvas;
 					placements = stacked.placements;
 					diag.push('→ ' + detection.rows.length + '行を切り出し、★を判定してOCRへ');
+				} else if (cutNext) {
+					// 次の人の帯から上に自分の行がほとんど無い画（次の人の1枚目など）。画像全体を読むと次の人のスキルが混ざるので読まない（T93）
+					diag.push('→ 次の人の帯から上で行が取れないため、この画は OCR しない（動画の画）');
+					devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+					continue;
 				} else {
 					target = scaleCanvas(base, 1800);
 					diag.push('→ 行検出に失敗。画像全体をOCRへ（この画像の★は判定できません）');
@@ -2270,7 +2342,7 @@
 					const files = persons[p].files;
 					if (files.length === 0) continue;
 					setProgress(p / persons.length, PERSON_LABELS[p] + 'を処理中…');
-					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
+					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview, persons[p].video || null);
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);

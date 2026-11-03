@@ -129,6 +129,7 @@ import { register99 } from './blocks-99.mjs';
 import { register100 } from './blocks-100.mjs';
 import { register101 } from './blocks-101.mjs';
 import { register102 } from './blocks-102.mjs';
+import { register103 } from './blocks-103.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15479,6 +15480,8 @@ await register100({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register101({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T92（2026-11-03）: UmaStar から Deck α へ送る・ツール切り替えの「Deck α」・Deck α のテーマと「⋯」（段4 の 4-2。見出しは「T92 Deck α へ送る」）
 await register102({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T93（2026-11-03）: 動画の画の OCR の直し（小窓の外の暗い端・次の人の固有スキル帯から下を塗る。動画の画だけ）
+await register103({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
