@@ -121,29 +121,6 @@ export async function registerDark(env) {
 			assert(await page.evaluate(() => document.documentElement.hasAttribute('data-theme')), 'ダーク3: ' + file + ' は属性が無い状態を作らない（常に light か dark）');
 			await ctx.close();
 		}
-		// 引き出しの Deck（iframe）: 親で選ぶと storage イベントで、OS の設定は自分の change で追従する
-		const { ctx, page } = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
-		await closeNotice(page);
-		await page.evaluate(() => fabGoTo('deck'));
-		await page.waitForTimeout(1500);
-		const frameAttr = () => page.evaluate(() => document.getElementById('deck-drawer-frame').contentDocument.documentElement.getAttribute('data-theme'));
-		assert(await frameAttr() === 'light', 'ダーク3: 引き出しの Deck も、何も選んでいなければ OS の設定（ライト）');
-		await page.evaluate(() => window.UmaTheme.set('dark'));
-		await page.waitForTimeout(300);
-		assert(await frameAttr() === 'dark', 'ダーク3: 親でダークを選ぶと、開いている引き出しの Deck もダークになる');
-		await page.evaluate(() => window.UmaTheme.set('auto'));
-		await page.waitForTimeout(300);
-		assert(await frameAttr() === 'light', 'ダーク3: 親で自動に戻すと、引き出しの Deck も OS の設定（ライト）に戻る');
-		await page.emulateMedia({ colorScheme: 'dark' });
-		await page.waitForTimeout(300);
-		assert(await attr(page) === 'dark' && await frameAttr() === 'dark', 'ダーク3: 自動のとき OS をダークにすると、親も引き出しの Deck もダークになる');
-		await page.emulateMedia({ colorScheme: 'light' });
-		await page.evaluate(() => window.UmaTheme.set('light'));
-		await page.emulateMedia({ colorScheme: 'dark' });
-		await page.waitForTimeout(300);
-		assert(await attr(page) === 'light' && await frameAttr() === 'light', 'ダーク3: ライトに固定すると、OS をダークにしても親も引き出しの Deck もライトのまま');
-		await page.evaluate(() => window.UmaTheme.set('auto'));
-		await ctx.close();
 	});
 
 	await block('ダーク4 書き出しに画面の色の鍵が紛れない', async () => {
@@ -445,15 +422,11 @@ export async function registerDark(env) {
 				await ctx.close();
 			}
 		}
-		// 引き出しの中（special 375px）
+		// 引き出しの地（special 375px）。T92 で旧 Deck の引き出しを外したので、照合結果の引き出しで見る
 		const sp = await openSpFull({ tab: 1, theme: 'dark' });
-		await sp.page.evaluate(() => fabGoTo('deck'));
-		await sp.page.waitForTimeout(2000);
-		const fr = sp.page.frames().find((f) => /uma-skill-deck\.html/.test(f.url()));
-		const r = await fr.evaluate(scanTextContrastInPage, null);
-		assert(await fr.evaluate(() => document.documentElement.getAttribute('data-theme')) === 'dark', 'ダーク12: 引き出しの Deck もダーク');
-		assert(r.checked > 10 && r.bad.length === 0 && r.undecided.length === 0, 'ダーク12: 引き出しの Deck の文字はすべて基準以上（' + r.checked + '件）', { bad: formatContrast(r.bad), undecided: r.undecided });
-		const drawerBg = await sp.page.evaluate(() => getComputedStyle(document.querySelector('#deck-drawer .uma-drawer-body')).backgroundColor);
+		await sp.page.evaluate(() => openDrawer('result'));
+		await sp.page.waitForTimeout(700);
+		const drawerBg = await sp.page.evaluate(() => getComputedStyle(document.querySelector('#result-drawer .uma-drawer-body')).backgroundColor);
 		assert(drawerBg === 'rgb(29, 28, 26)', 'ダーク12: 引き出しの地は暗い（--uma-drawer-bg）', drawerBg);   // C-144: UmaStar のダークの引き出し #1d1c1a
 		await sp.ctx.close();
 		console.log('     [参考] Deck 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));

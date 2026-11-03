@@ -7,10 +7,10 @@
 	<meta name="referrer" content="no-referrer" />
 	<!-- 外へは何も送らない（同じサイトの JS・CSS・公開データだけを読む） -->
 	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data: blob:; connect-src 'self'; form-action 'none'; base-uri 'none'" />
-	<title>Deck α</title>
+	<title>Deck (αテスト)</title>
 	<!--
 		新しい UmaSkill Deck の α版（T88・2026-11-02・C-275）。モック版13（lab/deck-v13/。T87・C-274）の見た目と動きを製品に移した。
-		入口は UmaStar のツール切り替えの「Deck α」（段4 の 4-2・T92）。
+		入口は UmaStar のツール切り替えと FAB の「Deck (αテスト)」（段4 の 4-2・T92。画面の呼び名は「Deck (αテスト)」にそろえる＝125）。
 		■ 画面: このページ（Deck 本体とバックアップ）と deck-alpha-register.html（UmaStar の OCR から送ったときの登録の画面）。
 		■ 保存: IndexedDB の uma-deck（親1人1件 ＋ meta）。今のツールの localStorage には触れない（ライト／ダークだけは、ほかのツールと同じ js/theme.js の設定を読み書きする。T92）。
 		■ 見え方の確認: ?theme=light|dark で見た目を固定できる（設定より優先。撮影用）。
@@ -24,7 +24,7 @@
 <div class="app" id="app">
 	<div class="top">
 	<header class="hd">
-		<h1>Deck <span class="muted small">α</span></h1>
+		<h1>Deck <span class="muted small">(αテスト)</span></h1>
 		<button class="nudge" id="nudge" type="button" hidden></button>
 		<button class="rsel" id="setBtn" type="button" aria-haspopup="dialog"><span class="t" id="setText">指定なし</span><span class="car" aria-hidden="true">▾</span></button>
 		<button class="btn icon" id="toolBtn" type="button" aria-label="ツール切り替え" title="ツール切り替え">▦</button>
@@ -102,6 +102,6 @@
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden />
-<script src="js/deck-alpha-data.js?v=2026-11-02a" data-next="js/deck-alpha-core.js?v=2026-11-02a js/deck-alpha.js?v=2026-11-03a"></script>
+<script src="js/deck-alpha-data.js?v=2026-11-02a" data-next="js/deck-alpha-core.js?v=2026-11-03a js/deck-alpha.js?v=2026-11-03b"></script>
 </body>
 </html>

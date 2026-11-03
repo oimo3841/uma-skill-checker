@@ -11,7 +11,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-03a';
+	const DECK_ALPHA_JS_VERSION = '2026-11-03b';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -582,7 +582,7 @@
 	function openTool() {
 		nav(() => {
 			// 版13 では押しても移らなかった行を、ほかのツールのページへのリンクにした（見た目は同じ一覧の行）
-			openSheet('<h2 id="sheetTitle">ツール切り替え</h2><div class="list"><a href="special.html" data-tool><span>UmaStar OCR</span></a><a href="exam.html" data-tool><span>UmaExam</span></a><div><span><b>Deck</b></span><span class="sc">選択中</span></div></div>' +
+			openSheet('<h2 id="sheetTitle">ツール切り替え</h2><div class="list"><a href="special.html" data-tool><span>UmaStar OCR</span></a><a href="exam.html" data-tool><span>UmaExam</span></a><div><span><b>Deck (αテスト)</b></span><span class="sc">選択中</span></div></div>' +
 				'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>', '[data-close]');
 			bindClose();
 		});

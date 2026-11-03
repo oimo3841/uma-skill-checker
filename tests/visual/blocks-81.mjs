@@ -275,39 +275,4 @@ export async function register81(env) {
 		assert(r.head && r.back && r.count && !r.input, 'T38テキストで検索の直し(7) 見出し・暗い背景・件数の上では止め、入力欄の中は止めない', r);
 		await sp.ctx.close();
 	});
-
-	await block('T38テキストで検索の直し(8) Deck の引き出し（special の中の iframe）: 親のページの visualViewport に合わせる（見える高さ 450・343 の差し替え。入力欄・候補 3行以上・「追加（N種）」が見える）', async () => {
-		for (const vvH of [0, 450, 343]) {
-			const tag = 'T38テキストで検索の直し(8) ' + (vvH ? '見える高さ ' + vvH : '375×812') + ': ';
-			const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
-			const p = sp.page;
-			for (let i = 0; i < 2; i++) if (await p.isVisible('#ui-notice')) await p.click('[data-act="notice-ok"]');
-			if (vvH) await fakeVv(p, vvH);
-			await p.evaluate(() => openDrawer('deck'));
-			const fh = await p.waitForSelector('#deck-drawer-frame');
-			let f = await fh.contentFrame();
-			await f.waitForFunction(() => window.UmaSkillDeckCore && document.readyState === 'complete', null, { timeout: 15000 }).catch(async () => { f = await fh.contentFrame(); });
-			await f.waitForFunction(() => window.UmaSkillDeckCore && document.readyState === 'complete', null, { timeout: 15000 });
-			await f.evaluate(() => UmaSkillDeckCore.openTextSearchPicker([], () => {}));
-			await f.waitForSelector(INPUT, { state: 'visible' });
-			await f.fill(INPUT, '○'); await sleep(p, 200);
-			const ids = await f.evaluate(() => Array.from(document.querySelectorAll('.usd-tsearch-row--pick')).slice(0, 14).map((r) => r.getAttribute('data-skill-id')));
-			for (const id of ids) await f.click('.usd-tsearch-row[data-skill-id="' + id + '"]');
-			await f.fill(INPUT, 'コーナー'); await sleep(p, 200);
-			const fr = await p.evaluate(() => document.getElementById('deck-drawer-frame').getBoundingClientRect().top);
-			const m = await f.evaluate(({ bottom }) => {
-				const panel = document.querySelector('.usd-modal:not([hidden]) .usd-modal-panel');
-				const modal = panel.closest('.usd-modal');
-				const r = (s) => panel.querySelector(s).getBoundingClientRect();
-				const inV = (b) => b.top >= -0.5 && b.bottom <= bottom + 0.5;
-				const L = r('[data-usd-el="search-results"]');
-				const rows = Array.from(panel.querySelectorAll('.usd-tsearch-row')).filter((x) => { const b = x.getBoundingClientRect(); return b.top >= L.top - 0.5 && b.bottom <= L.bottom + 0.5 && inV(b); }).length;
-				return { fit: modal.getAttribute('data-usd-fit'), top: modal.style.top, h: modal.style.height, innerH: innerHeight, rows, input: inV(r('[data-usd-el="search-input"]')), commit: inV(r('[data-usd-el="picker-commit"]')) };
-			}, { bottom: vvH ? vvH - fr : 1e9 }).catch((e) => ({ err: String(e) }));
-			const want = vvH ? Math.round(vvH - fr) + 'px' : m.innerH + 'px';
-			assert(m.fit === 'vv' && m.top === '0px' && m.h === want && m.rows >= 3 && m.input && m.commit, tag + '器の高さ＝親の見える範囲と iframe の重なり（' + want + '）・入力欄・候補 3行以上・「追加（N種）」が見える', { m, fr });
-			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
-			await sp.ctx.close();
-		}
-	});
 }

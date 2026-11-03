@@ -72,10 +72,6 @@ async function shot(page, name, opts = {}) {
 	// 結果がまだ無い引き出しの案内
 	await page.evaluate(() => openDrawer('stitch'));
 	await shot(page, 'special-06-stitch-empty', { fullPage: false, wait: 700 });
-	await page.evaluate(() => openDrawer('deck'));
-	await shot(page, 'special-07-deck-drawer', { fullPage: false, wait: 1500 });
-	await page.click('#deck-drawer-close');
-	await page.waitForTimeout(800);
 
 	await page.setViewportSize({ width: 375, height: 812 });
 	await shot(page, 'special-08-mobile375', { wait: 600 });

@@ -233,9 +233,9 @@ export async function register99(env) {
 			await page.click('[data-act="toggle-sk"]'); await look('14b-toroku-shiro', true); await page.click('[data-act="toggle-sk"]');
 			await page.click('#regBtn'); await page.waitForTimeout(200);
 			const done = await ev(() => ({ ok: (document.querySelector('.okbox') || {}).innerText, inbox: localStorage.getItem('umaDeck:send'), persist: window.__persistN, links: [...document.querySelectorAll('#body a')].map((a) => a.textContent + '>' + a.getAttribute('href')) }));
-			assert(/^登録しました/.test(done.ok || '') && done.inbox === null && done.persist === 1 && done.links.join() === 'Deck を開く>deck-alpha.html', tag + ' 登録すると受け取りの口を消し、persist() を1回・「Deck を開く」だけ', done);
+			assert(/^登録しました/.test(done.ok || '') && done.inbox === null && done.persist === 1 && done.links.join() === 'Deck (αテスト)を開く>deck-alpha.html', tag + ' 登録すると受け取りの口を消し、persist() を1回・「Deck (αテスト)を開く」だけ', done);
 			await look('15-toroku-sumi');
-			await page.click('a:has-text("Deck を開く")'); await ready(); await page.waitForTimeout(300);
+			await page.click('a:has-text("Deck (αテスト)を開く")'); await ready(); await page.waitForTimeout(300);
 			const reg = await ev(() => { const S = window.__deckAlpha.S; const p = S.doc.parents.slice().sort((a, b) => (+b.id.slice(1)) - (+a.id.slice(1)))[0]; const s = S.doc.sets.find((x) => x.id === S.settings.cur); return { n: S.doc.parents.length, cur: S.settings.cur, sets: p.sets, style: p.tags.style, sends: s && s.sends }; });
 			assert(reg.n === 101 && reg.cur === 'r:race-0002' && reg.sets.join() === 'r:race-0002' && reg.style.join() === 'sashi' && reg.sends === 3, tag + ' 登録した親が Deck に入り、送り先のセットを選んだ状態で開く（②の一覧は3回目の送り）', reg);
 			await look('16-toroku-go');
@@ -254,7 +254,7 @@ export async function register99(env) {
 			// 送られたものが無い（形が崩れている）とき
 			await ev(() => localStorage.setItem('umaDeck:send', '{"format":"other"}')); await openReg();
 			const rn = await ev(() => ({ t: document.getElementById('body').innerText, bar: document.getElementById('regbar').hidden }));
-			assert(/UmaStar から送られた親がありません/.test(rn.t) && rn.bar, tag + ' 受け取るものが無いときは「送られた親がありません」と Deck を開くボタンだけ', rn);
+			assert(/UmaStar から送られた親がありません/.test(rn.t) && rn.bar, tag + ' 受け取るものが無いときは「送られた親がありません」と Deck (αテスト)を開くボタンだけ', rn);
 
 			// (9) 一覧から消えたレース（UmaStar の欄に出なくなった）は、開いたときに終了レースのカテゴリへ付け替わる
 			await page.route('**/data/upcoming-races.json*', async (route) => { const r = await route.fetch(); const j = await r.json(); j.races.forEach((x) => { if (x.id === 'race-0002') x.selectable = false; }); await route.fulfill({ response: r, json: j }); });

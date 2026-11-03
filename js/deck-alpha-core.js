@@ -14,7 +14,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_CORE_VERSION = '2026-11-02a';
+	const DECK_ALPHA_CORE_VERSION = '2026-11-03a';
 	const D = window.DECK_ALPHA_DATA;
 	const DB_NAME = 'uma-deck';
 	const DB_VER = 1;
@@ -305,10 +305,10 @@
 	}
 	function parseImport(text) {
 		let j; try { j = JSON.parse(text); } catch (e) { return { error: 'JSON として読めません' }; }
-		if (!j || j.format !== 'uma-deck') return { error: 'UmaSkill Deck のバックアップではありません' };
-		if (j.tool !== 'star') return { error: (j.tool === 'exam' ? 'UmaExam' : '別のツール') + ' のファイルです。UmaStar の Deck には読み込めません' };
+		if (!j || j.format !== 'uma-deck') return { error: 'Deck (αテスト)のバックアップではありません' };
+		if (j.tool !== 'star') return { error: (j.tool === 'exam' ? 'UmaExam' : '別のツール') + ' のファイルです。UmaStar の Deck (αテスト)には読み込めません' };
 		if (typeof j.schema !== 'number') return { error: '版が分かりません' };
-		if (j.schema > SCHEMA) return { error: '新しい版（' + j.schema + '）のファイルです。Deck を更新してから読み込んでください' };
+		if (j.schema > SCHEMA) return { error: '新しい版（' + j.schema + '）のファイルです。Deck (αテスト)を更新してから読み込んでください' };
 		if (!Array.isArray(j.parents)) return { error: '親のデータがありません' };
 		const migrated = j.schema < SCHEMA;
 		const body = migrated ? migrate1to2(j) : { sets: j.sets || [], parents: j.parents, plans: j.plans || {} };

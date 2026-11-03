@@ -393,15 +393,20 @@ await block('special.html（UmaStar OCR）', async () => {
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(1800);
 
-	// 照合結果が出た直後。まだ引き出しを開いていないので未読、
-	// Deck側にも渡し終わっているので「未取り込み」のバッジが立っている。
+	// 照合結果が出た直後。まだ引き出しを開いていないので未読。
+	// T92（123・124）: 旧 UmaSkill Deck の取り込みの案内とバッジはやめ、結果の上は「Deck (αテスト)に送る」と停止の1行。
+	// 旧 Deck への受け渡しのデータ（umaSkillDeck:ocrHandoff:special）は今のまま書く。
 	assert(await page.isVisible('#fab-dot-result'), 'special: 照合結果に新着バッジが出る');
 	assert(!(await page.isVisible('#fab-dot-stitch')), 'special: 画像結合には新着バッジが出ない');
-	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckに未取り込みバッジが出る');
-	assert(await page.evaluate(() => !document.getElementById('deck-handoff-note').classList.contains('hidden')),
-		'special: 結果画面にDeckへの受け渡しの案内が出る');
-	assert((await page.textContent('#deck-handoff-title')).includes('取り込めます'),
-		'special: 案内が「未取り込み」の文面になる');
+	const t92Note = await page.evaluate(() => {
+		const n = document.getElementById('deck-alpha-send-note');
+		let ho = null; try { ho = JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:special') || 'null'); } catch (e) { ho = null; }
+		return { shown: !n.classList.contains('hidden'), text: n.innerText.replace(/\s+/g, ' ').trim(), handoff: !!(ho && ho.persons && ho.persons.length === 3),
+			oldGone: !document.getElementById('deck-handoff-note') && !document.getElementById('fab-dot-deck') && !document.getElementById('deck-drawer'),
+			beforeStat: !!(n.compareDocumentPosition(document.getElementById('stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING) };
+	});
+	assert(t92Note.shown && t92Note.text === 'Deck (αテスト)に送る UmaSkill Deck は開発を停止しました。' && t92Note.handoff && t92Note.oldGone && t92Note.beforeStat,
+		'special: 結果の上（カードの上）に「Deck (αテスト)に送る」と停止の1行・旧 Deck の案内とバッジと引き出しは無い・旧 Deck への受け渡しは書く', t92Note);
 
 	// 以降の絞り込み・検索は引き出しの中の要素を触るので、先に開けておく。
 	await page.evaluate(() => openDrawer('result'));
@@ -461,7 +466,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	}), 'special: オプションを切ると開発ログが隠れる');
 	// 右下の固定ナビ（FAB）。畳んだ状態ではサブボタンが押せないことまで見る。
 	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
-	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('fab-item-deck')).pointerEvents) === 'none',
 		'special: 畳んだ状態ではサブボタンが押せない');
 	// 畳んだナビの外枠（透明な箱）が、その下にある要素のクリックを吸わないこと。
 	// 以前はテンプレート行の編集／複製／削除が、スクロール位置によって押せなくなっていた。
@@ -484,61 +489,42 @@ await block('special.html（UmaStar OCR）', async () => {
 	});
 	// C-132: Deck の下に「セット」「レース」を足して5項目になった（下から 0 / .03 / .06 / .09 / .12 秒）
 	assert(fabDelays.join(',') === '0.12s,0.09s,0.06s,0.03s,0s', 'special: 右下ナビの5項目の展開の遅延が下から順に揃う', fabDelays);
-	// 一度開いたので照合結果の未読は下りている。Deckはまだ見に行っていないので残る。
+	// 一度開いたので照合結果の未読は下りている。
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
-	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckを見に行くまではバッジが残る');
 
 	await page.click('#fab-toggle');
 	await page.waitForTimeout(400);
 	assert(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open')),
 		'special: 右下ナビが開く');
 
-	// Deckの引き出し（iframe）— FAB経由で開く
-	await page.click('#deck-drawer-trigger');
-	await page.waitForTimeout(1200);
-	assert(await page.isVisible('#deck-drawer'), 'special: Deckの引き出しが開く');
-	assert(!(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open'))),
-		'special: 遷移すると右下ナビが畳まれる');
-	assert(await page.evaluate(() => document.body.style.overflow) === 'hidden',
-		'special: 引き出しを開くと本文のスクロールが止まる');
-	assert(!(await page.isVisible('#fab-nav')), 'special: 引き出しを開くとFABは隠れる');
-	// Deckを開いた時点でバッジは下りる（Deck側のバナーで何を押したかに依存させない）
-	assert(await page.evaluate(() => !fabUnseen.deck), 'special: Deckを開くとバッジが下りる');
+	// FAB の「Deck (αテスト)」は deck-alpha.html を新しいタブで開く（T92・124。引き出しは無い）
+	await page.evaluate(() => { window.__t92Opened = []; window.__t92Open = window.open; window.open = (u, t) => { window.__t92Opened.push(u + '|' + t); return {}; }; });
+	const fabDeck = await page.evaluate(() => document.getElementById('fab-item-deck').innerText.trim());
+	await page.click('#fab-item-deck');
+	await page.waitForTimeout(300);
+	const fabDeckAfter = await page.evaluate(() => ({ opened: window.__t92Opened.join(), navOpen: document.getElementById('fab-nav').classList.contains('open'), drawer: openDrawerKey, href: location.pathname }));
+	await page.evaluate(() => { window.open = window.__t92Open; });
+	assert(fabDeck === 'Deck (αテスト)' && fabDeckAfter.opened === 'deck-alpha.html|_blank' && !fabDeckAfter.navOpen && fabDeckAfter.drawer === null && /special\.html$/.test(fabDeckAfter.href),
+		'special: FAB の「Deck (αテスト)」は deck-alpha.html を新しいタブで開き、右下ナビを畳む（引き出しは開かない）', { fabDeck, fabDeckAfter });
 
-	// OCR結果のDeckへの受け渡し。special側の保存パネルは廃止し、
-	// Deck側の「読み込む」に一本化した（12セッション目）。バナーが出ることを確かめる。
-	const deckFrame = page.frameLocator('#deck-drawer-frame');
-	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
-	assert(await deckFrame.locator('#ocr-handoff-banner').isVisible(),
-		'special: Deck側にOCR結果の取り込みバナーが出る');
-	await deckFrame.locator('[data-ocr-act="import"]').click();
-	await page.waitForTimeout(700);
-	assert(await deckFrame.locator('[data-ocr-el="record-select"]').isVisible(),
-		'special: 取り込みダイアログ（保存先の選択）が開く');
-
-	// 実際に取り込むと、Deck側が imported を立てる。それが storage イベントで
-	// 親（この画面）に届き、結果画面の案内が「取り込み済み」に変わるところまで見る。
-	await deckFrame.locator('[data-ocr-act="apply"]').click();
-	await page.waitForTimeout(1200);
-	assert((await page.textContent('#deck-handoff-title')).includes('取り込み済み'),
-		'special: 案内が「取り込み済み」に変わる');
-	assert(await page.evaluate(() => !fabUnseen.deck), 'special: 取り込み済みならバッジは出ない');
-
-	// 判定をやり直すと handoffId が変わるので、Deckのバッジがまた点く。
 	// 新UIへ切り替えた時点で照合対象は空に戻っている（対象スキルセットを選び直す画面なので）。
 	// 実際の新UIではテンプレートを選んだ時点で入るものなので、ここでも入れ直してから判定し直す。
 	await page.evaluate((names) => { skillList = names; }, PICK.map((s) => s.name));
 	await page.evaluate(() => renderResults());
 	await page.waitForTimeout(400);
-	assert(await page.evaluate(() => fabUnseen.deck), 'special: 判定し直すとDeckのバッジがまた点く');
-	assert((await page.textContent('#deck-handoff-title')).includes('取り込めます'),
-		'special: 案内も「未取り込み」に戻る');
+
+	// 引き出しを開くと本文のスクロールが止まり、FAB は隠れる
+	await page.evaluate(() => openDrawer('result'));
+	await page.waitForTimeout(700);
+	assert(await page.evaluate(() => document.body.style.overflow) === 'hidden',
+		'special: 引き出しを開くと本文のスクロールが止まる');
+	assert(!(await page.isVisible('#fab-nav')), 'special: 引き出しを開くとFABは隠れる');
 
 	// 別の引き出しへ乗り換えても、同時に2枚開かない
 	await page.evaluate(() => openDrawer('stitch'));
 	await page.waitForTimeout(700);
 	assert(await page.isVisible('#stitch-drawer'), 'special: 画像結合レビューの引き出しが開く');
-	assert(!(await page.evaluate(() => document.getElementById('deck-drawer').classList.contains('open'))),
+	assert(!(await page.evaluate(() => document.getElementById('result-drawer').classList.contains('open'))),
 		'special: 乗り換えると前の引き出しが畳まれる');
 	// 結合結果はまだ無いので、行き止まりにせず案内を出す
 	assert(await page.isVisible('#stitch-empty'), 'special: 結果が無いときは案内が出る');
@@ -1096,12 +1082,12 @@ await block('special.html（UmaStar OCR）', async () => {
 	// 旧UIはいずれ廃止するので、そちらにDeckの入口は残さない。
 	// FABの項目と、結果引き出しの取り込み案内の2か所だけが入口。
 	const deckEntry = () => page.evaluate(() => ({
-		fab: !document.getElementById('deck-drawer-trigger').hidden,
-		note: !document.getElementById('deck-handoff-note').classList.contains('hidden')
+		fab: !document.getElementById('fab-item-deck').hidden,
+		note: !document.getElementById('deck-alpha-send-note').classList.contains('hidden')
 	}));
 	assert((await deckEntry()).fab === false, 'special: 旧UIではFABにDeckの項目を出さない');
 	// hidden 属性が効いていること自体も見る（display:flex に負けないか。F-13）
-	assert(!(await page.isVisible('#deck-drawer-trigger')), 'special: 旧UIのDeck項目は実際に描画されない');
+	assert(!(await page.isVisible('#fab-item-deck')), 'special: 旧UIのDeck項目は実際に描画されない');
 
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(1500);
@@ -5041,7 +5027,7 @@ await block('失敗時の案内（版ずれ・CDN遮断）が実際に出るか'
 	await page.waitForTimeout(6000);
 	assert(warns.some((w) => w.includes('外部ファイルを読み込めませんでした')), 'CDN遮断を検出して案内が出る');
 	const hiddenWorks = await page.evaluate(() => {
-		const el = document.getElementById('deck-drawer');   // 閉じている引き出し（.uma-drawer[hidden]。C-139 で使い方の小窓を削除したので、同じ作りのこちらで見る）
+		const el = document.getElementById('stitch-drawer');   // 閉じている引き出し（.uma-drawer[hidden]。C-139 で使い方の小窓を削除したので、同じ作りのこちらで見る）
 		return el ? getComputedStyle(el).display === 'none' : null;
 	});
 	assert(hiddenWorks === true, 'CDN遮断時も hidden の保険が効いている', hiddenWorks);
@@ -7188,19 +7174,13 @@ await block('未読の丸（2026-09-15・43セッション目）', async () => {
 		'未読の丸: special の子項目の丸も同じ赤', sp);
 	assert(!sp.mainHidden && sp.count === 1 && sp.mainBg === 'rgb(197, 48, 48)',
 		'未読の丸: special でも畳んだボタンの丸は1つ', sp);
-	// 旧UIでは Deck の項目を出さないので、その未読は畳んだボタンの丸にも数えない
+	// T92（124）: special の FAB の「Deck (αテスト)」はページを開くだけで、旧 Deck の未読（取り込み待ち）の丸は持たない
 	const noDeck = await page.evaluate(() => {
 		fabUnseen.result = false; fabUnseen.stitch = false; updateFabBadges();
-		const trigger = document.getElementById('deck-drawer-trigger');
-		const was = trigger.hidden;
-		trigger.hidden = true;
-		markFabUnseen('deck');
-		const hiddenWhileOldUi = document.getElementById('fab-unseen-dot').hidden;
-		trigger.hidden = was; updateFabBadges();
-		return { hiddenWhileOldUi, shownAfter: !document.getElementById('fab-unseen-dot').hidden };
+		return { keys: Object.keys(fabUnseen).join(), dotInItem: !!document.querySelector('#fab-item-deck .uma-fab-dot'), main: document.getElementById('fab-unseen-dot').hidden };
 	});
-	assert(noDeck.hiddenWhileOldUi && noDeck.shownAfter,
-		'未読の丸: special の旧UIでは Deck の未読を畳んだボタンの丸に数えない', noDeck);
+	assert(noDeck.keys === 'stitch,result' && !noDeck.dotInItem && noDeck.main,
+		'未読の丸: special の FAB の「Deck (αテスト)」には未読の丸が無い', noDeck);
 	assert(errors.length === 0, '未読の丸: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }

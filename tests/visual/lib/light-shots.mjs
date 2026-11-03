@@ -16,9 +16,7 @@ export const LIGHT_SCENES = (() => {
 		out.push({ name: `exam-${w}`, file: 'exam.html', w });
 		out.push({ name: `deck-${w}`, file: 'uma-skill-deck.html', w });
 	}
-	out.push({ name: 'special-375-deckdrawer', file: 'special.html', w: 375, tab: '1', act: 'deck', viewportOnly: true });
 	out.push({ name: 'exam-375-deckdrawer', file: 'exam.html', w: 375, act: 'deck', viewportOnly: true });
-	out.push({ name: 'special-1280-deckdrawer', file: 'special.html', w: 1280, tab: '1', act: 'deck', viewportOnly: true });
 	// exam の結果の表（親A・親Bの人物色・★合計の列。JS がインラインの style で色を当てる）
 	out.push({ name: 'exam-375-results', file: 'exam.html', w: 375, act: 'examResults', viewportOnly: true });
 	out.push({ name: 'exam-1280-results', file: 'exam.html', w: 1280, act: 'examResults', viewportOnly: true });

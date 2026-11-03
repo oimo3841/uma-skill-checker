@@ -15,6 +15,8 @@
  *   ★不明は -1、読めなかった因子は null（T73 の形）。uma が無くても green の固有スキル名から衣装を引く。
  *   T92（段4 の 4-2）: UmaStar（special.html の sendToDeckAlpha）がこの形で書く。uma・blue・red は null、green は③の画像の緑因子の読み取り
  *   （名前が決まらなければ [null, ★] と greenCands、緑因子の欄が見つからなければ null）。owner は 'self'（持ち主はこの画面で選ぶ）。
+ *   T92-1: blue・red の null は「読んでいない」として、閉じた状態で出し（因子の行は「—」）、「要確認」にも入れない。
+ *   読もうとして決まらなかったものは [null, ★] で送れば、今までどおり開いて「読めなかった」を出す。
  *
  * 以下は版13 の説明。
  * 考え方: 確かめる所を最小にする。読めて決まったものは1行にたたみ（青・赤・緑の因子は1行の3つのボタン。C-272 の 8）、押すと直す形に入る（9）。
@@ -28,7 +30,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-03a';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-03b';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -70,14 +72,15 @@
 		return { race: j.race || null, style: j.style || null, send: Array.isArray(j.send) ? j.send.map(String) : [], owner: j.owner, sentAt: j.sentAt || null, persons: j.persons.slice(0, 3).map(person) };
 	}
 	function renderNone() {
-		$('#body').innerHTML = '<section class="card"><p class="small muted">UmaStar から送られた親がありません。UmaStar の OCR の結果から送ってください。</p><div class="row"><a class="btn pri" href="deck-alpha.html" style="flex:1">Deck を開く</a></div></section>';
+		$('#body').innerHTML = '<section class="card"><p class="small muted">UmaStar から送られた親がありません。UmaStar の OCR の結果から送ってください。</p><div class="row"><a class="btn pri" href="deck-alpha.html" style="flex:1">Deck (αテスト)を開く</a></div></section>';
 		$('#regbar').hidden = true; $('#needTop').hidden = true;
 	}
 	function prepPerson(o, i) {
 		const p = { role: K.POS[i], uma: o.uma, greenStar: o.green ? o.green[1] : null, greenCands: o.greenCands, blue: o.blue ? o.blue.slice() : null, red: o.red ? o.red.slice() : null, skills: Object.assign({}, o.skills), genes: Object.assign({}, o.genes), open: {}, link: null, linkMode: null, cands: [] };
 		if (!p.uma && o.green && o.green[0]) p.uma = K.UNIQ.get(o.green[0]) || null;
-		// 読めなかった・★不明の青赤緑は、最初から直す形で開いておく（衣装が決められない緑は、候補を並べるので開かない）
-		['blue', 'red'].forEach((k) => { if (!p[k]) { p[k] = [null, -1]; p.open[k] = true; } else if (p[k][1] < 0) p.open[k] = true; });
+		// 読めなかった・★不明の青赤緑は、最初から直す形で開いておく（衣装が決められない緑は、候補を並べるので開かない）。
+		// 読んでいない青赤（null）は閉じたまま（T92-1）
+		['blue', 'red'].forEach((k) => { if (p[k] && (!p[k][0] || p[k][1] < 0)) p.open[k] = true; });
 		if (p.uma && p.greenStar != null && p.greenStar < 0) p.open.green = true;
 		if (i > 0) refreshCands(p);
 		return p;
@@ -94,8 +97,9 @@
 		const a = [];
 		if (p.link) return a; // 登録済みの親と同一にしたときは、この読み取りの値は保存しないので確かめる所が無い
 		if (!p.uma) a.push('衣装');
-		if (p.blue == null || !p.blue[0]) a.push('青'); else if (p.blue[1] < 0) a.push('青の★');
-		if (p.red == null || !p.red[0]) a.push('赤'); else if (p.red[1] < 0) a.push('赤の★');
+		// 読んでいない青赤（null）は数えない（T92-1）
+		if (p.blue && !p.blue[0]) a.push('青'); else if (p.blue && p.blue[1] < 0) a.push('青の★');
+		if (p.red && !p.red[0]) a.push('赤'); else if (p.red && p.red[1] < 0) a.push('赤の★');
 		if (p.greenStar != null && p.greenStar < 0) a.push('緑の★');
 		const unk = Object.values(p.skills).filter((v) => v < 0).length; if (unk) a.push('★不明' + unk);
 		if (p.cands.length && !p.link && p.linkMode !== 'none') a.push('紐づけ');
@@ -123,11 +127,11 @@
 		const head = '<h2><span class="role">' + p.role + '</span>' + cosHtml(p.uma) + (iss.length ? '<span class="need">要確認 ' + iss.join('・') + '</span>' : (on ? '' : '<span class="muted small">送らない</span>')) + '</h2>';
 		// 因子の行（青・赤・緑の順で1行。押すと直す形に入る。C-272 の 8・9）
 		const fzBtn = (kind, cls, text, need, title) => '<button class="fz ' + cls + (need ? ' need' : '') + '" type="button" data-act="toggle-' + kind + '" data-i="' + i + '" aria-pressed="' + !!p.open[kind] + '" title="' + title + '" aria-label="' + title + '：' + K.esc(text) + '">' + K.esc(text) + '</button>';
-		const blueT = p.blue && p.blue[0] ? K.BLUE[p.blue[0]] + ' ' + K.starText(p.blue[1]) : '読めなかった';
-		const redT = p.red && p.red[0] ? K.RED[p.red[0]] + ' ' + K.starText(p.red[1]) : '読めなかった';
+		const blueT = p.blue && p.blue[0] ? K.BLUE[p.blue[0]] + ' ' + K.starText(p.blue[1]) : p.blue ? '読めなかった' : K.blueText(null);
+		const redT = p.red && p.red[0] ? K.RED[p.red[0]] + ' ' + K.starText(p.red[1]) : p.red ? '読めなかった' : K.redText(null);
 		const greenT = (p.uma ? K.uniqName(p.uma) : '？') + ' ' + K.starText(p.greenStar);
 		const fzLine = '<div class="line fzline"><span class="fzrow" role="group" aria-label="因子">' +
-			fzBtn('blue', 'b', blueT, !(p.blue && p.blue[0]) || p.blue[1] < 0, '青因子') + fzBtn('red', 'r', redT, !(p.red && p.red[0]) || p.red[1] < 0, '赤因子') +
+			fzBtn('blue', 'b', blueT, !!p.blue && (!p.blue[0] || p.blue[1] < 0), '青因子') + fzBtn('red', 'r', redT, !!p.red && (!p.red[0] || p.red[1] < 0), '赤因子') +
 			fzBtn('green', 'g', greenT, !p.uma || (p.greenStar != null && p.greenStar < 0), '緑因子') + '</span></div>';
 		// 直す形（青・赤: 種類と★。緑: 衣装と★）
 		const kindForm = (kind, map) => { const val = p[kind]; if (!p.open[kind]) return '';
@@ -253,7 +257,7 @@
 	function renderDone() {
 		const d = S.done; const dup = S.doc.parents.filter((x) => x.date === d.date).length + 1;
 		$('#body').innerHTML = '<section class="card"><div class="okbox">登録しました：<b>' + K.esc(K.fullName(d.parent.uma)) + '</b>　' + d.date + (dup > 1 ? '-' + d.no : '') + (d.gp ? '　祖' + d.gp + '人' : '') + '<br>' + K.esc(K.setName(d.set)) + '</div>' +
-			'<div class="row"><a class="btn pri" href="deck-alpha.html" style="flex:1">Deck を開く</a></div></section>';
+			'<div class="row"><a class="btn pri" href="deck-alpha.html" style="flex:1">Deck (αテスト)を開く</a></div></section>';
 		$('#regbar').hidden = true; $('#needTop').hidden = true;
 	}
 	let toastT; function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2200); }

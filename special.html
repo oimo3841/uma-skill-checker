@@ -644,7 +644,7 @@
 								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
 									<i data-lucide="layers" class="w-4 h-4"></i>
 								</div>
-								<p class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">Deck α</p>
+								<p class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">Deck (αテスト)</p>
 							</a>
 
 							<!-- お知らせ（2nd Edition の告知）を、いつでも読み直せる（C-140・微調整2・E） -->
@@ -5530,70 +5530,24 @@
 		/* ============================================================
 		 * 引き出しパネル（スライドオーバー）
 		 *
-		 * 行き先3つ（照合結果 / 画像結合レビュー / UmaSkill Deck）で
-		 * 同じ骨格を使う。同時に開くのは1つだけで、背景の暗転は1枚を共有する。
+		 * 行き先2つ（照合結果 / 画像結合レビュー）で同じ骨格を使う。
+		 * 同時に開くのは1つだけで、背景の暗転は1枚を共有する。
 		 *
-		 * UmaSkill Deck だけ中身が iframe（uma-skill-deck.html をそのまま読む）で、
-		 * あちらのファイルは変更していない。同一オリジンのため localStorage は
-		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
-		 * Deck連携モードにも反映される。
+		 * 以前は UmaSkill Deck（uma-skill-deck.html を iframe で読む）の引き出しもあったが、
+		 * T92 で旧 Deck を実質停止にし、FAB の項目は Deck (αテスト) のページを開くだけにしたので外した（124）。
+		 * 右の引き出しの作り直しは、あとの別の作業で扱う。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-11-01a';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
 			result: { el: 'result-drawer', close: 'result-drawer-close', trigger: 'fab-item-result' },
 			// onOpen で見本（通し番号）を出し直す。前回の保存で番号が進んでいたり、
 			// 開きっぱなしで日付をまたいでいたりしても、開いたときの表示が今の値になる。
-			stitch: { el: 'stitch-drawer', close: 'stitch-drawer-close', trigger: 'fab-item-stitch', onOpen: updateStitchSaveNameUi },
-			deck: {
-				el: 'deck-drawer', close: 'deck-drawer-close', trigger: 'deck-drawer-trigger',
-				onOpen: prepareDeckFrame, onClose: refreshDeckStateAfterDrawer
-			}
+			stitch: { el: 'stitch-drawer', close: 'stitch-drawer-close', trigger: 'fab-item-stitch', onOpen: updateStitchSaveNameUi }
 		};
 
 		let openDrawerKey = null;
 		let drawerBackdropTimer = null;
-
-		// iframeを読み込んだ時点の保存データ。パネルを開き直したときに
-		// 中身が古くなっていないかを判定するために使う。
-		let deckDrawerDataSnapshot = null;
-
-		function currentDeckDataSnapshot() {
-			try { return localStorage.getItem('umaSkillDeck:userData') || ''; } catch (e) { return ''; }
-		}
-
-		function prepareDeckFrame() {
-			// Deckを開いた＝この結果については見に行った、とみなす。
-			// 実際に取り込むかどうかは利用者の判断で、取り込まなかった場合でも
-			// 結果画面の案内は「取り込めます」のまま残る。
-			const seen = readOcrHandoff();
-			deckSeenHandoffId = seen ? seen.handoffId : null;
-
-			const frame = document.getElementById('deck-drawer-frame');
-			if (!frame.getAttribute('src')) {
-				// 初回だけ読み込む（既定の利用では余計な通信を発生させない）
-				frame.addEventListener('load', () => { deckDrawerDataSnapshot = currentDeckDataSnapshot(); });
-				frame.setAttribute('src', DECK_DRAWER_FRAME_SRC);
-			} else if (deckDrawerDataSnapshot !== currentDeckDataSnapshot()) {
-				// 閉じている間にこちら側でデータが変わっていたら、開くときに読み直す
-				try { frame.contentWindow.location.reload(); } catch (e) { frame.setAttribute('src', DECK_DRAWER_FRAME_SRC); }
-			}
-		}
-
-		// パネル内で編集された内容を、この画面側の状態に取り込み直す。
-		// 親とiframeはそれぞれ独立してデータを読み込んでいるため、
-		// 閉じたタイミングで読み直さないと古い内容を掴んだままになる。
-		function refreshDeckStateAfterDrawer() {
-			deckDrawerDataSnapshot = currentDeckDataSnapshot();
-			// 取り込みの有無を取り直す。通常は storage イベントで届くが、
-			// 取りこぼした場合でもここで必ず追いつくようにしておく。
-			refreshDeckHandoffState();
-			if (!deckMasterLoaded || !deckTemplateManager) return;
-			UmaSkillDeckCore.reloadUserData();
-			deckTemplateManager.closeEditor();
-			onDeckScopeSelected(deckTemplateManager.getSelection());
-		}
 
 		// 引き出しを1枚たたむ。閉じるアニメーションが終わってから hidden にする
 		// （transitionend が来ないことがあるので、保険のタイマーも置く）。
@@ -5621,7 +5575,7 @@
 			backdrop.hidden = false;
 			el.hidden = false;
 			document.getElementById('fab-nav').hidden = true;
-			// 固定の「元に戻す」も引き出しの間は隠す（Deck の引き出しの中に Deck 自身の「元に戻す」があり二重に見えるため）
+			// 固定の「元に戻す」も引き出しの間は隠す（もとは Deck の引き出しの中に Deck 自身の「元に戻す」があり二重に見えたため）
 			document.getElementById('deck-undo-btn').hidden = true;
 			// hidden を外した直後に .open を付けてもトランジションが走らないため、
 			// 一度レイアウトを確定させてからクラスを付ける。
@@ -5677,20 +5631,9 @@
 		 * ここで持つのは「その結果をFABから見に行ったか」という未読状態だけ。
 		 * ============================================================ */
 		let fabOpen = false;
-		// 3つとも「未読 ＝ その引き出しをまだ開いていない」。開いたら消える。
-		// deck だけは、Deck側で取り込んだ場合も（別タブ等で取り込んだときのために）消える。
-		//
-		// 当初 deck を「取り込むまで消えない」にしていたが、Deck側のバナーで
-		// 「読み込む」も「閉じる」も押さずに戻ったときと同じ扱いになり、
-		// 見に行ったのにバッジが残り続けて使いにくかったため、他と同じ意味に揃えた。
-		// 取り込んだかどうかは結果画面の案内（#deck-handoff-note）が持ち続けるので、
-		// バッジを下ろしても情報は失われない。
-		let fabUnseen = { stitch: false, result: false, deck: false };
-
-		// 「どの結果についてDeckを見に行ったか」。判定をやり直すと handoffId が
-		// 変わるので、新しい結果では自動的にまたバッジが点く。
-		// 引き出しを閉じたときの再計算で点き直さないために、開閉ではなくIDで覚える。
-		let deckSeenHandoffId = null;
+		// 2つとも「未読 ＝ その引き出しをまだ開いていない」。開いたら消える。
+		// FAB の「Deck (αテスト)」はページを開くだけで、旧 Deck の取り込み待ちのバッジは出さない（T92・124）。
+		let fabUnseen = { stitch: false, result: false };
 
 		// 結果の実体と、まだ無いときに出す案内。両者は排他で切り替える。
 		const RESULT_SECTIONS = {
@@ -5810,7 +5753,6 @@
 		function updateFabBadges() {
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
-			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
 			updateFabUnseenDot();
 			// 引き出しの中のタブにも同じ未読を映す（C-62 の (9)）
 			updateResultTabs();
@@ -5818,16 +5760,15 @@
 
 		/* 畳んでいるときの未読の印。exam.html と同じ規則で、メインボタンの右上に
 		 * 赤い丸を1つだけ出す（未読の行き先がいくつあっても1つ）。開いている間は出さない。
-		 * Deck の項目は旧UIでは出さない（updateDeckEntryVisibility）ので、
 		 * 出ていない行き先の未読はこの丸にも数えない。 */
 		function updateFabUnseenDot() {
 			const dot = document.getElementById('fab-unseen-dot');
 			if (!dot) return;
 			const shown = (key) => {
-				const item = document.getElementById(key === 'deck' ? 'deck-drawer-trigger' : 'fab-item-' + key);
+				const item = document.getElementById('fab-item-' + key);
 				return !item || !item.hidden;
 			};
-			const any = ['result', 'stitch', 'deck'].some((k) => fabUnseen[k] && shown(k));
+			const any = ['result', 'stitch'].some((k) => fabUnseen[k] && shown(k));
 			dot.hidden = fabOpen || !any;
 		}
 
@@ -5864,22 +5805,37 @@
 		});
 
 		/* ============================================================
-		 * Deck α へ送る（T92・段4 の 4-2。C-275 の 1）
+		 * Deck (αテスト) へ送る（T92・段4 の 4-2。C-275 の 1）
 		 *
-		 * ③の照合結果の「Deck α に送る」で、親セット（親と祖2人、または親だけ）の結果を
-		 * localStorage の umaDeck:send に書き、新しいタブで deck-alpha-register.html を開く
+		 * ③の照合結果の「Deck (αテスト)に送る」（旧 UmaSkill Deck の取り込みの案内があった所。123）で、
+		 * 親セット（親と祖2人、または親だけ）の結果を localStorage の umaDeck:send に書き、
+		 * 新しいタブで deck-alpha-register.html を開く
 		 * （URL に ? も # も付けない＝恒久ルール32。形は js/deck-alpha-register.js の冒頭）。
 		 * 新しいタブにするのは、③の結果（画像・照合）をこのページに残すため。開けなければこのタブで開く。
+		 * FAB の「Deck (αテスト)」も同じ開き方で deck-alpha.html を開く（124）。
 		 * - 送るのは親セットの単位。親が読めているセットだけ。祖2人とも読めていれば3人、そうでなければ親だけ。
 		 *   親Aセット・親Bセットの両方で親が読めているときは、どちらを送るかを小窓で選ぶ。
 		 * - 白スキルは②のスキルの id（deckSkillIdByName）、遺伝子は遺伝子の id。★を測れなかったものは -1。
 		 *   シナリオ因子は③で読まない（FACTOR_SCOPE_OCR）ので送らない。
 		 * - 緑因子は、判定のときに readGreenFactor() が読んだもの（personGreen）。青・赤因子は読まない（null）。
 		 * - 持ち主（自分／フレンド）は登録の画面で選ぶ（ここでは 'self'）。
-		 * - 新UI（Deck連携）のあいだだけボタンを出す。旧UIは変えない。
+		 * - 新UI（Deck連携）のあいだだけボタンと停止の1行を出す。旧UIは変えない。
 		 * ============================================================ */
 		const DECK_ALPHA_SEND_KEY = 'umaDeck:send';
 		const DECK_ALPHA_REGISTER_URL = 'deck-alpha-register.html';
+		const DECK_ALPHA_URL = 'deck-alpha.html';
+
+		/** Deck (αテスト) のページを新しいタブで開く（開けなければこのタブで） */
+		function openDeckAlphaPage(url) {
+			const w = window.open(url, '_blank');
+			if (w) { try { w.opener = null; } catch (e) { /* 開いたタブとつながっていなくてよい */ } }
+			else location.href = url;
+		}
+		/** FAB の「Deck (αテスト)」 */
+		function fabOpenDeckAlpha() {
+			setFabOpen(false);
+			openDeckAlphaPage(DECK_ALPHA_URL);
+		}
 
 		/* ------------------------------------------------------------
 		 * 緑因子（継承固有）の読み取り（T92）
@@ -6021,8 +5977,8 @@
 			return PERSON_SETS.map((s, i) => i).filter(i => deckAlphaSendIndexes(i).length > 0);
 		}
 		function updateDeckAlphaSendButton() {
-			const btn = document.getElementById('deck-alpha-send-btn');
-			if (btn) btn.classList.toggle('hidden', !(deckMode && deckAlphaSendableSets().length > 0));
+			const note = document.getElementById('deck-alpha-send-note');
+			if (note) note.classList.toggle('hidden', !(deckMode && deckAlphaSendableSets().length > 0));
 		}
 		/** 送る JSON（js/deck-alpha-register.js の冒頭の形） */
 		function buildDeckAlphaSend(setIdx) {
@@ -6060,17 +6016,15 @@
 		function sendSetToDeckAlpha(setIdx) {
 			try { localStorage.setItem(DECK_ALPHA_SEND_KEY, JSON.stringify(buildDeckAlphaSend(setIdx))); }
 			catch (e) { showToast('送れませんでした'); return; }
-			const w = window.open(DECK_ALPHA_REGISTER_URL, '_blank');
-			if (w) { try { w.opener = null; } catch (e) { /* 開いたタブとつながっていなくてよい */ } }
-			else location.href = DECK_ALPHA_REGISTER_URL;
+			openDeckAlphaPage(DECK_ALPHA_REGISTER_URL);
 		}
-		/** 「Deck α に送る」。送れる親セットが2つあれば小窓で選ぶ（ボタンの文はセットの呼び名。親だけのときは「親A」など） */
+		/** 「Deck (αテスト)に送る」。送れる親セットが2つあれば小窓で選ぶ（ボタンの文はセットの呼び名。親だけのときは「親A」など） */
 		function sendToDeckAlpha(btn) {
 			const sets = deckAlphaSendableSets();
 			if (sets.length === 0) return;
 			if (sets.length === 1) { sendSetToDeckAlpha(sets[0]); return; }
 			UmaSkillDeckCore.openPopover({
-				key: 'deck-alpha-send', title: 'Deck α に送る', btn: btn, opener: btn,
+				key: 'deck-alpha-send', title: 'Deck (αテスト)に送る', btn: btn, opener: btn,
 				build: (body) => {
 					const row = document.createElement('div');
 					row.className = 'flex gap-2';
@@ -6137,90 +6091,26 @@
 				// 容量超過など。連携は諦めるが、画面上の結果表示は通常どおり続ける。
 				return;
 			}
-			refreshDeckHandoffState();
-		}
-
-		function readOcrHandoff() {
-			try {
-				const raw = localStorage.getItem(OCR_HANDOFF_STORAGE_KEY);
-				return raw ? JSON.parse(raw) : null;
-			} catch (e) { return null; }
 		}
 
 		/**
-		 * 受け渡しの状態を、結果画面の案内とFABのバッジの両方へ反映する。
-		 *
-		 * 「渡した」だけでは画面に何も出ないため、判定が終わったことと
-		 * Deck側に取り込めるようになったことを、結果の下で知らせる。
-		 * 取り込みが済んだかどうかは Deck側が payload.imported を立てるので、
-		 * localStorage を読み直せば分かる（下の storage リスナで自動更新される）。
-		 */
-		/**
-		 * UmaSkill Deck への導線（FABの項目・結果引き出しの取り込み案内）を、
+		 * Deck への導線（FABの「Deck (αテスト)」・③の照合結果の「Deck (αテスト)に送る」）を、
 		 * 新UIのあいだだけ出す。旧UIはいずれ廃止する過渡的な姿なので、
 		 * そちらにDeckの入口を残しておくと「どちらでも同じことができる」ように
 		 * 見えてしまい、移行の判断を鈍らせる。
 		 *
-		 * 隠すのは入口だけで、OCR結果の受け渡し自体（writeOcrHandoff）は旧UIでも
-		 * 続ける。uma-skill-deck.html を直接開けば従来どおり取り込めるし、
-		 * 旧UIで判定してから新UIへ切り替えた場合もそのまま拾える。
+		 * 旧 UmaSkill Deck は T92 で実質停止にした（123・124）。③の取り込みの案内と FAB のバッジ・
+		 * 中で開く引き出しは外したが、OCR結果の受け渡し自体（writeOcrHandoff）は今のまま続ける
+		 * （uma-skill-deck.html を直接開けば従来どおり取り込める）。
 		 */
 		function updateDeckEntryVisibility() {
-			const trigger = document.getElementById('deck-drawer-trigger');
-			if (trigger) trigger.hidden = !deckMode;
+			const item = document.getElementById('fab-item-deck');
+			if (item) item.hidden = !deckMode;
 			fabSyncSetItems();
-			refreshDeckHandoffState();
 			updateDeckAlphaSendButton();
 			// Deck の項目を出し入れしたら、畳んでいるときの赤丸も数え直す
 			updateFabUnseenDot();
 		}
-
-		function refreshDeckHandoffState() {
-			const note = document.getElementById('deck-handoff-note');
-			if (!note) return;
-			// 旧UIではDeckの入口を出さないので、取り込みの案内もバッジも出さない。
-			if (!deckMode) {
-				note.classList.add('hidden');
-				fabUnseen.deck = false;
-				updateFabBadges();
-				return;
-			}
-			const payload = readOcrHandoff();
-			if (!payload || !payload.persons) {
-				note.classList.add('hidden');
-				fabUnseen.deck = false;
-				updateFabBadges();
-				return;
-			}
-
-			const done = !!payload.imported;
-			const who = payload.persons.map(p => p.label).join('・');
-			// 未取り込み＝Deck の色（.deck-accent の中の .deck-note。css/shell.css）、取り込み済み＝緑
-			document.getElementById('deck-handoff-box').className =
-				done ? 'rounded-xl border p-4 border-green-200 bg-green-50' : 'deck-accent deck-note';
-			document.getElementById('deck-handoff-dot').hidden = done;
-			const title = document.getElementById('deck-handoff-title');
-			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
-			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'deck-note-title');
-			const detail = document.getElementById('deck-handoff-detail');
-			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + payload.skillNames.length + '件を渡しました。'
-				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
-			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'deck-note-text');
-			document.getElementById('deck-handoff-btn-label').textContent = done ? 'UmaSkill Deckを開く' : 'UmaSkill Deckを開いて取り込む';
-			note.classList.remove('hidden');
-
-			// 未取り込みでも、一度Deckを見に行った結果ならバッジは出さない。
-			fabUnseen.deck = !done && payload.handoffId !== deckSeenHandoffId;
-			updateFabBadges();
-			if (window.lucide) lucide.createIcons();
-		}
-
-		// Deck側（引き出しの中のiframe）が取り込むと imported が立つ。
-		// storage イベントは書いた文書自身には飛ばず、同一オリジンの別の文書に飛ぶので、
-		// iframe側の書き込みはこちらで受け取れる。ポーリングは不要。
-		window.addEventListener('storage', (e) => {
-			if (e.key === OCR_HANDOFF_STORAGE_KEY) refreshDeckHandoffState();
-		});
 	</script>
 
 	<!-- ===== 引き出しパネル =====
@@ -6279,32 +6169,16 @@
 			<div class="uma-drawer-content">
 				<div id="result-wrap" class="hidden">
 
-					<!-- ===== UmaSkill Deckへの受け渡しの案内 =====
-					     以前はここに保存パネルを持っていたが、UmaSkill Deck側に同等の
-					     取り込みダイアログ（「UmaStar OCRの判定結果があります → 読み込む」）が
-					     あり、入口が二重になっていたため、Deck側に一本化して削除した。
-
-					     判定が終わると writeOcrHandoff() が localStorage へ書き出す。
-					     「Deck側に渡し終わった」ことは画面に出ないと分からないので、
-					     ここで知らせる。取り込みが済んだかどうかは refreshDeckHandoffState()
-					     が localStorage を見て切り替える（Deck側の取り込みは storage イベントで届く）。 -->
-					<div id="deck-handoff-note" class="hidden mb-6">
-						<div id="deck-handoff-box" class="deck-accent deck-note">
-							<div class="flex items-start gap-2.5">
-								<span class="relative shrink-0 mt-0.5">
-									<i data-lucide="layers" class="w-4 h-4 deck-icon"></i>
-									<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
-								</span>
-								<div class="min-w-0">
-									<p id="deck-handoff-title" class="text-xs font-bold deck-note-title">この結果をUmaSkill Deckに取り込めます</p>
-									<p id="deck-handoff-detail" class="text-[11px] deck-note-text mt-0.5 leading-relaxed"></p>
-								</div>
-							</div>
-							<button type="button" onclick="fabGoTo('deck')" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent w-full mt-3">
-								<i data-lucide="layers" class="w-4 h-4"></i>
-								<span id="deck-handoff-btn-label">UmaSkill Deckを開いて取り込む</span>
-							</button>
-						</div>
+					<!-- ===== Deck (αテスト) へ送る（T92・123） =====
+					     以前はここに旧 UmaSkill Deck への取り込みの案内（見出し・本文・旧 Deck を開くボタン）があった。
+					     旧 Deck を実質停止にしたので、送るボタンと停止の1行だけにした。新UI で、親が読めている親セットが
+					     あるときだけ出す（updateDeckAlphaSendButton）。旧 Deck への受け渡し（writeOcrHandoff）は今のまま続ける。 -->
+					<div id="deck-alpha-send-note" class="hidden mb-6">
+						<button type="button" id="deck-alpha-send-btn" onclick="sendToDeckAlpha(this)" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent deck-accent w-full" aria-haspopup="dialog">
+							<i data-lucide="send" class="w-4 h-4"></i>
+							<span>Deck (αテスト)に送る</span>
+						</button>
+						<p class="text-[11px] text-slate-500 mt-1.5">UmaSkill Deck は開発を停止しました。</p>
 					</div>
 
 					<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
@@ -6325,12 +6199,7 @@
 
 					<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
 					     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。 -->
-					<div id="result-copy-slot" class="flex justify-end gap-2 mb-2">
-						<!-- T92: Deck α へ送る（新UI で、親が読めている親セットがあるときだけ出す。sendToDeckAlpha） -->
-						<button type="button" id="deck-alpha-send-btn" onclick="sendToDeckAlpha(this)" class="uma-btn uma-btn--neutral hidden" aria-haspopup="dialog">
-							<i data-lucide="send" class="w-3.5 h-3.5"></i>
-							<span>Deck α に送る</span>
-						</button>
+					<div id="result-copy-slot" class="flex justify-end mb-2">
 						<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
 							<i data-lucide="copy" class="w-3.5 h-3.5"></i>
 							<span id="copy-btn-label">★の数をコピー</span>
@@ -6445,13 +6314,13 @@
 
 		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。
 		     新UIのあいだだけ出す（updateDeckEntryVisibility）。既定の旧UIでは出さないので
-		     hidden を書いた状態で置いてある。 -->
-		<button id="deck-drawer-trigger" type="button" class="uma-fab-item deck-accent" onclick="fabGoTo('deck')"
-			aria-controls="deck-drawer" aria-expanded="false" hidden>
-			<span>UmaSkill Deck</span>
+		     hidden を書いた状態で置いてある。
+		     T92（124）: 旧 UmaSkill Deck の引き出しをやめ、押すと deck-alpha.html を開く（fabOpenDeckAlpha）。
+		     旧 Deck の取り込み待ちのバッジは出さない。 -->
+		<button id="fab-item-deck" type="button" class="uma-fab-item deck-accent" onclick="fabOpenDeckAlpha()" hidden>
+			<span>Deck (αテスト)</span>
 			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
@@ -6483,26 +6352,6 @@
 			</button>
 		</span>
 	</div>
-
-	<!-- UmaSkill Deck。ここだけ中身が iframe（uma-skill-deck.html をそのまま読む）で、
-	     あちらのファイルには手を入れていない。同一オリジンなので localStorage は共有される。
-	     OCR結果の保存もこの中の「読み込む」から行う（C-9c / F-27 参照）。 -->
-	<aside id="deck-drawer" class="uma-drawer" hidden role="dialog" aria-modal="true" aria-label="UmaSkill Deck">
-		<div class="uma-drawer-header">
-			<div class="flex items-center gap-2 min-w-0">
-				<i data-lucide="layers" class="w-4 h-4 deck-accent deck-icon shrink-0"></i>
-				<p class="text-sm font-bold text-slate-800 truncate">UmaSkill Deck</p>
-				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">テンプレートと比較シートをここで編集できます</span>
-			</div>
-			<button id="deck-drawer-close" type="button" onclick="closeDrawer()" class="uma-btn uma-btn--secondary">
-				<i data-lucide="x" class="w-3.5 h-3.5"></i>
-				<span>閉じる</span>
-			</button>
-		</div>
-		<div class="uma-drawer-body uma-drawer-body--frame">
-			<iframe id="deck-drawer-frame" title="UmaSkill Deck" loading="lazy"></iframe>
-		</div>
-	</aside>
 
 </body>
 </html>

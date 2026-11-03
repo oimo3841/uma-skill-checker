@@ -7,6 +7,12 @@
 //  - UmaStar のツール切り替えに「Deck α」（deck-alpha.html）。Deck α から UmaStar・UmaExam へ戻れる。
 //  - T88-3: 略称のひらがな「ぺ」をカタカナに（CSV を直して作り直した）。T88-4: ライト／ダークはほかのツールと同じ設定（js/theme.js）。
 //  - 91: Deck α の「⋯」の「ホーム画面に追加」の案内を外す。T88-1: 「全部消す」は入れない。
+// 決め（2026-11-03 19:25 おいもさん。確認のお願い 1 への答え）:
+//  - 123: ③の照合結果の旧 UmaSkill Deck の取り込みの案内の箱をやめ、そこ（カードの上）に「Deck (αテスト)に送る」と1行「UmaSkill Deck は開発を停止しました。」。
+//    表のすぐ上の行（「★の数をコピー」の左）の送るボタンは外す。
+//  - 124: FAB の「UmaSkill Deck」を「Deck (αテスト)」にし、押すと deck-alpha.html を開く（旧 Deck の引き出しとバッジは出さない）。
+//  - 125: 画面の呼び名は「Deck (αテスト)」（ツール切り替えの行・送り先を選ぶ小窓の見出し・Deck α の本体と登録の画面の題と見出し）。
+//  - T92-1: 読んでいない青・赤因子（null）は、登録の画面で閉じた状態で出し、「要確認」にも入れない。
 // OCR そのもの（緑因子の読み取りの精度）は tests/ocr/run-green-tests.mjs が実画像で見る。ここでは判定のあとの状態（personResults・personGreen）を作って、
 // 送る JSON・登録の画面・Deck の表までを 375px（タッチ）と 1280px、ライトとダークで通す。横スクロールなし・コンソールのエラー 0。
 // T92_SHOTS=<フォルダ> を付けて回すと、各場面の画像をそのフォルダに残す（確認のお願い用）。
@@ -33,8 +39,15 @@ export async function register102(env) {
 	await block('T92 Deck α へ送る ―― 入口のリンク・略称のカタカナ・テーマの読み込み・「⋯」の案内が無い', async () => {
 		const sp = read('special.html');
 		const links = [...sp.matchAll(/href="(deck-alpha[^"]*)"/g)].map((m) => m[1]);
-		assert(links.join() === 'deck-alpha.html', 'UmaStar のツール切り替えの「Deck α」は素の deck-alpha.html（? も # も付けない）', links);
+		assert(links.join() === 'deck-alpha.html', 'UmaStar のツール切り替えの「Deck (αテスト)」は素の deck-alpha.html（? も # も付けない）', links);
 		assert(/const DECK_ALPHA_REGISTER_URL = 'deck-alpha-register\.html';/.test(sp), '送るときに開く URL は素の deck-alpha-register.html', null);
+		assert(/const DECK_ALPHA_URL = 'deck-alpha\.html';/.test(sp), 'FAB の「Deck (αテスト)」で開く URL は素の deck-alpha.html（124）', null);
+		assert(!/UmaSkill Deckを開いて取り込む|UmaSkill Deckに取り込めます|UmaSkill Deckに取り込み済み|deck-drawer-frame|Deck α に送る/.test(sp), 'UmaStar に旧 Deck の取り込みの案内・中で開く引き出し・古い呼び名「Deck α に送る」が無い（123・124・125）', null);
+		const titles = { 'deck-alpha.html': ['Deck (αテスト)', /<h1>Deck <span class="muted small">\(αテスト\)<\/span><\/h1>/], 'deck-alpha-register.html': ['Deck (αテスト) 登録', /<h1>Deck \(αテスト\)に登録<\/h1>/] };
+		for (const [p, [t, h]] of Object.entries(titles)) {
+			const src = read(p);
+			assert(src.includes('<title>' + t + '</title>') && h.test(src), p + ' の題と見出しは「Deck (αテスト)」（125）', null);
+		}
 		const ab = JSON.parse(read('data/deck-alpha/uma-abbrev.json'));
 		const hira = ab.entries.filter((e) => e.abbr.includes('ぺ'));
 		assert(hira.length === 0, '略称にひらがなの「ぺ」が無い（T88-3）', hira);
@@ -109,11 +122,15 @@ export async function register102(env) {
 			// (1) 親だけ（1人）: ボタンを押すとそのまま送る
 			await openSpecial();
 			const s1 = await seed({ g0: G0.name, three: false });
-			const vis1 = await ev(() => { const b = document.getElementById('deck-alpha-send-btn'); const c = document.getElementById('result-copy-btn'); const r = b.getBoundingClientRect(), q = c.getBoundingClientRect();
-				return { shown: !b.classList.contains('hidden') && r.width > 0, text: b.innerText.trim(), sameRow: Math.abs(r.top - q.top) < 2, left: r.right <= q.left }; });
-			assert(s1.skills >= 7 && vis1.shown && vis1.text === 'Deck α に送る' && vis1.sameRow && vis1.left, tag + ' 照合結果に「Deck α に送る」（★の数をコピーと同じ行の左）', vis1);
-			await page.evaluate(() => document.getElementById('result-copy-slot').scrollIntoView({ block: 'center' }));
-			await look('a-send-btn');
+			await page.waitForTimeout(400);
+			const vis1 = await ev(() => { const n = document.getElementById('deck-alpha-send-note'); const b = document.getElementById('deck-alpha-send-btn'); const r = b.getBoundingClientRect(), st = document.getElementById('stat-grid').getBoundingClientRect();
+				const line = n.querySelector('p'); const lr = line.getBoundingClientRect();
+				return { shown: !n.classList.contains('hidden') && r.width > 0, text: b.innerText.trim(), line: line.textContent.trim(), lineBelow: lr.top >= r.bottom - 0.5 && lr.height < 24, aboveCards: lr.bottom <= st.top + 0.5,
+					inCopyRow: !!document.querySelector('#result-copy-slot #deck-alpha-send-btn'), copyRow: [...document.querySelectorAll('#result-copy-slot button')].map((x) => x.id).join(), oldBox: !!document.getElementById('deck-handoff-note') }; });
+			assert(s1.skills >= 7 && vis1.shown && vis1.text === 'Deck (αテスト)に送る' && vis1.line === 'UmaSkill Deck は開発を停止しました。' && vis1.lineBelow && vis1.aboveCards && !vis1.inCopyRow && vis1.copyRow === 'result-copy-btn' && !vis1.oldBox,
+				tag + ' 照合結果のカードの上に「Deck (αテスト)に送る」とすぐ下に停止の1行（表の上の行には送るボタンが無い・旧 Deck の案内が無い）', vis1);
+			await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; });
+			await look('f-send');
 			await page.click('#deck-alpha-send-btn');
 			const r1 = await sent();
 			const p0 = r1.j && r1.j.persons[0];
@@ -123,20 +140,37 @@ export async function register102(env) {
 			assert(p0 && p0.uma === null && p0.blue === null && p0.red === null && JSON.stringify(p0.green) === JSON.stringify([G0.name, 2]) && p0.greenCands === null
 				&& Object.keys(p0.skills).length === 4 && Object.values(p0.skills).sort().join() === '-1,1,2,3' && Object.keys(p0.genes).length === 1 && /^ap-/.test(Object.keys(p0.genes)[0]),
 			tag + ' 親: 緑因子は読んだ名前と★・青赤は null・白4種（★を測れないものは -1）・遺伝子1つ', p0);
+			// FAB の「Deck (αテスト)」（124）: 押すと deck-alpha.html を新しいタブで開く。旧 Deck の引き出しとバッジは無い
+			await ev(() => closeDrawer()); await page.waitForTimeout(500);
+			await page.click('#fab-toggle'); await page.waitForTimeout(450);
+			const fab = await ev(() => { const it = document.getElementById('fab-item-deck'); const r = it.getBoundingClientRect();
+				return { text: it.innerText.trim(), shown: !it.hidden && r.width > 0, inView: r.right <= window.innerWidth + 0.5 && r.left >= 0, dot: !!it.querySelector('.uma-fab-dot'), drawer: !!document.getElementById('deck-drawer'),
+					labels: [...document.querySelectorAll('#fab-nav .uma-fab-item')].filter((b) => !b.hidden).map((b) => b.innerText.trim().split('\n')[0]).join() }; });
+			assert(fab.text === 'Deck (αテスト)' && fab.shown && fab.inView && !fab.dot && !fab.drawer && !/UmaSkill Deck/.test(fab.labels), tag + ' FAB の項目は「Deck (αテスト)」（未読の丸なし・旧 Deck の引き出しなし）', fab);
+			await look('g-fab');
+			await page.click('#fab-item-deck'); await page.waitForTimeout(200);
+			const fabGo = await ev(() => ({ last: window.__opened[window.__opened.length - 1], n: window.__opened.length, drawer: openDrawerKey, nav: document.getElementById('fab-nav').classList.contains('open') }));
+			assert(JSON.stringify(fabGo.last) === JSON.stringify(['deck-alpha.html', '_blank']) && fabGo.n === 2 && fabGo.drawer === null && !fabGo.nav, tag + ' FAB の「Deck (αテスト)」で素の deck-alpha.html を新しいタブで開く', fabGo);
 			await openReg();
 			const g1 = await ev(() => ({ scope: [...document.querySelectorAll('#scopeSeg button')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '') + (b.disabled ? '(x)' : '')),
 				set: document.querySelector('#setPick .t').textContent, uma: window.__deckAlphaRegister.S.persons[0].uma, dis: document.getElementById('regBtn').disabled,
 				owner: [...document.querySelectorAll('[data-owner]')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')), theme: document.documentElement.getAttribute('data-theme') }));
 			assert(g1.scope.join() === '親Aだけ*,親Aセット(x)' && /リーグ オブ ヒーローズ/.test(g1.set) && g1.uma === G0.id && !g1.dis && g1.owner.join() === '自分*,フレンド' && g1.theme === theme,
 				tag + ' 登録の画面（1人）: 緑因子の名前から衣装が決まり・送り先は UmaStar のレース・持ち主は自分', g1);
-			await look('d1-toroku-1nin', { fullPage: true });
+			// T92-1: 読んでいない青・赤（null）は閉じた状態で、「要確認」に入れない
+			const br = await ev(() => { const fz = (k) => document.querySelector('[data-act="toggle-' + k + '"]');
+				return { b: fz('blue').textContent, r: fz('red').textContent, need: fz('blue').classList.contains('need') || fz('red').classList.contains('need'), pressed: fz('blue').getAttribute('aria-pressed') + fz('red').getAttribute('aria-pressed'),
+					forms: document.querySelectorAll('[data-blue],[data-red],[data-bluestar],[data-redstar]').length, iss: (document.querySelector('section.card h2 .need') || {}).textContent || '', title: document.title, h1: document.querySelector('h1').textContent }; });
+			assert(br.b === '—' && br.r === '—' && !br.need && br.pressed === 'falsefalse' && br.forms === 0 && !/青|赤/.test(br.iss) && br.title === 'Deck (αテスト) 登録' && br.h1 === 'Deck (αテスト)に登録',
+				tag + ' 登録の画面: 読んでいない青・赤は閉じた状態（「—」）で「要確認」に入らない（T92-1）・題と見出しは「Deck (αテスト)」', br);
+			await look('i-toroku-aoaka', { fullPage: true });
 			await page.click('[data-owner="friend"]');
 			await page.evaluate(() => document.querySelector('[data-owner]').scrollIntoView({ block: 'center' }));
 			await look('b-owner');
 			await page.click('#regBtn'); await page.waitForTimeout(200);
 			const ok1 = await ev(() => ({ ok: (document.querySelector('.okbox') || {}).innerText || '', inbox: localStorage.getItem('umaDeck:send') }));
 			assert(/^登録しました/.test(ok1.ok) && ok1.inbox === null, tag + ' 登録すると受け取りの口が消える', ok1);
-			await page.click('a:has-text("Deck を開く")');
+			await page.click('a:has-text("Deck (αテスト)を開く")');
 			await page.waitForFunction(() => window.__deckAlpha && window.__deckAlpha.S.doc, null, { timeout: 15000 }); await page.waitForTimeout(300);
 			const d1 = await ev(() => { const S = window.__deckAlpha.S; const p = S.doc.parents[S.doc.parents.length - 1]; return { n: S.doc.parents.length, uma: p.uma, owner: p.owner, green: p.green, sets: p.sets, cols: document.querySelectorAll('.vh th[data-c]').length }; });
 			assert(d1.n === 1 && d1.uma === G0.id && d1.owner === 'friend' && d1.green === 2 && d1.sets.join() === 'r:race-0002' && d1.cols === 1, tag + ' Deck α の表に入る（衣装・フレンド・緑の★・セット）', d1);
@@ -145,8 +179,10 @@ export async function register102(env) {
 			await openSpecial();
 			await seed({ g0: G0.name, three: true, setB: true, c1: C1.name, c2: C2.name });
 			await page.click('#deck-alpha-send-btn');
-			const pop = await ev(() => [...document.querySelectorAll('[data-deck-alpha-set]')].map((b) => b.textContent));
-			assert(pop.join() === '親Aセット,親B', tag + ' 親Aセット・親Bセットの両方が読めているときは小窓で選ぶ（祖が無いセットは「親B」）', pop);
+			const pop = await ev(() => { const bs = [...document.querySelectorAll('[data-deck-alpha-set]')]; let el = bs[0], t = false;
+				for (let i = 0; el && i < 8 && !t; i++) { el = el.parentElement; t = !!el && /Deck \(αテスト\)に送る/.test(el.innerText); }
+				return { labels: bs.map((b) => b.textContent).join(), title: t }; });
+			assert(pop.labels === '親Aセット,親B' && pop.title, tag + ' 親Aセット・親Bセットの両方が読めているときは小窓「Deck (αテスト)に送る」で選ぶ（祖が無いセットは「親B」）', pop);
 			await look('a2-send-choose');
 			await page.click('[data-deck-alpha-set="0"]');
 			const r2 = await sent();
@@ -162,7 +198,7 @@ export async function register102(env) {
 			await look('d3-toroku-3nin', { fullPage: true });
 			await page.click('.cand[data-cand="' + C1.name + '"]'); await page.waitForTimeout(150);
 			await page.click('#regBtn'); await page.waitForTimeout(200);
-			await page.click('a:has-text("Deck を開く")');
+			await page.click('a:has-text("Deck (αテスト)を開く")');
 			await page.waitForFunction(() => window.__deckAlpha && window.__deckAlpha.S.doc, null, { timeout: 15000 }); await page.waitForTimeout(300);
 			const d3 = await ev(() => { const S = window.__deckAlpha.S; const p = S.doc.parents[S.doc.parents.length - 1]; return { n: S.doc.parents.length, gp: p.gp.map((g) => g.uma || null), owner: p.owner }; });
 			assert(d3.n === 2 && d3.gp.length === 2 && d3.gp[0] === C1.id && d3.gp[1] === null && d3.owner === 'self', tag + ' 3人を登録すると Deck α に親と祖2人が入る', d3);
@@ -175,8 +211,10 @@ export async function register102(env) {
 			await look('e-more', { fullPage: true });
 			await ev(() => document.getElementById('scrim').click());
 			await page.click('#toolBtn');
-			const tl = await ev(() => [...document.querySelectorAll('#sheetIn a[data-tool]')].map((a) => a.textContent + '>' + a.getAttribute('href')));
-			assert(tl.join() === 'UmaStar OCR>special.html,UmaExam>exam.html', tag + ' Deck α のツール切り替えから UmaStar・UmaExam へ', tl);
+			const tl = await ev(() => ({ links: [...document.querySelectorAll('#sheetIn a[data-tool]')].map((a) => a.textContent + '>' + a.getAttribute('href')).join(), cur: (document.querySelector('#sheetIn .list b') || {}).textContent,
+				title: document.title, h1: document.querySelector('h1').textContent }));
+			assert(tl.links === 'UmaStar OCR>special.html,UmaExam>exam.html' && tl.cur === 'Deck (αテスト)' && tl.title === 'Deck (αテスト)' && tl.h1 === 'Deck (αテスト)',
+				tag + ' Deck (αテスト) のツール切り替えから UmaStar・UmaExam へ（選択中の行・題・見出しは「Deck (αテスト)」）', tl);
 			// Deck α で色を切り替えると、ほかのツールと同じ設定（uma-tools-theme）に入る
 			await ev(() => document.getElementById('scrim').click());
 			const other = theme === 'light' ? 'dark' : 'light';
@@ -191,8 +229,8 @@ export async function register102(env) {
 			// UmaStar のツール切り替えの「Deck α」
 			await page.click('#tool-dropdown-btn');
 			const row = await ev(() => { const a = document.getElementById('tool-deck-alpha'); const r = a.getBoundingClientRect(); return { href: a.getAttribute('href'), text: a.innerText.trim(), w: r.width, inView: r.right <= window.innerWidth && r.left >= 0 }; });
-			assert(row.href === 'deck-alpha.html' && row.text === 'Deck α' && row.w > 0 && row.inView, tag + ' UmaStar のツール切り替えに「Deck α」の行', row);
-			await look('c-tool');
+			assert(row.href === 'deck-alpha.html' && row.text === 'Deck (αテスト)' && row.w > 0 && row.inView, tag + ' UmaStar のツール切り替えに「Deck (αテスト)」の行', row);
+			await look('h-tool');
 			await page.click('#tool-deck-alpha');
 			await page.waitForFunction(() => window.__deckAlpha && window.__deckAlpha.S.doc, null, { timeout: 15000 });
 			const at = await ev(() => ({ url: location.pathname.split('/').pop() + location.search + location.hash, theme: document.documentElement.getAttribute('data-theme') }));

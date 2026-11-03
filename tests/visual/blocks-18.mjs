@@ -330,14 +330,14 @@ export async function register18(env) {
 	/* ====================================================================
 	 * F: 右下の「＋」の展開
 	 * ==================================================================== */
-	await block('C132F 「＋」を展開すると UmaSkill Deck の下（×の直上側）に「セット」「レース」があり、押すと帯のボタンと同じ小窓が開く／レースを選ぶと短い表記を添える', async () => {
+	await block('C132F 「＋」を展開すると Deck (αテスト) の下（×の直上側）に「セット」「レース」があり、押すと帯のボタンと同じ小窓が開く／レースを選ぶと短い表記を添える', async () => {
 		const sp = await openSp({ ids: LONG.slice(0, 2) });
 		const p = sp.page;
 		await p.click('#fab-toggle');
 		await p.waitForTimeout(300);
 		const order = await p.evaluate(() => Array.from(document.getElementById('fab-nav').children).filter((c) => !c.hidden).map((c) => c.id || c.className));
-		const iDeck = order.indexOf('deck-drawer-trigger');
-		assert(iDeck >= 0 && order[iDeck + 1] === 'fab-item-set' && order[iDeck + 2] === 'fab-item-race' && /uma-fab-main/.test(order[iDeck + 3]), 'C132F 並びは …・UmaSkill Deck・セット・レース・（×）', order);
+		const iDeck = order.indexOf('fab-item-deck');
+		assert(iDeck >= 0 && order[iDeck + 1] === 'fab-item-set' && order[iDeck + 2] === 'fab-item-race' && /uma-fab-main/.test(order[iDeck + 3]), 'C132F 並びは …・Deck (αテスト)・セット・レース・（×）', order);
 		const lab = await p.evaluate(() => ({ set: document.getElementById('fab-item-set').textContent.trim(), race: document.getElementById('fab-item-race').textContent.trim() }));
 		assert(lab.set === 'セット' && lab.race === 'レース', 'C132F 文字は「セット」「レース」（レースを選んでいないときは表記なし）', lab);
 		await p.click('#fab-item-set');

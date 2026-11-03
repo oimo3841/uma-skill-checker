@@ -178,10 +178,9 @@ for (const [p, pat, ver, name] of [
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['card-event-input.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
-	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
+	// special.html の旧 Deck の引き出し（iframe）は T92 で外した（124）。
+	// exam.html の引き出しパネルが読む iframe（DECK_PAGE_URL）。deck.js の版に合わせている値だが、
 	// HTMLの <script src> と違って目に付きにくく、実際に取り残されたことがある。
-	['special.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
-	// exam.html の引き出しパネルが読む iframe（DECK_PAGE_URL）。同じ決まりで deck.js の版に合わせる。
 	['exam.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
 	// ダークモード段1: 画面の色（js/theme.js）。3ページとも1か所ずつ
 	['special.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
@@ -475,6 +474,11 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-11-01（T56・C-258 の (2)）: 画像アップロードの画面の直しで、special の「OCR処理を開始する」（#process-btn）と、
 	// exam の「＋ 親Bセットも追加する」（#setb-toggle-btn / #setb-toggle-label。タブに置き換えた）を消した。commit が進んだら免除は空に戻す。
 	// → T56 の commit（a355c67）で HEAD から消えたので、免除は空に戻した。
+	// 2026-11-03（T92・123・124）: 旧 UmaSkill Deck を実質停止にしたので、special の③の取り込みの案内の箱（#deck-handoff-*）・
+	// FAB の旧 Deck の項目とバッジ（#deck-drawer-trigger・#fab-dot-deck。項目は #fab-item-deck に替えた）・中で開く引き出し（#deck-drawer 一式）を消した。
+	// commit が進んだら免除は空に戻す。
+	'special.html': ['deck-handoff-note', 'deck-handoff-box', 'deck-handoff-dot', 'deck-handoff-title', 'deck-handoff-detail', 'deck-handoff-btn-label',
+		'deck-drawer-trigger', 'fab-dot-deck', 'deck-drawer', 'deck-drawer-close', 'deck-drawer-frame'],
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
