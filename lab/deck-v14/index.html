@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'" />
+	<title>Deck モック v14 の入口（作業用）</title>
+	<!-- Deck α の方眼紙デザインのモック版14（T94）の入口。字体の版を行き来するためのページ。製品には組み込まない。どのページからもリンクしない。 -->
+	<style>
+		body { margin: 0; padding: 20px 16px; font: 15px/1.6 -apple-system, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; color: #1b1f1c; background-color: #fbfbf8; background-image: linear-gradient(#e6e9e4 1px, transparent 1px), linear-gradient(90deg, #e6e9e4 1px, transparent 1px); background-size: 10px 10px; }
+		h1 { font-size: 17px; margin: 0 0 4px; letter-spacing: .04em; }
+		p { margin: 0 0 12px; color: #646b66; font-size: 13px; }
+		section { border-top: 2px solid #1b1f1c; padding: 10px 0 14px; }
+		h2 { font-size: 13px; margin: 0 0 6px; letter-spacing: .12em; display: flex; align-items: center; gap: 8px; }
+		h2::before { counter-increment: n; content: counter(n); display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #1b1f1c; color: #fbfbf8; font: 700 12px/1 ui-monospace, monospace; letter-spacing: 0; }
+		body { counter-reset: n; }
+		a { display: inline-block; border: 1px solid #1b1f1c; padding: 8px 12px; margin: 4px 6px 4px 0; color: #1b1f1c; text-decoration: none; background: #fbfbf8; min-height: 28px; }
+		a.pri { background: #1b1f1c; color: #fbfbf8; font-weight: 700; }
+		small { display: block; color: #646b66; font-size: 12px; }
+	</style>
+</head>
+<body>
+<h1>Deck モック v14（方眼紙デザイン）</h1>
+<p>同じ動き・同じ仮のデータで、字体だけが違う3つ。ライト／ダークは画面右上の ☾ で切り替え（ほかのツールと同じ設定）。</p>
+<section>
+	<h2>版A　今の字体</h2>
+	<a class="pri" href="deck.html">表の画面</a><a href="register.html?case=a">登録の画面</a><a href="register.html?case=b">登録（親Aセット）</a><a href="register.html?case=c">登録（読めない所あり）</a>
+</section>
+<section>
+	<h2>版B　IBM Plex（Google Fonts から読み込む）</h2>
+	<a class="pri" href="deck-plex.html">表の画面</a><a href="register-plex.html?case=a">登録の画面</a><a href="register-plex.html?case=b">登録（親Aセット）</a><a href="register-plex.html?case=c">登録（読めない所あり）</a>
+	<small>この版だけ、字体を Google のサーバーから読む。</small>
+</section>
+<section>
+	<h2>版B　IBM Plex（使う文字だけのファイルをこのサイトに置く）</h2>
+	<a class="pri" href="deck-plex-local.html">表の画面</a><a href="register-plex-local.html?case=a">登録の画面</a><a href="register-plex-local.html?case=b">登録（親Aセット）</a><a href="register-plex-local.html?case=c">登録（読めない所あり）</a>
+	<small>外には何も送らない。字体は4ファイル（約 326KB）。</small>
+</section>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja" data-theme="light" data-font="plex" data-deck="deck-plex.html">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（同じフォルダの JS と製品のトークンの CSS だけを読む）。字体だけ Google Fonts から読む（この版だけ）。 -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>Deck モック v14 登録 版B（IBM Plex・Google Fonts から読み込む）（作業用）</title>
+	<!--
+		Deck α の方眼紙デザインのモック版14（T94・2026-11-03）。製品には組み込まない。どのページからもリンクしない。
+		版B（IBM Plex・Google Fonts から読み込む）。見た目は deck-v14.css（製品の css/deck-alpha.css の置き換えの候補）。動きは製品の js/deck-alpha*.js の写し（仮のデータを足しただけ）。
+		■ 保存: IndexedDB の uma-lab-deck-v14（製品の uma-deck には触れない）。ライト／ダークはほかのツールと同じ設定（js/theme.js）。
+		■ 仮のデータ: 最初に開いたとき親100人を入れる。?seed=30|100|300 で入れ直せる。?theme=light|dark で見た目を固定（撮影用）。
+	-->
+	<script src="../../js/theme.js"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" />
+	<link rel="stylesheet" href="../../css/tokens.css" />
+	<link rel="stylesheet" href="deck-v14.css" />
+</head>
+<body class="page">
+<main class="reg" id="reg">
+	<div class="topline"><h1>Deck (αテスト)に登録</h1><span class="muted small">UmaStar から</span><span class="sp" style="flex:1"></span><span class="need" id="needTop" hidden></span></div>
+	<div id="body"></div>
+</main>
+<div class="regbar" id="regbar" hidden><span class="sum" id="regSum"></span><button class="btn pri" type="button" id="regBtn">登録する</button></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast" hidden></div>
+<script src="data-snapshot.js"></script>
+<script src="deck-v14-core.js"></script>
+<script src="deck-v14-register.js"></script>
+</body>
+</html>

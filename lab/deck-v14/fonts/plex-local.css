@@ -1,0 +1,8 @@
+/* lab/deck-v14/fonts/plex-local.css — 版B（IBM Plex）の「使う文字だけに絞ったファイルをリポジトリに置く」組み込み方（T94）。
+ * IBM Plex Sans JP（本文 400・700）と IBM Plex Mono（数字 400・700）を、モックの画面に出る文字（公開データのスキル名・衣装・レース名・画面の文・ひらがな・カタカナ・記号）だけに絞った woff2。
+ * 字体の元は Google Fonts の配布（SIL Open Font License 1.1。同じフォルダの OFL.txt）。絞る道具は fontTools の pyftsubset（記録は T94 の報告）。
+ * font-display: swap — 字体が届くまでは今の字体で先に出し、届いたら入れ替える（iPhone の回線で文字が消える時間を作らない）。 */
+@font-face { font-family: "IBM Plex Sans JP"; font-style: normal; font-weight: 400; font-display: swap; src: url("IBMPlexSansJP-Regular-subset.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-style: normal; font-weight: 700; font-display: swap; src: url("IBMPlexSansJP-Bold-subset.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("IBMPlexMono-Regular-subset.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("IBMPlexMono-Bold-subset.woff2") format("woff2"); }
