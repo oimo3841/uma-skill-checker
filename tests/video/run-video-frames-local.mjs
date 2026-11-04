@@ -18,6 +18,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { REPO_ROOT, assetsRoot } from '../skillset/lib/assets.mjs';
 import { startServer } from '../skillset/lib/serve.mjs';
+import { openVideoSheet } from '../visual/lib/video-entry.mjs';
 
 const arg = (n, d) => { const h = process.argv.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
 const cpu = Number(arg('cpu', '1'));
@@ -74,7 +75,7 @@ async function runSpecial(v) {
 	await page.evaluate(() => selectStepTab(2));
 	const cdp = await ctx.newCDPSession(page);
 	if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
-	await page.click('#video-import-btn');
+	await openVideoSheet(page);
 	const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#video-sheet [data-video-act="pick"]')]);
 	const t0 = Date.now();
 	await chooser.setFiles(path.join(root, v.name));

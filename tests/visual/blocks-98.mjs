@@ -12,9 +12,10 @@
 // 変更前の製品（b8f1a89）では、結果が③に出ず・知らせの文が前のままで、読み込みは止まったまま終わらないので、この塊は NG になる（T82 の報告に結果）。
 import { reloadReady } from './lib/page-ready.mjs';
 import { SYNTH } from './blocks-80.mjs';
+import { openVideoSheet } from './lib/video-entry.mjs';
 
 const TEXT = {
-	stitched: '結合画像を作りました。OCRするときは「OCR処理＋画像結合を開始する」を押してください。',
+	stitched: '結合画像を作りました。OCRするときは「OCR処理を開始する」を押してください。',   // T98（決定 176）
 	show: '親ごとの画像を見る',
 	hide: '親ごとの画像を隠す',
 	unreadable: '動画を読み込めませんでした。このブラウザでは再生できない形式かもしれません（例: iPhone で撮った動画を Android で開いたとき）。撮った端末で開き直すか、スクショで入れてください。',
@@ -72,7 +73,7 @@ export async function register98(env) {
 	};
 	// 入口 → 小窓のボタン → ファイルの選択（開かせて閉じる）→ 作り物の画を渡す。warnWho … 自動の結合の前に、その人の最初の継ぎ目を「確かでない」にする
 	const runSynth = async (page, act, warnWho) => {
-		await page.click('#video-import-btn');
+		await openVideoSheet(page);
 		await page.waitForSelector('#video-sheet [data-video-act="' + act + '"]');
 		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="' + act + '"]')]);
 		return page.evaluate(async (warnWho) => {
@@ -192,7 +193,7 @@ export async function register98(env) {
 		assert(unit.code === 'load-timeout' && unit.ms >= 550 && unit.ms < 3000 && unit.videos === 0, 'T82(4) 上限を超えると code=load-timeout で返り、video はページに残らない', unit);
 		// 画像を入れたセットに「置き換えて…」で、止まる動画を入れる → 20秒で打ち切り
 		await page.evaluate(() => { [0, 1, 2].forEach((r) => addPersonFiles(r, [new File([new Uint8Array([137, 80, 78, 71, r])], 'k' + r + '.png', { type: 'image/png' })])); window.__before = persons.map((p) => p.files.slice()); });
-		await page.click('#video-import-btn');
+		await openVideoSheet(page);
 		await page.waitForSelector('#video-sheet [data-video-act="replace"]');
 		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="replace"]')]);
 		const r = await page.evaluate(async () => {
@@ -206,7 +207,7 @@ export async function register98(env) {
 		assert(r.res !== 'timeout' && r.res.ok === false && r.res.error === 'load-timeout' && r.ms >= 19500 && r.ms < 26000, 'T82(4) 20秒で打ち切る（code=load-timeout・かかった時間 19.5〜26秒）', r);
 		assert(r.err === TEXT.unreadable + TEXT.keep && !r.prog && r.same && r.videos === 0, 'T82(4) 今の「動画を読み込めませんでした…」＋「入っていた画像はそのままです。」・進捗の箱は消え、枠は元のまま', r);
 		// 上限の前に「取り消す」を押すと、今までどおり取り消せる
-		await page.click('#video-import-btn');
+		await openVideoSheet(page);
 		await page.waitForSelector('#video-sheet [data-video-act="replace"]');
 		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="replace"]')]);
 		await page.evaluate(() => { window.__run = onVideoChosen(new File([__blob], 'rec.webm', { type: 'video/webm' })); });

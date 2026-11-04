@@ -134,6 +134,7 @@ import { register104 } from './blocks-104.mjs';
 import { register105 } from './blocks-105.mjs';
 import { register106 } from './blocks-106.mjs';
 import { register107 } from './blocks-107.mjs';
+import { register108 } from './blocks-108.mjs';
 import { register109 } from './blocks-109.mjs';
 import { register110 } from './blocks-110.mjs';
 import { register111 } from './blocks-111.mjs';
@@ -496,7 +497,8 @@ await block('special.html（UmaStar OCR）', async () => {
 		return d;
 	});
 	// C-132: Deck の下に「セット」「レース」を足して5項目になった（下から 0 / .03 / .06 / .09 / .12 秒）
-	assert(fabDelays.join(',') === '0.12s,0.09s,0.06s,0.03s,0s', 'special: 右下ナビの5項目の展開の遅延が下から順に揃う', fabDelays);
+	// T98: 「結合画像の設定」を足して6項目（下から 0 / .03 / .06 / .09 / .12 / .15 秒）
+	assert(fabDelays.join(',') === '0.15s,0.12s,0.09s,0.06s,0.03s,0s', 'special: 右下ナビの6項目の展開の遅延が下から順に揃う', fabDelays);
 	// 一度開いたので照合結果の未読は下りている。
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
 
@@ -15501,6 +15503,8 @@ await register105({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register106({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T97（2026-11-04）: Deck α の改善6点（指定なしの一覧・遺伝子の無効の行・ピンチはブラウザ標準・下段の帯を 2/3・外のタップで閉じる・スマホの方眼。見出しは「T97 Deck α 改善」）
 await register107({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T98（2026-11-04）: 結合画像の2列（形の2択・タイトルのバー・右下の「結合画像の設定」）と動画モード（C-285。見出しは「T98」。T97 が blocks-107 を使ったので blocks-108）
+await register108({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T101（2026-11-05）: Deck α の方眼を中央の領域の全体に敷く・目が表のマスにそろう・線の色を T97 の前に・スマホで引き出しを開いていても見出しのボタンが1回で効く（見出しは「T101 Deck α 方眼の範囲」）
 await register109({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register110({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

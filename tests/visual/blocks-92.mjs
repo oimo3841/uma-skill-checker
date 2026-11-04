@@ -8,6 +8,7 @@
 //  (3) UmaVideoFrames.canvasSource の draw が返ってこない
 // 変更前（T68 の前）の製品では (1)〜(3) とも取り消しても処理が終わらず、この塊は NG になる（T68 の報告に結果）。
 import { reloadReady } from './lib/page-ready.mjs';
+import { openVideoSheet } from './lib/video-entry.mjs';
 
 const CANCEL = '取り消しました。入っていた画像はそのままです';
 
@@ -50,7 +51,7 @@ export async function register92(env) {
 					window.__restoreSrc = () => Object.defineProperty(HTMLMediaElement.prototype, 'src', d);
 				});
 			}
-			await page.click('#video-import-btn');
+			await openVideoSheet(page);
 			await page.waitForSelector('#video-sheet [data-video-act="replace"]');
 			await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="replace"]')]);
 			await page.evaluate((kind) => {

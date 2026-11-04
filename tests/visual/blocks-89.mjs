@@ -11,10 +11,12 @@
 // UmaExam に入口が無い・文面の表（VIDEO_TEXTS）とモックの文・CSV の行が一致する。
 import { reloadReady } from './lib/page-ready.mjs';
 import { SYNTH } from './blocks-80.mjs';
+import { openVideoSheet } from './lib/video-entry.mjs';
 
 // モックの文（T43。lab/upload-mock.html の (3) 動画の場面から写した。製品の文面の表がこの文と同じであることを見る）
 const MOCK = {
-	entry: '動画から取り込む（αテスト）',
+	// T98（C-285・決定 174）: 入口はモードの切り替えになり、スクショのモードの読み上げ名は「動画モードにする（αテスト）」
+	entry: '動画モードにする（αテスト）',
 	title: '動画から取り込む',
 	tag: 'αテスト',
 	targetA: '入れる先: 親Aセット（親A・祖A1・祖A2）',
@@ -25,7 +27,8 @@ const MOCK = {
 	foot: '処理中もほかの画面は見られます',
 	next: 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。',
 	// T82（モック T69 の vdone。C-258 の T69 への回答 8）
-	stitched: '結合画像を作りました。OCRするときは「OCR処理＋画像結合を開始する」を押してください。',
+	// T98（決定 176）: 「」の中を動画モードのボタンの名前に
+	stitched: '結合画像を作りました。OCRするときは「OCR処理を開始する」を押してください。',
 	cancel: '取り消しました。入っていた画像はそのままです',
 	keep: '入っていた画像はそのままです。',
 	err: {
@@ -69,7 +72,7 @@ export async function register89(env) {
 	const sameAsBefore = (page) => page.evaluate(() => persons.every((p, i) => p.files.length === window.__before[i].length && p.files.every((f, k) => f === window.__before[i][k])));
 	// 小窓のボタンを押して動画を選ぶまで（ファイルの選択の窓は開かせて閉じる）→ 作り物の画を渡す。o.slow … フレームを描く前の待ち ms（進捗・取り消しを見るため）
 	const runSynth = async (page, act, o = {}) => {
-		await page.click('#video-import-btn');
+		await openVideoSheet(page);
 		await page.waitForSelector('#video-sheet [data-video-act="' + act + '"]');
 		const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="' + act + '"]')]);
 		const accept = chooser ? await chooser.element().getAttribute('accept') : null;
@@ -136,7 +139,7 @@ export async function register89(env) {
 	for (const w of [375, 1280]) {
 		await block(`T59動画(2) ${w}px 押した直後の小窓（モックの vopen の v=1・撮り方は g=2）: 入れる先・注意書き・撮り方3つ・やめる／動画を選ぶ・スマホは下から`, async () => {
 			const sp = await openSp(w);
-			await sp.page.click('#video-import-btn');
+			await openVideoSheet(sp.page);
 			await sp.page.waitForSelector('#video-sheet .video-sheet');
 			const m = await sp.page.evaluate(() => {
 				const sh = document.querySelector('#video-sheet .video-sheet');
@@ -168,22 +171,22 @@ export async function register89(env) {
 			assert(m.focus === 'pick', `T59(2) ${w}px 開いたら「動画を選ぶ」に焦点`, m.focus);
 			// やめる・Esc・外側を押すと閉じる。動画を選ぶはファイルの選択（accept="video/*"）を開く
 			await sp.page.click('#video-sheet [data-video-act="cancel"]');
-			const c1 = await sp.page.evaluate(() => ({ open: !!document.getElementById('video-sheet'), focus: document.activeElement && document.activeElement.id }));
-			await sp.page.click('#video-import-btn');
+			const c1 = await sp.page.evaluate(() => ({ open: !!document.getElementById('video-sheet'), focus: document.activeElement && (document.activeElement.classList.contains('video-pick-btn') ? 'pick-btn' : document.activeElement.id) }));
+			await openVideoSheet(sp.page);
 			await sp.page.keyboard.press('Escape');
 			const c2 = await sp.page.evaluate(() => !!document.getElementById('video-sheet'));
-			await sp.page.click('#video-import-btn');
+			await openVideoSheet(sp.page);
 			await sp.page.mouse.click(5, 5);
 			const c3 = await sp.page.evaluate(() => !!document.getElementById('video-sheet'));
-			assert(!c1.open && c1.focus === 'video-import-btn' && !c2 && !c3, `T59(2) ${w}px 「やめる」・Esc・小窓の外を押すと閉じる（焦点は入口へ戻る）`, { c1, c2, c3 });
-			await sp.page.click('#video-import-btn');
+			assert(!c1.open && c1.focus === 'pick-btn' && !c2 && !c3, `T59(2) ${w}px 「やめる」・Esc・小窓の外を押すと閉じる（焦点は開いたボタン＝動画モードの「動画を選ぶ」へ戻る。T98）`, { c1, c2, c3 });
+			await openVideoSheet(sp.page);
 			const [chooser] = await Promise.all([sp.page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), sp.page.click('#video-sheet [data-video-act="pick"]')]);
 			const acc = chooser ? await chooser.element().getAttribute('accept') : null;
 			const after = await sp.page.evaluate(() => ({ open: !!document.getElementById('video-sheet'), pend: window.videoPending ? null : null }));
 			assert(chooser && acc === 'video/*' && !after.open, `T59(2) ${w}px 「動画を選ぶ」でファイルの選択（accept="video/*"）が開き、小窓は閉じる`, { chooser: !!chooser, acc, after });
 			// 親Bセットのタブでは入れる先が親Bセット
 			await sp.page.evaluate(() => selectPersonSet(1));
-			await sp.page.click('#video-import-btn');
+			await openVideoSheet(sp.page);
 			const tb = await sp.page.textContent('#video-sheet .video-target');
 			assert(tb === MOCK.targetB, `T59(2) ${w}px 親Bセットのタブでは「${MOCK.targetB}」`, tb);
 			assert(jsErrors(sp.errors).length === 0, `T59(2) ${w}px コンソールのエラー0`, sp.errors);
@@ -196,7 +199,7 @@ export async function register89(env) {
 		const sp = await openSp(375);
 		await seed(sp.page, [2, 2, 1]);
 		await snapshotFiles(sp.page);
-		await sp.page.click('#video-import-btn');
+		await openVideoSheet(sp.page);
 		const m = await sp.page.evaluate(() => {
 			const sh = document.querySelector('#video-sheet .video-sheet');
 			return { exist: (sh.querySelector('.video-exist') || {}).textContent, target: (sh.querySelector('.video-target') || {}).textContent,
@@ -337,7 +340,7 @@ export async function register89(env) {
 		const CASES = [['decode', 'unreadable'], ['no-video-track', 'unreadable'], ['no-duration', 'unreadable'], ['blank-grab', 'unreadable'], ['band', 'noscreen'], ['too-few', 'noscreen'], ['too-many', 'fast']];
 		const got = [];
 		for (const [code] of CASES) {
-			await sp.page.click('#video-import-btn');
+			await openVideoSheet(sp.page);
 			await sp.page.click('#video-sheet [data-video-act="replace"]').catch(() => {});
 			await sp.page.evaluate((code) => {
 				const src = { kind: 'canvas', width: 720, height: 1560, duration: 4, drawAt: async () => { const e = new Error('作り物の失敗'); e.code = code; throw e; }, close() {} };
@@ -349,7 +352,7 @@ export async function register89(env) {
 			assert(got[i] && got[i].t === MOCK.err[key] + MOCK.keep && got[i].role === 'alert' && got[i].afterRow && got[i].n === 1, `T59(7) e.code=${code} → 「${MOCK.err[key].slice(0, 16)}…」＋「${MOCK.keep}」（タブのすぐ下・role=alert・1つだけ）`, got[i]);
 		});
 		// 本物の失敗: 動画でないファイル（videoSource が decode）・人が1人（親の途中で終わる作り物の画。T85 で速く通り過ぎた頭も見つけるようになったので jump から替えた）
-		await sp.page.click('#video-import-btn');
+		await openVideoSheet(sp.page);
 		await sp.page.click('#video-sheet [data-video-act="replace"]');
 		await sp.page.evaluate(() => onVideoChosen(new File([new Uint8Array(64)], 'broken.mp4', { type: 'video/mp4' })));
 		const dec = await sp.page.evaluate(() => (document.querySelector('#video-error .video-error-text') || {}).textContent);
@@ -489,7 +492,7 @@ export async function register89(env) {
 	await block('T59動画(11) 375px ダーク: 入口・小窓・進捗・知らせ・失敗が今の色のトークンで描かれる（地の色が画面の地と違う・字が読める）', async () => {
 		const sp = await openSp(375, 'dark');
 		const theme = await sp.page.evaluate(() => document.documentElement.getAttribute('data-theme'));
-		await sp.page.click('#video-import-btn');
+		await openVideoSheet(sp.page);
 		const sh = await sp.page.evaluate(() => { const s = document.querySelector('.video-sheet'); const cs = getComputedStyle(s); return { bg: cs.backgroundColor, color: cs.color, h: getComputedStyle(s.querySelector('h2')).color }; });
 		assert(theme === 'dark' && sh.bg !== 'rgb(255, 255, 255)' && sh.bg !== sh.color, 'T59(11) ダークの小窓は暗い地（--uma-surface）', { theme, sh });
 		await sp.page.keyboard.press('Escape');

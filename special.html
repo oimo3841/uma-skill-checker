@@ -175,8 +175,9 @@
 		/* C-132: 「＋」の展開の「セット」「レース」（共有の shell.css は触らない）。項目が2つ増えたぶんの出る順の遅れと、
 		   レースの短い表記（ラベルの右に小さく・1行に収める）。アイコンの丸は帯のボタンと同じ地 */
 		/* 項目が2つ増えたぶん、641px 以上で本文の下に空ける余白（展開しても本文の最後が隠れない量）も増やす（共有の 18rem／20rem に、2項目ぶん） */
-		:root { --uma-fab-reserve: 25rem; }
-		@media (min-width: 768px) { :root { --uma-fab-reserve: 28rem; } }
+		/* T98: 「結合画像の設定」を足して6項目になったので、1項目ぶん（項目 44px＋間）増やした */
+		:root { --uma-fab-reserve: 29rem; }
+		@media (min-width: 768px) { :root { --uma-fab-reserve: 32rem; } }
 		.uma-fab-nav.open .uma-fab-item:nth-last-child(6) { transition-delay: .12s; }
 		.uma-fab-nav.open .uma-fab-item:nth-last-child(7) { transition-delay: .15s; }
 		.fab-set-icon { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
@@ -228,6 +229,20 @@
 		.video-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
 		.video-btn svg { width: 22px; height: 22px; }
 		.video-btn .video-alpha { position: absolute; right: 6px; top: 10px; font-size: 9px; line-height: 1; font-weight: 800; color: var(--uma-text-subtle); }
+		/* 動画モード（T98・C-285）: body の data-upload-mode="video" のあいだ、人ごとの「追加」の代わりにセットに1つの「動画を選ぶ」
+		   （同じ点線の枠・高さ 76px・セットの幅いっぱい）。下の欄は「OCR処理を開始する」だけ（「画像を結合する（OCRしない）」は出さない） */
+		.video-pick-btn { display: none; width: 100%; min-height: 76px; margin: 0 0 8px; padding: 10px 4px; align-items: center; justify-content: center; gap: 8px;
+			border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-heading);
+			font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+		.video-pick-btn:hover:not(:disabled) { border-color: var(--uma-control-mark); }
+		.video-pick-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
+		.video-pick-btn svg { width: 20px; height: 20px; color: var(--uma-text-subtle); }
+		.video-pick-btn .video-alpha { font-size: 10px; font-weight: 800; color: var(--uma-text-subtle); }
+		body[data-upload-mode="video"] .video-pick-btn { display: flex; }
+		body[data-upload-mode="video"] .upload-add { display: none; }
+		body[data-upload-mode="video"] #stitch-btn { display: none; }
+		/* ③の中の結合画像の「画像を更新」と「PNGをダウンロード」（T98） */
+		.video-result-btns { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
 		/* 押した直後の小窓（スマホは下から出る） */
 		.video-sheet-bg { position: fixed; inset: 0; z-index: 90; background: rgba(15, 23, 42, .4); display: flex; align-items: flex-end; justify-content: center; }
 		@media (min-width: 641px) { .video-sheet-bg { align-items: center; } }
@@ -598,8 +613,32 @@
 		.stitch-wire-legend b { display: block; flex: 1 1 auto; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-focus-ring); }
 		:root[data-theme="dark"] .stitch-wire-sheet { background: var(--uma-surface-muted); }
+		/* 形の2択（T98・C-285。決定 156・157・179。モック lab/stitch-2col-video-mock.html の .seg）: 2つ並べたボタン・選んだほうを反転の塗り（今のトークン） */
+		.stitch-cols { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 var(--uma-sp-1-5); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-cols-btn { min-height: 40px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+			display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+		.stitch-cols-btn + .stitch-cols-btn { border-left: 1px solid var(--uma-border-strong); }
+		.stitch-cols-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
+		.stitch-cols-btn[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+		.stitch-cols-btn i { display: inline-flex; gap: 2px; }
+		.stitch-cols-btn i b { display: block; width: 5px; height: 12px; border-radius: 1px; background: currentColor; }
+		.stitch-cols-btn i b.is-wide { width: 8px; }
+		/* 2列の模式図（T98） */
+		.stitch-wire-2 { display: flex; gap: 3px; align-items: stretch; }
+		.stitch-wire-2l { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+		.stitch-wire-2r { flex: 0 0 30px; display: flex; flex-direction: column; gap: 3px; }
+		.stitch-wire-2r .stitch-wire-table { flex: 1 1 auto; }
+		.stitch-wire-2 .stitch-wire-top .stitch-wire-cards { width: 40px; }
+		.stitch-wire-2p { display: grid; grid-template-columns: 3fr 2fr; gap: 3px; align-items: start; }
+		.stitch-wire-grands { display: flex; flex-direction: column; gap: 2px; }
+		.stitch-wire-status { display: block; height: 14px; border-radius: 1px; background: linear-gradient(#94D709 0 18%, var(--uma-border) 18%); }
+		.stitch-wire-2p .stitch-wire-panels { padding-left: 4px; }
 		/* 引き出しの中の「結合画像の設定」の「画像を更新」の段（exam.html と同じ）。骨格は css/shell.css の .uma-popover--drawer */
-		#stitch-drawer-pop { --uma-popover-icon: var(--uma-stitch-accent); }
+		#stitch-drawer-pop, #stitch-settings-pop { --uma-popover-icon: var(--uma-stitch-accent); }
+		/* 右下のボタン群から開く「結合画像の設定」（T98）。下に固定した欄が出ている間は、右下のボタン群と同じだけ上げる（640px 以下の下からのシートは除く） */
+		@media (min-width: 641px) {
+			body.has-upload-bar #stitch-settings-pop { bottom: calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-fab-gap) + var(--upload-bar-h, 0px) + env(safe-area-inset-bottom, 0px)); }
+		}
 		.uma-popover-body .stitch-show { margin-top: 0; }
 		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
 		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
@@ -1011,7 +1050,7 @@
 			<!-- 右端は動画の入口（動画V1-2・T59。C-258 の (3)。αテスト・UmaStar だけ）。中身・title・読み上げ名は initVideoEntry() が文面の表（VIDEO_TEXTS）から入れる -->
 			<div class="uma-subtabs-row video-tabrow mb-3">
 				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
-				<button id="video-import-btn" type="button" class="video-btn" onclick="openVideoImport()"></button>
+				<button id="video-import-btn" type="button" class="video-btn" onclick="toggleUploadMode()"></button>
 			</div>
 			<!-- multiple: iPhone の写真の一覧の画面を複数選択にする。1本も選ばずに完了（右上のチェック）すると 0本で戻り、何も読まずに③のまま（T90）。使うのは1本目だけ -->
 			<input id="video-file-input" type="file" accept="video/*" multiple class="hidden" onchange="onVideoFileInput(this)" />
@@ -1309,6 +1348,7 @@
 			// 結合画像の設定（T96）: ③（模式図つき）と結合画像の引き出しの中（模式図・見出しなし）の2か所に置き、保存値を読む
 			renderStitchPartsPanel(document.getElementById('stitch-parts-panel'), { idPrefix: '' });
 			renderStitchPartsPanel(document.getElementById('stitch-parts-panel-drawer'), { idPrefix: 'drawer-', wire: false, title: false });
+			renderStitchPartsPanel(document.getElementById('stitch-parts-panel-fab'), { idPrefix: 'fab-', wire: false, title: false });
 			loadStitchParts();
 			// 引き出しの中のタブ（C-62 の (9)）を初期状態（どちらも「（なし）」で押せない）にする
 			updateResultTabs();
@@ -1488,6 +1528,7 @@
 					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
+					<button type="button" class="video-pick-btn upload-add-video" onclick="openVideoImport()">${VIDEO_SVG}<span>${escapeHtml(videoText('video.btn.pick'))}</span><span class="video-alpha" aria-hidden="true">${escapeHtml(videoText('video.entry.alpha'))}</span></button>
 					<div class="upload-cols">${cards}</div>
 				</div>`;
 		}
@@ -1598,7 +1639,9 @@
 		// 画面に出す文はすべてここから使う（キーは Handoff の文面の一覧 text-list/T59-video-texts.csv の ID と同じ）。
 		// {セット}・{人}・{N}・{内訳} はその時の値を差し込む（videoText／videoHtml）
 		const VIDEO_TEXTS = {
-			'video.entry.label': '動画から取り込む（αテスト）',
+			// T98（C-285・決定 174）: 入口のボタンはモードの切り替え。スクショのモードでは「動画モードにする（αテスト）」、動画モードでは「スクショのモードに戻す」
+			'video.entry.label': '動画モードにする（αテスト）',
+			'video.entry.toShot': 'スクショのモードに戻す',
 			'video.entry.alpha': 'α',
 			'video.sheet.title': '動画から取り込む',
 			'video.sheet.tag': 'αテスト',
@@ -1622,7 +1665,7 @@
 			'video.done.text': '動画から {N}枚 を入れました（{内訳}）。',
 			'video.done.item': '{人} {N}枚',
 			'video.done.next': 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。',
-			'video.done.stitched': '結合画像を作りました。OCRするときは「OCR処理＋画像結合を開始する」を押してください。',
+			'video.done.stitched': '結合画像を作りました。OCRするときは「OCR処理を開始する」を押してください。',   // T98（決定 176）
 			'video.result.show': '親ごとの画像を見る',
 			'video.result.hide': '親ごとの画像を隠す',
 			'video.tile.text': '動画から {N}枚',
@@ -1659,19 +1702,53 @@
 		const videoSetMembers = (si) => [0, 1, 2].map(r => PERSON_LABELS[si * 3 + r]);
 		const videoSetCount = (si) => [0, 1, 2].reduce((s, r) => s + persons[si * 3 + r].files.length, 0);
 
+		/* 動画モード（T98・C-285。決定 158・159・174〜177）
+		 * 入口のボタン（#video-import-btn）はモードの切り替え。動画モードでは、人ごとの「追加」の代わりにセットに1つの「動画を選ぶ」
+		 * （押すと今の小窓→ファイルの選択）、下の欄のボタンは「OCR処理を開始する」だけ。入口のボタンはスクショのアイコン（押すとスクショのモードに戻る）。
+		 * 切り替えても入っている画像はそのまま（入れ方と下のボタンだけが変わる）。モードは保存して次に開いたときもそのまま。
+		 * 見た目の出し分けは body の data-upload-mode（CSS）。下の一体のボタンの名前だけ JS で入れ替える */
+		const UPLOAD_MODE_STORAGE_KEY = 'uma-special-upload-mode';
+		let uploadMode = 'shot';
+		const VIDEO_SVG_SHOT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>';
+		const PROCESS_BTN_LABEL = { shot: 'OCR処理＋画像結合を開始する', video: 'OCR処理を開始する' };
 		function initVideoEntry() {
+			uploadMode = readStored(UPLOAD_MODE_STORAGE_KEY) === 'video' ? 'video' : 'shot';
+			applyUploadMode();
+		}
+		function applyUploadMode() {
+			const video = uploadMode === 'video';
+			document.body.setAttribute('data-upload-mode', uploadMode);
 			const btn = document.getElementById('video-import-btn');
-			if (!btn) return;
-			btn.title = videoText('video.entry.label');
-			btn.setAttribute('aria-label', videoText('video.entry.label'));
-			btn.innerHTML = VIDEO_SVG + '<span class="video-alpha" aria-hidden="true">' + escapeHtml(videoText('video.entry.alpha')) + '</span>';
+			if (btn) {
+				const label = videoText(video ? 'video.entry.toShot' : 'video.entry.label');
+				btn.title = label;
+				btn.setAttribute('aria-label', label);
+				btn.setAttribute('aria-pressed', String(video));
+				btn.innerHTML = video ? VIDEO_SVG_SHOT : VIDEO_SVG + '<span class="video-alpha" aria-hidden="true">' + escapeHtml(videoText('video.entry.alpha')) + '</span>';
+			}
+			const label = document.querySelector('#process-stitch-btn span');
+			if (label) label.textContent = PROCESS_BTN_LABEL[uploadMode];
+			if (typeof syncUploadBar === 'function') syncUploadBar();
+		}
+		function toggleUploadMode() {
+			if (videoBusy) return;
+			closeVideoSheet(false);
+			uploadMode = uploadMode === 'video' ? 'shot' : 'video';
+			writeStored(UPLOAD_MODE_STORAGE_KEY, uploadMode);
+			applyUploadMode();
 		}
 		document.addEventListener('DOMContentLoaded', initVideoEntry);
 
 		function closeVideoSheet(refocus) {
 			const layer = document.getElementById('video-sheet');
 			if (layer) layer.remove();
-			if (refocus) { const b = document.getElementById('video-import-btn'); if (b) b.focus(); }
+			// 焦点は小窓を開いたボタン（動画モードの「動画を選ぶ」。T98）へ返す。見えていなければ入口へ
+			if (refocus) {
+				const set = PERSON_SETS[activePersonSet];
+				const p = set ? document.querySelector('#personset-' + set.id + '-wrap .video-pick-btn') : null;
+				const b = (p && p.offsetParent) ? p : document.getElementById('video-import-btn');
+				if (b) b.focus();
+			}
 		}
 
 		// 入口を押した直後の小窓。そのセットにすでに画像があれば「置き換えて…」「後ろに足して…」「やめる」の3つのボタン
@@ -1740,6 +1817,7 @@
 			PERSON_SETS.forEach(set => { const w = document.getElementById('personset-' + set.id + '-wrap'); if (w) w.classList.toggle('video-busy', on); });
 			const b = document.getElementById('video-import-btn');
 			if (b) b.disabled = on;
+			document.querySelectorAll('.video-pick-btn').forEach(x => { x.disabled = on; });
 			updateProcessBtn();
 		}
 
@@ -1821,6 +1899,7 @@
 			return w ? w.querySelector('.upload-set-panel') : null;
 		}
 		function clearVideoResult(setIdx) {
+			videoShown[setIdx] = null;
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
 			const box = panel.querySelector('.video-result');
@@ -1829,15 +1908,77 @@
 			const cols = panel.querySelector('.upload-cols');
 			if (cols) cols.hidden = false;
 		}
-		function showVideoResult(setIdx, canvas) {
+		/* ③の中の結合画像の「画像を更新」（T98・決定 181。引き出しの refreshStitchedImages と同じ動き）。
+		 * ③の結合画像を作ったときの { parts, withMarks, files, snap } をセットごとに控え、設定（形・チェック）を変えても
+		 * その場では描き直さず、このボタンで作り直す。押せるのは、画像も OCR の写しも同じで設定だけが違うとき */
+		const videoShown = [null, null];
+		let videoRefreshBusy = -1;
+		function videoShownState(setIdx, parts, withMarks) {
+			return { parts: parts, withMarks: !!withMarks, files: [0, 1, 2].map(r => persons[setIdx * 3 + r].files.slice()), snap: stitchSnapshot };
+		}
+		function videoRefreshState(setIdx) {
+			const s = videoShown[setIdx];
+			if (!s) return 'none';
+			if (s.withMarks && s.snap !== stitchSnapshot) return 'stale';
+			if (!sameStitchFileLists([0, 1, 2].map(r => persons[setIdx * 3 + r].files), s.files)) return 'stale';
+			return sameStitchParts(stitchPartsNow(), s.parts) ? 'same' : 'ready';
+		}
+		function updateVideoRefreshUi() {
+			document.querySelectorAll('[data-video-refresh]').forEach(btn => {
+				const si = Number(btn.getAttribute('data-video-refresh'));
+				const state = videoRefreshState(si);
+				btn.disabled = stitchInProgress || combinedInProgress || videoRefreshBusy >= 0 || state !== 'ready';
+				btn.setAttribute('data-state', state);
+				const label = btn.querySelector('span');
+				if (label) label.textContent = videoRefreshBusy === si ? STITCH_REFRESH_BUSY_LABEL : STITCH_REFRESH_LABEL;
+			});
+		}
+		async function refreshVideoResult(setIdx) {
+			if (stitchInProgress || combinedInProgress || videoRefreshBusy >= 0) return;
+			if (videoRefreshState(setIdx) !== 'ready') { updateVideoRefreshUi(); return; }
+			const parts = stitchPartsNow();
+			const state = videoShownState(setIdx, parts, videoShown[setIdx].withMarks);
+			videoRefreshBusy = setIdx;
+			stitchInProgress = true;
+			updateVideoRefreshUi();
+			try {
+				const canvas = await buildStitchedSetImage(setIdx, null, state.withMarks, parts);
+				if (canvas) { showVideoResult(setIdx, canvas, state); showToast('結合画像を更新しました'); }
+			} catch (e) {
+				console.error(e);
+			} finally {
+				videoRefreshBusy = -1;
+				stitchInProgress = false;
+				updateProcessBtn();
+				updateVideoRefreshUi();
+			}
+		}
+		function showVideoResult(setIdx, canvas, state) {
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
 			clearVideoResult(setIdx);
+			videoShown[setIdx] = state || null;
 			const box = document.createElement('div');
 			box.className = 'video-result';
 			appendStitchResultBlock(box, PERSON_SETS[setIdx], canvas);
+			// 「画像を更新」を「PNGをダウンロード」の左に置く（T98）
+			const dl = box.querySelector('a.uma-btn');
+			if (dl && state) {
+				const wrap = document.createElement('span');
+				wrap.className = 'video-result-btns';
+				const rb = document.createElement('button');
+				rb.type = 'button';
+				rb.className = 'uma-btn uma-btn--secondary';
+				rb.setAttribute('data-video-refresh', String(setIdx));
+				rb.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>' + STITCH_REFRESH_LABEL + '</span>';
+				rb.addEventListener('click', () => refreshVideoResult(setIdx));
+				dl.replaceWith(wrap);
+				wrap.append(rb, dl);
+				if (window.lucide) lucide.createIcons();
+			}
 			panel.querySelector('.upload-set-clear').after(box);
 			panel.classList.add('video-has-result');
+			updateVideoRefreshUi();
 			const cols = panel.querySelector('.upload-cols');
 			const warned = canvas._videoWarnLabels || [];
 			if (warned.length) {
@@ -1948,9 +2089,11 @@
 			const set = PERSON_SETS[setIdx];
 			stitchInProgress = true;
 			try {
-				const canvas = await buildStitchedSetImage(setIdx, null, false);
+				const parts = stitchPartsNow();
+				const state = videoShownState(setIdx, parts, false);
+				const canvas = await buildStitchedSetImage(setIdx, null, false, parts);
 				if (!canvas) return false;
-				showVideoResult(setIdx, canvas);
+				showVideoResult(setIdx, canvas, state);
 				return true;
 			} catch (e) {
 				// 失敗は③の中の帯で知らせる（コンソールには出さない）
@@ -2039,8 +2182,9 @@
 			// 結合ボタンの下の状態表示（段0）。UIの切り替え・対象スキルセットの選択・画像の増減は
 			// すべてここを通るので、状態表示の更新もここへ乗せる（呼び忘れが起きない）。
 			updateTierMarksStatus();
-			// 画像が増減したら、結合画像の「画像を更新」が押せるかも見直す（T96）
+			// 画像が増減したら、結合画像の「画像を更新」が押せるかも見直す（T96。③の動画の結合画像のぶんも T98）
 			updateStitchRefreshUi();
+			updateVideoRefreshUi();
 		}
 
 		/* ============================================================
@@ -3929,9 +4073,10 @@
 		}
 		const STITCH_TOP_SHOW_ALL = { sp: true, roster: true, factor: true };
 		/** 中段の上端。上段があればその下（topH は上段の高さ。0 なら無し） */
-		function stitchMidTop(topH) {
+		// noBar … タイトルのバーを描かない（T98・決定 161）。バーとその下の間を詰める
+		function stitchMidTop(topH, noBar) {
 			const L = STITCH_LAYOUT;
-			return L.margin + L.barH + L.barGap + (topH ? topH + L.topAfter : 0);
+			return L.margin + (noBar ? 0 : L.barH + L.barGap) + (topH ? topH + L.topAfter : 0);
 		}
 		/** 画像の上段のアイコン（種別）を読み込む。読めなければ null（アイコンなしで描く）。同じ URL は使い回す */
 		const stitchIconCache = new Map();
@@ -4159,12 +4304,12 @@
 		 * 表が使える高さ（room）＝人の見出し＋人の高さ＋枠の見かたの行（表の列は下まで使う）。
 		 * 返り値 { fit, room, rowH, metrics, tableW, width, height, grown, capped }
 		 */
-		function stitchMidLayout(people, data, legendH, topH) {
+		function stitchMidLayout(people, data, legendH, topH, noBar) {
 			const L = STITCH_LAYOUT;
 			const headH = L.headIcon + L.headGap;
 			const below = legendH ? L.legendGap + legendH : 0;
 			// 上段（T37）があれば中段はその下。高さの計算と画素数の上限は上段の高さも含めて見る
-			const midY = stitchMidTop(topH || 0);
+			const midY = stitchMidTop(topH || 0, noBar);
 			const n = data ? data.rows.length : 0;
 			const floorRh = n > L.rowCap ? L.rowMinOver : L.rowMin;
 			const need = (n + 2) * floorRh;
@@ -4239,9 +4384,11 @@
 			const data = parts.table || null;
 			const legendH = parts.legend ? parts.legend.height : 0;
 			const topH = parts.top ? stitchTopRowH(parts.top.show) : 0;
-			const mid = stitchMidLayout(people, data, legendH, topH);
+			// タイトルのバー（T98・決定 161・162）: parts.title が false のときだけ描かず、上を詰める。ON のときは今までと同じ座標
+			const noBar = parts.title === false;
+			const mid = stitchMidLayout(people, data, legendH, topH, noBar);
 			const W = mid.width, H = mid.height;
-			const midY = stitchMidTop(topH);
+			const midY = stitchMidTop(topH, noBar);
 			const headH = L.headIcon + L.headGap;
 			const out = document.createElement('canvas');
 			out.width = W;
@@ -4251,11 +4398,13 @@
 			ctx.fillRect(0, 0, W, H);
 			ctx.imageSmoothingEnabled = true;
 			ctx.imageSmoothingQuality = 'high';
-			const layout = { width: W, height: H, bodyY: midY, room: mid.room, grown: mid.grown, capped: mid.capped,
+			const layout = { cols: 3, width: W, height: H, bodyY: midY, room: mid.room, grown: mid.grown, capped: mid.capped,
 				persons: [], heads: [], grands: [] };
-			layout.bar = { x: L.margin, y: L.margin, w: W - L.margin * 2, h: L.barH };
-			layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W - L.margin * 2, L.barH, parts.barText || '');
-			layout.top = parts.top ? stitchDrawTopRow(ctx, L.margin, L.margin + L.barH + L.barGap, W - L.margin * 2, parts.top) : null;
+			if (!noBar) {
+				layout.bar = { x: L.margin, y: L.margin, w: W - L.margin * 2, h: L.barH };
+				layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W - L.margin * 2, L.barH, parts.barText || '');
+			} else layout.bar = null;
+			layout.top = parts.top ? stitchDrawTopRow(ctx, L.margin, L.margin + (noBar ? 0 : L.barH + L.barGap), W - L.margin * 2, parts.top) : null;
 			if (data) {
 				const tc = stitchDrawTable(data, mid.rowH);
 				ctx.drawImage(tc, L.margin, midY);
@@ -4287,6 +4436,187 @@
 			return out;
 		}
 
+		/* ------------------------------------------------------------
+		 * 2列の結合画像（T98・C-285。決定 150〜155・161〜163・182〜184。モック lab/stitch-2col-video-mock.html）
+		 *
+		 *  ┌ タイトルのバー（ON のとき。全幅）──────────────────────────────┐
+		 *  │ ①本育成編成 ┃ ②因子周回編成（1列目・2列目の上だけ）│ 理論値SP          │ ← 3列目は上段の上端から
+		 *  │ ［親A］                        │［祖A1］           │ 星取表            │
+		 *  │ 親の上の欄（ステータス・適性）    │ 祖A1 の因子        │（下端は枠の見かたの│
+		 *  │ 親の因子                        │［祖A2］           │  行の下端まで。無け│
+		 *  │                                │ 祖A2 の因子        │  れば親の列の下端）│
+		 *  │ 枠の見かた（1列目・2列目の下）                      │                   │
+		 *  └──────────────────────────────────────────────────┘
+		 *  ・人の画像は両側を削らない（小窓の左右の端で切るので、小窓の外の背景は落ちる。小窓の中の「‹ ›」は残る＝決定 178）。
+		 *  ・祖の2人は同じ縮小率で、見出しと間を含めた2人の高さの合計を1列目（見出し＋親の上の欄＋因子）の高さにそろえる（拡大しない）。
+		 *  ・欠けた所は詰める: 上段は本育成編成・因子周回編成が両方 OFF なら行ごと無い。理論値SP・星取表が両方 OFF なら3列目は無い。
+		 *    星取表は、入りきらなければ行の高さを縮めて下端までに収める（画像の下にはみ出さない）。
+		 *  ・画像の画素数が maxPixels を超えるときは全体を同じ割合で縮める。
+		 * ------------------------------------------------------------ */
+		const STITCH_MODAL_GREEN_MIN = 0.7;   // 小窓の上端の緑の帯（「ウマ娘詳細」）とみなす横幅の割合
+		/** 画の上半分で、横幅の 70% 超が緑の最初の行（小窓の上端の帯）と、その帯の左右の端（小窓の左右の端）。無ければ null */
+		function stitchModalBand(canvas) {
+			const W = canvas.width, H = Math.floor(canvas.height * 0.5);
+			if (W < 10 || H < 2) return null;
+			const d = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+			const green = (i) => d[i + 1] > 150 && d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 60;
+			for (let y = 0; y < H; y++) {
+				let n = 0;
+				for (let x = 0; x < W; x += 2) if (green((y * W + x) * 4)) n++;
+				if (n * 2 <= W * STITCH_MODAL_GREEN_MIN) continue;
+				const my = Math.min(H - 1, y + Math.round(W * 0.03));
+				let lx = W, rx = -1;
+				for (let x = 0; x < W; x++) if (green((my * W + x) * 4)) { if (x < lx) lx = x; rx = x; }
+				if (rx < 0 || rx + 1 - lx < W * 0.6) return null;
+				return { top: y, L: lx, R: rx + 1 };
+			}
+			return null;
+		}
+		async function stitchFileCanvas(f) {
+			const img = await loadImage(f);
+			const c = document.createElement('canvas');
+			c.width = img.naturalWidth || img.width;
+			c.height = img.naturalHeight || img.height;
+			c.getContext('2d').drawImage(img, 0, 0);
+			return c;
+		}
+		/**
+		 * 2列に置く1人分（枠を描いた後・両側を削る前の結合画像から）。左右は小窓の端で切る。withTop なら親の1枚目の上の欄
+		 * （小窓の上端の帯〜結合画像の描き始めの行）を先頭に足す。小窓の帯が見つからなければ、切らず・足さない。
+		 * 返す Canvas に _twoCol（{ band, topH, srcW }）を添える
+		 */
+		async function stitchTwoColPerson(canvas, files, withTop) {
+			const pl = (canvas._sourcePlacements || [])[0];
+			let band = null, src = null;
+			if (pl && files[pl.fileIndex]) {
+				try { src = await stitchFileCanvas(files[pl.fileIndex]); band = stitchModalBand(src); } catch (e) { band = null; }
+			}
+			if (band && src.width !== canvas.width) band = null;
+			const topH = (band && withTop && pl.srcY0 > band.top) ? pl.srcY0 - band.top : 0;
+			const L0 = band ? band.L : 0, R0 = band ? band.R : canvas.width;
+			const out = document.createElement('canvas');
+			out.width = R0 - L0;
+			out.height = topH + canvas.height;
+			const ctx = out.getContext('2d');
+			if (topH) ctx.drawImage(src, L0, band.top, out.width, topH, 0, 0, out.width, topH);
+			ctx.drawImage(canvas, L0, 0, out.width, canvas.height, 0, topH, out.width, canvas.height);
+			out._twoCol = { band: band, topH: topH, srcW: canvas.width };
+			return out;
+		}
+
+		/**
+		 * 2列の1枚を組み立てる（同期。検査はここを直接呼ぶ）。
+		 * parts = composeFamilyImage と同じ形。canvases は stitchTwoColPerson の Canvas（両側を削らない）。
+		 * heads[0] は親の上の欄が無いときだけ使う（上の欄に顔がある）。title が false ならバーを描かない。
+		 * 返す Canvas には _layout（cols: 2・各部品の矩形・祖の縮小率・表の行の高さ・全体の縮小率）を添える。
+		 */
+		function composeFamilyImage2(parts) {
+			const L = STITCH_LAYOUT;
+			const headH = L.headIcon + L.headGap;
+			const noBar = parts.title === false;
+			const parent = parts.canvases[0] || null;
+			const grands = [1, 2].map(k => ({ k: k, c: parts.canvases[k] })).filter(g => g.c);
+			const top = parts.top || null;
+			const show = (top && top.show) || STITCH_TOP_SHOW_ALL;
+			const hasTop = !!top && (show.roster || show.factor);
+			const hasSp = !!top && show.sp;
+			const data = parts.table || null;
+			const legend = parts.legend || null;
+			// 1列目・2列目
+			const sumGH = grands.reduce((s, g) => s + g.c.height, 0);
+			const colH = parent ? headH + parent.height
+				: headH * grands.length + L.innerGap * Math.max(0, grands.length - 1) + sumGH;
+			const gScale = (parent && grands.length) ? Math.min(1, (colH - headH * grands.length - L.innerGap * (grands.length - 1)) / sumGH) : 1;
+			const gs = grands.map(g => ({ k: g.k, c: g.c, w: Math.max(1, Math.round(g.c.width * gScale)), h: Math.max(1, Math.round(g.c.height * gScale)) }));
+			const col1W = parent ? parent.width : 0;
+			const col2W = gs.length ? Math.max(...gs.map(g => g.w)) : 0;
+			const spanW = col1W + (parent && gs.length ? L.innerGap : 0) + col2W;
+			const bodyY = L.margin + (noBar ? 0 : L.barH + L.barGap);
+			const cardsH = L.topHeadH + L.topHeadGap + L.cardRows * L.cardH + (L.cardRows - 1) * L.cardGap;
+			const personsY = bodyY + (hasTop ? cardsH + L.topAfter : 0);
+			let lw = 0, lh = 0;
+			if (legend) { const k = Math.min(1, spanW / legend.width); lw = Math.round(legend.width * k); lh = Math.round(legend.height * k); }
+			const legendY = personsY + colH + L.legendGap;
+			const leftBottom = legend ? legendY + lh : personsY + colH;
+			// 3列目: 上段の上端から 理論値SP → 星取表（下端は左の下端まで。入らなければ行を縮める）
+			const has3 = hasSp || !!data;
+			const spH = L.topHeadH + L.topHeadGap + L.spLine1H + L.spRows * L.spRowH;
+			const tableY = bodyY + (hasSp ? spH + L.topAfter : 0);
+			let rowH = 0, tc = null;
+			if (data) {
+				const n = data.rows.length;
+				rowH = Math.max(1, Math.min(L.rowMax, Math.floor((leftBottom - tableY) / (n + 2))));
+				tc = stitchDrawTable(data, rowH);
+			}
+			const col3W = has3 ? Math.max(hasSp ? L.spW : 0, tc ? tc.width : 0) : 0;
+			const col3X = L.margin + spanW + L.gap;
+			const W0 = L.margin + spanW + (has3 ? L.gap + col3W : 0) + L.margin;
+			const col3Bottom = Math.max(hasSp ? bodyY + spH : 0, tc ? tableY + tc.height : 0);
+			const H0 = Math.max(leftBottom, col3Bottom) + L.margin;
+			// 画素数の上限（iOS の Canvas の面積）。超えるときは全体を同じ割合で縮める
+			const scale = W0 * H0 > L.maxPixels ? Math.sqrt(L.maxPixels / (W0 * H0)) : 1;
+			const out = document.createElement('canvas');
+			out.width = Math.max(1, Math.floor(W0 * scale));
+			out.height = Math.max(1, Math.floor(H0 * scale));
+			const ctx = out.getContext('2d');
+			ctx.fillStyle = '#FFFFFF';
+			ctx.fillRect(0, 0, out.width, out.height);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			if (scale !== 1) ctx.scale(scale, scale);
+			const layout = { cols: 2, width: out.width, height: out.height, scale: scale, logical: { width: W0, height: H0 },
+				bodyY: bodyY, personsY: personsY, colH: colH, grandScale: gScale, bar: null, top: null, parent: null, grands: [], heads: [],
+				legend: null, sp: null, table: null, col3: has3 ? { x: col3X, y: bodyY, w: col3W } : null, leftBottom: leftBottom };
+			if (!noBar) {
+				layout.bar = { x: L.margin, y: L.margin, w: W0 - L.margin * 2, h: L.barH };
+				layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W0 - L.margin * 2, L.barH, parts.barText || '');
+			}
+			if (hasTop) {
+				// 上段: 1列目・2列目の上だけ。本育成編成｜因子周回編成（片方なら左に詰める。欄の幅は両方のときと同じ）
+				const zone = L.gap + L.sepW + L.gap;
+				const cardW = Math.floor((spanW - zone) / 2);
+				const blocks = ['roster', 'factor'].filter(k => show[k]);
+				let bx = L.margin;
+				layout.top = { x: L.margin, y: bodyY, w: spanW, h: cardsH };
+				blocks.forEach((k, i) => {
+					if (i > 0) { ctx.fillStyle = STITCH_TOP_SEP; ctx.fillRect(bx + L.gap, bodyY, L.sepW, cardsH); bx += zone; }
+					const cards = stitchDrawTopCards(ctx, bx, bodyY, cardW, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor);
+					layout.top[k] = { x: bx, y: bodyY, w: cardW, h: cardsH, cards: cards };
+					bx += cardW;
+				});
+			}
+			let x = L.margin;
+			if (parent) {
+				// 親の上の欄があれば顔はその中にあるので、見出しはラベルだけ（顔が2つにならないように）
+				const icon = (parent._twoCol && parent._twoCol.topH) ? null : ((parts.heads || [])[0] || null);
+				const head = stitchDrawPersonHead(ctx, x, personsY, icon, PERSON_LABELS[parts.idxs[0]], (parts.genes || [])[0] || null, x + parent.width);
+				ctx.drawImage(parent, x, personsY + headH);
+				layout.parent = { k: 0, x: x, y: personsY + headH, w: parent.width, h: parent.height, scale: 1, topH: parent._twoCol ? parent._twoCol.topH : 0 };
+				layout.heads.push(Object.assign({ k: 0 }, head));
+				x += parent.width + (gs.length ? L.innerGap : 0);
+			}
+			let gy = personsY;
+			gs.forEach((g, i) => {
+				if (i > 0) gy += L.innerGap;
+				const head = stitchDrawPersonHead(ctx, x, gy, (parts.heads || [])[g.k] || null, PERSON_LABELS[parts.idxs[g.k]], (parts.genes || [])[g.k] || null, x + col2W);
+				ctx.drawImage(g.c, x, gy + headH, g.w, g.h);
+				layout.grands.push({ k: g.k, x: x, y: gy + headH, w: g.w, h: g.h, scale: gScale });
+				layout.heads.push(Object.assign({ k: g.k }, head));
+				gy += headH + g.h;
+			});
+			if (legend) {
+				ctx.drawImage(legend, L.margin, legendY, lw, lh);
+				layout.legend = { x: L.margin, y: legendY, w: lw, h: lh };
+			}
+			if (hasSp) layout.sp = { x: col3X, y: bodyY, w: L.spW, h: spH, lines: stitchDrawTopSp(ctx, col3X, bodyY, L.spW, top.sp) };
+			if (tc) {
+				ctx.drawImage(tc, col3X, tableY);
+				layout.table = { x: col3X, y: tableY, w: tc.width, h: tc.height, rowH: rowH, rows: data.rows.length, fontSize: tc._metrics.fontSize };
+			}
+			out._layout = layout;
+			return out;
+		}
+
 		// 指定セット（0=親A, 1=親B）の家系の1枚を返す（段6・C-228）。セット内の誰もアップロードしていない場合は null。
 		// onPersonStart(label)：1人分の結合に着手する直前に呼ばれる進捗通知コールバック（任意）。
 		// withMarks：OCR の結果を使うか（C-63 の (7)）。**「画像を結合する（OCRしない）」からは false**＝枠・表・枠の見かたなし
@@ -4303,6 +4633,8 @@
 
 			const stitched = {};
 			const heads = {};
+			const twoCol = opt.cols === 2 && !opt.legacy;   // 2列（T98）。旧UI はいつも3列
+			const wide = {};   // 2列に置く人（両側を削らない。stitchTwoColPerson）
 			const allWarnings = [];
 			const videoWarnLabels = [];   // 確かでない継ぎ目のある、動画から来た人（人の単位の警告。動画V1-2・T59）
 			let markCount = 0;   // セット内で実際に付けた枠の数（遺伝子の枠は数えない）
@@ -4331,6 +4663,8 @@
 					geneFrameCount += contentCanvas._geneFrameCount || 0;
 				}
 				heads[idx] = stitchHeadIconOf(contentCanvas, icon);
+				// 2列（T98）: 枠を描いた後の画像を両側を削らずに使う。親（セットの1人目）だけ1枚目の上の欄を足す（決定 151）
+				if (twoCol) wide[idx] = await stitchTwoColPerson(contentCanvas, files, idx === baseIdx);
 				const cropped = stitchSideCrop(contentCanvas, icon);
 				if (!cropped._sideCrop.ok) devGeometry.push('[結合画像] ' + label + ': 両側を削りませんでした（' + cropped._sideCrop.reason + '）');
 				stitched[idx] = cropped;
@@ -4351,12 +4685,14 @@
 			const top = await stitchTopData(barSnap && barSnap.set, opt);
 			// 人の見出しの行の遺伝子（T51）: OCR の写しの人ごとの結果から。OCRしない結合では描かない
 			const geneSnap = (withMarks && stitchSnapshot && stitchSnapshot.results) ? stitchSnapshot : null;
-			const result = composeFamilyImage({
+			const compose = twoCol ? composeFamilyImage2 : composeFamilyImage;
+			const result = compose({
 				idxs: idxs,
-				canvases: idxs.map(i => stitched[i] || null),
+				canvases: idxs.map(i => (twoCol ? wide[i] : stitched[i]) || null),
 				heads: idxs.map(i => heads[i] || null),
 				table: table, legend: legend, barText: stitchBarText(barSnap), top: top,
-				genes: idxs.map(i => (geneSnap && stitched[i]) ? stitchGenesOfPerson(geneSnap, i) : null)
+				genes: idxs.map(i => (geneSnap && stitched[i]) ? stitchGenesOfPerson(geneSnap, i) : null),
+				title: opt.title !== false
 			});
 			result._stitchWarnings = allWarnings;
 			result._videoWarnLabels = videoWarnLabels;
@@ -4471,6 +4807,11 @@
 							anyOutput = true;
 							anySuccess = true;
 							appendStitchResultBlock(container, set, canvas);
+							// ③の中にも出す（T98）: 動画モードの「OCR処理を開始する」（決定 177）と、③にすでに結合画像があるセット（古い画を残さない）
+							if ((withMarks && uploadMode === 'video') || videoShown[target.setIdx]) {
+								const b = target.setIdx * 3;
+								showVideoResult(target.setIdx, canvas, { parts: parts, withMarks: withMarks, files: [0, 1, 2].map(r => filesAtStart[b + r]), snap: snapAtStart });
+							}
 						}
 					} catch (e) {
 						console.error(e);
@@ -4502,6 +4843,7 @@
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
 				updateStitchRefreshUi();
+				updateVideoRefreshUi();
 			}
 		}
 
@@ -4777,38 +5119,54 @@
 		const STITCH_PART_LABELS = { marker: '分類マーカー', roster: '本育成編成', factor: '因子周回編成', sp: '理論値SP', table: '星取表' };
 		// シンプル（分類マーカー OFF）の枠の色。②のスキルを全部この緑で囲む（決定 113）。太さ・塗り方はほかの枠と同じ
 		const STITCH_SIMPLE_COLOR = { frame: '#2F9E1F', tint: '#E6F5DA' };
+		// T98（C-285）: 形（cols: 3＝今の形・2＝両側を削らない2列）と、6つ目のチェック「タイトルのバー」（title。初期値 ON）を同じ保存値に足した。
+		// 装飾5つ（STITCH_PART_KEYS）はそのまま。チェックの並びは STITCH_CHECK_KEYS（5つ＋タイトルのバー）
+		const STITCH_CHECK_KEYS = STITCH_PART_KEYS.concat(['title']);
+		STITCH_PART_LABELS.title = 'タイトルのバー';
 		function stitchPartsAll(on) {
 			const o = {};
 			STITCH_PART_KEYS.forEach(k => { o[k] = !!on; });
+			o.title = true;
+			o.cols = 3;
 			return o;
 		}
 		let stitchParts = stitchPartsAll(false);
 
-		// 保存値を読む。無い・壊れている・知らない値は OFF（決定 115）
+		// 保存値を読む。無い・壊れている・知らない値は OFF（決定 115）。タイトルのバーは false のときだけ OFF・形は 2 のときだけ 2列（T98）
 		function loadStitchParts() {
 			const o = stitchPartsAll(false);
 			try {
 				const v = JSON.parse(readStored(STITCH_PARTS_STORAGE_KEY) || 'null');
-				if (v && typeof v === 'object') STITCH_PART_KEYS.forEach(k => { if (v[k] === true) o[k] = true; });
+				if (v && typeof v === 'object') {
+					STITCH_PART_KEYS.forEach(k => { if (v[k] === true) o[k] = true; });
+					if (v.title === false) o.title = false;
+					if (v.cols === 2) o.cols = 2;
+				}
 			} catch (e) { /* 読めなければ全部 OFF */ }
 			stitchParts = o;
 			syncStitchPartsUi();
 		}
 
 		function setStitchPart(key, on) {
-			if (STITCH_PART_KEYS.indexOf(key) < 0) return;
+			if (STITCH_CHECK_KEYS.indexOf(key) < 0) return;
 			stitchParts[key] = !!on;
 			writeStored(STITCH_PARTS_STORAGE_KEY, JSON.stringify(stitchParts));
 			syncStitchPartsUi();
 		}
+		// 形の2択（T98・決定 156・157・179）
+		function setStitchCols(n) {
+			stitchParts.cols = Number(n) === 2 ? 2 : 3;
+			writeStored(STITCH_PARTS_STORAGE_KEY, JSON.stringify(stitchParts));
+			syncStitchPartsUi();
+		}
 
-		// 結合画像に使う設定。新UI は「結合画像の設定」。旧UI は今までどおり（種類の枠は tierMarksEnabled・ほかは材料があれば描く）。legacy で見分ける
+		// 結合画像に使う設定。新UI は「結合画像の設定」。旧UI は今までどおり（種類の枠は tierMarksEnabled・ほかは材料があれば描く・3列・バーあり）。legacy で見分ける
 		function stitchPartsNow() {
 			if (deckMode) return Object.assign({ legacy: false }, stitchParts);
 			return Object.assign(stitchPartsAll(true), { marker: tierMarksEnabled, legacy: true });
 		}
 		function sameStitchParts(a, b) {
-			return !!a && !!b && a.legacy === b.legacy && STITCH_PART_KEYS.every(k => !!a[k] === !!b[k]);
+			return !!a && !!b && a.legacy === b.legacy && STITCH_CHECK_KEYS.every(k => !!a[k] === !!b[k]) && (a.cols || 3) === (b.cols || 3);
 		}
 
 		// opts.idPrefix … チェックの id の接頭辞（③は ''、引き出しは 'drawer-'）
@@ -4819,20 +5177,50 @@
 			const prefix = (opts && opts.idPrefix) || '';
 			const withWire = !(opts && opts.wire === false);
 			const withTitle = !(opts && opts.title === false);
-			const list = STITCH_PART_KEYS.map(k =>
+			const list = STITCH_CHECK_KEYS.map(k =>
 				'<label class="stitch-show-item" data-stitch-hot="' + k + '">' +
 					'<input type="checkbox" id="' + prefix + 'opt-stitch-' + k + '" data-stitch-part-key="' + k + '" class="stitch-show-check"' +
 						' onchange="setStitchPart(\'' + k + '\', this.checked)" />' +
 					'<span class="stitch-show-text">' + STITCH_PART_LABELS[k] + '</span>' +
 				'</label>').join('');
+			// 形の2択（T98）: 2つ並べたボタン。選んだほうを反転の塗り（決定 179）
+			const colsBtn = (n, bars) => '<button type="button" class="stitch-cols-btn" data-stitch-cols="' + n + '" aria-pressed="false" onclick="setStitchCols(' + n + ')">' +
+				'<i aria-hidden="true">' + bars + '</i><span>' + n + '列</span></button>';
+			const seg = '<div class="stitch-cols" role="group" aria-label="結合画像の形">' +
+				colsBtn(3, '<b></b><b></b><b></b>') + colsBtn(2, '<b class="is-wide"></b><b></b>') + '</div>';
 			// 模式図: 帯 → 上段（理論値SP｜本育成編成｜因子周回編成。OFF の欄は消して左へ詰める）→ 星取表＋3人の列 → 枠の見かた。
 			// 人の列の行の枠は、分類マーカーが OFF なら全部緑・ON なら種類の色（.is-marker）。遺伝子の行はいつも遺伝子の色
 			const cards = '<i></i><i></i><i></i><i></i><i></i>';
 			const person = (kinds) => '<span class="stitch-wire-person"><span class="stitch-wire-head"><i></i><b></b></span>' +
 				'<span class="stitch-wire-panels">' + kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span></span>';
+			// 2列の模式図（T98・決定 182〜184）: 帯 → 左に［上段（本育成編成｜因子周回編成）→ 親A（上の欄＋因子）｜祖A1・祖A2 → 枠の見かた］、右に［理論値SP → 星取表］
+			const wire2 =
+				'<div class="stitch-wire-sheet stitch-wire-sheet--2" data-stitch-wire-cols="2">' +
+					'<div class="stitch-wire-bar" data-stitch-part="title"></div>' +
+					'<div class="stitch-wire-2">' +
+						'<div class="stitch-wire-2l">' +
+							'<div class="stitch-wire-top" data-stitch-wire-top2>' +
+								'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards + '</span>' +
+								'<span class="stitch-wire-cards" data-stitch-part="factor">' + cards + '</span>' +
+							'</div>' +
+							'<div class="stitch-wire-2p" data-stitch-part="people">' +
+								'<span class="stitch-wire-person"><span class="stitch-wire-head"><b></b></span><span class="stitch-wire-status"></span>' +
+									'<span class="stitch-wire-panels">' + ['card', null, 'star', 'other', null, 'gene', 'card', null].map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span></span>' +
+								'<span class="stitch-wire-grands">' + person([null, 'star', 'card', 'other']) + person(['other', null, 'gene']) + '</span>' +
+							'</div>' +
+							'<div class="stitch-wire-legend" data-stitch-part="marker">' +
+								'<i style="border-color:#008070"></i><i style="border-color:#9C6A00"></i><i style="border-color:#7A3FB0"></i><i style="border-color:#BE185D"></i><b></b>' +
+							'</div>' +
+						'</div>' +
+						'<div class="stitch-wire-2r" data-stitch-wire-col3>' +
+							'<span class="stitch-wire-sp" data-stitch-part="sp"><b></b><b></b><b></b></span>' +
+							'<div class="stitch-wire-table" data-stitch-part="table">' + '<i></i>'.repeat(48) + '</div>' +
+						'</div>' +
+					'</div>' +
+				'</div>';
 			const wire =
-				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet">' +
-					'<div class="stitch-wire-bar"></div>' +
+				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet" data-stitch-wire-cols="3">' +
+					'<div class="stitch-wire-bar" data-stitch-part="title"></div>' +
 					'<div class="stitch-wire-top" data-stitch-wire-top>' +
 						'<span class="stitch-wire-sp" data-stitch-part="sp"><b></b><b></b><b></b></span>' +
 						'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards + '</span>' +
@@ -4849,11 +5237,12 @@
 					'<div class="stitch-wire-legend" data-stitch-part="marker">' +
 						'<i style="border-color:#008070"></i><i style="border-color:#9C6A00"></i><i style="border-color:#7A3FB0"></i><i style="border-color:#BE185D"></i><b></b>' +
 					'</div>' +
-				'</div></div>';
+				'</div>' + wire2 + '</div>';
 			container.innerHTML =
 				'<div class="stitch-show" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
 						(withTitle ? '<p class="stitch-show-title"><i data-lucide="sliders-horizontal"></i><span>結合画像の設定</span></p>' : '') +
+						seg +
 						'<div class="stitch-show-list">' + list + '</div>' +
 					'</div>' +
 					(withWire ? wire : '') +
@@ -4863,21 +5252,27 @@
 			if (window.lucide) lucide.createIcons();
 		}
 
-		// 置いてある全部のパネルへ、いまの状態（チェック・模式図）を映す
+		// 置いてある全部のパネルへ、いまの状態（形・チェック・模式図）を映す
 		function syncStitchPartsUi() {
+			const cols = stitchParts.cols === 2 ? 2 : 3;
 			document.querySelectorAll('[data-stitch-show-panel]').forEach(panel => {
+				panel.querySelectorAll('[data-stitch-cols]').forEach(b => { b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-stitch-cols')) === cols)); });
 				panel.querySelectorAll('input[data-stitch-part-key]').forEach(input => {
 					input.checked = !!stitchParts[input.getAttribute('data-stitch-part-key')];
 				});
-				['sp', 'roster', 'factor', 'table', 'marker'].forEach(k => {
+				['sp', 'roster', 'factor', 'table', 'marker', 'title'].forEach(k => {
 					panel.querySelectorAll('[data-stitch-part="' + k + '"]').forEach(el => { el.hidden = !stitchParts[k]; });
 				});
 				panel.querySelectorAll('[data-stitch-wire-top]').forEach(el => { el.hidden = !(stitchParts.sp || stitchParts.roster || stitchParts.factor); });
+				panel.querySelectorAll('[data-stitch-wire-top2]').forEach(el => { el.hidden = !(stitchParts.roster || stitchParts.factor); });
+				panel.querySelectorAll('[data-stitch-wire-col3]').forEach(el => { el.hidden = !(stitchParts.sp || stitchParts.table); });
+				panel.querySelectorAll('[data-stitch-wire-cols]').forEach(el => { el.hidden = Number(el.getAttribute('data-stitch-wire-cols')) !== cols; });
 				panel.querySelectorAll('.stitch-wire-sheet').forEach(el => el.classList.toggle('is-marker', !!stitchParts.marker));
 			});
 			updateTierMarksStatus();
-			// 設定が変わったので、「画像を更新」が押せるかも見直す
+			// 設定が変わったので、「画像を更新」が押せるかも見直す（③の動画の結合画像のぶんも。T98）
 			updateStitchRefreshUi();
+			updateVideoRefreshUi();
 		}
 
 		// チェックに触れている間（hover / focus）、模式図の対応する部分を強調する（exam と同じ）
@@ -5000,6 +5395,34 @@
 		function toggleDrawerStitchSettings() {
 			if (stitchSettingsOpen) closeStitchSettings();
 			else openStitchSettings();
+		}
+		/* 右下のボタン群から開く「結合画像の設定」（T98・決定 171。exam の openStitchSettings('fab') と同じ動き）。
+		 * 暗転つき・引き出しは閉じている前提。閉じたらフォーカスをメインボタンへ返す（項目は畳まれて押せないので） */
+		let fabStitchSettingsOpen = false;
+		function fabOpenStitchSettings() {
+			setFabOpen(false);
+			openFabStitchSettings();
+		}
+		function openFabStitchSettings() {
+			if (fabStitchSettingsOpen) return;
+			if (stitchSettingsOpen) closeStitchSettings({ keepFocus: true });
+			fabStitchSettingsOpen = true;
+			document.getElementById('stitch-settings-backdrop').hidden = false;
+			document.getElementById('stitch-settings-pop').hidden = false;
+			document.getElementById('fab-item-settings').setAttribute('aria-expanded', 'true');
+			document.body.style.overflow = 'hidden';
+			syncStitchPartsUi();
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('stitch-settings-close').focus();
+		}
+		function closeFabStitchSettings(opts) {
+			if (!fabStitchSettingsOpen) return;
+			fabStitchSettingsOpen = false;
+			document.getElementById('stitch-settings-backdrop').hidden = true;
+			document.getElementById('stitch-settings-pop').hidden = true;
+			document.getElementById('fab-item-settings').setAttribute('aria-expanded', 'false');
+			if (!openDrawerKey) document.body.style.overflow = '';
+			if (!(opts && opts.keepFocus)) { const t = document.getElementById('fab-toggle'); if (t) t.focus(); }
 		}
 		// 丸ボタンは、新UI で結合画像があるときだけ出す。出せない状態になったら、開いていたパネルも一緒に閉じる
 		function updateDrawerStitchFab() {
@@ -6300,6 +6723,8 @@
 			else if (skillsetGuideOpen) closeSkillsetGuide();
 			// 結合画像の引き出しの中の「結合画像の設定」は、引き出しより手前にあるので先に閉じる（T96）
 			else if (stitchSettingsOpen) closeStitchSettings();
+			// 右下のボタン群から開いた「結合画像の設定」（T98）
+			else if (fabStitchSettingsOpen) closeFabStitchSettings();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 			else return;
@@ -6610,6 +7035,10 @@
 		function updateDeckEntryVisibility() {
 			const item = document.getElementById('fab-item-deck');
 			if (item) item.hidden = !deckMode;
+			// 右下の「結合画像の設定」（T98）も新UIのあいだだけ。旧UI へ切り替えたら開いていたパネルも閉じる
+			const settingsItem = document.getElementById('fab-item-settings');
+			if (settingsItem) settingsItem.hidden = !deckMode;
+			if (!deckMode) closeFabStitchSettings({ keepFocus: true });
 			// 結合画像の設定（T96）: 新UI は「結合画像の設定」、旧UI は「種類の枠」のチェック
 			updateStitchPartsPlacement();
 			fabSyncSetItems();
@@ -6849,6 +7278,16 @@
 			</span>
 		</button>
 
+		<!-- 結合画像の設定（T98・C-285。決定 171＝T96-2 の回答。exam.html の #fab-item-settings と同じ）。右下に浮かせる小さなパネル（#stitch-settings-pop）を開く。
+		     結合画像が無くても開ける。「画像を更新」はここには置かない。新UIのあいだだけ出す（updateDeckEntryVisibility） -->
+		<button id="fab-item-settings" type="button" class="uma-fab-item" onclick="fabOpenStitchSettings()"
+			aria-controls="stitch-settings-pop" aria-expanded="false" hidden>
+			<span>結合画像の設定</span>
+			<span class="uma-fab-icon stitch-accent-icon">
+				<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+			</span>
+		</button>
+
 		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。
 		     新UIのあいだだけ出す（updateDeckEntryVisibility）。既定の旧UIでは出さないので
 		     hidden を書いた状態で置いてある。
@@ -6888,6 +7327,26 @@
 				<i data-lucide="plus" class="w-6 h-6"></i>
 			</button>
 		</span>
+	</div>
+
+	<!-- ===== 「結合画像の設定」（右下のボタン群から開く小さなパネル。T98・C-285。exam.html の #stitch-settings-pop と同じ作り） =====
+	     骨格は css/shell.css の .uma-overlay（暗転つき）＋ .uma-popover--fab。中身は③・引き出しと同じ renderStitchPartsPanel
+	     （模式図なし・id は fab- の接頭辞）で、状態は③・引き出しと同じ1つ（syncStitchPartsUi）。「画像を更新」は置かない。
+	     閉じ方は ✕・暗転・Esc（openFabStitchSettings / closeFabStitchSettings） -->
+	<div id="stitch-settings-backdrop" class="uma-overlay-backdrop" hidden onclick="closeFabStitchSettings()"></div>
+	<div id="stitch-settings-pop" class="uma-overlay uma-popover uma-popover--fab" hidden role="dialog" aria-modal="true" aria-labelledby="stitch-settings-title">
+		<div class="uma-popover-head">
+			<h2 id="stitch-settings-title" class="uma-popover-title">
+				<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+				<span>結合画像の設定</span>
+			</h2>
+			<button type="button" id="stitch-settings-close" class="uma-popover-close" onclick="closeFabStitchSettings()" aria-label="閉じる">
+				<i data-lucide="x"></i>
+			</button>
+		</div>
+		<div class="uma-popover-body">
+			<div id="stitch-parts-panel-fab"></div>
+		</div>
 	</div>
 
 </body>

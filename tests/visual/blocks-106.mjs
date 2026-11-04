@@ -23,6 +23,9 @@ export async function register106(env) {
 	const IDS = Array.from({ length: 12 }, (_, i) => String(i + 1)).concat(['32', '45']);
 	const KEYS = ['marker', 'roster', 'factor', 'sp', 'table'];
 	const LABELS = ['分類マーカー', '本育成編成', '因子周回編成', '理論値SP', '星取表'];
+	// T98（C-285・決定 161・162）: チェックの6つ目に「タイトルのバー」（初期値 ON）
+	const LABELS6 = LABELS.concat(['タイトルのバー']);
+	const KEYS6 = KEYS.concat(['title']);
 
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 }, EMPTY);
@@ -103,10 +106,10 @@ export async function register106(env) {
 		const oldOn = await read({ 'uma-special-tier-marks': '1' });
 		const broken = await read({ 'uma-special-stitch-parts': '{oops' });
 		assert(fresh.deckMode && fresh.panelShown && !fresh.rowShown, 'T96(1): 新UI では③に「結合画像の設定」を出し、「種類の枠」のチェックは出さない', fresh);
-		assert(fresh.title === '結合画像の設定' && JSON.stringify(fresh.labels) === JSON.stringify(LABELS), 'T96(1): 見出し「結合画像の設定」・チェックは 分類マーカー／本育成編成／因子周回編成／理論値SP／星取表 の順（括弧の補足なし）', { title: fresh.title, labels: fresh.labels });
-		assert(fresh.wire && !fresh.drawerWire && !fresh.drawerTitle && fresh.drawerIds.join(',') === KEYS.map((k) => 'drawer-opt-stitch-' + k).join(','), 'T96(1): ③は模式図つき・引き出しの中は模式図と見出しなし（id は drawer-）', { wire: fresh.wire, drawerWire: fresh.drawerWire, ids: fresh.drawerIds });
+		assert(fresh.title === '結合画像の設定' && JSON.stringify(fresh.labels) === JSON.stringify(LABELS6), 'T96(1): 見出し「結合画像の設定」・チェックは 分類マーカー／本育成編成／因子周回編成／理論値SP／星取表／タイトルのバー（T98）の順（括弧の補足なし）', { title: fresh.title, labels: fresh.labels });
+		assert(fresh.wire && !fresh.drawerWire && !fresh.drawerTitle && fresh.drawerIds.join(',') === KEYS6.map((k) => 'drawer-opt-stitch-' + k).join(','), 'T96(1): ③は模式図つき・引き出しの中は模式図と見出しなし（id は drawer-）', { wire: fresh.wire, drawerWire: fresh.drawerWire, ids: fresh.drawerIds });
 		[fresh, oldOn, broken].forEach((x, i) => {
-			assert(x.checked.every((c) => !c) && x.drawerChecked.every((c) => !c) && KEYS.every((k) => x.now[k] === false), 'T96(1): 全部 OFF（' + ['保存値なし', '「種類の枠」ON の保存値あり', '壊れた保存値'][i] + '）', { checked: x.checked, now: x.now });
+			assert(x.checked.slice(0, 5).every((c) => !c) && x.drawerChecked.slice(0, 5).every((c) => !c) && x.checked[5] === true && x.drawerChecked[5] === true && KEYS.every((k) => x.now[k] === false) && x.now.title === true && x.now.cols === 3, 'T96(1): 全部 OFF・タイトルのバーは ON・3列（T98）（' + ['保存値なし', '「種類の枠」ON の保存値あり', '壊れた保存値'][i] + '）', { checked: x.checked, now: x.now });
 		});
 		assert(fresh.status === '', 'T96(1): 全部 OFF のとき③の下の「種類の枠は付けません」の文は出さない', fresh.status);
 		// 旧UI: 告知の既読と保存値 'old' を入れて開き直す（blocks-18 と同じ手順。恒久ルール20）
@@ -139,11 +142,11 @@ export async function register106(env) {
 			drawer: Array.from(document.querySelectorAll('#stitch-parts-panel-drawer input')).map((i) => i.checked) }));
 		await page.uncheck('#opt-stitch-roster'); await page.uncheck('#opt-stitch-table'); await page.uncheck('#opt-stitch-marker');
 		const d = await page.evaluate(() => ({ saved: JSON.parse(localStorage.getItem('uma-special-stitch-parts')), top: !document.querySelector('#stitch-parts-panel [data-stitch-wire-top]').hidden }));
-		assert(JSON.stringify(a.drawer) === JSON.stringify([false, true, false, false, true]) && JSON.parse(a.saved).roster === true && JSON.parse(a.saved).table === true,
+		assert(JSON.stringify(a.drawer) === JSON.stringify([false, true, false, false, true, true]) && JSON.parse(a.saved).roster === true && JSON.parse(a.saved).table === true,
 			'T96(2): ③で入れたチェックは引き出しのパネルにも映り、保存キーに入る', a);
 		assert(JSON.stringify(a.wire) === JSON.stringify([false, true, false, true, false]) && a.top && !a.marker, 'T96(2): 模式図は ON の部分だけ出る（上段は本育成編成だけ・星取表あり・枠の見かたなし・枠は緑）', a);
-		assert(JSON.stringify(b.main) === JSON.stringify([true, true, false, false, true]) && b.now.marker && b.marker && b.legendShown, 'T96(2): 引き出しで変えた分類マーカーも③に映る（模式図の枠が種類の色・枠の見かたが出る）', b);
-		assert(JSON.stringify(c.main) === JSON.stringify([true, true, false, false, true]) && JSON.stringify(c.drawer) === JSON.stringify(c.main), 'T96(2): 再読み込みのあとも残る', c);
+		assert(JSON.stringify(b.main) === JSON.stringify([true, true, false, false, true, true]) && b.now.marker && b.marker && b.legendShown, 'T96(2): 引き出しで変えた分類マーカーも③に映る（模式図の枠が種類の色・枠の見かたが出る）', b);
+		assert(JSON.stringify(c.main) === JSON.stringify([true, true, false, false, true, true]) && JSON.stringify(c.drawer) === JSON.stringify(c.main), 'T96(2): 再読み込みのあとも残る', c);
 		assert(KEYS.every((k) => d.saved[k] === false) && !d.top, 'T96(2): 全部外すと全部 OFF で保存し、模式図の上段も消える', d);
 		assert(jsErrors(errors).length === 0, 'T96(2): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();

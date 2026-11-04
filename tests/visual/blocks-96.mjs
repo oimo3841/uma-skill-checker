@@ -10,6 +10,7 @@
 //  10 1280px でもサムネイルの高さは 56px。11 × の押せる範囲は今のまま（20×20）。12 UmaExam も同じ（動画の入口は無い）。
 //  動画の入口は今の場所（タブの行の右端・UmaStar だけ）。
 import { reloadReady } from './lib/page-ready.mjs';
+import { openVideoSheet } from './lib/video-entry.mjs';
 
 export async function register96(env) {
 	const { block, assert, browser, base, openPage } = env;
@@ -227,7 +228,7 @@ export async function register96(env) {
 			assert(kept === 1, tag + ': 親Aセットの画像は保持', kept);
 			if (tool === 'special') {
 				assert(m.video && m.video.row && m.video.last && Math.abs(m.video.rect.w - 44) < 0.6 && Math.abs(m.video.rect.h - 44) < 0.6, tag + ': 動画の入口はタブの行の右端（44×44）', m.video);
-				await page.click('#video-import-btn');
+				await openVideoSheet(page);
 				const open = await page.waitForSelector('#video-sheet .video-sheet', { timeout: 3000 }).then(() => true).catch(() => false);
 				const target = await page.evaluate(() => (document.querySelector('#video-sheet .video-target') || {}).textContent);
 				assert(open && /親Bセット/.test(target || ''), tag + ': 動画の入口を押すと小窓が開く（入れる先は今見ている親Bセット）', { open, target });

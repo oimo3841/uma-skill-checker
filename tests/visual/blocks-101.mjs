@@ -11,6 +11,7 @@
 // 復号のフレームの差（H.264 の圧縮）は、一覧と比べるときの行の平均 24 の基準の中に収まる。
 
 import { SYNTH85 } from './blocks-100.mjs';
+import { openVideoSheet } from './lib/video-entry.mjs';
 
 const HOST = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>video-frames T90 test</title>'
 	+ '<script>var devGeometry = [];</script><script src="/js/common.js"></script><script src="/js/stitch.js"></script>'
@@ -271,7 +272,7 @@ export async function register101(env) {
 		await page.evaluate(() => selectStepTab(2));
 		await page.addScriptTag({ content: SYNTH85 });
 		await page.addScriptTag({ content: MP4 });
-		await page.click('#video-import-btn');
+		await openVideoSheet(page);
 		await page.waitForSelector('#video-sheet [data-video-act="pick"]');
 		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="pick"]')]);
 		const r = await page.evaluate(async () => {
