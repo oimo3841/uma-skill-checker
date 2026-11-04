@@ -7509,14 +7509,11 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 			'ハイライト: 375px ではまとまりが縦に積まれる', g.tops);
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
 			'ハイライト: 375px では sp70緑と緑が同じ行、シナリオ因子はその下', g.innerTops);
-		// 2列の格子に固定。因子は2行目の**左の列**で、幅は sp70緑・緑と同じ。右の列は空けたまま
-		// （将来の4枚目のパネルの置き場所。因子だけに幅の指定を持たせない）
-		assert(g.innerWidths.every((w) => Math.abs(w[2] - w[0]) <= 1 && Math.abs(w[2] - w[1]) <= 1),
-			'ハイライト: 375px でシナリオ因子のカードは sp70緑・緑と同じ幅', { widths: g.innerWidths[0] });
-		assert(g.innerWidths.every((w) => w[2] < g.gridWidth - 10),
-			'ハイライト: 375px でシナリオ因子のカードは全幅ではない（右の列が空く）', { widths: g.innerWidths[0], grid: g.gridWidth });
-		assert(g.innerLefts.every((l) => l[2] === l[0]),
-			'ハイライト: 375px でシナリオ因子は2行目の左の列にある', g.innerLefts);
+		// T100（C-290。決定 201）: スマホでは人ごとに1行（名前・sp70緑・緑）に詰め、因子の一覧だけその下に人の行の幅いっぱいで置く
+		assert(g.innerWidths.every((w) => w[2] > w[0] + w[1]),
+			'ハイライト: 375px でシナリオ因子のカードは人の行の幅いっぱい', { widths: g.innerWidths[0] });
+		assert(g.innerLefts.every((l) => l[2] < l[0]),
+			'ハイライト: 375px でシナリオ因子は人の名前の下から始まる', g.innerLefts);
 		assert(!g.overflow && !g.docOverflow, 'ハイライト: 375px で横スクロールが出ない', g);
 
 		// 因子の行: 1行に収まる／「：★N」は切れない／★の左端が全行で揃う／長い名前は省略して title で全文
@@ -7532,11 +7529,10 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 			'ハイライト: 未検出の「−」の行は出ない（検出したものだけを並べる）', f.rows.map((r) => r.stars));
 		assert(new Set(f.rows.map((r) => r.starsLeft)).size === 1,
 			'ハイライト: 「：★N」の左端が全行で揃う（★の縦位置が揃う）', f.rows.map((r) => r.starsLeft));
-		const clipped = f.rows.filter((r) => r.clipped);
-		assert(clipped.length > 0 && clipped.every((r) => r.title && r.title.length > r.name.length)
-			// title は行の全文（「名前：★N」）なので、名前で始まっていることを見る
-			&& clipped.some((r) => r.title.startsWith(seeded.longest)),
-			'ハイライト: 375px で長い因子名は省略され、全文が title で分かる', clipped.map((r) => [r.name, r.title]));
+		// T100（C-290）: 幅いっぱいになったので長い因子名も省略されない。全文は今までどおり title にある
+		// title は行の全文（「名前：★N」）なので、名前で始まっていることを見る
+		assert(f.rows.every((r) => !r.clipped && r.title && r.title.startsWith(r.name)) && f.rows.some((r) => r.title.startsWith(seeded.longest)),
+			'ハイライト: 375px で長い因子名も省略されず、全文が title で分かる', f.rows.map((r) => [r.name, r.title, r.clipped]));
 		assert(f.moreText === '他' && f.moreBelowGrid,
 			'ハイライト: 「他」は格子の外・カードの右下にあり、★の列と重ならない', { more: f.moreText, below: f.moreBelowGrid });
 		assert(errors.length === 0, 'ハイライト: 375px でコンソールエラーが出ない', errors.slice(0, 3));
@@ -7616,11 +7612,19 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		assert(g.cardCounts.every((n) => n === 4), tag + 'まとまりの中は4枚（sp70緑・緑・シナリオ因子・遺伝子）', g.cardCounts);
 		assert(g.cardHeads.every((x) => x[2] === 'シナリオ因子' && x[3] === '遺伝子'),
 			tag + '4枚目の見出しは「遺伝子」', g.cardHeads[0]);
-		// 2列 × 2段。1段目の2枚と2段目の2枚がそれぞれ同じ上端で、2段目は下にある
-		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] === t[3] && t[2] > t[1]),
-			tag + '2列 × 2段（1段目 sp70緑・緑／2段目 シナリオ因子・遺伝子）', g.innerTops[0]);
-		assert(g.innerWidths.every((x) => new Set(x).size === 1),
-			tag + '4枚とも同じ幅', g.innerWidths[0]);
+		if (w < 640) {
+			// T100（C-290。決定 201）: スマホでは sp70緑・緑を人の行に詰め、シナリオ因子・遺伝子はその下に順に幅いっぱいで置く
+			assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1] && t[3] > t[2]),
+				tag + '人の行（sp70緑・緑）の下にシナリオ因子、その下に遺伝子', g.innerTops[0]);
+			assert(g.innerWidths.every((x) => x[2] === x[3] && x[2] > x[0] + x[1]),
+				tag + 'シナリオ因子と遺伝子は人の行の幅いっぱい', g.innerWidths[0]);
+		} else {
+			// 2列 × 2段。1段目の2枚と2段目の2枚がそれぞれ同じ上端で、2段目は下にある
+			assert(g.innerTops.every((t) => t[0] === t[1] && t[2] === t[3] && t[2] > t[1]),
+				tag + '2列 × 2段（1段目 sp70緑・緑／2段目 シナリオ因子・遺伝子）', g.innerTops[0]);
+			assert(g.innerWidths.every((x) => new Set(x).size === 1),
+				tag + '4枚とも同じ幅', g.innerWidths[0]);
+		}
 		assert(!g.overflow && !g.docOverflow, tag + '横スクロールが出ない', g);
 
 		const gr = await readFactorRows(page, 'gene');
