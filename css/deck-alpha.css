@@ -1,4 +1,4 @@
-/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-04b（?v= と同じ）。
+/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-05a（?v= と同じ）。
  * T94（2026-11-04・C-282）: 方眼紙デザイン。モック版14（lab/deck-v14/deck-v14.css）の版A（今の字体）を製品に移し、おいもさんの回答（T94 への連絡）を入れた。
  * 見本（FiveThirtyEight「Science Isn't Broken」）から読み取った全体の決まり:
  *   1. 背景は方眼紙。データの点も文字も方眼の上に置く    2. 区切りは太い黒の横線だけ。カード・角丸の枠・影は使わない
@@ -11,6 +11,8 @@
  * 方眼: ページの地は 10px の目。表のマスは JS の寸法（縮小 18px・拡大 30px）を変えずに、マス自身が 2×2 の目（縮小 9px・拡大 15px）を持つ
  *   （マスの中の目はマスの左上から数えるので、名前の列や見出しの高さがどうでも必ずそろう。見た目の変更は CSS の中だけ）。空のマス（0）は地のまま＝目だけが見える。
  * T97（2026-11-04）: 表の上のピンチはブラウザ標準の拡大・縮小（142）・下段の帯を今の 2/3 程度に詰めた（4）・スマホだけ方眼の線を濃く（144）・「指定なし」の遺伝子の無効の行（141）。
+ * T101（2026-11-05）: 方眼を表の画面の中央の領域（道具の行の下から下段の帯の上まで・左右いっぱい）の全体に敷く（表の外の空きにも出す）・
+ *   スマホの方眼の線の色を T97 の前に戻す（194）。表のマスの目は T94 の形（マスの 2×2）のまま、表の入れ物（.vs）に1枚で持つ。
  * 構造（骨格・見える範囲だけ描く表・小窓の積み重ね）は版13 のまま。sticky の表で opacity は使わない（恒久ルール9）。
  * 青・赤・緑の因子の札（色で種類を示す。C-271 の 22）と「分類ごと」の分類の色（C-274 の 14）は、データの色なので製品のトークンの色のまま。
  */
@@ -72,11 +74,11 @@
 	--dk-cat-scenario: #AFA9EC; --dk-cat-outside: #5DCAA5; --dk-cat-factor: #F0997B; --dk-cat-other: #B4B2A9;
 }
 
-/* スマホだけ方眼の線を濃くする（T97・144。PC は今のまま）。線の上の補足の文字もコントラスト 4.5 を保つよう少し濃くする
- * （ライト: 線 #e6e9e4→#cfd5d0〔地との比 1.18→1.44〕・補足 #646b66→#525954〔線の上で 4.83〕。ダーク: 線 #232a25→#363f39〔1.22→1.65〕・補足 #9aa59e→#aab4ad〔線の上で 5.11〕） */
+/* T101（194）: T97 でスマホだけ濃くした方眼の線（ライト #cfd5d0・ダーク #363f39）を T97 の前の色（PC と同じ #e6e9e4・#232a25）に戻した。
+ * 線の上の補足の文字も T97 の前に戻す。ただしスマホのライトは、戻すと #646b66 が線 #e6e9e4 の上で 4.47 と 4.5 を割るので、今の値 #525954（線の上で 4.83）を残す。
+ * ダークは #9aa59e に戻す（線 #232a25 の上で 5.77）。 */
 @media (max-width: 720px) {
-	:root { --gp-grid: #cfd5d0; --gp-sub: #525954; }
-	:root:where([data-theme="dark"]) { --gp-grid: #363f39; --gp-sub: #aab4ad; }
+	:root:not([data-theme="dark"]) { --gp-sub: #525954; }
 }
 
 * { box-sizing: border-box; }
@@ -107,7 +109,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .tb { display: flex; align-items: center; gap: 4px; padding: 6px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left)); border-bottom: 2px solid var(--gp-ink); overflow-x: auto; scrollbar-width: none; }
 .tb::-webkit-scrollbar { display: none; }
 .panes { border-bottom: 2px solid var(--gp-ink); max-height: 46dvh; overflow: auto; padding: 8px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 8px; }
-.stage { flex: 1; min-height: 0; overflow: auto; position: relative; background: var(--gp-paper); touch-action: pan-x pan-y pinch-zoom; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* 表の画面の中央の領域（T101）: 全体に方眼を敷く。表を描いているときは、表の入れ物（.vs）が領域いっぱいに広がり、表のマスにそろえた目を持つ。
+ * 表の無いとき（「全体」の図・親がいないときの文）は、ページの地と同じ 10px の目（中身と一緒に動く） */
+.stage { flex: 1; min-height: 0; overflow: auto; position: relative; background-color: var(--gp-paper); background-image: linear-gradient(var(--gp-grid) 1px, transparent 1px), linear-gradient(90deg, var(--gp-grid) 1px, transparent 1px); background-size: 10px 10px; background-attachment: local; touch-action: pan-x pan-y pinch-zoom; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .stage.ov { overflow-x: hidden; }
 /* 下段の帯（追加2・133）: JRA の「ニュース」の帯の濃い緑。文字は白。帯の上の選択中は白の塗り（131 の例外の扱い） */
 .dock { background: var(--gp-band-bottom); color: var(--gp-band-text); padding: 3px max(10px, env(safe-area-inset-right)) calc(3px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 2px; }
@@ -264,15 +268,17 @@ input.txt::placeholder { color: var(--gp-sub); }
 .fz .k { font-size: 10px; opacity: 1; font-weight: 700; }
 
 /* ---------- 表（見える範囲だけ描く） ---------- */
-.vs { position: relative; }
+/* 表の入れ物は中央の領域より小さいとき（親やスキルが少ないとき）も領域いっぱいに広げ、表の外（右・下の空き）にも方眼を出す（T101）。
+ * 方眼（2×2 の目＝縮小 9px・拡大 15px）は入れ物に1枚で持ち、目の起点を本体の左上（名前の列の幅・見出しの高さ。js が background-position に入れる）に置く。
+ * 本体（.vb）はマスの大きさの倍数の位置に置かれるので、目は必ずマスにそろい、スクロールしても中身と一緒に動く */
+.vs { position: relative; min-width: 100%; min-height: 100%; background-color: var(--gp-paper); background-image: linear-gradient(var(--gp-grid) 1px, transparent 1px), linear-gradient(90deg, var(--gp-grid) 1px, transparent 1px); background-size: 9px 9px; }
+.lv2 .vs { background-size: 15px 15px; }
 .vp { position: absolute; left: 0; top: 0; will-change: transform; }
 .vp table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 11px; }
 .vp td, .vp th { padding: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-/* マス: 方眼の上に置く。方眼（2×2 の目＝縮小 9px・拡大 15px）は本体の入れ物（.vb）に1枚で持つ。入れ物はマスの大きさの倍数の位置に置かれ、描いた範囲の左上から
- * 目を数えるので、名前の列や見出しの高さがどうでも必ずマスにそろう（マスごとに背景を持たせると描画が重く、スマホの惰性のスクロールが止まる）。
+/* マス: 方眼の上に置く。方眼は表の入れ物（.vs）に1枚で持つ（T94 では本体の .vb に持たせていた。T101 で中央の領域の全体に出すため .vs へ移した。
+ * マスごとに背景を持たせると描画が重く、スマホの惰性のスクロールが止まる）。
  * 空のマス（c0）は地のまま＝目だけが見える。塗ったマス（c1〜c5）は5段の深緑で、左上に方眼の線を1本残す */
-.vb { background-image: linear-gradient(var(--gp-grid) 1px, transparent 1px), linear-gradient(90deg, var(--gp-grid) 1px, transparent 1px); background-size: 9px 9px; }
-.lv2 .vb { background-size: 15px 15px; }
 .vb td { text-align: center; border: 0; font-family: var(--dk-mono); font-variant-numeric: tabular-nums; position: relative; color: var(--gp-ink); background-color: transparent; }
 .vb td.c0 { color: var(--gp-sub); }
 .vb td.c1, .vb td.c2, .vb td.c3, .vb td.c4, .vb td.c5 { box-shadow: inset 1px 1px 0 var(--gp-cell-line); }
@@ -445,4 +451,4 @@ details.fold[open] > summary::before { content: "▾"; }
 	.panes .plist { display: flex; }
 	.legend { gap: 6px; }
 }
-:root { --deck-alpha-css-version: "2026-11-04b"; }
+:root { --deck-alpha-css-version: "2026-11-05a"; }

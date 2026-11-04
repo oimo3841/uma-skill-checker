@@ -98,13 +98,15 @@ export async function register104(env) {
 				const cs = (el) => getComputedStyle(el);
 				const body = cs(document.body), vb = document.getElementById('vb'), td0 = document.querySelector('.vb td.c0:not(.unk):not(.off)'), td1 = document.querySelector('.vb td.c1:not(.unk)');
 				const radius = ['.btn', '.tag', '.seg', '.rsel', '.stage', '.panes', '.top'].map((s) => { const e = document.querySelector(s); return e ? cs(e).borderTopLeftRadius : '0px'; });
-				// 本体の入れ物（.vb）はマスの大きさの倍数の位置に置かれる（translate の値が 18 の倍数）
+				// 本体（.vb）はマスの大きさの倍数の位置に置かれる（translate の値が 18 の倍数）。
+				// 方眼は T101 から表の入れ物（.vs）に1枚で持ち、目の起点は本体の左上（名前の列の幅・見出しの高さ）。T94 の「マスの 2×2 の目」は同じ
 				const tr = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(vb.style.transform) || [];
-				return { bodySize: body.backgroundSize, bodyImg: /linear-gradient/.test(body.backgroundImage), vbSize: cs(vb).backgroundSize, vbImg: /linear-gradient/.test(cs(vb).backgroundImage), vbAt: [+tr[1], +tr[2]], td0Bg: td0 ? cs(td0).backgroundColor : null, td0Img: td0 ? cs(td0).backgroundImage : null, td1Bg: td1 ? cs(td1).backgroundColor : null, td1Img: td1 ? cs(td1).backgroundImage : null, radius, want: s1 };
+				const vs = vb.parentElement, gp = (/^([-\d.]+)px ([-\d.]+)px/.exec(cs(vs).backgroundPosition) || []);
+				return { bodySize: body.backgroundSize, bodyImg: /linear-gradient/.test(body.backgroundImage), vbSize: cs(vs).backgroundSize, vbImg: /linear-gradient/.test(cs(vs).backgroundImage), vbAt: [+tr[1] - +gp[1], +tr[2] - +gp[2]], gridAt: [+gp[1], +gp[2]], td0Bg: td0 ? cs(td0).backgroundColor : null, td0Img: td0 ? cs(td0).backgroundImage : null, td1Bg: td1 ? cs(td1).backgroundColor : null, td1Img: td1 ? cs(td1).backgroundImage : null, radius, want: s1 };
 			}, S1[theme]);
 			// background-size は縦横の線の2層ぶん並ぶ（"10px 10px, 10px 10px"）
 			assert(grid.bodySize === '10px 10px, 10px 10px' && grid.bodyImg, tag + ' ページの地は 10px の方眼（決まり 1）', grid);
-			assert(grid.vbSize === '9px 9px, 9px 9px' && grid.vbImg && (grid.vbAt[0] - 100) % 18 === 0 && (grid.vbAt[1] - 76) % 18 === 0 || grid.vbSize === '9px 9px, 9px 9px' && grid.vbImg && (grid.vbAt[0] - 136) % 18 === 0 && (grid.vbAt[1] - 76) % 18 === 0, tag + ' 縮小の表の本体は 2×2 の目（9px）の方眼を持ち、マスの倍数の位置に置かれる', grid);
+			assert(grid.vbSize === '9px 9px, 9px 9px' && grid.vbImg && [100, 136].includes(grid.gridAt[0]) && grid.gridAt[1] === 76 && grid.vbAt[0] % 18 === 0 && grid.vbAt[1] % 18 === 0, tag + ' 縮小の表は 2×2 の目（9px）の方眼の上にあり、目の起点は本体の左上で、本体はマスの倍数の位置に置かれる', grid);
 			assert(/rgba\(0, 0, 0, 0\)|transparent/.test(grid.td0Bg) && grid.td0Img === 'none', tag + ' 空のマスは地のまま（塗りも背景も無い）', grid);
 			assert(grid.td1Bg === S1[theme] && grid.td1Img === 'none', tag + ' 段1 のマスは深緑の塗り（T94-3 の値）で目は無い', grid);
 			assert(grid.radius.every((r) => r === '0px'), tag + ' ボタン・札・帯・表の角が丸くない（決まり 2）', grid.radius);
@@ -139,8 +141,8 @@ export async function register104(env) {
 
 			// (5) 拡大: マスの目は 15px
 			await ev(() => document.querySelector('[data-lv="2"]').click()); await page.waitForTimeout(150);
-			const lv2 = await ev(() => getComputedStyle(document.getElementById('vb')).backgroundSize);
-			assert(lv2 === '15px 15px, 15px 15px', tag + ' 拡大の表の本体は 2×2 の目（15px）', lv2);
+			const lv2 = await ev(() => getComputedStyle(document.getElementById('vb').parentElement).backgroundSize);
+			assert(lv2 === '15px 15px, 15px 15px', tag + ' 拡大の表の方眼は 2×2 の目（15px）', lv2);
 			await look('04-table-lv2');
 			await ev(() => document.querySelector('[data-lv="1"]').click());
 

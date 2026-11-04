@@ -4,7 +4,9 @@
  * T94（方眼紙デザイン・C-282）: 見出しのボタン（ツール切り替え・ライト／ダーク）を UmaStar と同じ形の svg にし、ライト／ダークのアイコンは利用者の選択（自動／ライト／ダーク）を示す。
  * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。
  * T97（2026-11-04）: 「指定なし」で送った一覧を「指定なし」の行に（140）・「指定なし」の遺伝子の3行を無効の形で出す（141）・表の上の2本指で段階を変えない（142）・
- * スマホで引き出しの外を押すと閉じる（143）。以下は版13 の説明。
+ * スマホで引き出しの外を押すと閉じる（143）。
+ * T101（2026-11-05）: 方眼を表の画面の中央の領域の全体に敷く（表の入れ物 .vs の目の起点を本体の左上に置く）・スマホで引き出しが開いているときも、
+ * 見出しの帯のボタンと「⋯」は1回で効く（193）。以下は版13 の説明。
  * Deck 本体（ヒートマップの表・親の小窓・2組・本育成設計・レース/周回セット・バックアップ）。版12（T86・C-273）:
  * マスの塗りと数字は親と祖の合計の5段・親本人の★は左上の小さな数字・PC は左の列に5つの欄を全部並べる・1つだけ選ぶ欄は帯・複数選べる欄は札。
  * 版13（T87・C-274）: 縮小と遺伝子の行にも左上の親本人の★・分類の「そのほか」の札を外す・親の小窓と祖の詳細に対象スキルの列挙（序盤／中盤／終盤／その他）・
@@ -15,7 +17,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-04b';
+	const DECK_ALPHA_JS_VERSION = '2026-11-05a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -314,7 +316,8 @@
 		const colN = cols.map((c) => rows.reduce((n, s) => n + ((c.kind === 'p' ? M.famHas(c.p, s.id) : M.ok(c.m.skills[s.id])) ? 1 : 0), 0));
 		const R = GR + rows.length, L = d.nw + d.mw, totalW = L + cols.length * d.cw, totalH = d.hh + R * d.rh;
 		const keep = V && !force && V.key === S.lv + ':' + six + ':' + cols.length + ':' + rows.length;
-		stage.innerHTML = '<div class="vs" style="width:' + totalW + 'px;height:' + totalH + 'px"><div class="vp vb" id="vb"></div><div class="vp vh" id="vh"></div><div class="vp vl" id="vl"></div><div class="vp vc" id="vc" style="width:' + L + 'px;height:' + d.hh + 'px"></div></div>';
+		// 入れ物（.vs）の方眼の目の起点は本体の左上（名前の列の幅 L・見出しの高さ）。css で領域いっぱいに広がる（T101）
+		stage.innerHTML = '<div class="vs" style="width:' + totalW + 'px;height:' + totalH + 'px;background-position:' + L + 'px ' + d.hh + 'px"><div class="vp vb" id="vb"></div><div class="vp vh" id="vh"></div><div class="vp vl" id="vl"></div><div class="vp vc" id="vc" style="width:' + L + 'px;height:' + d.hh + 'px"></div></div>';
 		const vb = $('#vb'), vh = $('#vh'), vl = $('#vl'), vc = $('#vc');
 		if (!keep) { stage.scrollTop = 0; stage.scrollLeft = 0; }
 		V = { key: S.lv + ':' + six + ':' + cols.length + ':' + rows.length, ps, rows, cols, r: [-1, -1], c: [-1, -1] };
@@ -676,11 +679,13 @@
 	matchMedia('(max-width: 720px)').addEventListener('change', () => { if (S.doc) applyPanes(); });
 	document.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { S.pane = S.pane === b.dataset.tab ? null : b.dataset.tab; applyPanes(); renderStage(true); }; });
 	/* スマホ: 5つの引き出しのどれかが開いているとき、開いている領域の外を押すと閉じる（T97・143）。そのタップは閉じるだけに使い、表のマスなどへは届けない。
-	 * 受けるのは click（指を動かさずに離したときだけ起きる）なので、表のスワイプ・スクロールでは閉じない。タブのボタンと小窓（とその下の幕）はそのまま通す */
+	 * 受けるのは click（指を動かさずに離したときだけ起きる）なので、表のスワイプ・スクロールでは閉じない。タブのボタンと小窓（とその下の幕）はそのまま通す。
+	 * 見出しの帯のボタン（レース/周回セット・ツール切り替え・ライト／ダークなど）と道具の行の「⋯」も、そのまま通して1回で効かせる（T101・193）。
+	 * そのとき引き出しは開いたまま（閉じるのは今までどおり、外を押したときとタブのボタン） */
 	document.addEventListener('click', (e) => {
 		if (!S.pane || !isNarrow() || !$('#sheet').hidden) return;
 		const t = e.target instanceof Element ? e.target : null;
-		if (!t || t.closest('#panes, [data-tab], #sheet, #scrim, #toast')) return;
+		if (!t || t.closest('#panes, [data-tab], #sheet, #scrim, #toast, .hd button, #moreBtn')) return;
 		e.preventDefault(); e.stopPropagation();
 		S.pane = null; applyPanes(); renderStage(true);
 	}, true);

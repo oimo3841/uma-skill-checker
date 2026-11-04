@@ -22,7 +22,8 @@ export async function register107(env) {
 	// 変える前（d694649）の下段の帯の高さ（px。未選択／親A・親Bを選んだとき。仮のデータ30人・指定なし）
 	const DOCK_BEFORE = { 375: { none: 124.8, ab: 192.8 }, 1280: { none: 56, ab: 94.8 } };
 	// 方眼の線の色（変える前 ライト #e6e9e4・ダーク #232a25。スマホだけ濃く: ライト #cfd5d0・ダーク #363f39）
-	const GRID = { pc: { light: 'rgb(230, 233, 228)', dark: 'rgb(35, 42, 37)' }, sp: { light: 'rgb(207, 213, 208)', dark: 'rgb(54, 63, 57)' } };
+	// T101（194）で、スマホの線を T97 の前の色（PC と同じ）に戻した。方眼は T101 から表の入れ物（.vs）に持つ
+	const GRID = { pc: { light: 'rgb(230, 233, 228)', dark: 'rgb(35, 42, 37)' }, sp: { light: 'rgb(230, 233, 228)', dark: 'rgb(35, 42, 37)' } };
 	// 無効の遺伝子の行（141）の名前とマスの色
 	const OFF = { light: { tx: 'rgb(163, 170, 165)', bg: 'rgb(238, 240, 236)' }, dark: { tx: 'rgb(91, 100, 94)', bg: 'rgb(28, 33, 29)' } };
 
@@ -153,10 +154,10 @@ export async function register107(env) {
 			assert(d1.slotA[1] >= minH && d1.slotB[1] >= minH && d1.slotA[0] >= 100 && d0.cut.length === 0 && d1.cut.length === 0 && d1.recB[0] <= d1.recB[1], tag + ' 親A・親Bのボタンは ' + minH + 'px 以上で、帯の中の文字が切れない', { d0, d1 });
 			await look('04-dock');
 
-			// (8) 方眼（144）: スマホだけ濃い線。PC は今のまま。線の上の文字も 4.5 以上
-			const grid = await ev(() => { const m = /rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(document.body).backgroundImage); const vb = /rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(document.getElementById('vb')).backgroundImage); return { body: m && m[0], vb: vb && vb[0] }; });
+			// (8) 方眼（144 → T101 の 194 で T97 の前の色に戻した）: スマホも PC と同じ線。線の上の文字も 4.5 以上
+			const grid = await ev(() => { const m = /rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(document.body).backgroundImage); const vb = /rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(document.getElementById('vb').parentElement).backgroundImage); return { body: m && m[0], vb: vb && vb[0] }; });
 			const want = (pc ? GRID.pc : GRID.sp)[theme];
-			assert(grid.body === want && grid.vb === want, tag + ' 方眼の線の色（' + (pc ? 'PC は今のまま' : 'スマホは濃く') + '）', { grid, want });
+			assert(grid.body === want && grid.vb === want, tag + ' 方眼の線の色（T97 の前の色。スマホも PC と同じ）', { grid, want });
 			if (!pc) await page.click('[data-tab="view"]');
 			const cr = await ev((gridColor) => {
 				const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
@@ -164,7 +165,7 @@ export async function register107(env) {
 				const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 				const paper = getComputedStyle(document.body).backgroundColor;
 				// 方眼の上に直に置かれた文字（地の色を持たない祖先だけを通る要素）
-				const onGrid = (e) => { for (let p = e; p && p !== document.body; p = p.parentElement) { const bg = getComputedStyle(p).backgroundColor; if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return p.id === 'vb' ? true : false; } return true; };
+				const onGrid = (e) => { for (let p = e; p && p !== document.body; p = p.parentElement) { const bg = getComputedStyle(p).backgroundColor; if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return p.id === 'vb' || p.classList.contains('vs') ? true : false; } return true; };
 				const els = [...document.querySelectorAll('#panes *, .vb td')].filter((e) => e.offsetParent && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !e.closest(':disabled') && onGrid(e));
 				const bad = []; const colors = new Set();
 				els.forEach((e) => { const c = getComputedStyle(e).color; colors.add(c); const r = Math.min(ratio(c, paper), ratio(c, gridColor)); if (r < 4.5) bad.push([e.className || e.tagName, e.textContent.trim().slice(0, 10), c, r.toFixed(2)]); });
