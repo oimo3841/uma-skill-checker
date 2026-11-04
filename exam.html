@@ -827,6 +827,120 @@
 		.adv-opts-panel { margin-top: var(--uma-sp-1); padding: var(--uma-sp-2); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-sunken); }
 		.adv-opts-panel[hidden] { display: none; }
 		.adv-opts-title { margin: 0 0 var(--uma-sp-1); font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); }
+		/* ===== 照合結果のスマホのヒートマップ（T100・C-290）=====
+		   640px 未満の新UIの引き出し（#result-drawer の中）だけ。PC と旧UI は今のまま。
+		   ★の記号の代わりに人のマスを★の数で塗り、数字を出す（★0・未検出は塗りなし、★不明は斜線に「?」）。
+		   文字は 13px（数字の大きな所）と 11px（それ以外）。列が5つ以上（.hm-dense）の表だけ 10px。
+		   青の3段は基準の面とマスの数字のコントラスト 4.5 以上・隣どうしの ΔE00 10 以上（ライト・ダークとも）。 */
+		:root {
+			--exam-hm-empty: #ffffff; --exam-hm-s1: #cbe5ff; --exam-hm-n1: #0c3b6b; --exam-hm-s2: #7cbcfb; --exam-hm-n2: #08284a; --exam-hm-s3: #0b6bcb; --exam-hm-n3: #ffffff;
+			--exam-hm-unk-base: #e6ebf3; --exam-hm-unk-line: #a9b6cb; --exam-hm-unk-text: #1f2d47; --exam-hm-gap: #f5f6fb;
+		}
+		:root[data-theme="dark"] {
+			--exam-hm-empty: #222c3d; --exam-hm-s1: #1d4f86; --exam-hm-n1: #d6ebff; --exam-hm-s2: #4a90dc; --exam-hm-n2: #03101f; --exam-hm-s3: #8cc4fb; --exam-hm-n3: #08284a;
+			--exam-hm-unk-base: #363e4c; --exam-hm-unk-line: #5c6779; --exam-hm-unk-text: #f1f4fa; --exam-hm-gap: #12171f;
+		}
+		.hm-num { display: none; }
+		@media (max-width: 639.98px) {
+			/* Deck への受け渡しの案内 */
+			#result-drawer #deck-handoff-note { margin-bottom: 10px; }
+			#result-drawer #deck-handoff-box { padding: 8px 10px; }
+			#result-drawer #deck-handoff-box > div { gap: 6px; }
+			#result-drawer #deck-handoff-title { font-size: 11px; line-height: 15px; }
+			#result-drawer #deck-handoff-detail { margin-top: 0; font-size: 11px; line-height: 15px; }
+			#result-drawer #deck-handoff-btn { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 11px; }
+
+			/* 上の欄（対象スキル数・各人の検出数）: 1つの箱に1行 */
+			#result-drawer #stat-grid { grid-template-columns: repeat(var(--hm-stat-n, 4), minmax(0, 1fr)); gap: 0; margin-bottom: 10px; border: 1px solid var(--uma-border); border-radius: 10px; overflow: hidden; }
+			#result-drawer #stat-grid > div { padding: 4px 2px 5px; border: 0; border-radius: 0; }
+			#result-drawer #stat-grid > div + div { border-left: 1px solid var(--uma-border); }
+			#result-drawer #stat-grid p { margin: 0; font-size: 11px; line-height: 14px; }
+			#result-drawer #stat-grid p:nth-child(2) { font-size: 13px; line-height: 17px; }
+			/* 7つ（親Aセット＋親Bセット）は1行だと見出しが折り返すので、対象スキル数を左に2段ぶんで置いて人を2段に並べる */
+			#result-drawer #stat-grid.hm-stat-two { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+			#result-drawer #stat-grid.hm-stat-two > div:first-child { grid-row: span 2; }
+			#result-drawer #stat-grid.hm-stat-two > div:nth-child(n + 5) { border-top: 1px solid var(--uma-border); }
+			#result-drawer #stat-grid.hm-stat-two > div:first-child { display: flex; flex-direction: column; justify-content: center; }
+
+			/* ハイライト: 人ごとに1行 */
+			#result-drawer #exam-highlight { margin-bottom: 10px; padding: 6px 8px; border-radius: 10px; }
+			#result-drawer #exam-highlight > div:first-child { flex-direction: row; align-items: center; gap: 6px; margin-bottom: 6px; }
+			#result-drawer #exam-highlight h3 { gap: 4px; font-size: 11px; line-height: 14px; }
+			#result-drawer #exam-highlight h3 svg { width: 13px; height: 13px; }
+			#result-drawer #exam-highlight .mode-btn { padding: 1px 6px; font-size: 11px; line-height: 15px; }
+			#result-drawer #exam-highlight-grid { gap: 6px; }
+			#result-drawer #exam-highlight-grid > div { padding: 4px 6px; border-width: 1px !important; border-radius: 8px; }
+			#result-drawer #exam-highlight-grid > div > p { margin: 0 0 2px; line-height: 14px; }
+			#result-drawer #exam-highlight-grid > div > div { gap: 2px; }
+			#result-drawer [data-person-group] { display: grid; grid-template-columns: 2.7em minmax(0, 0.8fr) minmax(0, 1.2fr); align-items: center; gap: 4px; padding: 0; border-radius: 0; background: transparent; }
+			#result-drawer [data-person-group] > p { margin: 0; line-height: 14px; }
+			#result-drawer [data-person-group] .hl-cards { display: contents; }
+			#result-drawer .hl-card--center { display: flex; flex-flow: row wrap; align-items: baseline; justify-content: center; column-gap: 4px; padding: 1px 4px; border-radius: 6px; }
+			#result-drawer .hl-card--center p { margin: 0; line-height: 14px; }
+			#result-drawer .hl-card--center p:last-child { font-size: 13px; line-height: 17px; }
+			#result-drawer .hl-card--center p:last-child span { font-size: 11px; }
+			/* シナリオ因子・遺伝子の一覧を選んでいるときは、一覧だけ人の行の下に幅いっぱいで置く */
+			#result-drawer [data-hl-card] { grid-column: 1 / -1; padding: 2px 4px; border-radius: 6px; }
+			#result-drawer [data-hl-card] p { margin: 0; line-height: 14px; }
+			#result-drawer #exam-highlight > p { margin-top: 4px; line-height: 14px; }
+
+			/* 検索・コピー・絞り込み */
+			#result-drawer #result-ctrlbox { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-bottom: 8px; }
+			#result-drawer #result-ctrlbox > * { margin: 0; }
+			#result-drawer .rc-ctrl { display: contents; }
+			#result-drawer .rc-srch { grid-column: 1; grid-row: 1; }
+			#result-drawer .rc-srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
+			#result-drawer #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
+			#result-drawer #result-copy-slot { grid-column: 2; grid-row: 1; gap: 4px; }
+			#result-drawer #result-copy-slot button { height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
+			#result-drawer .rc-pills { grid-column: 1 / -1; grid-row: 2; font-size: 11px; }
+			#result-drawer .rc-pills button { height: 24px; padding: 0 10px; font-size: 11px; line-height: 22px; }
+			#result-drawer #filter-result-count { grid-column: 1 / -1; grid-row: 3; line-height: 14px; }
+			#result-drawer .rc-scroll-note { display: none; }
+			#result-drawer #table-set-toggle-wrap { grid-column: 1 / -1; grid-row: 4; gap: 6px; }
+			#result-drawer #table-set-toggle-wrap button { height: 24px; padding: 0 8px; }
+			/* めろっぷのコピーが出ているときは、コピーのボタンの列を幅いっぱいの行へ（検索が痩せないように） */
+			#result-drawer #result-copy-slot:has(button[id^="melop-copy-btn-"]:not([hidden])) { grid-column: 1 / -1; grid-row: 5; }
+			#result-drawer #melop-copy-note { grid-column: 1 / -1; grid-row: 6; line-height: 14px; }
+
+			/* 表: 横スクロールなし。人3人＋合計の4列で約 2/3、スキル名の列で約 1/3 */
+			#result-drawer .rc-tbl-wrap { margin-bottom: 16px; border-radius: 8px; }
+			#result-drawer .result-table { min-width: 0 !important; table-layout: fixed; }
+			#result-drawer .result-table th { padding: 4px 1px; border-bottom-width: 1px; font-size: 11px; font-weight: 700; line-height: 14px; white-space: nowrap; overflow: hidden; }
+			#result-drawer .result-table th:first-child { position: static; box-shadow: none; width: auto !important; padding-left: 6px; text-align: left; }
+			#result-drawer .result-table th:not(:first-child) { width: 16.67%; }
+			#result-drawer .result-table td { padding: 0; border-bottom: 1px solid var(--uma-surface-muted); font-size: 11px; line-height: 14px; }
+			#result-drawer .result-table td:first-child { position: static; box-shadow: none; padding: 4px 4px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			#result-drawer .result-table td:first-child > span { margin-right: 3px; font-size: inherit; }
+			#result-drawer .result-table td.hm-cell { background-color: var(--exam-hm-empty) !important; box-shadow: inset 1px 0 0 var(--exam-hm-gap); }
+			#result-drawer .result-table td.hm-bd { border-left: 2px solid var(--exam-red-border-strong) !important; }
+			#result-drawer .hm-st { display: none; }
+			#result-drawer .hm-num { display: flex; align-items: center; justify-content: center; min-height: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+			#result-drawer .result-table td.hm1 { background-color: var(--exam-hm-s1) !important; } #result-drawer td.hm1 .hm-num { color: var(--exam-hm-n1); }
+			#result-drawer .result-table td.hm2 { background-color: var(--exam-hm-s2) !important; } #result-drawer td.hm2 .hm-num { color: var(--exam-hm-n2); }
+			#result-drawer .result-table td.hm3 { background-color: var(--exam-hm-s3) !important; } #result-drawer td.hm3 .hm-num { color: var(--exam-hm-n3); }
+			#result-drawer .result-table td.hmu { background-color: var(--exam-hm-unk-base) !important; background-image: repeating-linear-gradient(45deg, var(--exam-hm-unk-line) 0 1px, transparent 1px 5px); }
+			#result-drawer td.hmu .hm-num { color: var(--exam-hm-unk-text); }
+			/* 合計の列は塗らない（人のマスと見分ける）。地は今の合計の列の色・左に太い線・太字 */
+			#result-drawer .result-table td.hm-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+			/* 列が5つ以上: 人と合計の列を狭く、表の文字を 10px に。スキル名の列には7文字以上入る */
+			#result-drawer .result-table.hm-dense th, #result-drawer .result-table.hm-dense td { font-size: 10px; line-height: 13px; }
+			#result-drawer .result-table.hm-dense th { padding: 4px 0; }
+			#result-drawer .result-table.hm-dense th:first-child { padding-left: 4px; }
+			#result-drawer .result-table.hm-dense th:not(:first-child) { width: 30px; }
+			#result-drawer .result-table.hm-dense th.hm-total-th { width: 34px; }
+			#result-drawer .result-table.hm-dense td:first-child { padding: 4px 2px 5px 4px; }
+		}
+		/* 360px より狭い画面: 見出しが折り返さず、スキル名の列に7文字入るように、さらに1段小さくする */
+		@media (max-width: 359.98px) {
+			#result-drawer .result-table th:first-child { padding-left: 4px; font-size: 10px; }
+			#result-drawer .result-table td:first-child { padding: 4px 2px 5px 4px; font-size: 10px; line-height: 13px; }
+			#result-drawer .result-table.hm-dense th, #result-drawer .result-table.hm-dense td { font-size: 9px; }
+			#result-drawer .result-table.hm-dense th:not(:first-child) { width: 25px; }
+			#result-drawer .result-table.hm-dense th.hm-total-th { width: 30px; }
+		}
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-[var(--uma-control)] selection:text-white">
@@ -1530,13 +1644,15 @@
 					<p class="text-[11px] text-[var(--uma-deco-strong)]/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
 				</div>
 	
+				<!-- 検索・絞り込み・コピーを包む箱（スマホで1つの格子に組む。T100。PC では効かない） -->
+				<div id="result-ctrlbox">
 				<!-- 検索・フィルターバー -->
-				<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-2">
-					<div class="relative w-full sm:w-64">
+				<div class="rc-ctrl flex flex-col sm:flex-row items-center justify-between gap-3 mb-2">
+					<div class="rc-srch relative w-full sm:w-64">
 						<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
 						<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control-mark)]" />
 					</div>
-					<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+					<div class="rc-pills flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
 						<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
 						<button type="button" onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">誰かが検出</button>
 						<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
@@ -1547,7 +1663,7 @@
 				     表にはシナリオ因子の行も並ぶので、**この件数だけは因子込み**（数えているのは
 				     スキルの数ではなく行の数なので、「件」のまま分けない）。 -->
 				<p id="filter-result-count" class="text-[11px] text-slate-400 mb-1"></p>
-				<p class="text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
+				<p class="rc-scroll-note text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
 	
 				<!-- 親A/親B列の表示切替（両方の結果がある時だけ表示・スマホで片方ずつ見たい場合向け） -->
 				<div id="table-set-toggle-wrap" class="hidden flex flex-wrap items-center gap-2 mb-3">
@@ -1577,9 +1693,10 @@
 				</div>
 				<!-- めろっぷ用のコピーの注意（いちばん上の段が読めなかった人など）。無ければ出さない。 -->
 				<p id="melop-copy-note" class="text-[11px] text-amber-700 text-right mb-2 whitespace-pre-line" hidden></p>
+				</div>
 	
 				<!-- テーブル -->
-				<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+				<div class="rc-tbl-wrap overflow-x-auto rounded-xl border border-slate-200 mb-6">
 					<table id="result-table-el" class="result-table">
 						<thead id="result-thead"></thead>
 						<tbody id="result-tbody"></tbody>
@@ -4178,6 +4295,9 @@
 				</div>`;
 			});
 			grid.innerHTML = html;
+			// スマホの1行の箱の列の数（T100。PC では使わない）
+			grid.style.setProperty('--hm-stat-n', cols);
+			grid.classList.toggle('hm-stat-two', cols > 4);
 		}
 
 		// そのpersonが検出できた対象スキルの数（カスタム追加分も含むので ID には引き直さない）。
@@ -4422,7 +4542,7 @@
 				html += `<th class="text-center" style="background-color:${m.colors.bg};color:${m.colors.text};${borderStyle}">${PERSON_LABELS[m.idx]}</th>`;
 			});
 			if (showTotal) {
-				html += '<th class="text-center" style="background-color:var(--exam-total-th-bg);color:var(--exam-total-th-text);border-left:2px solid var(--exam-total-th-border);">★合計</th>';
+				html += '<th class="hm-total-th text-center" style="background-color:var(--exam-total-th-bg);color:var(--exam-total-th-text);border-left:2px solid var(--exam-total-th-border);">★合計</th>';
 			}
 			html += '</tr>';
 			thead.innerHTML = html;
@@ -4434,6 +4554,8 @@
 				const nameMinPx = 112, personColMinPx = 56, totalColMinPx = 56;
 				const minWidthPx = nameMinPx + used.length * personColMinPx + (showTotal ? totalColMinPx : 0);
 				table.style.minWidth = minWidthPx + 'px';
+				// スマホでは min-width を効かせず、列が5つ以上なら狭い列・小さな文字にする（T100。css の .hm-dense）
+				table.classList.toggle('hm-dense', used.length + (showTotal ? 1 : 0) >= 5);
 			}
 		}
 
@@ -4520,6 +4642,16 @@
 			renderDevLog();
 		}
 
+		// 人のマスのスマホの塗り（T100）。未検出と★0は塗りなし・★不明は斜線・★1〜3は青の3段
+		function heatClass(stars) {
+			if (stars === null) return 'hmu';
+			return stars ? 'hm' + stars : 'hm0';
+		}
+		function heatNumber(stars) {
+			if (stars === null) return '?';
+			return stars ? String(stars) : '';
+		}
+
 		function starBadge(stars) {
 			if (stars === undefined) {
 				return '<span class="text-slate-300 text-xs">−</span>';
@@ -4564,7 +4696,7 @@
 
 				const cells = meta.map((m, idx) => {
 					const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderSoft + ';' : '';
-					return `<td class="text-center" style="background-color:${m.colors.tint};${borderStyle}">${starBadge(vals[idx])}</td>`;
+					return `<td class="hm-cell ${heatClass(vals[idx])}${m.boundary ? ' hm-bd' : ''} text-center" style="background-color:${m.colors.tint};${borderStyle}"><span class="hm-st">${starBadge(vals[idx])}</span><span class="hm-num">${heatNumber(vals[idx])}</span></td>`;
 				}).join('');
 
 				// ★合計はコピー用データには含めない（表示のみ・集計の目安）。
@@ -4572,11 +4704,11 @@
 				let totalCell = '';
 				if (showTotal) {
 					const total = vals.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
-					totalCell = `<td class="text-center font-bold text-slate-700" style="background-color:var(--exam-total-td-bg);border-left:2px solid var(--exam-total-td-border);">${total}</td>`;
+					totalCell = `<td class="hm-total text-center font-bold text-slate-700" style="background-color:var(--exam-total-td-bg);border-left:2px solid var(--exam-total-td-border);">${total}</td>`;
 				}
 
 				tableHtml += `<tr class="transition-colors">
-					<td class="font-medium text-slate-800">${categoryBadge(skill)}${escapeHtml(skill)}</td>
+					<td class="font-medium text-slate-800" title="${escapeHtml(skill)}">${categoryBadge(skill)}${escapeHtml(skill)}</td>
 					${cells}
 					${totalCell}
 				</tr>`;
