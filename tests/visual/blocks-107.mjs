@@ -23,7 +23,8 @@ export async function register107(env) {
 	const DOCK_BEFORE = { 375: { none: 124.8, ab: 192.8 }, 1280: { none: 56, ab: 94.8 } };
 	// 方眼の線の色（変える前 ライト #e6e9e4・ダーク #232a25。スマホだけ濃く: ライト #cfd5d0・ダーク #363f39）
 	// T101（194）で、スマホの線を T97 の前の色（PC と同じ）に戻した。方眼は T101 から表の入れ物（.vs）に持つ
-	const GRID = { pc: { light: 'rgb(230, 233, 228)', dark: 'rgb(35, 42, 37)' }, sp: { light: 'rgb(230, 233, 228)', dark: 'rgb(35, 42, 37)' } };
+	// T102: 文字の背景になるので線をわずかに薄く（ライト #eaede8・ダーク #202621。blocks-110 が見る）
+	const GRID = { pc: { light: 'rgb(234, 237, 232)', dark: 'rgb(32, 38, 33)' }, sp: { light: 'rgb(234, 237, 232)', dark: 'rgb(32, 38, 33)' } };
 	// 無効の遺伝子の行（141）の名前とマスの色
 	const OFF = { light: { tx: 'rgb(163, 170, 165)', bg: 'rgb(238, 240, 236)' }, dark: { tx: 'rgb(91, 100, 94)', bg: 'rgb(28, 33, 29)' } };
 
@@ -154,10 +155,10 @@ export async function register107(env) {
 			assert(d1.slotA[1] >= minH && d1.slotB[1] >= minH && d1.slotA[0] >= 100 && d0.cut.length === 0 && d1.cut.length === 0 && d1.recB[0] <= d1.recB[1], tag + ' 親A・親Bのボタンは ' + minH + 'px 以上で、帯の中の文字が切れない', { d0, d1 });
 			await look('04-dock');
 
-			// (8) 方眼（144 → T101 の 194 で T97 の前の色に戻した）: スマホも PC と同じ線。線の上の文字も 4.5 以上
+			// (8) 方眼（144 → T101 の 194 で T97 の前の色に戻した → T102 でわずかに薄く）: スマホも PC と同じ線。線の上の文字も 4.5 以上
 			const grid = await ev(() => { const m = /rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(document.body).backgroundImage); const vb = /rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(document.getElementById('vb').parentElement).backgroundImage); return { body: m && m[0], vb: vb && vb[0] }; });
 			const want = (pc ? GRID.pc : GRID.sp)[theme];
-			assert(grid.body === want && grid.vb === want, tag + ' 方眼の線の色（T97 の前の色。スマホも PC と同じ）', { grid, want });
+			assert(grid.body === want && grid.vb === want, tag + ' 方眼の線の色（T102 の色。スマホも PC と同じ）', { grid, want });
 			if (!pc) await page.click('[data-tab="view"]');
 			const cr = await ev((gridColor) => {
 				const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);

@@ -5,7 +5,7 @@
 //  - 方眼を、表の画面の中央の領域（道具の行の下から下段の帯の上まで・左右いっぱい）の全体に敷く。表の外（右・下の空き）にも方眼が出て、単色の地の所が無い。
 //    スマホ・PC、ライト・ダーク、親が少ない（3人）ときも多い（30人）ときも。
 //  - 方眼の目は表のマスにそろえたまま（T94 の基準。縮小 9px・拡大 15px の 2×2 の目）。スクロールしたあとも、マスと目がずれない。
-//  - 194: 方眼の線の色は T97 の前（ライト #e6e9e4・ダーク #232a25）。線の上の補足の文字のコントラストは 4.5 以上（blocks-107 の (8) が見る）。
+//  - 194: 方眼の線の色は T97 の前（ライト #e6e9e4・ダーク #232a25）→ T102 でわずかに薄く（ライト #eaede8・ダーク #202621）。線の上の補足の文字のコントラストは 4.5 以上（blocks-107 の (8) が見る）。
 //  - 193: スマホで引き出しが開いているとき、見出しの帯のボタン（レース/周回セット・ツール切り替え・ライト／ダーク）と道具の行の「⋯」は1回の押しで効く。
 //    表のマスなどは今までどおり「閉じるだけ」（blocks-107 の (9) が見る）。
 // 色は固定値（T97 の前の値）で測る。方眼が出ているかは画面の画素で見る（表の外の空きを 20px 角に区切り、どの角にも線の色の画素がある）。
@@ -16,8 +16,8 @@ import path from 'node:path';
 export async function register109(env) {
 	const { block, assert, browser, base } = env;
 	const SHOTS = process.env.T101_SHOTS || '';
-	// T97 の前（T94）の方眼の線の色と地の色
-	const GRID = { light: [230, 233, 228], dark: [35, 42, 37] };
+	// 方眼の線の色（T102 の値）と地の色
+	const GRID = { light: [234, 237, 232], dark: [32, 38, 33] };
 	const PAPER = { light: [251, 251, 248], dark: [20, 24, 21] };
 	const sizes = { 375: { width: 375, height: 812, isMobile: true, hasTouch: true }, 1280: { width: 1280, height: 800 } };
 
@@ -142,13 +142,13 @@ export async function register109(env) {
 
 			// (5) 「全体」の図と、表の無いときも中央の領域に方眼（ページの地と同じ 10px の目）
 			const ov = await ev(() => { document.querySelector('[data-lv="0"]').click(); const s = getComputedStyle(document.getElementById('stage')); return { img: /linear-gradient/.test(s.backgroundImage), size: s.backgroundSize, att: s.backgroundAttachment, col: (/rgb\(\d+, \d+, \d+\)/.exec(s.backgroundImage) || [])[0] }; });
-			assert(ov.img && ov.size === '10px 10px, 10px 10px' && /local/.test(ov.att) && ov.col === 'rgb(' + GRID[theme].join(', ') + ')', tag + ' 「全体」の図のときも中央の領域は 10px の方眼（線は T97 の前の色）', ov);
+			assert(ov.img && ov.size === '10px 10px, 10px 10px' && /local/.test(ov.att) && ov.col === 'rgb(' + GRID[theme].join(', ') + ')', tag + ' 「全体」の図のときも中央の領域は 10px の方眼（線は T102 の色）', ov);
 			await ev(() => document.querySelector('[data-lv="1"]').click()); await settle();
 
 			// (6) 線の色（194）: T97 の前の色。表の方眼もページの地も同じ
 			const col = await ev(() => { const c = (e) => (/rgb\(\d+, \d+, \d+\)/.exec(getComputedStyle(e).backgroundImage) || [])[0]; return { body: c(document.body), vs: c(document.querySelector('.vs')), stage: c(document.getElementById('stage')) }; });
 			const want = 'rgb(' + GRID[theme].join(', ') + ')';
-			assert(col.body === want && col.vs === want && col.stage === want, tag + ' 方眼の線の色は T97 の前（' + (theme === 'light' ? '#e6e9e4' : '#232a25') + '）', col);
+			assert(col.body === want && col.vs === want && col.stage === want, tag + ' 方眼の線の色は T102 の色（' + (theme === 'light' ? '#eaede8' : '#202621') + '）', col);
 
 			// (7) 見出しのボタン（193）: スマホで引き出しが開いているとき、1回の押しで効く。引き出しは開いたまま
 			if (!pc) {
