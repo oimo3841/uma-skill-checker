@@ -14,8 +14,9 @@
 		色は今のトークン（css/tokens.css の --uma-*）だけ。部品の形は special.html の③（.uma-subtabs・.video-btn・.upload-add・.upload-bar）を写した。
 		保存は「動画モードかどうか」だけ（このページ専用のキー t98mock:mode。次に開いたときもそのモード）。製品のキーには触れない。
 
-		引数: ?mode=shot|video（保存値より優先）・?scene=empty|filled|done（done＝動画の取り込み後に③に出た結合画像）・?panel=1（設定のパネルを開く）
-		      ?cols=3|2・?on=marker,roster,factor,sp,table,title（チェックの初期値。既定は全部 ON）・?theme=light|dark・?shot=1（上の操作の帯を隠す）
+		引数: ?mode=shot|video（保存値より優先）・?scene=empty|filled|done（done＝動画の取り込み後に③に出た結合画像）・?panel=1（設定のパネルまで送る）
+		      ?cols=3|2・?on=marker,roster,factor,sp,table,title（チェックの初期値。既定は T96 と同じく装飾5つ OFF・タイトルのバー ON）
+		「結合画像の設定」は T96（C-284）の置き場所と形（③のセットの下・見出し・チェック・模式図。値は special.html の .stitch-show を写した）を土台にした・?theme=light|dark・?shot=1（上の操作の帯を隠す）
 	-->
 	<link rel="stylesheet" href="../css/tokens.css" />
 	<link rel="stylesheet" href="../css/common.css" />
@@ -90,14 +91,6 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 .uma-btn svg { width: 16px; height: 16px; }
 @media (min-width: 768px) { .upload-bar-in { flex-direction: row; } .upload-bar-in > .uma-btn { flex: 1 1 0; width: auto; } }
 
-/* 「結合画像の設定」のパネル（UmaExam の .uma-popover の位置・.stitch-show の並びに合わせた。スマホは下から） */
-.pop-bg { position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .25); }
-.pop { position: fixed; z-index: 81; right: 16px; bottom: calc(var(--bar-h, 120px) + 12px); width: min(30rem, calc(100vw - 32px)); max-height: calc(100dvh - var(--bar-h, 120px) - 32px); overflow: auto;
-	background: var(--uma-surface); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); box-shadow: 0 12px 32px rgba(15,23,42,.18); padding: 14px 16px; }
-@media (max-width: 640px) { .pop { left: 0; right: 0; bottom: 0; width: 100%; border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 88dvh; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } }
-.pop-head { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12px; font-weight: 700; color: var(--uma-text-heading); }
-.pop-head svg { width: 14px; height: 14px; color: var(--uma-stitch-accent); }
-.pop-head .x { margin-left: auto; width: 44px; height: 44px; margin-right: -10px; margin-top: -10px; margin-bottom: -10px; border: 0; background: none; color: var(--uma-text-subtle); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 /* 形の選択（2択）。選択はモノトーン（恒久ルール30）: 選んだほうを反転の塗り */
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 0 10px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
 .seg button { min-height: 40px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -105,13 +98,19 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 .seg button[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
 .seg i { display: inline-flex; gap: 2px; }
 .seg i b { display: block; width: 5px; height: 12px; border-radius: 1px; background: currentColor; opacity: .85; }
-.show { display: flex; align-items: stretch; gap: var(--uma-sp-4); }
-.show-list { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.show-item { display: flex; align-items: center; gap: 8px; padding: 6px 6px; min-height: 36px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--uma-text-heading); cursor: pointer; }
-.show-item:hover { background: var(--uma-surface-muted); }
-.show-item input { width: 1rem; height: 1rem; margin: 0; accent-color: var(--uma-control-mark); }
+/* 「結合画像の設定」（T96 の special.html の .stitch-show の値を写した。③の中・セットの下に置く） */
+.stitch-panel { margin-top: 12px; }
+.show { display: flex; align-items: stretch; gap: var(--uma-sp-4); padding: var(--uma-sp-3); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-muted); }
+.show-body { flex: 1 1 auto; min-width: 0; }
+.show-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); display: flex; align-items: center; gap: 6px; }
+.show-title svg { width: 14px; height: 14px; color: var(--uma-stitch-accent); }
+.show-list { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
+.show-item { display: flex; align-items: flex-start; gap: var(--uma-sp-2); padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-md); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-heading); cursor: pointer; }
+.show-item:hover { background: var(--uma-surface); }
+.show-item input { flex-shrink: 0; width: 1rem; height: 1rem; margin: 1px 0 0; accent-color: var(--uma-control-mark); cursor: pointer; }
 .wire { flex: 0 0 auto; width: 150px; align-self: flex-start; }
-@media (max-width: 640px) { .show { flex-direction: column; } .wire { width: 180px; align-self: center; } }
+:root[data-theme="dark"] .wire .lay { background: var(--uma-surface-muted); border-color: var(--uma-border); }
+@media (max-width: 640px) { .show { flex-direction: column; } .wire { align-self: center; } }
 
 /* 結合画像の絵（灰色の箱）。.lay は画像そのものなのでダークでも白地（製品の結合画像と同じ） */
 .lay { background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; padding: 3%; color: #333; }
@@ -134,11 +133,14 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 .lay .shot { background: #F2F2F2; border-radius: 2px; padding: 2px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
 .lay .shot.full { padding-left: 12%; background: linear-gradient(90deg, transparent 5%, #c8c8c8 5% 5.8%, transparent 5.8%), #F2F2F2; }
 .lay .shot b { display: block; height: 6px; background: #E2E2E2; border-radius: 1px; position: relative; }
-.lay .shot b.m1 { box-shadow: inset 0 0 0 1.5px #d97706; background: #fff3dc; }
-.lay .shot b.m2 { box-shadow: inset 0 0 0 1.5px #16a34a; background: #e3f6e8; }
-.lay .shot b.m3 { box-shadow: inset 0 0 0 1.5px #2563eb; background: #e3ecfd; }
+/* 行の枠（T96 と同じ色）: 分類マーカー OFF は②のスキルを全部同じ緑（シンプル）・ON は種類の3色。遺伝子はいつも遺伝子の色 */
+.lay .shot b[data-k] { box-shadow: inset 0 0 0 1.5px #2F9E1F; background: #E6F5DA; }
+.lay.is-marker .shot b[data-k="card"] { box-shadow: inset 0 0 0 1.5px #008070; background: #E2F6F0; }
+.lay.is-marker .shot b[data-k="star"] { box-shadow: inset 0 0 0 1.5px #9C6A00; background: #FFF6CD; }
+.lay.is-marker .shot b[data-k="other"] { box-shadow: inset 0 0 0 1.5px #7A3FB0; background: #F0E6FA; }
+.lay .shot b[data-k="gene"] { box-shadow: inset 0 0 0 1.5px #BE185D; background: #FCE7F0; }
 .lay .status { height: 40px; border-radius: 2px; background: linear-gradient(#a3d65c 0 16%, #d9e7f5 16% 46%, #eef4e6 46% 62%, #fafafa 62%); margin-bottom: 2px; }
-.lay .legend { height: 5px; margin-top: 3%; width: 70%; background: linear-gradient(90deg, #555 0 18%, transparent 18% 22%, #d97706 22% 28%, transparent 28% 40%, #16a34a 40% 46%, transparent 46% 58%, #2563eb 58% 64%, transparent 64%); }
+.lay .legend { height: 5px; margin-top: 3%; width: 70%; background: linear-gradient(90deg, #555 0 18%, transparent 18% 22%, #008070 22% 28%, transparent 28% 40%, #9C6A00 40% 46%, transparent 46% 58%, #7A3FB0 58% 64%, transparent 64% 76%, #BE185D 76% 82%, transparent 82%); }
 .lay .info { flex: 0 0 34%; display: flex; flex-direction: column; gap: 6px; padding-left: 2%; border-left: 2px solid #E8E8E8; }
 .lay .info .blk { border-top: 0; padding-top: 0; flex: none; }
 .lay .info .blk + .blk { border-top: 2px solid #E8E8E8; padding-top: 6px; }
@@ -158,7 +160,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	<a href="?mode=shot&scene=filled">スクショのモード</a>
 	<a href="?mode=video&scene=filled">動画モード</a>
 	<a href="?mode=video&scene=done">動画モード・取り込み後</a>
-	<a href="?mode=video&scene=done&panel=1&cols=2">設定のパネル（2列）</a>
+	<a href="?mode=video&scene=done&panel=1&cols=2&on=marker,roster,factor,sp,table,title">設定のパネル（2列・全部 ON）</a>
 	<a href="?mode=shot&scene=empty">画像なし</a>
 </div>
 <header class="site-head">UmaStar OCR</header>
@@ -178,11 +180,11 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 			<div id="video-drop-slot"></div>
 			<div class="upload-cols" id="cols"></div>
 		</div>
+		<!-- 「結合画像の設定」（T96 の置き場所＝③のセットの下。T98 で先頭に 3列／2列・6つ目に「タイトルのバー」） -->
+		<div class="stitch-panel" id="stitch-panel"></div>
 	</section>
 </main>
 <div class="upload-bar" id="upload-bar"><div class="upload-bar-in" id="bar-in"></div></div>
-<div class="pop-bg" id="pop-bg" hidden></div>
-<div class="pop" id="pop" role="dialog" aria-modal="true" aria-labelledby="pop-h" hidden></div>
 
 <script>
 (function () {
@@ -222,7 +224,8 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 		on: {}
 	};
 	const onList = Q.get('on');
-	CHECKS.forEach(([k]) => { st.on[k] = onList === null ? true : onList.split(',').includes(k); });
+	// 初期値は T96 と同じく装飾5つが OFF（シンプル）。タイトルのバーは ON（決定 162）
+	CHECKS.forEach(([k]) => { st.on[k] = onList === null ? k === 'title' : onList.split(',').includes(k); });
 	if (st.mode !== 'video') st.mode = 'shot';
 	save(st.mode);
 
@@ -270,12 +273,10 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 		panel.classList.toggle('has-result', has);
 		if (!has) { slot.innerHTML = ''; cols.hidden = false; return; }
 		slot.innerHTML = '<div class="result"><div class="result-head"><p>親Aセット</p>'
-			+ '<button type="button" class="icon-btn" id="open-pop" aria-label="結合画像の設定を開く" title="結合画像の設定">' + ICON.sliders + '</button>'
 			+ '<button type="button" class="uma-btn uma-btn--primary">PNGをダウンロード</button></div>'
 			+ '<div class="res-lay" id="res-lay">' + layoutHtml(st.cols, st.on) + '</div>'
 			+ '<button type="button" class="showcols" id="showcols">' + (colsShown ? '親ごとの画像を隠す' : '親ごとの画像を見る') + '</button></div>';
 		cols.hidden = !colsShown;
-		document.getElementById('open-pop').addEventListener('click', openPop);
 		document.getElementById('showcols').addEventListener('click', () => { colsShown = !colsShown; renderResult(); });
 	}
 	function renderBar() {
@@ -287,7 +288,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 				+ '<button type="button" class="uma-btn uma-btn--secondary w-full"' + (can ? '' : ' disabled') + '>' + ICON.images + '<span>' + TXT.stitchOnly + '</span></button>';
 		requestAnimationFrame(() => document.documentElement.style.setProperty('--bar-h', document.getElementById('upload-bar').offsetHeight + 'px'));
 	}
-	function renderAll() { renderEntry(); renderBoxes(); renderResult(); renderCols(); renderBar(); if (!document.getElementById('pop').hidden) renderPop(); }
+	function renderAll() { renderEntry(); renderBoxes(); renderResult(); renderCols(); renderPanel(); renderBar(); }
 
 	// 入口のボタン: モードを切り替える（画像はそのまま。決定 159）。保存して次に開いたときもそのモード
 	document.getElementById('entry-btn').addEventListener('click', () => {
@@ -304,11 +305,12 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	}
 
 	/* ---------- 結合画像の絵（灰色の箱）。模式図と③の結果の両方に使う ---------- */
-	function shotRows(n, marks, seed) {
+	// 行の枠の種類（②のスキル: card／star／other・遺伝子: gene・枠なし: 空）。色は .lay.is-marker の有無で決まる（T96 と同じ）
+	function shotRows(n, seed) {
 		let h = '';
 		for (let i = 0; i < n; i++) {
-			const m = marks ? ['', 'm1', '', 'm2', '', '', 'm3', ''][(i + seed) % 8] : '';
-			h += '<b class="' + m + '"></b>';
+			const k = ['', 'card', '', 'star', '', 'gene', 'other', ''][(i + seed) % 8];
+			h += k ? '<b data-k="' + k + '"></b>' : '<b></b>';
 		}
 		return h;
 	}
@@ -323,15 +325,15 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	function table(rows) { return '<div class="tbl">' + '<b></b>'.repeat(rows) + '</div>'; }
 	function layoutHtml(cols, on) {
 		const mk = on.marker;
-		let h = '<div class="lay">' + (on.title ? '<div class="bar"></div>' : '');
+		let h = '<div class="lay' + (mk ? ' is-marker' : '') + '">' + (on.title ? '<div class="bar"></div>' : '');
 		if (cols === 3) {
 			const tb = topBlocks(on);
 			if (tb.length) h += '<div class="top3">' + tb.join('') + '</div>';
 			h += '<div class="row">';
 			if (on.table) h += '<div style="flex:0 0 22%">' + table(16) + '</div>';
-			h += '<div class="person">' + head('親A', true) + '<div class="shot">' + shotRows(14, mk, 0) + '</div>' + (mk ? '<div class="legend"></div>' : '') + '</div>';
-			h += '<div class="person">' + head('祖A1', true) + '<div class="shot">' + shotRows(12, mk, 3) + '</div></div>';
-			h += '<div class="person">' + head('祖A2', true) + '<div class="shot">' + shotRows(10, mk, 5) + '</div></div>';
+			h += '<div class="person">' + head('親A', true) + '<div class="shot">' + shotRows(14, 0) + '</div>' + (mk ? '<div class="legend"></div>' : '') + '</div>';
+			h += '<div class="person">' + head('祖A1', true) + '<div class="shot">' + shotRows(12, 3) + '</div></div>';
+			h += '<div class="person">' + head('祖A2', true) + '<div class="shot">' + shotRows(10, 5) + '</div></div>';
 			h += '</div>';
 		} else {
 			// 2列: 親A（上の欄＋因子・両側を削らない）｜祖A1・祖A2（縦に続けて親の列の高さに縮める）｜情報の列（ON の装飾だけを上から）
@@ -340,35 +342,31 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 			topBlocks(on).forEach(b => info.push(b));
 			if (on.table) info.push('<div class="blk">' + table(16) + '</div>');
 			h += '<div class="row">';
-			h += '<div class="person" style="flex:0 0 ' + (info.length ? '38%' : '56%') + '">' + head('親A', false) + '<div class="status"></div><div class="shot full">' + shotRows(14, mk, 0) + '</div></div>';
-			h += '<div class="person grands" style="flex:0 0 ' + (info.length ? '22%' : '33%') + '">' + head('祖A1', true) + '<div class="shot full">' + shotRows(10, mk, 3) + '</div>'
-				+ head('祖A2', true) + '<div class="shot full">' + shotRows(6, mk, 5) + '</div></div>';
+			h += '<div class="person" style="flex:0 0 ' + (info.length ? '38%' : '56%') + '">' + head('親A', false) + '<div class="status"></div><div class="shot full">' + shotRows(14, 0) + '</div></div>';
+			h += '<div class="person grands" style="flex:0 0 ' + (info.length ? '22%' : '33%') + '">' + head('祖A1', true) + '<div class="shot full">' + shotRows(10, 3) + '</div>'
+				+ head('祖A2', true) + '<div class="shot full">' + shotRows(6, 5) + '</div></div>';
 			if (info.length) h += '<div class="info">' + info.join('') + '</div>';
 			h += '</div>';
 		}
 		return h + '</div>';
 	}
 
-	/* ---------- 「結合画像の設定」のパネル ---------- */
-	function renderPop() {
-		const pop = document.getElementById('pop');
-		pop.innerHTML = '<p class="pop-head" id="pop-h">' + ICON.sliders + '<span>結合画像の設定</span><button type="button" class="x" id="pop-x" aria-label="閉じる">' + ICON.x + '</button></p>'
-			+ '<div class="seg" role="group" aria-label="形">'
-			+ '<button type="button" data-cols="3" aria-pressed="' + (st.cols === 3) + '"><i><b></b><b></b><b></b></i>3列</button>'
-			+ '<button type="button" data-cols="2" aria-pressed="' + (st.cols === 2) + '"><i><b style="width:8px"></b><b></b></i>2列</button></div>'
-			+ '<div class="show"><div class="show-list">' + CHECKS.map(([k, l]) => '<label class="show-item"><input type="checkbox" data-k="' + k + '"' + (st.on[k] ? ' checked' : '') + ' />' + l + '</label>').join('') + '</div>'
-			+ '<div class="wire" aria-hidden="true">' + layoutHtml(st.cols, st.on) + '</div></div>';
-		pop.querySelectorAll('[data-cols]').forEach(b => b.addEventListener('click', () => { st.cols = +b.getAttribute('data-cols'); renderPop(); renderResult(); }));
-		pop.querySelectorAll('input[data-k]').forEach(i => i.addEventListener('change', () => { st.on[i.getAttribute('data-k')] = i.checked; renderPop(); renderResult(); }));
-		document.getElementById('pop-x').addEventListener('click', closePop);
+	/* ---------- 「結合画像の設定」（T96 の形: 見出し → チェック → 模式図。T98 で先頭に 3列／2列・6つ目に「タイトルのバー」） ---------- */
+	function renderPanel() {
+		const el = document.getElementById('stitch-panel');
+		el.innerHTML = '<div class="show"><div class="show-body">'
+			+ '<p class="show-title">' + ICON.sliders + '<span>結合画像の設定</span></p>'
+			+ '<div class="seg" role="group" aria-label="結合画像の形">'
+			+ '<button type="button" data-cols="3" aria-pressed="' + (st.cols === 3) + '"><i aria-hidden="true"><b></b><b></b><b></b></i>3列</button>'
+			+ '<button type="button" data-cols="2" aria-pressed="' + (st.cols === 2) + '"><i aria-hidden="true"><b style="width:8px"></b><b></b></i>2列</button></div>'
+			+ '<div class="show-list">' + CHECKS.map(([k, l]) => '<label class="show-item"><input type="checkbox" data-k="' + k + '"' + (st.on[k] ? ' checked' : '') + ' /><span>' + l + '</span></label>').join('') + '</div>'
+			+ '</div><div class="wire" aria-hidden="true">' + layoutHtml(st.cols, st.on) + '</div></div>';
+		el.querySelectorAll('[data-cols]').forEach(b => b.addEventListener('click', () => { st.cols = +b.getAttribute('data-cols'); renderPanel(); renderResult(); }));
+		el.querySelectorAll('input[data-k]').forEach(i => i.addEventListener('change', () => { st.on[i.getAttribute('data-k')] = i.checked; renderPanel(); renderResult(); }));
 	}
-	function openPop() { document.getElementById('pop').hidden = false; document.getElementById('pop-bg').hidden = false; renderPop(); }
-	function closePop() { document.getElementById('pop').hidden = true; document.getElementById('pop-bg').hidden = true; }
-	document.getElementById('pop-bg').addEventListener('click', closePop);
-	document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
 
 	renderAll();
-	if (Q.get('panel') === '1') openPop();
+	if (Q.get('panel') === '1') document.getElementById('stitch-panel').scrollIntoView({ block: 'center' });
 	window.addEventListener('resize', renderBar);
 })();
 </script>
