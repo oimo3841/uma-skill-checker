@@ -2,7 +2,9 @@
  * 版13 から変えたのは、C-275 の 5（「⋯」の仮のデータ・終了をまねる・登録の画面を試すを入れない）・6（文の直し）・4（「ホーム画面に追加」の案内）と、
  * ツール切り替えの行をほかのツールのページへのリンクにしたこと。T92（段4 の 4-2）で「ホーム画面に追加」の案内を外し、ライト／ダークを js/theme.js の設定にそろえた。
  * T94（方眼紙デザイン・C-282）: 見出しのボタン（ツール切り替え・ライト／ダーク）を UmaStar と同じ形の svg にし、ライト／ダークのアイコンは利用者の選択（自動／ライト／ダーク）を示す。
- * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。以下は版13 の説明。
+ * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。
+ * T97（2026-11-04）: 「指定なし」で送った一覧を「指定なし」の行に（140）・「指定なし」の遺伝子の3行を無効の形で出す（141）・表の上の2本指で段階を変えない（142）・
+ * スマホで引き出しの外を押すと閉じる（143）。以下は版13 の説明。
  * Deck 本体（ヒートマップの表・親の小窓・2組・本育成設計・レース/周回セット・バックアップ）。版12（T86・C-273）:
  * マスの塗りと数字は親と祖の合計の5段・親本人の★は左上の小さな数字・PC は左の列に5つの欄を全部並べる・1つだけ選ぶ欄は帯・複数選べる欄は札。
  * 版13（T87・C-274）: 縮小と遺伝子の行にも左上の親本人の★・分類の「そのほか」の札を外す・親の小窓と祖の詳細に対象スキルの列挙（序盤／中盤／終盤／その他）・
@@ -13,7 +15,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-04a';
+	const DECK_ALPHA_JS_VERSION = '2026-11-04b';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -69,7 +71,16 @@
 	function pickSet(key) { S.settings.cur = key; saveSettings(); applySetDefaults(); renderAll(); }
 	/** 遺伝子の行の条件: 距離とバ場はセットの条件、脚質は親(列)の脚質の絞り（C-271 の 23） */
 	function cond() { const c = K.setCond(curSet()); return { dist: c.dist, surface: c.surface, styles: [...S.pf.style] }; }
-	const grows = () => S.M.geneRowsOf(cond());
+	/** 「指定なし」のときは 距離・脚質・バ場 の3行を出し、条件の無い行は無効（off: 行の名前もマスも薄く・マスは空。T97・141）。
+	 *  脚質は親(列)の脚質の絞りがあれば今までどおり数える行。行の keys が空なので★の数はどれも 0（2組を探す・おすすめの並べ方は変わらない） */
+	function grows() {
+		const g = S.M.geneRowsOf(cond());
+		if (curSet()) return g;
+		const st = g.find((r) => r.key === 'style');
+		return [{ key: 'dist', keys: [], label: '距離', off: true }, st || { key: 'style', keys: [], label: '脚質', off: true }, { key: 'surface', keys: [], label: 'バ場', off: true }];
+	}
+	/** 行の一覧を持つもの: セットを選んでいればそのセット、「指定なし」なら送った一覧（一度も送っていなければ無い。T97・140） */
+	const listSet = () => curSet() || (S.doc.none && S.doc.none.sends ? S.doc.none : null);
 
 	/* ---------- 本育成設計（セットごとに1つ保存。C-271 の 16） ---------- */
 	function plan() { const k = curKey(); return S.doc.plans[k] || (S.doc.plans[k] = K.emptyPlan()); }
@@ -93,11 +104,11 @@
 		if (pa) ps = ps.filter((p) => S.pm.get(p.id) === 1).concat(ps.filter((p) => S.pm.get(p.id) === 2)); // (1) そのまま使える → (2) 祖にできる
 		return ps;
 	}
-	/** 行の母集団: セットを選んでいればそのセットのスキルの一覧、「指定なし」なら親が持っているスキル全部（C-271 の 4） */
+	/** 行の母集団: セットを選んでいればそのセットのスキルの一覧、「指定なし」なら送った一覧（T97・140）。一度も送っていなければ親が持っているスキル全部（C-271 の 4） */
 	function visRowsRaw() {
-		const f = S.sf, q = f.q.trim(), s = curSet();
+		const f = S.sf, q = f.q.trim(), s = listSet();
 		const base = s ? Object.keys(s.skills).map(K.skill).sort((a, b) => a.order - b.order) : S.M.rows;
-		const twoLists = s && s.kind === 'race' && s.sends > 1;
+		const twoLists = K.sendsKind(s) && s.sends > 1;
 		return base.filter((x) => {
 			if (twoLists && f.list !== 'all') { const old = K.oldOnly(s, x.id); if (f.list === 'new' ? old : !old) return false; }
 			if (f.cat.size && !f.cat.has(x.cat)) return false;
@@ -143,7 +154,7 @@
 	function renderFilters() {
 		chips($('#pf-style'), Object.entries(K.STYLE), (v) => S.pf.style.has(v), (v) => toggleSet(S.pf.style, v));
 		chips($('#pf-owner'), [['self', '自分'], ['friend', 'フレンド']], (v) => S.pf.owner.has(v), (v) => toggleSet(S.pf.owner, v));
-		const s = curSet(), two = !!s && s.kind === 'race' && s.sends > 1;
+		const s = listSet(), two = K.sendsKind(s) && s.sends > 1;
 		$('#sf-listRow').hidden = !two;
 		if (two) segOf($('#sf-list'), [['all', '全部'], ['new', '最新の一覧'], ['old', '前回までだけ']], (v) => S.sf.list === v, (v) => { S.sf.list = v; }, 'スキルの一覧');
 		// 分類の「そのほか」の札は出さない（C-274 の 3）
@@ -297,7 +308,7 @@
 		stage.appendChild(cv);
 	}
 	function drawTable(ps, rows, cols, force) {
-		const M = S.M, d = dims(), six = S.six && S.A && S.B, G = S.settings.geneRows ? grows() : [], GR = G.length, s0 = curSet();
+		const M = S.M, d = dims(), six = S.six && S.A && S.B, G = S.settings.geneRows ? grows() : [], GR = G.length, s0 = listSet();
 		const par = six ? selected() : ps;
 		const rowMax = rows.map((s) => rowMaxOf(par, s.id));
 		const colN = cols.map((c) => rows.reduce((n, s) => n + ((c.kind === 'p' ? M.famHas(c.p, s.id) : M.ok(c.m.skills[s.id])) ? 1 : 0), 0));
@@ -328,6 +339,7 @@
 			// 左の名前と最大（前回までの一覧にだけあるスキルは .old）
 			let lh = '<table style="width:' + L + 'px"><colgroup><col style="width:' + d.nw + 'px"><col style="width:' + d.mw + 'px"></colgroup><tbody>';
 			for (let y = r0; y < r1; y++) {
+				if (y < GR && G[y].off) { lh += '<tr style="height:' + d.rh + 'px"><th class="gl off' + (y === GR - 1 ? ' gsep' : '') + '" data-gr="' + y + '" aria-disabled="true" style="' + fz(d.nw) + ';font-size:' + d.fs + 'px">' + K.esc(glabel(G[y])) + '</th><th class="mx off' + (y === GR - 1 ? ' gsep' : '') + '" style="' + fz(d.mw) + '"></th></tr>'; continue; }
 				if (y < GR) { const g = G[y]; let mx = 0, lvm = 0; cols.forEach((c) => { const n = geneAt(c, g); if (n > mx) { mx = n; lvm = geneLv(c, n); } }); lh += '<tr style="height:' + d.rh + 'px"><th class="gl' + (y === GR - 1 ? ' gsep' : '') + '" data-gr="' + y + '" style="' + fz(d.nw) + ';font-size:' + d.fs + 'px" title="' + K.esc(g.label) + 'の遺伝子の★の数">' + K.esc(glabel(g)) + '</th><th class="mx c' + lvm + (y === GR - 1 ? ' gsep' : '') + '" style="' + fz(d.mw) + '">' + mx + '</th></tr>'; continue; }
 				const s = rows[y - GR], n = rowMax[y - GR], lv = lv5(n);
 				// 「分類ごと」のときは、スキル名の欄の左端に分類の色の帯（C-274 の 14）
@@ -340,6 +352,7 @@
 			for (let y = r0; y < r1; y++) {
 				bh += '<tr style="height:' + d.rh + 'px">';
 				for (let x = c0; x < c1; x++) { const c = cols[x]; const sel = c.kind === 'p' ? (c.p.id === S.A ? ' sA' : c.p.id === S.B ? ' sB' : '') : '';
+					if (y < GR && G[y].off) { bh += '<td class="c0 off' + (y === GR - 1 ? ' gsep' : '') + sel + '" data-g="' + y + '" data-c="' + x + '" style="' + fz(d.cw) + '"></td>'; continue; } // 無効の遺伝子の行（T97・141）: マスは空
 					if (y < GR) { const n = geneAt(c, G[y]); bh += '<td class="c' + geneLv(c, n) + (y === GR - 1 ? ' gsep' : '') + sel + '" data-g="' + y + '" data-c="' + x + '" style="' + fz(d.cw) + '">' + geneCell(c, G[y], n) + '</td>'; continue; }
 					const s = rows[y - GR]; const [cls, txt, txt1] = cellInfo(c, s.id);
 					bh += '<td class="' + cls + sel + '" data-r="' + (y - GR) + '" data-c="' + x + '" style="' + fz(d.cw) + '">' + (S.lv === 2 ? txt : txt1) + '</td>'; }
@@ -365,9 +378,9 @@
 		let raf = 0; stage.onscroll = () => { place(); if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); };
 		// 押したとき（部品ごとに1つ）
 		vh.onclick = (e) => { const th = e.target.closest('th[data-c]'); if (!th) return; const c = cols[+th.dataset.c]; if (c.kind === 'm' && c.k) nav(() => memberOrLinked(c.p, c.k)); else nav(() => parentSheet(c.p)); };
-		vl.onclick = (e) => { const th = e.target.closest('th[data-r]'); if (th) { nav(() => skillSheet(rows[+th.dataset.r])); return; } const gl = e.target.closest('th[data-gr]'); if (gl) toast(G[+gl.dataset.gr].label + 'の遺伝子の★の数' + (six ? '（1人ずつ）' : S.M.gpOn ? '（親＋祖2人）' : '（親だけ）')); };
+		vl.onclick = (e) => { const th = e.target.closest('th[data-r]'); if (th) { nav(() => skillSheet(rows[+th.dataset.r])); return; } const gl = e.target.closest('th[data-gr]'); if (gl && !G[+gl.dataset.gr].off) toast(G[+gl.dataset.gr].label + 'の遺伝子の★の数' + (six ? '（1人ずつ）' : S.M.gpOn ? '（親＋祖2人）' : '（親だけ）')); };
 		vb.onclick = (e) => { const td = e.target.closest('td'); if (!td) return; const c = cols[+td.dataset.c];
-			if (td.dataset.g != null) { const g = G[+td.dataset.g]; if (c.kind === 'm') { toast(c.pos + ' ' + K.charaName(c.m.uma) + '：' + g.label + 'の遺伝子 ★' + M.geneStar(c.m, g)); return; } const f = M.fam(c.p); toast(K.charaName(c.p.uma) + '：' + g.label + 'の遺伝子 ★' + geneAt(c, g) + '（親 ★' + M.geneStar(f[0], g) + (M.gpOn ? '・祖1 ★' + M.geneStar(f[1], g) + '・祖2 ★' + M.geneStar(f[2], g) : '') + '）'); return; }
+			if (td.dataset.g != null) { const g = G[+td.dataset.g]; if (g.off) return; if (c.kind === 'm') { toast(c.pos + ' ' + K.charaName(c.m.uma) + '：' + g.label + 'の遺伝子 ★' + M.geneStar(c.m, g)); return; } const f = M.fam(c.p); toast(K.charaName(c.p.uma) + '：' + g.label + 'の遺伝子 ★' + geneAt(c, g) + '（親 ★' + M.geneStar(f[0], g) + (M.gpOn ? '・祖1 ★' + M.geneStar(f[1], g) + '・祖2 ★' + M.geneStar(f[2], g) : '') + '）'); return; }
 			const s = rows[+td.dataset.r]; const st = (v) => v > 0 ? '★' + v : v < 0 ? '★不明' : 'なし';
 			if (c.kind === 'm') { toast(c.pos + ' ' + K.charaName(c.m.uma) + '／' + s.name + '：' + st(c.m.skills[s.id])); return; }
 			const r = famSum(c.p, s.id);
@@ -377,12 +390,9 @@
 	function setLevel(lv, focus) { S.lv = lv; document.querySelectorAll('[data-lv]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.lv === lv ? 'true' : 'false')); renderStage(true); if (focus && V && V.focusTo) V.focusTo(focus.row, focus.col); }
 	document.querySelectorAll('[data-lv]').forEach((b) => { b.onclick = () => setLevel(+b.dataset.lv); });
 
-	/* ピンチ（2本指）とトラックパッドの ctrl+ホイールで段階を切り替える */
-	let pinch = null;
-	stage.addEventListener('touchstart', (e) => { if (e.touches.length === 2) { const [a, b] = e.touches; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), done: false }; } }, { passive: true });
-	stage.addEventListener('touchmove', (e) => { if (!pinch || e.touches.length !== 2) return; e.preventDefault(); const [a, b] = e.touches; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (pinch.done) return; if (d / pinch.d > 1.35 && S.lv < 2) { pinch.done = true; setLevel(S.lv + 1); } else if (d / pinch.d < .72 && S.lv > 0) { pinch.done = true; setLevel(S.lv - 1); } }, { passive: false });
-	stage.addEventListener('touchend', () => { pinch = null; });
-	/* スマホ: 1本指の移動を縦か横の一方に固定する（最初に大きく動いた向き）。
+	/* 段階は「表示」の「全体／縮小／拡大」のボタンだけで変える。表の上の2本指（ピンチ）とトラックパッドの ctrl+ホイールで段階を切り替える処理は外し、
+	 * ブラウザ標準の拡大・縮小に任せる（T97・142。css の .stage の touch-action に pinch-zoom を足した）。
+	 * スマホ: 1本指の移動を縦か横の一方に固定する（最初に大きく動いた向き）。2本目の指が触れたら止め、ピンチはブラウザに任せる。
 	 * 指を離したあとも、離す直前の速さで惰性で進み、だんだん遅くなって止まる（C-274 の 8。向きは固定したまま）。
 	 * 速さは離す直前 100ms の動きの平均（最後の1回の動きだけだと、離す瞬間の指の止まりで 0 に近くなり、すぐ止まっていた）。
 	 * 指を止めてから離したとき（最後の動きから 80ms 以上）は惰性を付けない。減り方は 1ms ごとに 0.998 倍（iPhone の標準のスクロールと同じくらい）。端に着いたら止める。
@@ -397,7 +407,7 @@
 		pan.tg.addEventListener('touchmove', panMove, { passive: false }); pan.tg.addEventListener('touchend', panEnd); pan.tg.addEventListener('touchcancel', panOff);
 	}, { passive: true });
 	function panOff() { if (!pan) return; pan.tg.removeEventListener('touchmove', panMove, { passive: false }); pan.tg.removeEventListener('touchend', panEnd); pan.tg.removeEventListener('touchcancel', panOff); pan = null; }
-	function panMove(e) { if (!pan || e.touches.length !== 1 || pinch) return; const t = e.touches[0]; const dx = t.clientX - pan.x, dy = t.clientY - pan.y; if (!pan.axis) { if (Math.hypot(dx, dy) < 6) return; pan.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; } e.preventDefault(); const now = performance.now(); if (pan.axis === 'x') stage.scrollLeft = pan.sl - dx; else stage.scrollTop = pan.st - dy; pan.hist.push({ t: now, p: pan.axis === 'x' ? t.clientX : t.clientY }); while (pan.hist.length > 2 && now - pan.hist[0].t > SAMPLE_MS) pan.hist.shift(); }
+	function panMove(e) { if (!pan || e.touches.length !== 1) return; const t = e.touches[0]; const dx = t.clientX - pan.x, dy = t.clientY - pan.y; if (!pan.axis) { if (Math.hypot(dx, dy) < 6) return; pan.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; } e.preventDefault(); const now = performance.now(); if (pan.axis === 'x') stage.scrollLeft = pan.sl - dx; else stage.scrollTop = pan.st - dy; pan.hist.push({ t: now, p: pan.axis === 'x' ? t.clientX : t.clientY }); while (pan.hist.length > 2 && now - pan.hist[0].t > SAMPLE_MS) pan.hist.shift(); }
 	function panEnd() {
 		if (!pan || !pan.axis) { panOff(); return; }
 		const axis = pan.axis, h = pan.hist; panOff();
@@ -419,8 +429,6 @@
 		};
 		inert = requestAnimationFrame(step);
 	}
-	let wheelAcc = 0, wheelT = 0;
-	stage.addEventListener('wheel', (e) => { if (!e.ctrlKey) return; e.preventDefault(); wheelAcc += e.deltaY; const now = Date.now(); if (now - wheelT < 450) return; if (wheelAcc < -40 && S.lv < 2) { wheelT = now; wheelAcc = 0; setLevel(S.lv + 1); } else if (wheelAcc > 40 && S.lv > 0) { wheelT = now; wheelAcc = 0; setLevel(S.lv - 1); } }, { passive: false });
 
 	/* ---------- 小窓（下から出る）。nav で開いた小窓は積み重なり、「戻る」で前の小窓へ戻る（C-271 の 21） ---------- */
 	let stack = [], curView = null;
@@ -502,7 +510,7 @@
 		const list = ps.map((p) => { const f = M.fam(p); const v = f[0].skills[s.id]; const go = M.gpOnly(p, s.id); return { p, v: v == null ? 0 : v, go, t: rows.filter((x) => M.ok(p.skills[x.id])).length }; }).filter((x) => x.v !== 0 || x.go)
 			.sort((a, b) => b.t - a.t || b.p.date.localeCompare(a.p.date) || b.p.no - a.p.no);
 		const tags = [K.CAT[s.cat]].concat(s.dist.map((d) => K.DIST[d]), s.style.map((d) => K.STYLE[d]), s.surface.map((d) => K.SURF[d]));
-		const old = K.oldOnly(curSet(), s.id);
+		const old = K.oldOnly(listSet(), s.id);
 		openSheet('<h2 id="sheetTitle">' + K.esc(s.name) + '<span class="sub">' + K.esc(tags.join('・')) + (old ? '・前回までの一覧にだけある' : '') + '／表示中の親' + ps.length + '人のうち' + list.length + '人</span></h2>' +
 			'<div class="list">' + (list.map((x) => '<button type="button" data-p="' + x.p.id + '"><span><span class="' + (x.p.owner === 'friend' ? 'fr' : '') + '">' + K.esc(K.charaName(x.p.uma)) + '</span> <span class="muted mono small">' + M.code(x.p) + '</span></span><span class="sc">対象スキル' + x.t + '種・' + (x.v > 0 ? '★' + x.v : x.v < 0 ? '★不明' : '祖が持つ') + '</span></button>').join('') || '<div><span class="muted">持っている親はいません</span></div>') + '</div>' +
 			'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>');
@@ -538,7 +546,7 @@
 		nav(() => {
 			const rows = visRowsRaw(), cov = covered(rows), miss = rows.filter((s) => !cov.includes(s)), G = grows();
 			const parts = []; [S.A, S.B].forEach((id, si) => { const p = id && M.byId.get(id); if (!p) return; M.fam(p).forEach((m, k) => parts.push('<div><span>' + K.POS[si * 3 + k] + '　' + K.esc(K.charaName(m.uma)) + ' <span class="muted small">' + K.esc(K.uniqName(m.uma)) + '</span></span><span class="sc">' + K.starText(m.green) + '</span></div>')); });
-			const gsum = G.map((g) => g.label + ' ★' + sel.reduce((a, p) => a + M.fam(p).reduce((b, m) => b + M.geneStar(m, g), 0), 0)).join('・') || '条件の指定なし';
+			const gsum = G.filter((g) => !g.off).map((g) => g.label + ' ★' + sel.reduce((a, p) => a + M.fam(p).reduce((b, m) => b + M.geneStar(m, g), 0), 0)).join('・') || '条件の指定なし';
 			const reds = (list) => { const m = {}; list.forEach((r) => { if (!r) return; const k = K.RED[r[0]]; m[k] = (m[k] || 0) + Math.max(0, r[1]); }); return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + '★' + v).join('・') || 'なし'; };
 			const lv1 = [], lv2 = []; let unknown = 0; sel.forEach((p) => { M.fam(p).forEach((m, k) => { lv1.push(m.red); if (k) { const gp = M.gpParents(m); if (gp) gp.forEach((y) => lv2.push(y.red)); else unknown += 2; } }); });
 			openSheet('<h2 id="sheetTitle">2組の充足<span class="sub mono">' + cov.length + '/' + rows.length + '（' + (S.settings.gp ? '親＋祖' : '親だけ') + '・★' + M.th + '以上）</span></h2>' +
@@ -647,6 +655,8 @@
 				add.forEach((q) => { (q.gp || []).forEach((g) => { if (g.link && map[g.link]) g.link = map[g.link]; }); });
 				// セットは同じ id なら一覧を OR でまとめる（区別は読み込んだ側の回をそのまま使わず、今のセットの回に揃える）
 				doc.sets.forEach((s) => { const t = S.doc.sets.find((x) => x.id === s.id); if (!t) S.doc.sets.push(s); else Object.keys(s.skills).forEach((id) => { if (!(id in t.skills)) t.skills[id] = Math.max(1, t.sends - 1); }); });
+				// 「指定なし」の一覧も同じ形で OR でまとめる（T97・140）
+				if (doc.none) { if (!S.doc.none) S.doc.none = doc.none; else Object.keys(doc.none.skills).forEach((id) => { if (!(id in S.doc.none.skills)) S.doc.none.skills[id] = Math.max(1, S.doc.none.sends - 1); }); }
 				S.doc.next = Math.max(next, S.doc.next); S.doc.parents = S.doc.parents.concat(add);
 				await K.store.putParents(add); await saveHead(); await runArchive(); rebuild(); closeSheet(); renderAll(); toast('足しました（親' + add.length + '人）');
 			};
@@ -665,6 +675,15 @@
 	$('#moreBtnPc').onclick = openData;
 	matchMedia('(max-width: 720px)').addEventListener('change', () => { if (S.doc) applyPanes(); });
 	document.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { S.pane = S.pane === b.dataset.tab ? null : b.dataset.tab; applyPanes(); renderStage(true); }; });
+	/* スマホ: 5つの引き出しのどれかが開いているとき、開いている領域の外を押すと閉じる（T97・143）。そのタップは閉じるだけに使い、表のマスなどへは届けない。
+	 * 受けるのは click（指を動かさずに離したときだけ起きる）なので、表のスワイプ・スクロールでは閉じない。タブのボタンと小窓（とその下の幕）はそのまま通す */
+	document.addEventListener('click', (e) => {
+		if (!S.pane || !isNarrow() || !$('#sheet').hidden) return;
+		const t = e.target instanceof Element ? e.target : null;
+		if (!t || t.closest('#panes, [data-tab], #sheet, #scrim, #toast')) return;
+		e.preventDefault(); e.stopPropagation();
+		S.pane = null; applyPanes(); renderStage(true);
+	}, true);
 	$('#cs').onchange = (e) => { S.cs = e.target.value; renderAll(); };
 	$('#rs').onchange = (e) => { S.rs = e.target.value; renderAll(); };
 	let qT; $('#sf-q').oninput = (e) => { S.sf.q = e.target.value; clearTimeout(qT); qT = setTimeout(() => { renderFilters(); renderStage(true); renderDock(); }, 150); };

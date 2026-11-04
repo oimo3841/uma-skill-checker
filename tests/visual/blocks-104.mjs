@@ -96,7 +96,7 @@ export async function register104(env) {
 			// (3) 方眼（決まり 1）と、表のマスが 2×2 の目を持つこと。空のマスは地のまま。角丸・影なし（決まり 2）
 			const grid = await ev((s1) => {
 				const cs = (el) => getComputedStyle(el);
-				const body = cs(document.body), vb = document.getElementById('vb'), td0 = document.querySelector('.vb td.c0:not(.unk)'), td1 = document.querySelector('.vb td.c1:not(.unk)');
+				const body = cs(document.body), vb = document.getElementById('vb'), td0 = document.querySelector('.vb td.c0:not(.unk):not(.off)'), td1 = document.querySelector('.vb td.c1:not(.unk)');
 				const radius = ['.btn', '.tag', '.seg', '.rsel', '.stage', '.panes', '.top'].map((s) => { const e = document.querySelector(s); return e ? cs(e).borderTopLeftRadius : '0px'; });
 				// 本体の入れ物（.vb）はマスの大きさの倍数の位置に置かれる（translate の値が 18 の倍数）
 				const tr = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(vb.style.transform) || [];

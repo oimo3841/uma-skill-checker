@@ -1,4 +1,4 @@
-/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-04a（?v= と同じ）。
+/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-04b（?v= と同じ）。
  * T94（2026-11-04・C-282）: 方眼紙デザイン。モック版14（lab/deck-v14/deck-v14.css）の版A（今の字体）を製品に移し、おいもさんの回答（T94 への連絡）を入れた。
  * 見本（FiveThirtyEight「Science Isn't Broken」）から読み取った全体の決まり:
  *   1. 背景は方眼紙。データの点も文字も方眼の上に置く    2. 区切りは太い黒の横線だけ。カード・角丸の枠・影は使わない
@@ -10,6 +10,7 @@
  *   ツール切り替えとライト／ダークのボタンは UmaStar・UmaExam と同じ形（34×38px・角丸12px・アイコン 16px。追加4）。
  * 方眼: ページの地は 10px の目。表のマスは JS の寸法（縮小 18px・拡大 30px）を変えずに、マス自身が 2×2 の目（縮小 9px・拡大 15px）を持つ
  *   （マスの中の目はマスの左上から数えるので、名前の列や見出しの高さがどうでも必ずそろう。見た目の変更は CSS の中だけ）。空のマス（0）は地のまま＝目だけが見える。
+ * T97（2026-11-04）: 表の上のピンチはブラウザ標準の拡大・縮小（142）・下段の帯を今の 2/3 程度に詰めた（4）・スマホだけ方眼の線を濃く（144）・「指定なし」の遺伝子の無効の行（141）。
  * 構造（骨格・見える範囲だけ描く表・小窓の積み重ね）は版13 のまま。sticky の表で opacity は使わない（恒久ルール9）。
  * 青・赤・緑の因子の札（色で種類を示す。C-271 の 22）と「分類ごと」の分類の色（C-274 の 14）は、データの色なので製品のトークンの色のまま。
  */
@@ -18,7 +19,7 @@
 	--gp-paper: #fbfbf8;      /* 地 */
 	--gp-grid: #e6e9e4;       /* 方眼の線 */
 	--gp-ink: #1b1f1c;        /* 文字・太い線・選択の塗り */
-	--gp-sub: #646b66;        /* 補足の文字（Chat のモックの #6b726d を少し濃く。方眼の線の上でも 4.5 を保つ） */
+	--gp-sub: #616863;        /* 補足の文字（Chat のモックの #6b726d を少し濃く。T97: #646b66 は方眼の線 #e6e9e4 の上で 4.47 だったので #616863〔線の上で 4.67〕に） */
 	--gp-line: #c9cfca;       /* 一覧の行の細い線・無効の枠 */
 	--gp-acc: #014C2C;        /* 強調の1色（JRA の深緑） */
 	/* 5段の塗り（合計 1-2／3-4／5-6／7-8／9）。薄い3段はモックの #dcebe1 #b2d3bd #78ae8d を少し濃くした（T94-3。地から順に 1.35・1.45・1.44・1.60・2.17） */
@@ -28,6 +29,7 @@
 	--gp-sel: #1b1f1c; --gp-sel-text: #fbfbf8; /* 選択中（黒の塗り） */
 	--gp-unk: #646b66;
 	--gp-scrim: rgba(27, 31, 28, .4);
+	--gp-off: #a3aaa5; --gp-off-bg: #eef0ec;  /* 無効の行（T97・141）の名前とマス */
 	/* 上段と下段の帯（追加1・追加2・133）。ライト・ダークとも同じ */
 	--gp-band-top: #1b7756; --gp-band-bottom: #0e4b2f; --gp-band-text: #ffffff; --gp-band-sub: rgba(255, 255, 255, .8); --gp-band-line: rgba(255, 255, 255, .55);
 	--dk-sans: -apple-system, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
@@ -66,7 +68,15 @@
 	--gp-sel: #e6ebe7; --gp-sel-text: #141815;
 	--gp-unk: #9aa59e;
 	--gp-scrim: rgba(0, 0, 0, .6);
+	--gp-off: #5b645e; --gp-off-bg: #1c211d;
 	--dk-cat-scenario: #AFA9EC; --dk-cat-outside: #5DCAA5; --dk-cat-factor: #F0997B; --dk-cat-other: #B4B2A9;
+}
+
+/* スマホだけ方眼の線を濃くする（T97・144。PC は今のまま）。線の上の補足の文字もコントラスト 4.5 を保つよう少し濃くする
+ * （ライト: 線 #e6e9e4→#cfd5d0〔地との比 1.18→1.44〕・補足 #646b66→#525954〔線の上で 4.83〕。ダーク: 線 #232a25→#363f39〔1.22→1.65〕・補足 #9aa59e→#aab4ad〔線の上で 5.11〕） */
+@media (max-width: 720px) {
+	:root { --gp-grid: #cfd5d0; --gp-sub: #525954; }
+	:root:where([data-theme="dark"]) { --gp-grid: #363f39; --gp-sub: #aab4ad; }
 }
 
 * { box-sizing: border-box; }
@@ -97,23 +107,26 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .tb { display: flex; align-items: center; gap: 4px; padding: 6px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left)); border-bottom: 2px solid var(--gp-ink); overflow-x: auto; scrollbar-width: none; }
 .tb::-webkit-scrollbar { display: none; }
 .panes { border-bottom: 2px solid var(--gp-ink); max-height: 46dvh; overflow: auto; padding: 8px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 8px; }
-.stage { flex: 1; min-height: 0; overflow: auto; position: relative; background: var(--gp-paper); touch-action: pan-x pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.stage { flex: 1; min-height: 0; overflow: auto; position: relative; background: var(--gp-paper); touch-action: pan-x pan-y pinch-zoom; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .stage.ov { overflow-x: hidden; }
 /* 下段の帯（追加2・133）: JRA の「ニュース」の帯の濃い緑。文字は白。帯の上の選択中は白の塗り（131 の例外の扱い） */
-.dock { background: var(--gp-band-bottom); color: var(--gp-band-text); padding: 6px max(10px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 4px; }
-.dock .r1 { display: flex; align-items: center; gap: 8px; min-height: 44px; }
-.dock .r2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dock { background: var(--gp-band-bottom); color: var(--gp-band-text); padding: 3px max(10px, env(safe-area-inset-right)) calc(3px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 2px; }
+.dock .r1 { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.dock .r2 { display: flex; align-items: center; gap: 3px 6px; flex-wrap: wrap; }
 /* 親A・親B の枠: 白い四角の文字と名前だけ（枠は無い） */
-.slot { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1; border: 0; padding: 4px 0; min-height: 44px; background: transparent; text-align: left; color: var(--gp-band-text); }
+.slot { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1; border: 0; padding: 2px 0; min-height: 36px; background: transparent; text-align: left; color: var(--gp-band-text); }
 .slot b { display: inline-grid; place-items: center; width: 22px; height: 22px; background: var(--gp-band-text); color: var(--gp-band-bottom); font-size: 12px; flex: none; font-family: var(--dk-mono); }
 .slot .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .slot .nm.none { color: var(--gp-band-sub); }
 .slot .nm.fr { color: var(--gp-band-text); }
 /* 充足: 大きな太字で言い切り、補足は小さな文字（決まり 5） */
-.cov { font-size: 26px; font-weight: 700; min-width: 3.4em; text-align: center; line-height: 1; font-family: var(--dk-mono); font-variant-numeric: tabular-nums; }
-.cov small { display: block; font-size: 10px; color: var(--gp-band-sub); font-weight: 400; margin-top: 3px; font-family: var(--dk-sans); }
-.miss { font-size: 12px; color: var(--gp-band-sub); max-height: 2.9em; overflow: auto; line-height: 1.4; }
-.dock .btn, .dock .tag { background: transparent; border-color: var(--gp-band-text); color: var(--gp-band-text); }
+.cov { font-size: 20px; font-weight: 700; min-width: 3.4em; text-align: center; line-height: 1; font-family: var(--dk-mono); font-variant-numeric: tabular-nums; }
+.cov small { display: block; font-size: 10px; color: var(--gp-band-sub); font-weight: 400; margin-top: 2px; font-family: var(--dk-sans); }
+/* 未所持スキルの文は1行（はみ出す分は横に送る。全部は充足の数を押した小窓に出る） */
+.miss { font-size: 11px; color: var(--gp-band-sub); white-space: nowrap; overflow-x: auto; overflow-y: hidden; line-height: 1.35; scrollbar-width: none; }
+.miss::-webkit-scrollbar { display: none; }
+.dock .btn, .dock .tag { background: transparent; border-color: var(--gp-band-text); color: var(--gp-band-text); min-height: 30px; padding: 0 10px; font-size: 12px; }
+.dock .tag { padding: 0 10px 0 8px; }
 .dock .btn[aria-pressed="true"], .dock .tag[aria-pressed="true"] { background: var(--gp-band-text); border-color: var(--gp-band-text); color: var(--gp-band-bottom); }
 .dock .btn:disabled, .dock .tag:disabled { background: transparent; border-color: var(--gp-band-line); color: var(--gp-band-sub); }
 @media (min-width: 721px) {
@@ -129,7 +142,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 	.panes .pane + .pane { border-top: 2px solid var(--gp-ink); }
 	.stage { grid-area: stage; }
 	.dock { grid-area: dock; flex-direction: row; align-items: center; flex-wrap: wrap; padding-left: 14px; padding-right: 14px; }
-	.dock .r1 { flex: 1; min-width: 340px; }
+	.dock .r1 { flex: 1; min-width: 340px; min-height: 34px; }
+	.slot { min-height: 34px; }
 }
 /* レース/周回セットのボタン（押すと一覧の小窓。登録の画面の「セット」の欄も同じ部品）。見出しの帯の上では白の線と文字 */
 .rsel { flex: 0 1 auto; margin-left: auto; min-width: 0; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; border: 1px solid var(--gp-ink); background: var(--gp-paper); color: var(--gp-ink); padding: 0 8px; min-height: 36px; font-size: 12px; font-weight: 700; }
@@ -287,6 +301,9 @@ input.txt::placeholder { color: var(--gp-sub); }
 .vl, .vl th { background: var(--gp-paper); }
 .vl th { text-align: left; font-weight: 500; border-right: 0; border-bottom: 0; padding: 0 6px; cursor: pointer; }
 .vl th.gl { color: var(--gp-sub); }
+/* 「指定なし」の遺伝子の行（距離・脚質・バ場で条件の無い行。T97・141）: 無効なので行の名前もマスも薄く、マスは空（sticky の表なので opacity は使わず色だけ。恒久ルール9） */
+.vl th.gl.off { color: var(--gp-off); cursor: default; }
+.vl th.mx.off, .vb td.off { background-color: var(--gp-off-bg); }
 .vl th.mx { text-align: center; padding: 0; font-family: var(--dk-mono); font-variant-numeric: tabular-nums; font-size: 10px; color: var(--gp-ink); border-left: 1px solid var(--gp-line); }
 .vl th.mx.c0 { color: var(--gp-sub); } .vl th.mx.c1 { background: var(--gp-s1); color: var(--gp-n1); } .vl th.mx.c2 { background: var(--gp-s2); color: var(--gp-n2); }
 .vl th.mx.c3 { background: var(--gp-s3); color: var(--gp-n3); } .vl th.mx.c4 { background: var(--gp-s4); color: var(--gp-n4); font-weight: 700; } .vl th.mx.c5 { background: var(--gp-s5); color: var(--gp-n5); font-weight: 700; }
@@ -428,4 +445,4 @@ details.fold[open] > summary::before { content: "▾"; }
 	.panes .plist { display: flex; }
 	.legend { gap: 6px; }
 }
-:root { --deck-alpha-css-version: "2026-11-04a"; }
+:root { --deck-alpha-css-version: "2026-11-04b"; }

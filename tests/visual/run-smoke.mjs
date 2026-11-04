@@ -133,6 +133,7 @@ import { register103 } from './blocks-103.mjs';
 import { register104 } from './blocks-104.mjs';
 import { register105 } from './blocks-105.mjs';
 import { register106 } from './blocks-106.mjs';
+import { register107 } from './blocks-107.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15495,6 +15496,8 @@ await register104({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register105({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T96（2026-11-04）: UmaStar の「結合画像の設定」（装飾パーツを付けるか付けないか・既定はシンプル・表示後の「画像を更新」。C-284。見出しは「T96結合画像の設定」）
 await register106({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T97（2026-11-04）: Deck α の改善6点（指定なしの一覧・遺伝子の無効の行・ピンチはブラウザ標準・下段の帯を 2/3・外のタップで閉じる・スマホの方眼。見出しは「T97 Deck α 改善」）
+await register107({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

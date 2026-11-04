@@ -11,10 +11,12 @@
  *   ★不明は -1、読めなかった因子は null。
  *   第1版からの差分: bundles → sets（レースの一覧の行と結ぶ）・親の bundles → sets・tags は style だけ（距離・バ場はセットの条件）・
  *   targets（目標の6人・次善・必須）→ plans（セットごとの本育成設計の6人と絞り込みの状態）。
+ * T97（2026-11-04・140）: 「指定なし」で送った②のスキルの一覧を doc.none = { id:'none', kind:'none', skills:{id:最後に入った送りの回}, sends } に持つ
+ *   （レースのセットと同じ形・同じ数え方。一度も送っていなければ無い＝今までの保存データ・書き出しのファイルはそのまま読める）。
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_CORE_VERSION = '2026-11-03a';
+	const DECK_ALPHA_CORE_VERSION = '2026-11-04a';
 	const D = window.DECK_ALPHA_DATA;
 	const DB_NAME = 'uma-deck';
 	const DB_VER = 1;
@@ -95,8 +97,14 @@
 		set.sends = (set.sends || 0) + 1;
 		ids.forEach((id) => { set.skills[id] = set.sends; });
 	}
-	/** そのスキルが前回までの一覧にだけあるか（終了レースのカテゴリでは区別しない） */
-	function oldOnly(set, id) { return !!set && set.kind === 'race' && set.sends > 1 && id in set.skills && set.skills[id] < set.sends; }
+	/** 「指定なし」の一覧（T97・140。一度も送っていなければ作る） */
+	function newNoneList() { return { id: 'none', kind: 'none', skills: {}, sends: 0 }; }
+	/** 送りの回を区別する一覧か（レースのセットと「指定なし」の一覧。終了レースのカテゴリでは区別しない） */
+	function sendsKind(set) { return !!set && (set.kind === 'race' || set.kind === 'none'); }
+	/** そのスキルが前回までの一覧にだけあるか */
+	function oldOnly(set, id) { return sendsKind(set) && set.sends > 1 && id in set.skills && set.skills[id] < set.sends; }
+	/** 「指定なし」の一覧の形を確かめる（崩れていれば無いものとする） */
+	function cleanNone(n) { return n && typeof n === 'object' && n.skills && typeof n.skills === 'object' && typeof n.sends === 'number' && n.sends > 0 ? { id: 'none', kind: 'none', skills: n.skills, sends: n.sends } : null; }
 
 	/**
 	 * 終了したレースを終了レースのカテゴリへ付け替える（C-271 の 2）。レースの一覧から消えたセットが対象。
@@ -158,7 +166,7 @@
 		if (!persistAsked) { persistAsked = true; try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* 使えない環境では何もしない */ } }
 		return r;
 	}
-	function docHead(doc) { return { schema: doc.schema, next: doc.next, sets: doc.sets, plans: doc.plans, data: doc.data }; }
+	function docHead(doc) { const h = { schema: doc.schema, next: doc.next, sets: doc.sets, plans: doc.plans, data: doc.data }; if (doc.none) h.none = doc.none; return h; }
 
 	/* ---------- 設定（表示の状態。データの文書とは別に meta の settings に持つ） ---------- */
 	const DEFAULT_SETTINGS = { theme: 'auto', gp: true, th: 1, geneRows: true, lastExport: null, cur: 'none' };
@@ -168,7 +176,7 @@
 	function assemble(loaded) {
 		const head = loaded.meta.doc || null;
 		const doc = emptyDoc(); doc.parents = loaded.parents.slice();
-		if (head) { doc.schema = head.schema || SCHEMA; doc.next = head.next || 1; doc.sets = head.sets || []; doc.plans = head.plans || {}; doc.data = head.data || D.versions; }
+		if (head) { doc.schema = head.schema || SCHEMA; doc.next = head.next || 1; doc.sets = head.sets || []; doc.plans = head.plans || {}; doc.data = head.data || D.versions; const nn = cleanNone(head.none); if (nn) doc.none = nn; }
 		doc.parents.sort((a, b) => numId(a.id) - numId(b.id));
 		return doc;
 	}
@@ -288,7 +296,9 @@
 		const now = new Date();
 		const tz = -now.getTimezoneOffset(); const sign = tz >= 0 ? '+' : '-'; const hh = String(Math.floor(Math.abs(tz) / 60)).padStart(2, '0'), mm = String(Math.abs(tz) % 60).padStart(2, '0');
 		const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 19) + sign + hh + ':' + mm;
-		return { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: local, data: doc.data, next: doc.next, sets: doc.sets, parents: doc.parents, plans: doc.plans };
+		const out = { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: local, data: doc.data, next: doc.next, sets: doc.sets, parents: doc.parents, plans: doc.plans };
+		if (doc.none) out.none = doc.none; // 「指定なし」の一覧（T97。送ったことがあるときだけ）
+		return out;
 	}
 	function exportFileName() { const d = new Date(); return 'uma-deck-star-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json'; }
 	/**
@@ -313,6 +323,7 @@
 		const migrated = j.schema < SCHEMA;
 		const body = migrated ? migrate1to2(j) : { sets: j.sets || [], parents: j.parents, plans: j.plans || {} };
 		const doc = { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: j.savedAt || null, data: j.data || D.versions, next: j.next || (j.parents.length + 1), sets: body.sets, parents: body.parents, plans: body.plans };
+		const nn = cleanNone(j.none); if (nn) doc.none = nn;
 		return { doc, migrated, fromSchema: j.schema };
 	}
 	function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (!isFinite(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
@@ -346,6 +357,6 @@
 	}
 
 	window.DeckAlpha = { VERSION: DECK_ALPHA_CORE_VERSION, D, SK, GENES, COS, UNIQ, RACES, BLUE, RED, DIST, STYLE, SURF, CAT, PHASE, GENE_KEY, ARC, ARC_ORDER, POS, skill, costume, fullName, charaName, shortName, uniqName, starText, blueText, redText,
-		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
+		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
 		store, DEFAULT_SETTINGS, emptyDoc, assemble, makeModel, emptyPlan, planFull, planMatch, findPairs, recommendB, matchCandidates, buildExport, exportFileName, parseImport, migrate1to2, daysSince, dependents, removeParent, isDark, applyTheme, esc };
 })();

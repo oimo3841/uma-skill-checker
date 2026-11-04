@@ -23,14 +23,14 @@
  * 決められなかった所（衣装の候補・★不明・読めなかった因子・祖が登録済みの親と同一か）だけを開いて「要確認」の数を上に出す。
  * ★不明のまま登録してもよい（Deck では「?」）。親Aの衣装だけは決めないと登録できない。
  * 送り先のレース/周回セットは、UmaStar で今選んでいるレースが初期値。「指定なし」でも登録できる（C-271 の 5）。
- * レースのセットへ送るときは、UmaStar の②のスキルの一覧を一緒に入れる（前の一覧と OR。C-271 の 3）。①の脚質はセットに記録しない（C-272 の 1・2）。
+ * レースのセットへ送るときは、UmaStar の②のスキルの一覧を一緒に入れる（前の一覧と OR。C-271 の 3）。T97（140）から「指定なし」へ送るときも「指定なし」の一覧へ入れる。①の脚質はセットに記録しない（C-272 の 1・2）。
  * 「脚質」の欄は親の脚質の札（その親を何の脚質で育てたか。C-272 の 2）。初期値は UmaStar の①の脚質（版10 のまま）。
  * 祖の紐づけ（C-272 の 13〜15）: 同じ衣装の登録済みの親を候補にし、候補ごとに「登録済みの〇〇と同一」の行。「同一」か「新規登録」を選ぶ。
  * 衣装・白スキル・★が全部同じ親が1人だけなら「同一」を選んだ状態で出す（押し直せる）。
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-03b';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-04a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -163,11 +163,13 @@
 		if (S.done) { renderDone(); return; }
 		$('#regbar').hidden = false; // データを読み終えるまでは出さない（HTML で hidden）
 		const setNow = S.setKey === 'none' ? null : (S.doc.sets.find((x) => x.id === S.setKey) || K.newRaceSet(K.RACES.get(S.setKey.slice(2))));
-		const sendN = setNow ? S.ocr.send.length : 0, had = setNow && setNow.sends ? Object.keys(setNow.skills).length : 0;
+		// 「指定なし」へ送るときも②の一覧を「指定なし」の一覧に足す（T97・140）。前の一覧の数は「指定なし」の一覧から
+		const into = setNow || S.doc.none || null;
+		const sendN = S.ocr.send.length, had = into && into.sends ? Object.keys(into.skills).length : 0;
 		const noFam = S.ocr.persons.length < 3;
 		const scope = '<section class="card"><div class="line"><span class="k">送る</span><span class="seg" role="group" id="scopeSeg"><button type="button" data-scope="one" aria-pressed="' + (S.scope === 'one') + '">親Aだけ</button><button type="button" data-scope="fam" aria-pressed="' + (S.scope === 'fam') + '"' + (noFam ? ' disabled class="strike"' : '') + '>親Aセット</button></span></div>' +
 			'<div class="line"><span class="k">セット</span><button class="rsel" type="button" id="setPick" aria-haspopup="dialog" aria-label="レース/周回セット：' + K.esc(K.setName(setNow)) + '" style="flex:1;justify-content:space-between"><span class="t">' + K.esc(K.setName(setNow)) + '</span><span class="car" aria-hidden="true">▾</span></button></div>' +
-			(setNow && S.ocr.send.length ? '<div class="line"><span class="k">スキル</span><span>②の' + sendN + '種' + (had ? '<span class="muted small">（前の一覧 ' + had + '種に足す）</span>' : '') + '</span></div>' : '') +
+			(S.ocr.send.length ? '<div class="line"><span class="k">スキル</span><span>②の' + sendN + '種' + (had ? '<span class="muted small">（前の一覧 ' + had + '種に足す）</span>' : '') + '</span></div>' : '') +
 			'<div class="line"><span class="k">脚質</span>' + kindChips(K.STYLE, null, 'data-style') + '</div>' +
 			'<div class="line"><span class="k">持ち主</span><span class="seg" role="group"><button type="button" data-owner="self" aria-pressed="' + (S.owner === 'self') + '">自分</button><button type="button" data-owner="friend" aria-pressed="' + (S.owner === 'friend') + '">フレンド</button></span></div></section>';
 		$('#body').innerHTML = scope + S.persons.map(personCard).join('');
@@ -240,6 +242,8 @@
 		// レースのセット（無ければ作る）へ、②のスキルの一覧（前の一覧と OR）を入れる。脚質はセットに記録しない（C-272 の 2）
 		let set = null;
 		if (S.setKey !== 'none') { set = doc.sets.find((x) => x.id === S.setKey); if (!set) { set = K.newRaceSet(K.RACES.get(S.setKey.slice(2))); doc.sets.push(set); } K.addSend(set, S.ocr.send); }
+		// 「指定なし」へ送るときは、②の一覧を「指定なし」の一覧へ（前の一覧と OR・送りの回の数え方はレースのセットと同じ。T97・140）。空の一覧では作らない
+		else if (S.ocr.send.length) { if (!doc.none) doc.none = K.newNoneList(); K.addSend(doc.none, S.ocr.send); }
 		const today = new Date(); const date = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 		const no = doc.parents.filter((p) => p.date === date).length + 1;
 		const member = (p) => ({ uma: p.uma, blue: p.blue && p.blue[0] ? p.blue : null, red: p.red && p.red[0] ? p.red : null, green: p.greenStar, skills: p.skills, genes: p.genes });
