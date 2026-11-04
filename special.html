@@ -630,8 +630,9 @@
 		.stitch-wire-2r .stitch-wire-table { flex: 1 1 auto; }
 		.stitch-wire-2 .stitch-wire-top .stitch-wire-cards { width: 40px; }
 		.stitch-wire-2p { display: grid; grid-template-columns: 3fr 2fr; gap: 3px; align-items: start; }
-		.stitch-wire-grands { display: flex; flex-direction: column; gap: 2px; }
+		.stitch-wire-grands { display: flex; flex-direction: column; gap: 0; }
 		.stitch-wire-status { display: block; height: 14px; border-radius: 1px; background: linear-gradient(#94D709 0 18%, var(--uma-border) 18%); }
+		.stitch-wire-2p .stitch-wire-person { gap: 0; }
 		.stitch-wire-2p .stitch-wire-panels { padding-left: 4px; }
 		/* 引き出しの中の「結合画像の設定」の「画像を更新」の段（exam.html と同じ）。骨格は css/shell.css の .uma-popover--drawer */
 		#stitch-drawer-pop, #stitch-settings-pop { --uma-popover-icon: var(--uma-stitch-accent); }
@@ -644,9 +645,10 @@
 		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
 		.stitch-refresh-note[hidden] { display: none; }
 		@media (max-width: 640px) {
-			/* 狭い画面では模式図をチェックの下に置く（exam と同じ） */
-			.stitch-show { flex-direction: column; }
-			.stitch-wire { align-self: center; }
+			/* 狭い画面でも③のパネルはチェックの一覧の右に模式図を置く（開いた最初の位置で両方見える。T98）。引き出し・右下のパネルに模式図は無い */
+			#stitch-parts-panel .stitch-show { gap: var(--uma-sp-2); padding: var(--uma-sp-2); }
+			#stitch-parts-panel .stitch-wire { align-self: flex-start; }
+			#stitch-parts-panel .stitch-show-item { padding-left: var(--uma-sp-1); padding-right: 0; }
 		}
 	</style>
 </head>
@@ -1665,6 +1667,7 @@
 			'video.done.text': '動画から {N}枚 を入れました（{内訳}）。',
 			'video.done.item': '{人} {N}枚',
 			'video.done.next': 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。',
+			'video.done.next.video': 'このあと「OCR処理を開始する」を押してください。',   // 動画モードのとき（T98・決定 196）
 			'video.done.stitched': '結合画像を作りました。OCRするときは「OCR処理を開始する」を押してください。',   // T98（決定 176）
 			'video.result.show': '親ごとの画像を見る',
 			'video.result.hide': '親ごとの画像を隠す',
@@ -1728,6 +1731,9 @@
 			}
 			const label = document.querySelector('#process-stitch-btn span');
 			if (label) label.textContent = PROCESS_BTN_LABEL[uploadMode];
+			// 引き出しの「画像を更新」の案内の文の「」の中も、下のボタンの名前に合わせる（T98・決定 197）
+			const note = document.getElementById('stitch-refresh-note');
+			if (note) note.textContent = '画像や集計の設定が変わったため、「' + PROCESS_BTN_LABEL[uploadMode] + '」からやり直してください。';
 			if (typeof syncUploadBar === 'function') syncUploadBar();
 		}
 		function toggleUploadMode() {
@@ -1886,7 +1892,7 @@
 			el.className = 'video-summary';
 			el.setAttribute('role', 'status');
 			el.innerHTML = VIDEO_SVG_INFO + '<span>' + videoHtml('video.done.text', { N: total, 内訳: names.map((n, i) => videoText('video.done.item', { 人: n, N: counts[i] })).join('・') }, ['{N}枚'])
-				+ '<br>' + escapeHtml(videoText(stitched ? 'video.done.stitched' : 'video.done.next')) + '</span>';
+				+ '<br>' + escapeHtml(videoText(stitched ? 'video.done.stitched' : (uploadMode === 'video' ? 'video.done.next.video' : 'video.done.next'))) + '</span>';
 			insertVideoBox(el);
 		}
 		/* 取り込みが成功したら、自動で「画像を結合する（OCRしない）」と同じ処理（buildStitchedSetImage の withMarks なし）をそのセットだけに行い、
@@ -4507,12 +4513,12 @@
 		/**
 		 * 2列の1枚を組み立てる（同期。検査はここを直接呼ぶ）。
 		 * parts = composeFamilyImage と同じ形。canvases は stitchTwoColPerson の Canvas（両側を削らない）。
-		 * heads[0] は親の上の欄が無いときだけ使う（上の欄に顔がある）。title が false ならバーを描かない。
+		 * 人の見出しの行（顔・ラベル・遺伝子の欄）は描かないので、parts.heads・parts.genes は使わない。遺伝子は画像の中の遺伝子の枠で見分ける。
+		 * 祖2人は間を空けずにつなぐ。title が false ならバーを描かない。
 		 * 返す Canvas には _layout（cols: 2・各部品の矩形・祖の縮小率・表の行の高さ・全体の縮小率）を添える。
 		 */
 		function composeFamilyImage2(parts) {
 			const L = STITCH_LAYOUT;
-			const headH = L.headIcon + L.headGap;
 			const noBar = parts.title === false;
 			const parent = parts.canvases[0] || null;
 			const grands = [1, 2].map(k => ({ k: k, c: parts.canvases[k] })).filter(g => g.c);
@@ -4524,10 +4530,11 @@
 			const legend = parts.legend || null;
 			// 1列目・2列目
 			const sumGH = grands.reduce((s, g) => s + g.c.height, 0);
-			const colH = parent ? headH + parent.height
-				: headH * grands.length + L.innerGap * Math.max(0, grands.length - 1) + sumGH;
-			const gScale = (parent && grands.length) ? Math.min(1, (colH - headH * grands.length - L.innerGap * (grands.length - 1)) / sumGH) : 1;
+			const colH = parent ? parent.height : sumGH;
+			const gScale = (parent && grands.length) ? Math.min(1, colH / sumGH) : 1;
 			const gs = grands.map(g => ({ k: g.k, c: g.c, w: Math.max(1, Math.round(g.c.width * gScale)), h: Math.max(1, Math.round(g.c.height * gScale)) }));
+			// 縮めたときは丸めのずれを最後の人で吸収し、合計を1列目の高さにぴったりそろえる
+			if (gScale < 1) gs[gs.length - 1].h = Math.max(1, colH - gs.slice(0, -1).reduce((a, g) => a + g.h, 0));
 			const col1W = parent ? parent.width : 0;
 			const col2W = gs.length ? Math.max(...gs.map(g => g.w)) : 0;
 			const spanW = col1W + (parent && gs.length ? L.innerGap : 0) + col2W;
@@ -4565,7 +4572,7 @@
 			ctx.imageSmoothingQuality = 'high';
 			if (scale !== 1) ctx.scale(scale, scale);
 			const layout = { cols: 2, width: out.width, height: out.height, scale: scale, logical: { width: W0, height: H0 },
-				bodyY: bodyY, personsY: personsY, colH: colH, grandScale: gScale, bar: null, top: null, parent: null, grands: [], heads: [],
+				bodyY: bodyY, personsY: personsY, colH: colH, grandScale: gScale, bar: null, top: null, parent: null, grands: [],
 				legend: null, sp: null, table: null, col3: has3 ? { x: col3X, y: bodyY, w: col3W } : null, leftBottom: leftBottom };
 			if (!noBar) {
 				layout.bar = { x: L.margin, y: L.margin, w: W0 - L.margin * 2, h: L.barH };
@@ -4587,22 +4594,15 @@
 			}
 			let x = L.margin;
 			if (parent) {
-				// 親の上の欄があれば顔はその中にあるので、見出しはラベルだけ（顔が2つにならないように）
-				const icon = (parent._twoCol && parent._twoCol.topH) ? null : ((parts.heads || [])[0] || null);
-				const head = stitchDrawPersonHead(ctx, x, personsY, icon, PERSON_LABELS[parts.idxs[0]], (parts.genes || [])[0] || null, x + parent.width);
-				ctx.drawImage(parent, x, personsY + headH);
-				layout.parent = { k: 0, x: x, y: personsY + headH, w: parent.width, h: parent.height, scale: 1, topH: parent._twoCol ? parent._twoCol.topH : 0 };
-				layout.heads.push(Object.assign({ k: 0 }, head));
+				ctx.drawImage(parent, x, personsY);
+				layout.parent = { k: 0, x: x, y: personsY, w: parent.width, h: parent.height, scale: 1, topH: parent._twoCol ? parent._twoCol.topH : 0 };
 				x += parent.width + (gs.length ? L.innerGap : 0);
 			}
 			let gy = personsY;
-			gs.forEach((g, i) => {
-				if (i > 0) gy += L.innerGap;
-				const head = stitchDrawPersonHead(ctx, x, gy, (parts.heads || [])[g.k] || null, PERSON_LABELS[parts.idxs[g.k]], (parts.genes || [])[g.k] || null, x + col2W);
-				ctx.drawImage(g.c, x, gy + headH, g.w, g.h);
-				layout.grands.push({ k: g.k, x: x, y: gy + headH, w: g.w, h: g.h, scale: gScale });
-				layout.heads.push(Object.assign({ k: g.k }, head));
-				gy += headH + g.h;
+			gs.forEach((g) => {
+				ctx.drawImage(g.c, x, gy, g.w, g.h);
+				layout.grands.push({ k: g.k, x: x, y: gy, w: g.w, h: g.h, scale: gScale });
+				gy += g.h;
 			});
 			if (legend) {
 				ctx.drawImage(legend, L.margin, legendY, lw, lh);
@@ -4623,7 +4623,7 @@
 		// （タイトルのバーと3人だけ）。true のときは、OCR を押した時点の写し（stitchSnapshot）から表を作る（D10）。
 		// 人の画像は、枠を描いた後に両側を削る（T36。旧UI・OCRしない結合でも）。顔のアイコンは削る前に切り出して見出しへ。
 		// parts：結合画像の設定（T96・C-284。stitchPartsNow の値。省略なら今の設定）。星取表・上段の欄・枠の見かたは ON のときだけ描く。
-		// 枠は新UI なら分類マーカーの ON／OFF で種類の色かシンプルの緑か（drawFactorFramesOnPerson）。タイトルのバーと人の見出しはいつも描く
+		// 枠は新UI なら分類マーカーの ON／OFF で種類の色かシンプルの緑か（drawFactorFramesOnPerson）。3列のタイトルのバーは設定の ON のとき・人の見出しはいつも描く（2列は人の見出しを描かない）
 		async function buildStitchedSetImage(setIdx, onPersonStart, withMarks, parts) {
 			const opt = parts || stitchPartsNow();
 			const baseIdx = setIdx * 3;
@@ -5193,7 +5193,8 @@
 			const cards = '<i></i><i></i><i></i><i></i><i></i>';
 			const person = (kinds) => '<span class="stitch-wire-person"><span class="stitch-wire-head"><i></i><b></b></span>' +
 				'<span class="stitch-wire-panels">' + kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span></span>';
-			// 2列の模式図（T98・決定 182〜184）: 帯 → 左に［上段（本育成編成｜因子周回編成）→ 親A（上の欄＋因子）｜祖A1・祖A2 → 枠の見かた］、右に［理論値SP → 星取表］
+			const panels = (kinds) => '<span class="stitch-wire-panels">' + kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span>';
+			// 2列の模式図（T98・決定 182〜184）: 帯 → 左に［上段（本育成編成｜因子周回編成）→ 親A（上の欄＋因子）｜祖A1・祖A2（見出しなし・つなぐ）→ 枠の見かた］、右に［理論値SP → 星取表］
 			const wire2 =
 				'<div class="stitch-wire-sheet stitch-wire-sheet--2" data-stitch-wire-cols="2">' +
 					'<div class="stitch-wire-bar" data-stitch-part="title"></div>' +
@@ -5204,9 +5205,8 @@
 								'<span class="stitch-wire-cards" data-stitch-part="factor">' + cards + '</span>' +
 							'</div>' +
 							'<div class="stitch-wire-2p" data-stitch-part="people">' +
-								'<span class="stitch-wire-person"><span class="stitch-wire-head"><b></b></span><span class="stitch-wire-status"></span>' +
-									'<span class="stitch-wire-panels">' + ['card', null, 'star', 'other', null, 'gene', 'card', null].map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span></span>' +
-								'<span class="stitch-wire-grands">' + person([null, 'star', 'card', 'other']) + person(['other', null, 'gene']) + '</span>' +
+								'<span class="stitch-wire-person"><span class="stitch-wire-status"></span>' + panels(['card', null, 'star', 'other', null, 'gene', 'card', null]) + '</span>' +
+								'<span class="stitch-wire-grands">' + panels([null, 'star', 'card', 'other']) + panels(['other', null, 'gene']) + '</span>' +
 							'</div>' +
 							'<div class="stitch-wire-legend" data-stitch-part="marker">' +
 								'<i style="border-color:#008070"></i><i style="border-color:#9C6A00"></i><i style="border-color:#7A3FB0"></i><i style="border-color:#BE185D"></i><b></b>' +

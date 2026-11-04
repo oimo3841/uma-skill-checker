@@ -4,7 +4,7 @@
 // 決め:
 //  - 「結合画像の設定」の先頭に形の2択「3列｜2列」（2つ並べたボタン・選んだほうを反転の塗り）、チェックの6つ目に「タイトルのバー」（初期値 ON）。
 //    ③・引き出し・右下のボタン群の3か所が同じ1つの設定（保存キー uma-special-stitch-parts に cols・title を足した）。旧UI はいつも3列・バーあり。
-//  - 2列の配置: タイトルのバーは全幅。1列目＝親A（見出し＋親の上の欄＋因子）・2列目＝祖A1 の下に祖A2（2人の合計の高さを1列目にそろえて縮める）。
+//  - 2列の配置: タイトルのバーは全幅。1列目＝親A（親の上の欄＋因子）・2列目＝祖A1 の下に祖A2（間を空けずにつなぎ、2人の合計の高さを1列目にそろえて縮める）。人の見出しの行は3人とも描かない（決定 209 ほか）。
 //    上段（本育成編成・因子周回編成）は1列目・2列目の上だけ。3列目は上段の上端から 理論値SP → 星取表。枠の見かたは1列目・2列目の下。
 //    星取表の下端は枠の見かたの行の下端（無ければ親の列の下端）まで。入らなければ行を縮める（画像の下にはみ出さない）。欠けた所は詰める。
 //  - 3列はタイトルのバー ON なら T96 と同じ画（設定 title が無い・true で同じ画素）。OFF でバーとその下の間を詰める。
@@ -158,10 +158,10 @@ export async function register108(env) {
 	await block('T98(3) 2列の配置: 上段は1・2列目の上だけ・3列目は上段の上端から理論値SP→星取表・枠の見かたは1・2列目の下・祖2人の高さを1列目にそろえる・欠けた所を詰める', async () => {
 		const { ctx, page, errors } = await openSp({ roster: R1S, ids: IDS });
 		const r = await page.evaluate(async () => {
-			const L = STITCH_LAYOUT, headH = L.headIcon + L.headGap;
+			const L = STITCH_LAYOUT;
 			const lay = async (o) => { const c = composeFamilyImage2(await __parts2(o)); const l = c._layout; return Object.assign({ cw: c.width, ch: c.height }, JSON.parse(JSON.stringify(l, (k, v) => (k === 'cards' || k === 'lines' || k === 'texts' || k === 'widths') ? undefined : v))); };
 			const all = { marker: true, roster: true, factor: true, sp: true, table: true };
-			return { L: { margin: L.margin, gap: L.gap, innerGap: L.innerGap, barH: L.barH, barGap: L.barGap, topAfter: L.topAfter, legendGap: L.legendGap, rowMax: L.rowMax, spW: L.spW, maxPixels: L.maxPixels }, headH,
+			return { L: { margin: L.margin, gap: L.gap, innerGap: L.innerGap, barH: L.barH, barGap: L.barGap, topAfter: L.topAfter, legendGap: L.legendGap, rowMax: L.rowMax, spW: L.spW, maxPixels: L.maxPixels },
 				all: await lay({ on: all }), off: await lay({}), star: await lay({ on: { table: true } }), hen: await lay({ on: { roster: true, factor: true } }), roster: await lay({ on: { roster: true } }),
 				sp: await lay({ on: { sp: true } }), marker: await lay({ on: { marker: true } }), notitle: await lay({ on: all, title: false }),
 				long: await lay({ on: { marker: true, table: true }, rows: 200 }), longNoMarker: await lay({ on: { table: true }, rows: 200 }),
@@ -171,13 +171,13 @@ export async function register108(env) {
 		const near = (a, b, t = 2) => Math.abs(a - b) <= t;
 		const span = (l) => l.grands.length ? l.grands[0].x + Math.max(...l.grands.map((g) => g.w)) - l.parent.x : l.parent.w;
 		// 全部 ON
-		const gTotal = all.grands.reduce((s, g) => s + g.h, 0) + r.headH * 2 + L.innerGap;
+		const gTotal = all.grands.reduce((s, g) => s + g.h, 0);
 		assert(all.cols === 2 && all.bar && all.bar.y === L.margin && all.bar.x === L.margin && all.bar.w === all.width - L.margin * 2, 'T98(3): タイトルのバーは画像の全幅', all.bar);
 		assert(all.top && all.top.x === L.margin && all.top.y === all.bodyY && all.top.x + all.top.w <= all.col3.x - L.gap && all.top.roster && all.top.factor && near(all.top.w, span(all), 1),
 			'T98(3): 上段（本育成編成｜因子周回編成）は1列目・2列目の上だけ（3列目の上に掛からない）', { top: all.top, col3: all.col3 });
-		assert(all.parent.x === L.margin && all.parent.y === all.personsY + r.headH && all.personsY === all.bodyY + all.top.h + L.topAfter, 'T98(3): 1列目は親A（見出しの下に上の欄＋因子）', { parent: all.parent, personsY: all.personsY });
-		assert(all.grands.length === 2 && all.grands[0].x === all.parent.x + all.parent.w + L.innerGap && all.grands[1].y > all.grands[0].y + all.grands[0].h && near(gTotal, all.colH, 3) && all.grandScale < 1,
-			'T98(3): 2列目は祖A1 の下に祖A2・2人の合計の高さ（見出し・間を含む）を1列目の高さにそろえて同じ割合で縮める', { grands: all.grands, gTotal, colH: all.colH, s: all.grandScale });
+		assert(all.parent.x === L.margin && all.parent.y === all.personsY && all.personsY === all.bodyY + all.top.h + L.topAfter, 'T98(3): 1列目は親A（見出しの行なしで上の欄＋因子）', { parent: all.parent, personsY: all.personsY });
+		assert(all.grands.length === 2 && all.grands[0].x === all.parent.x + all.parent.w + L.innerGap && all.grands[0].y === all.personsY && all.grands[1].y === all.grands[0].y + all.grands[0].h && gTotal === all.colH && all.colH === all.parent.h && all.grandScale < 1,
+			'T98(3): 2列目は祖A1 の下に祖A2 をすきま無くつなぎ、2人の合計の高さを1列目の高さにぴったりそろえて同じ割合で縮める', { grands: all.grands, gTotal, colH: all.colH, s: all.grandScale });
 		assert(all.col3 && all.col3.y === all.top.y && all.sp && all.sp.x === all.col3.x && all.sp.y === all.col3.y && all.table && all.table.x === all.col3.x && all.table.y === all.sp.y + all.sp.h + L.topAfter,
 			'T98(3): 3列目は上段の上端から、上に理論値SP、その下に星取表', { col3: all.col3, sp: all.sp, table: all.table });
 		assert(all.legend && all.legend.x === L.margin && all.legend.y === all.personsY + all.colH + L.legendGap && all.legend.x + all.legend.w <= all.col3.x - L.gap, 'T98(3): 枠の見かたは1列目・2列目の下（3列目に掛からない）', all.legend);
@@ -319,6 +319,90 @@ export async function register108(env) {
 		const v3 = await page.evaluate(() => ({ drawer: !!document.querySelector('#stitch-result-content img'), step3: !!document.querySelector('#personset-A-wrap .video-result img'), wm: videoShown[0] && videoShown[0].withMarks, label: document.querySelector('#process-stitch-btn span').textContent }));
 		assert(v3.drawer && v3.step3 && v3.wm === true && v3.label === 'OCR処理を開始する', 'T98(6): 動画モードで OCR の写しを使う結合は、引き出しと③の両方に出る（③は枠つきに作り直される）', v3);
 		assert(jsErrors(errors).length === 0, 'T98(6): コンソールエラー0', jsErrors(errors).slice(0, 3));
+		await ctx.close();
+	});
+
+	/* ── (8) 2列は人の見出しの行を描かない・3列は描く ── */
+	await block('T98(8) 2列は人の見出しの行（顔・ラベル・遺伝子の欄）を3人とも描かない・3列は今までどおり描く', async () => {
+		const { ctx, page, errors } = await openSp({ roster: R1S, ids: IDS });
+		const r = await page.evaluate(async () => {
+			const parts = await __parts2({ on: { marker: true, table: true } });
+			parts.heads = [1, 2, 3].map(() => { const c = document.createElement('canvas'); c.width = c.height = 40; return c; });
+			parts.genes = [null, null, null];
+			const orig = window.stitchDrawPersonHead;
+			let n = 0;
+			window.stitchDrawPersonHead = function () { n++; return orig.apply(this, arguments); };
+			const two = composeFamilyImage2(parts);
+			const n2 = n; n = 0;
+			composeFamilyImage(parts);
+			const n3 = n;
+			window.stitchDrawPersonHead = orig;
+			return { n2, n3, hasHeads: 'heads' in two._layout };
+		});
+		assert(r.n2 === 0 && !r.hasHeads, 'T98(8): 2列は人の見出しの行を描かない', r);
+		assert(r.n3 === 3, 'T98(8): 3列は3人とも人の見出しの行を描く', r);
+		assert(jsErrors(errors).length === 0, 'T98(8): コンソールエラー0', jsErrors(errors).slice(0, 3));
+		await ctx.close();
+	});
+
+	/* ── (9) ③のパネル: スマホでもチェックの一覧の右に模式図 ── */
+	for (const w of [320, 360, 375, 390, 1280]) {
+		await block(`T98(9) ${w}px ③の「結合画像の設定」: チェックの一覧の右に模式図・文字が切れない・横スクロールなし`, async () => {
+			const { ctx, page, errors } = await openSp({ w, h: w < 600 ? 812 : 900 });
+			for (const cols of [3, 2]) {
+				await page.evaluate((n) => { setStitchCols(n); document.getElementById('stitch-parts-panel').scrollIntoView({ block: 'start' }); }, cols);
+				const m = await page.evaluate(() => {
+					const p = document.getElementById('stitch-parts-panel');
+					const rect = (s) => { const b = p.querySelector(s).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height }; };
+					const range = document.createRange();
+					const lines = [...p.querySelectorAll('.stitch-show-text')].map((t) => { range.selectNodeContents(t); return range.getClientRects().length; });
+					return { show: rect('.stitch-show'), list: rect('.stitch-show-list'), wire: rect('.stitch-wire'),
+						clipped: [...p.querySelectorAll('.stitch-show-item, .stitch-cols-btn, .stitch-wire-sheet:not([hidden])')].filter((e) => e.scrollWidth > e.clientWidth).length, lines,
+						sw: document.documentElement.scrollWidth - innerWidth, vh: innerHeight };
+				});
+				assert(m.wire.l >= m.list.r && m.wire.r <= m.show.r && m.wire.t < m.list.b && m.list.t < m.wire.b, `T98(9) ${w}px ${cols}列: 模式図はチェックの一覧の右に並ぶ`, m);
+				assert(m.show.t >= -1 && m.list.b <= m.vh && m.wire.b <= m.vh, `T98(9) ${w}px ${cols}列: パネルの最初の位置で一覧と模式図が両方見える`, m);
+				assert(m.clipped === 0 && m.sw <= 0, `T98(9) ${w}px ${cols}列: 文字が切れない・横スクロールなし`, m);
+				assert(m.lines.every((n) => n === 1), `T98(9) ${w}px ${cols}列: チェックの文字は1行に収まる`, m.lines);
+				assert(m.wire.w === 150, `T98(9) ${w}px ${cols}列: 模式図の幅は 150px のまま`, m.wire);
+			}
+			const others = await page.evaluate(() => ({ drawer: !!document.querySelector('#stitch-parts-panel-drawer .stitch-wire'), fab: !!document.querySelector('#stitch-parts-panel-fab .stitch-wire') }));
+			assert(!others.drawer && !others.fab, `T98(9) ${w}px: 引き出し・右下のパネルに模式図は無いまま`, others);
+			assert(jsErrors(errors).length === 0, `T98(9) ${w}px コンソールエラー0`, jsErrors(errors).slice(0, 3));
+			await ctx.close();
+		});
+	}
+
+	/* ── (10) 動画モードのときだけ変わる文（決定 196・197） ── */
+	await block('T98(10) 動画モードのときだけ「OCR処理を開始する」の文: 自動の結合ができなかったときの知らせ・引き出しの「画像を更新」の案内の文', async () => {
+		const { ctx, page, errors } = await openSp();
+		const read = () => page.evaluate(() => {
+			showVideoSummary(0, [1, 0, 0], false);
+			const sum = document.getElementById('video-summary').textContent;
+			document.getElementById('video-summary').remove();
+			showVideoSummary(0, [1, 0, 0], true);
+			const ok = document.getElementById('video-summary').textContent;
+			document.getElementById('video-summary').remove();
+			return { mode: uploadMode, sum, ok, note: document.getElementById('stitch-refresh-note').textContent };
+		});
+		const SHOT_NEXT = 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。';
+		const VIDEO_NEXT = 'このあと「OCR処理を開始する」を押してください。';
+		const a = await read();
+		assert(a.mode === 'shot' && a.sum.endsWith(SHOT_NEXT), 'T98(10): スクショのモードの知らせは今のまま', a);
+		assert(a.note === '画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。', 'T98(10): スクショのモードの案内の文は今のまま', a.note);
+		await page.click('#video-import-btn');
+		const b = await read();
+		assert(b.mode === 'video' && b.sum.endsWith(VIDEO_NEXT), 'T98(10): 動画モードの知らせは「このあと「OCR処理を開始する」を押してください。」', b);
+		assert(b.note === '画像や集計の設定が変わったため、「OCR処理を開始する」からやり直してください。', 'T98(10): 動画モードの案内の文は「」の中が「OCR処理を開始する」', b.note);
+		assert(b.ok === a.ok, 'T98(10): 結合画像ができたときの知らせはモードで変わらない', { a: a.ok, b: b.ok });
+		await reloadReady(page);
+		for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('[data-act="notice-ok"]');
+		const c = await page.evaluate(() => document.getElementById('stitch-refresh-note').textContent);
+		assert(c === b.note, 'T98(10): 動画モードのまま開き直しても案内の文は動画モードの形', c);
+		await page.click('#video-import-btn');
+		const d = await page.evaluate(() => document.getElementById('stitch-refresh-note').textContent);
+		assert(d === a.note, 'T98(10): スクショのモードに戻すと案内の文も戻る', d);
+		assert(jsErrors(errors).length === 0, 'T98(10): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
 
