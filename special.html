@@ -544,6 +544,71 @@
 		:root[data-theme="dark"] body .usd-ev-skill--gold.usd-ev-skill--maybe :is(.usd-ev-skill-name, .usd-ev-skill-pt, .usd-ev-skill-desc) { color: #cfc4a4; }
 		:root[data-theme="dark"] body .usd-roster-choice--on :is(.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none) { color: var(--uma-text-subtle); text-decoration-color: var(--uma-text-subtle); }
 		:root[data-theme="dark"] body .usd-roster-grow--unique :is(.usd-roster-skillname, .usd-roster-pt) { color: #ffffff; }
+		/* 「結合画像の設定」（T96・C-284）。チェックの一覧と模式図を並べる形は UmaExam の「結合画像の設定」（exam.html の .stitch-show）と同じ。
+		   中身は JS が作る（renderStitchPartsPanel）。色・余白は css/tokens.css のトークンから取る。共通CSSは触らず、このページに閉じる */
+		.stitch-show { display: flex; align-items: stretch; gap: var(--uma-sp-4);
+			margin-top: var(--uma-sp-3); padding: var(--uma-sp-3);
+			border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-muted); text-align: left; }
+		.stitch-show-body { flex: 1 1 auto; min-width: 0; }
+		.stitch-show-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
+			font-weight: 700; color: var(--uma-text-heading);
+			display: flex; align-items: center; gap: var(--uma-sp-1-5); }
+		.stitch-show-title svg { width: 14px; height: 14px; color: var(--uma-stitch-accent); }
+		.stitch-show-list { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
+		.stitch-show-item { display: flex; align-items: flex-start; gap: var(--uma-sp-2);
+			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-md);
+			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-heading);
+			cursor: pointer; transition: background-color var(--uma-transition); }
+		.stitch-show-item:hover { background: var(--uma-surface); }
+		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-control-mark); cursor: pointer; }
+		/* 模式図: 結合画像の並び（帯 → 上段〔理論値SP｜本育成編成｜因子周回編成〕 → 星取表＋3人の列 → 枠の見かた）。大きさは px で決め打ち */
+		.stitch-wire { flex: 0 0 auto; width: 150px; }
+		.stitch-wire-sheet { display: flex; flex-direction: column; gap: 3px; padding: 5px; background: #fff;
+			border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }
+		.stitch-wire [hidden] { display: none; }
+		.stitch-wire-bar { height: 6px; border-radius: 3px; background: linear-gradient(#94D709, #6BC20C); }
+		.stitch-wire-top { display: flex; gap: 2px; height: 20px; }
+		.stitch-wire-top > span { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; padding: 1px 2px 1px 3px; border-left: 1px solid var(--uma-border); }
+		.stitch-wire-top > span:first-child { border-left: 0; padding-left: 0; }
+		.stitch-wire-top b { display: block; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
+		.stitch-wire-sp { width: 30px; }
+		.stitch-wire-sp b:first-child { height: 6px; width: 80%; background: var(--uma-text-subtle); }
+		.stitch-wire-cards { width: 44px; display: grid !important; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 7px; gap: 2px; }
+		.stitch-wire-cards i { display: block; border: 1px solid var(--uma-border-strong); border-radius: 1px; }
+		.stitch-wire-mid { display: flex; gap: 3px; }
+		.stitch-wire-table { flex: 0 0 26px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; grid-auto-rows: 5px; gap: 1px; align-content: start; }
+		.stitch-wire-table i { display: block; background: #C9DCEE; }
+		.stitch-wire-table i:nth-child(4n+1) { background: var(--uma-border); }
+		.stitch-wire-table i:nth-child(5n+3) { background: #6F9FD0; }
+		.stitch-wire-people { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+		.stitch-wire-person { display: flex; flex-direction: column; gap: 2px; }
+		.stitch-wire-head { display: flex; align-items: center; gap: 2px; height: 6px; }
+		.stitch-wire-head i { width: 6px; height: 6px; border-radius: 50%; background: var(--uma-border-strong); }
+		.stitch-wire-head b { display: block; width: 50%; height: 3px; border-radius: 2px; background: var(--uma-text-subtle); }
+		.stitch-wire-panels { display: flex; flex-direction: column; gap: 2px; padding: 2px; background: var(--uma-surface-sunken); }
+		.stitch-wire-row { display: block; height: 5px; border-radius: 1px; background: #e2e2e2; border: 1px solid transparent; }
+		/* 枠。分類マーカーが OFF（シンプル）なら②のスキルは全部同じ緑、ON なら種類の色。遺伝子はいつも遺伝子の色（結合画像と同じ値） */
+		.stitch-wire-row[data-kind="card"], .stitch-wire-row[data-kind="star"], .stitch-wire-row[data-kind="other"] { border-color: #2F9E1F; background: #E6F5DA; }
+		.stitch-wire-sheet.is-marker .stitch-wire-row[data-kind="card"] { border-color: #008070; background: #E2F6F0; }
+		.stitch-wire-sheet.is-marker .stitch-wire-row[data-kind="star"] { border-color: #9C6A00; background: #FFF6CD; }
+		.stitch-wire-sheet.is-marker .stitch-wire-row[data-kind="other"] { border-color: #7A3FB0; background: #F0E6FA; }
+		.stitch-wire-row[data-kind="gene"] { border-color: #BE185D; background: #FCE7F0; }
+		.stitch-wire-legend { display: flex; align-items: center; gap: 3px; padding-left: 29px; }
+		.stitch-wire-legend i { display: block; width: 6px; height: 4px; border: 1px solid; }
+		.stitch-wire-legend b { display: block; flex: 1 1 auto; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
+		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-focus-ring); }
+		:root[data-theme="dark"] .stitch-wire-sheet { background: var(--uma-surface-muted); }
+		/* 引き出しの中の「結合画像の設定」の「画像を更新」の段（exam.html と同じ）。骨格は css/shell.css の .uma-popover--drawer */
+		#stitch-drawer-pop { --uma-popover-icon: var(--uma-stitch-accent); }
+		.uma-popover-body .stitch-show { margin-top: 0; }
+		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
+		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
+		.stitch-refresh-note[hidden] { display: none; }
+		@media (max-width: 640px) {
+			/* 狭い画面では模式図をチェックの下に置く（exam と同じ） */
+			.stitch-show { flex-direction: column; }
+			.stitch-wire { align-self: center; }
+		}
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -1022,6 +1087,10 @@
 				<input type="checkbox" id="opt-tier-marks" class="rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" checked onchange="setTierMarksEnabled(this.checked)">
 				<span>種類の枠（周回サポカ・サポカ外・その他）を付ける</span>
 			</label>
+			<!-- 「結合画像の設定」（T96・C-284。おいもさんの決定 112・116〜118）。新UI では上の「種類の枠」のチェックの代わりにこれを出す
+			     （旧UI は今までどおり上のチェック。恒久ルール20。出し分けは updateStitchPartsPlacement）。
+			     中身は renderStitchPartsPanel（チェック5つ＋模式図。UmaExam の「結合画像の設定」と同じ形）。保存キーは uma-special-stitch-parts -->
+			<div id="stitch-parts-panel" hidden></div>
 
 			<!-- 印を付けられるかどうかの状態表示（段0。C-59 の案(a)）。
 			     結合はOCRと独立して押せるので、OCRを回していない・周回因子セットを選んでいない・
@@ -1237,6 +1306,10 @@
 			restoreOcrDictionary();
 			initStitchSaveName();
 			loadTierMarksChoice();
+			// 結合画像の設定（T96）: ③（模式図つき）と結合画像の引き出しの中（模式図・見出しなし）の2か所に置き、保存値を読む
+			renderStitchPartsPanel(document.getElementById('stitch-parts-panel'), { idPrefix: '' });
+			renderStitchPartsPanel(document.getElementById('stitch-parts-panel-drawer'), { idPrefix: 'drawer-', wire: false, title: false });
+			loadStitchParts();
 			// 引き出しの中のタブ（C-62 の (9)）を初期状態（どちらも「（なし）」で押せない）にする
 			updateResultTabs();
 			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。
@@ -1966,6 +2039,8 @@
 			// 結合ボタンの下の状態表示（段0）。UIの切り替え・対象スキルセットの選択・画像の増減は
 			// すべてここを通るので、状態表示の更新もここへ乗せる（呼び忘れが起きない）。
 			updateTierMarksStatus();
+			// 画像が増減したら、結合画像の「画像を更新」が押せるかも見直す（T96）
+			updateStitchRefreshUi();
 		}
 
 		/* ============================================================
@@ -2925,6 +3000,8 @@
 		// 種類（'card'｜'star'｜'other'｜'gene'）→ { frame: 枠の色, tint: 塗りの色, marker: core の定義（遺伝子は null） }。知らない種類は null
 		function factorFrameStyleOf(kind) {
 			if (kind === 'gene') return { frame: STITCH_GENE_COLOR.frame, tint: STITCH_GENE_COLOR.tint, marker: null };
+			// シンプル（T96）: ②のスキルを全部同じ緑で囲む
+			if (kind === 'simple') return { frame: STITCH_SIMPLE_COLOR.frame, tint: STITCH_SIMPLE_COLOR.tint, marker: null };
 			const list = (UmaSkillDeckCore.markers && UmaSkillDeckCore.markers.list) || [];
 			const m = list.find(x => x.id === kind);
 			return m && m.imageTint ? { frame: m.light.fill, tint: m.imageTint, marker: m } : null;
@@ -3027,8 +3104,12 @@
 		 * OCRを回していない人・セットを選んでいないときは、種類が分からないので1つも描かない。
 		 * 返り値は遺伝子を除いた枠の数（遺伝子の枠の数は canvas._geneFrameCount）。
 		 */
-		function drawFactorFramesOnPerson(canvas, personIdx) {
-			if (!tierMarksEnabled) return 0;
+		// parts … 結合画像の設定（stitchPartsNow の値。省略なら今の設定）。T96・C-284:
+		//   新UI で分類マーカーが OFF（シンプル）なら、②で選んだスキルを全部同じ緑（STITCH_SIMPLE_COLOR）で囲む。ON なら今までどおり種類の色。
+		//   旧UI は今までどおり（「種類の枠」が OFF なら1つも描かない）
+		function drawFactorFramesOnPerson(canvas, personIdx, parts) {
+			const opt = parts || stitchPartsNow();
+			if (opt.legacy && !opt.marker) return 0;
 			const geo = personGeometry[personIdx];
 			const lines = personLines[personIdx];
 			const res = personResults[personIdx];
@@ -3040,7 +3121,7 @@
 					': 列がちょうど2本にならない画像があり、置き場所を決められないため枠を描きませんでした');
 				return 0;
 			}
-			const kindByName = stitchKindByName();
+			const kindByName = (opt.legacy || opt.marker) ? stitchKindByName() : stitchSimpleKindByName();
 			const geneSet = new Set(stitchGeneNames());
 			// rowKey（"画像の番号:行の番号"）→ 種類
 			const kindByRowKey = {};
@@ -3401,6 +3482,14 @@
 		/** 結合画像の枠の種類。OCR の写しがあればそれ、無ければ今の判定 */
 		function stitchKindByName() {
 			return (stitchSnapshot && stitchSnapshot.kindByName) || deckMarkerKindByName();
+		}
+		/** シンプルの枠（T96）: ②で選んだスキルの名前 → 'simple'。OCR の写しがあればその②（押した時点）、無ければ今の②。シナリオ因子・遺伝子は入らない */
+		function stitchSimpleKindByName() {
+			const entries = stitchSnapshot ? stitchSnapshot.entries
+				: ((deckMode && deckScope) ? UmaSkillDeckCore.getSkillEntries(deckScope.skillIds) : []);
+			const out = {};
+			(entries || []).forEach(e => { if (e && e.name) out[e.name] = 'simple'; });
+			return out;
 		}
 
 		/**
@@ -3830,12 +3919,15 @@
 		}
 
 		/** 上段の高さ（T37。カードの枚数で変えない）。T51: 理論値SP の6行が入る高さとカードの高さの大きいほう（228） */
-		function stitchTopRowH() {
+		// show … 描く欄（T96。{ sp, roster, factor }。省略なら全部）。高さは描く欄のうち高いほう（理論値SP を描かなければカードの高さ 176）
+		function stitchTopRowH(show) {
 			const L = STITCH_LAYOUT;
+			const s = show || STITCH_TOP_SHOW_ALL;
 			const cards = L.topHeadH + L.topHeadGap + L.cardRows * L.cardH + (L.cardRows - 1) * L.cardGap;
 			const sp = L.topHeadH + L.topHeadGap + L.spLine1H + L.spRows * L.spRowH;
-			return Math.max(cards, sp);
+			return Math.max(s.roster || s.factor ? cards : 0, s.sp ? sp : 0);
 		}
+		const STITCH_TOP_SHOW_ALL = { sp: true, roster: true, factor: true };
 		/** 中段の上端。上段があればその下（topH は上段の高さ。0 なら無し） */
 		function stitchMidTop(topH) {
 			const L = STITCH_LAYOUT;
@@ -3859,14 +3951,18 @@
 		 * 上段の材料（T37）。写しのセットの部分（captureStitchSetPart）から、並べたカード（アイコンを読み込んだもの）と想定SP を作る。
 		 * セットが無ければ null（上段を描かない）
 		 */
-		async function stitchTopData(set) {
+		// parts … 結合画像の設定（T96）。理論値SP・本育成編成・因子周回編成のうち ON の欄だけ描く（show）。3つとも OFF なら null（上段を描かない）
+		async function stitchTopData(set, parts) {
 			if (!set) return null;
+			const opt = parts || stitchPartsNow();
+			const show = { sp: !!opt.sp, roster: !!opt.roster, factor: !!opt.factor };
+			if (!show.sp && !show.roster && !show.factor) return null;
 			const withIcons = async (ids) => {
 				const list = stitchSortCards(ids).slice(0, STITCH_LAYOUT.cardCols * STITCH_LAYOUT.cardRows);
 				const icons = await Promise.all(list.map(e => stitchLoadIcon(e.typeIconUrl)));
 				return list.map((e, i) => ({ id: e.id, title: e.title, name: e.name, typeOrder: e.typeOrder, icon: icons[i] }));
 			};
-			return { sp: set.sp || null, roster: await withIcons(set.rosterCards), factor: await withIcons(set.factorCards) };
+			return { sp: set.sp || null, roster: await withIcons(set.rosterCards), factor: await withIcons(set.factorCards), show: show };
 		}
 		/** 上段の見出し（左寄せ・太字。下に区切りの細い線） */
 		function stitchDrawTopHead(ctx, x, y, w, text) {
@@ -3998,9 +4094,11 @@
 		 * 上段（T37）: 左から 想定SP（幅 spW）｜①本育成編成｜②因子周回編成（残りを半分ずつ）。区切りは縦線（STITCH_TOP_SEP・sepW）。
 		 * 返り値は各領域・区切りの矩形とカードの矩形（検査が読む）
 		 */
+		// T96: top.show で OFF の欄は描かず、残りを左から詰める（欄の幅は3つとも描くときと同じ。区切りは描く欄の間だけ）
 		function stitchDrawTopRow(ctx, x, y, W, top) {
 			const L = STITCH_LAYOUT;
-			const H = stitchTopRowH();
+			const show = top.show || STITCH_TOP_SHOW_ALL;
+			const H = stitchTopRowH(show);
 			const zone = L.gap + L.sepW + L.gap;
 			const cardW = Math.floor((W - L.spW - zone * 2) / 2);
 			const out = { x: x, y: y, w: W, h: H, seps: [] };
@@ -4008,7 +4106,7 @@
 				{ k: 'sp', w: L.spW },
 				{ k: 'roster', w: cardW },
 				{ k: 'factor', w: W - L.spW - zone * 2 - cardW }
-			];
+			].filter(b => show[b.k]);
 			let bx = x;
 			blocks.forEach((b, i) => {
 				if (i > 0) {
@@ -4140,7 +4238,7 @@
 			const people = [0, 1, 2].map(k => ({ k: k, c: parts.canvases[k] })).filter(p => p.c);
 			const data = parts.table || null;
 			const legendH = parts.legend ? parts.legend.height : 0;
-			const topH = parts.top ? stitchTopRowH() : 0;
+			const topH = parts.top ? stitchTopRowH(parts.top.show) : 0;
 			const mid = stitchMidLayout(people, data, legendH, topH);
 			const W = mid.width, H = mid.height;
 			const midY = stitchMidTop(topH);
@@ -4194,7 +4292,10 @@
 		// withMarks：OCR の結果を使うか（C-63 の (7)）。**「画像を結合する（OCRしない）」からは false**＝枠・表・枠の見かたなし
 		// （タイトルのバーと3人だけ）。true のときは、OCR を押した時点の写し（stitchSnapshot）から表を作る（D10）。
 		// 人の画像は、枠を描いた後に両側を削る（T36。旧UI・OCRしない結合でも）。顔のアイコンは削る前に切り出して見出しへ。
-		async function buildStitchedSetImage(setIdx, onPersonStart, withMarks) {
+		// parts：結合画像の設定（T96・C-284。stitchPartsNow の値。省略なら今の設定）。星取表・上段の欄・枠の見かたは ON のときだけ描く。
+		// 枠は新UI なら分類マーカーの ON／OFF で種類の色かシンプルの緑か（drawFactorFramesOnPerson）。タイトルのバーと人の見出しはいつも描く
+		async function buildStitchedSetImage(setIdx, onPersonStart, withMarks, parts) {
+			const opt = parts || stitchPartsNow();
 			const baseIdx = setIdx * 3;
 			const idxs = [0, 1, 2].map(r => baseIdx + r);
 			const activeIndexes = idxs.filter(i => persons[i].files.length > 0);
@@ -4226,7 +4327,7 @@
 				const icon = stitchPersonIconBox(contentCanvas);
 				// 枠は**結合の後**に付ける（C-58 の作業C。前に描くと継ぎ目の判定が狂う）
 				if (withMarks) {
-					markCount += drawFactorFramesOnPerson(contentCanvas, idx);
+					markCount += drawFactorFramesOnPerson(contentCanvas, idx, opt);
 					geneFrameCount += contentCanvas._geneFrameCount || 0;
 				}
 				heads[idx] = stitchHeadIconOf(contentCanvas, icon);
@@ -4241,11 +4342,13 @@
 			if (Object.keys(stitched).length === 0) return null;
 
 			const snap = (withMarks && stitchSnapshot && stitchSnapshot.results && stitchSnapshot.entries.length) ? stitchSnapshot : null;
-			const table = snap ? stitchTableData(snap, idxs) : null;
-			const legend = buildFactorFrameLegendBar(STITCH_LAYOUT.legendMaxW, STITCH_LAYOUT.legendRef, !!table || markCount > 0 || geneFrameCount > 0);
+			const table = (snap && opt.table) ? stitchTableData(snap, idxs) : null;
+			// 枠の見かたの行は、分類マーカーを付けるときだけ（T96。旧UI は「種類の枠」が OFF でも今までどおり材料があれば描く）
+			const legend = (opt.legacy || opt.marker)
+				? buildFactorFrameLegendBar(STITCH_LAYOUT.legendMaxW, STITCH_LAYOUT.legendRef, !!table || markCount > 0 || geneFrameCount > 0) : null;
 			const barSnap = snap || (withMarks ? stitchSnapshot : null) || captureStitchSnapshot();
 			// 上段（T37）: タイトルと同じ写し（OCR を押した時点。OCRしない結合は結合した時点）のセットから。セットが無ければ描かない
-			const top = await stitchTopData(barSnap && barSnap.set);
+			const top = await stitchTopData(barSnap && barSnap.set, opt);
 			// 人の見出しの行の遺伝子（T51）: OCR の写しの人ごとの結果から。OCRしない結合では描かない
 			const geneSnap = (withMarks && stitchSnapshot && stitchSnapshot.results) ? stitchSnapshot : null;
 			const result = composeFamilyImage({
@@ -4317,8 +4420,15 @@
 			const quiet = !!(opts && opts.quiet);
 			const keepClosed = !!(opts && opts.keepClosed);
 			const withMarks = !!(opts && opts.withMarks);
+			// opts.refresh … 引き出しの「画像を更新」から（T96）。見ている最中の作り直しなので未読の印は立てない
+			const refresh = !!(opts && opts.refresh);
 			if (stitchInProgress) return { anyOutput: false, anySuccess: false, anyFailure: false }; // 多重クリック防止
 			stitchInProgress = true;
+			// 結合画像の設定は押した時点の値で全部のセットを作る（T96）。表示中の画像の設定として控え、「画像を更新」の可否に使う
+			const parts = stitchPartsNow();
+			const filesAtStart = persons.map(p => p.files.slice());
+			const snapAtStart = stitchSnapshot;
+			updateStitchRefreshUi();
 			const stitchBtn = document.getElementById('stitch-btn');
 			stitchBtn.disabled = true;
 
@@ -4356,7 +4466,7 @@
 						const canvas = await buildStitchedSetImage(target.setIdx, (label) => {
 							setStitchProgress(done / totalPersons, set.label + ' ' + label + 'を結合中…');
 							done++;
-						}, withMarks);
+						}, withMarks, parts);
 						if (canvas) {
 							anyOutput = true;
 							anySuccess = true;
@@ -4372,6 +4482,7 @@
 				}
 
 				setStitchProgress(1, '完了');
+				lastStitchShown = anySuccess ? { parts: parts, withMarks: withMarks, files: filesAtStart, snap: snapAtStart } : null;
 				// 引き出しはエラーの帯だけでも開ける（中止の理由を読めるように）。
 				// **未読の印は結合画像が1枚でもできたときだけ**立てる。1枚もできていないのに
 				// 「新着」を立てると、印を頼りに開いた人が空振りし、印そのものの意味が壊れる（exam と同じ扱い）。
@@ -4380,7 +4491,7 @@
 					// トーストは事実に合わせて出し分ける。以前は anyOutput だけを見ていたので、
 					// **1枚も結合できていなくても「画像を結合しました」と言っていた。**
 					if (!quiet) showToast(stitchOutcomeText(anySuccess, anyFailure));
-					if (anySuccess) markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
+					if (anySuccess && !refresh) markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
 					if (!keepClosed) openDrawer('stitch');   // 結果は引き出しの中なので、そのまま開いて見せる
 				}
 
@@ -4390,6 +4501,7 @@
 				progressWrap.classList.add('hidden');
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
+				updateStitchRefreshUi();
 			}
 		}
 
@@ -4612,6 +4724,14 @@
 		 * 残る3つは、いずれも**ボタンの並びを見ても分からない**ことを言っている。
 		 * ------------------------------------------------------------ */
 		function tierMarksStatusText() {
+			// 新UI（T96・C-284）: 「種類の枠」のチェックは「結合画像の設定」に替わった。言うのは、分類マーカーを付ける設定なのに
+			// ②が因子周回でなく種類の枠を付けられないときだけ（今の条件のまま。付けない設定のときの文は外した）
+			if (deckMode) {
+				if (stitchParts.marker && Object.keys(deckTierByName).length === 0) {
+					return { tone: 'warn', text: '②で因子周回を選ぶと、種類の枠を付けられるようになります。' };
+				}
+				return { tone: 'none', text: '' };
+			}
 			if (!tierMarksEnabled) {
 				return { tone: 'off', text: '種類の枠は付けません（上のチェックを入れると付きます）。' };
 			}
@@ -4638,6 +4758,256 @@
 			el.textContent = s.text;
 			el.className = ('mt-1 text-[11px] text-center leading-relaxed ' + TIER_MARKS_STATUS_TONE[s.tone]).trim();
 			el.setAttribute('data-tone', s.tone);
+		}
+
+		/* ------------------------------------------------------------
+		 * 結合画像の設定（T96・C-284。おいもさんの決定 112〜118）
+		 *
+		 * 装飾パーツを付けるか付けないかを5つのチェックで選ぶ（任意に組み合わせ）:
+		 *   marker … 分類マーカー（②のスキルの枠を種類の3色にし、「枠の見かた」の行を付ける。OFF なら②のスキルは全部同じ緑の枠＝シンプル）
+		 *   roster … 上段の「①本育成編成」／factor … 上段の「②因子周回編成」／sp … 上段の「理論値SP」
+		 *   table  … 星取表
+		 * タイトルのバーと人の見出しはいつも描く。遺伝子の枠はいつも遺伝子の色。
+		 * 初期値は全部 OFF（シンプル）。以後は選んだ状態を uma-special-stitch-parts に覚える。今の「種類の枠」の保存値（uma-special-tier-marks）は読まない。
+		 * 旧UI は今までどおり（「種類の枠」のチェックで枠を付け、ほかは材料があれば描く。stitchPartsNow）。
+		 * 置き場所は③（模式図つき）と結合画像の引き出しの中のパネル（模式図なし）。どちらも同じ1つの状態を映す（syncStitchPartsUi）。
+		 * ------------------------------------------------------------ */
+		const STITCH_PARTS_STORAGE_KEY = 'uma-special-stitch-parts';
+		const STITCH_PART_KEYS = ['marker', 'roster', 'factor', 'sp', 'table'];
+		const STITCH_PART_LABELS = { marker: '分類マーカー', roster: '本育成編成', factor: '因子周回編成', sp: '理論値SP', table: '星取表' };
+		// シンプル（分類マーカー OFF）の枠の色。②のスキルを全部この緑で囲む（決定 113）。太さ・塗り方はほかの枠と同じ
+		const STITCH_SIMPLE_COLOR = { frame: '#2F9E1F', tint: '#E6F5DA' };
+		function stitchPartsAll(on) {
+			const o = {};
+			STITCH_PART_KEYS.forEach(k => { o[k] = !!on; });
+			return o;
+		}
+		let stitchParts = stitchPartsAll(false);
+
+		// 保存値を読む。無い・壊れている・知らない値は OFF（決定 115）
+		function loadStitchParts() {
+			const o = stitchPartsAll(false);
+			try {
+				const v = JSON.parse(readStored(STITCH_PARTS_STORAGE_KEY) || 'null');
+				if (v && typeof v === 'object') STITCH_PART_KEYS.forEach(k => { if (v[k] === true) o[k] = true; });
+			} catch (e) { /* 読めなければ全部 OFF */ }
+			stitchParts = o;
+			syncStitchPartsUi();
+		}
+
+		function setStitchPart(key, on) {
+			if (STITCH_PART_KEYS.indexOf(key) < 0) return;
+			stitchParts[key] = !!on;
+			writeStored(STITCH_PARTS_STORAGE_KEY, JSON.stringify(stitchParts));
+			syncStitchPartsUi();
+		}
+
+		// 結合画像に使う設定。新UI は「結合画像の設定」。旧UI は今までどおり（種類の枠は tierMarksEnabled・ほかは材料があれば描く）。legacy で見分ける
+		function stitchPartsNow() {
+			if (deckMode) return Object.assign({ legacy: false }, stitchParts);
+			return Object.assign(stitchPartsAll(true), { marker: tierMarksEnabled, legacy: true });
+		}
+		function sameStitchParts(a, b) {
+			return !!a && !!b && a.legacy === b.legacy && STITCH_PART_KEYS.every(k => !!a[k] === !!b[k]);
+		}
+
+		// opts.idPrefix … チェックの id の接頭辞（③は ''、引き出しは 'drawer-'）
+		// opts.wire     … false なら模式図を出さない（引き出しでは実物の画像が見本になる。exam と同じ）
+		// opts.title    … false なら見出し「結合画像の設定」を出さない（見出しを持つパネルの中に置くとき）
+		function renderStitchPartsPanel(container, opts) {
+			if (!container) return;
+			const prefix = (opts && opts.idPrefix) || '';
+			const withWire = !(opts && opts.wire === false);
+			const withTitle = !(opts && opts.title === false);
+			const list = STITCH_PART_KEYS.map(k =>
+				'<label class="stitch-show-item" data-stitch-hot="' + k + '">' +
+					'<input type="checkbox" id="' + prefix + 'opt-stitch-' + k + '" data-stitch-part-key="' + k + '" class="stitch-show-check"' +
+						' onchange="setStitchPart(\'' + k + '\', this.checked)" />' +
+					'<span class="stitch-show-text">' + STITCH_PART_LABELS[k] + '</span>' +
+				'</label>').join('');
+			// 模式図: 帯 → 上段（理論値SP｜本育成編成｜因子周回編成。OFF の欄は消して左へ詰める）→ 星取表＋3人の列 → 枠の見かた。
+			// 人の列の行の枠は、分類マーカーが OFF なら全部緑・ON なら種類の色（.is-marker）。遺伝子の行はいつも遺伝子の色
+			const cards = '<i></i><i></i><i></i><i></i><i></i>';
+			const person = (kinds) => '<span class="stitch-wire-person"><span class="stitch-wire-head"><i></i><b></b></span>' +
+				'<span class="stitch-wire-panels">' + kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span></span>';
+			const wire =
+				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet">' +
+					'<div class="stitch-wire-bar"></div>' +
+					'<div class="stitch-wire-top" data-stitch-wire-top>' +
+						'<span class="stitch-wire-sp" data-stitch-part="sp"><b></b><b></b><b></b></span>' +
+						'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards + '</span>' +
+						'<span class="stitch-wire-cards" data-stitch-part="factor">' + cards + '</span>' +
+					'</div>' +
+					'<div class="stitch-wire-mid">' +
+						'<div class="stitch-wire-table" data-stitch-part="table">' + '<i></i>'.repeat(32) + '</div>' +
+						'<div class="stitch-wire-people" data-stitch-part="people">' +
+							person(['card', null, 'star', 'other', null, 'gene', 'card']) +
+							person([null, 'star', null, 'card', 'other', null]) +
+							person(['other', null, 'card', null, 'gene']) +
+						'</div>' +
+					'</div>' +
+					'<div class="stitch-wire-legend" data-stitch-part="marker">' +
+						'<i style="border-color:#008070"></i><i style="border-color:#9C6A00"></i><i style="border-color:#7A3FB0"></i><i style="border-color:#BE185D"></i><b></b>' +
+					'</div>' +
+				'</div></div>';
+			container.innerHTML =
+				'<div class="stitch-show" data-stitch-show-panel>' +
+					'<div class="stitch-show-body">' +
+						(withTitle ? '<p class="stitch-show-title"><i data-lucide="sliders-horizontal"></i><span>結合画像の設定</span></p>' : '') +
+						'<div class="stitch-show-list">' + list + '</div>' +
+					'</div>' +
+					(withWire ? wire : '') +
+				'</div>';
+			bindStitchShowHighlight(container.querySelector('[data-stitch-show-panel]'));
+			syncStitchPartsUi();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		// 置いてある全部のパネルへ、いまの状態（チェック・模式図）を映す
+		function syncStitchPartsUi() {
+			document.querySelectorAll('[data-stitch-show-panel]').forEach(panel => {
+				panel.querySelectorAll('input[data-stitch-part-key]').forEach(input => {
+					input.checked = !!stitchParts[input.getAttribute('data-stitch-part-key')];
+				});
+				['sp', 'roster', 'factor', 'table', 'marker'].forEach(k => {
+					panel.querySelectorAll('[data-stitch-part="' + k + '"]').forEach(el => { el.hidden = !stitchParts[k]; });
+				});
+				panel.querySelectorAll('[data-stitch-wire-top]').forEach(el => { el.hidden = !(stitchParts.sp || stitchParts.roster || stitchParts.factor); });
+				panel.querySelectorAll('.stitch-wire-sheet').forEach(el => el.classList.toggle('is-marker', !!stitchParts.marker));
+			});
+			updateTierMarksStatus();
+			// 設定が変わったので、「画像を更新」が押せるかも見直す
+			updateStitchRefreshUi();
+		}
+
+		// チェックに触れている間（hover / focus）、模式図の対応する部分を強調する（exam と同じ）
+		function bindStitchShowHighlight(panel) {
+			if (!panel) return;
+			const keyOf = (e) => {
+				const t = (e.target && e.target.closest) ? e.target.closest('[data-stitch-hot]') : null;
+				return t ? t.getAttribute('data-stitch-hot') : null;
+			};
+			const setHot = (key, on) => {
+				if (!key) return;
+				// 分類マーカーは枠の見かたの行と3人の列（枠の色）を強調する
+				const parts = key === 'marker' ? ['marker', 'people'] : [key];
+				parts.forEach(p => panel.querySelectorAll('[data-stitch-part="' + p + '"]').forEach(el => el.classList.toggle('is-hot', on)));
+			};
+			panel.addEventListener('mouseover', e => setHot(keyOf(e), true));
+			panel.addEventListener('mouseout', e => setHot(keyOf(e), false));
+			panel.addEventListener('focusin', e => setHot(keyOf(e), true));
+			panel.addEventListener('focusout', e => setHot(keyOf(e), false));
+		}
+
+		// 新UI は「結合画像の設定」、旧UI は「種類の枠」のチェック（恒久ルール20）。引き出しの丸ボタンも新UI だけ
+		function updateStitchPartsPlacement() {
+			const panel = document.getElementById('stitch-parts-panel');
+			const row = document.getElementById('tier-marks-row');
+			if (panel) panel.hidden = !deckMode;
+			if (row) row.hidden = !!deckMode;
+			updateTierMarksStatus();
+			updateDrawerStitchFab();
+		}
+
+		/* ------------------------------------------------------------
+		 * 結合画像の引き出しからの「画像を更新」（T96。exam.html の refreshStitchedImages と同じ動き）
+		 *
+		 * 結合画像を見ながら設定を変え、**OCR を回さずに**結合だけやり直す。チェックを変えただけでは作り直さず、ボタンで明示的に行う。
+		 * 押せる条件（'ready'）: 表示中の画像を作ったときの設定と今の設定が違う。
+		 * 押せない条件:
+		 *   'same'  … 設定が同じ
+		 *   'stale' … 表示中の画像を作ったあとに、画像（枚数・並び）が変わった、または OCR を回し直した（案内を出す）
+		 *   'none'  … 結合画像がまだ無い
+		 * 作り直すときは、表示中の画像と同じ入口（OCR の結果を使うか＝withMarks）のまま、設定だけを今の値にする。
+		 * ------------------------------------------------------------ */
+		const STITCH_REFRESH_LABEL = '画像を更新';
+		const STITCH_REFRESH_BUSY_LABEL = '更新中…';
+		let stitchRefreshBusy = false;
+		// 表示中の結合画像を作ったときの { parts, withMarks, files, snap }。結合画像が無ければ null
+		let lastStitchShown = null;
+
+		function sameStitchFileLists(a, b) {
+			if (a.length !== b.length) return false;
+			return a.every((list, i) => list.length === b[i].length && list.every((f, j) => f === b[i][j]));
+		}
+
+		function stitchRefreshState() {
+			if (!lastStitchShown || !sectionReady.stitch) return 'none';
+			if (lastStitchShown.snap !== stitchSnapshot) return 'stale';
+			if (!sameStitchFileLists(persons.map(p => p.files), lastStitchShown.files)) return 'stale';
+			return sameStitchParts(stitchPartsNow(), lastStitchShown.parts) ? 'same' : 'ready';
+		}
+
+		// 「画像を更新」のボタンと案内を今の状態に合わせる（ボタンが無い場面では何もしない）
+		function updateStitchRefreshUi() {
+			const btn = document.getElementById('stitch-refresh-btn');
+			if (!btn) return;
+			const state = stitchRefreshState();
+			btn.disabled = stitchInProgress || combinedInProgress || state !== 'ready';
+			btn.setAttribute('data-state', state);
+			const label = document.getElementById('stitch-refresh-label');
+			if (label) label.textContent = stitchRefreshBusy ? STITCH_REFRESH_BUSY_LABEL : STITCH_REFRESH_LABEL;
+			const note = document.getElementById('stitch-refresh-note');
+			if (note) note.hidden = state !== 'stale';
+		}
+
+		// 前回の結合と同じ材料のまま、設定だけを今の値にして結合画像を作り直す
+		async function refreshStitchedImages() {
+			if (stitchInProgress || combinedInProgress) return;
+			if (stitchRefreshState() !== 'ready') { updateStitchRefreshUi(); return; }
+			stitchRefreshBusy = true;
+			// 作り直す間は中身が一度空になって引き出しの高さが縮み、スクロール位置が失われる。前の高さを最低の高さとして残す（exam と同じ）
+			const body = document.querySelector('#stitch-drawer .uma-drawer-body');
+			const scrollTop = body ? body.scrollTop : 0;
+			const slot = document.getElementById('stitch-result-content');
+			if (slot) slot.style.minHeight = slot.offsetHeight + 'px';
+			updateStitchRefreshUi();
+			try {
+				await runImageStitching({ keepClosed: true, quiet: true, refresh: true, withMarks: lastStitchShown.withMarks });
+				const imgs = Array.from(document.querySelectorAll('#stitch-result-content img'));
+				await Promise.all(imgs.map(img => img.decode().catch(() => {})));
+				if (body) body.scrollTop = scrollTop;
+				showToast('結合画像を更新しました');
+			} finally {
+				if (slot) slot.style.minHeight = '';
+				if (body) body.scrollTop = scrollTop;
+				stitchRefreshBusy = false;
+				updateStitchRefreshUi();
+			}
+		}
+
+		/* 引き出しの中の「結合画像の設定」のパネル（exam の openStitchSettings('drawer') と同じ）。閉じたらフォーカスを丸ボタンへ返す */
+		let stitchSettingsOpen = false;
+		function openStitchSettings() {
+			if (stitchSettingsOpen) return;
+			const pop = document.getElementById('stitch-drawer-pop');
+			if (!pop) return;
+			stitchSettingsOpen = true;
+			document.getElementById('stitch-drawer-fab').setAttribute('aria-expanded', 'true');
+			pop.hidden = false;
+			syncStitchPartsUi();
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('stitch-drawer-pop-close').focus();
+		}
+		function closeStitchSettings(opts) {
+			if (!stitchSettingsOpen) return;
+			stitchSettingsOpen = false;
+			document.getElementById('stitch-drawer-pop').hidden = true;
+			const btn = document.getElementById('stitch-drawer-fab');
+			btn.setAttribute('aria-expanded', 'false');
+			if (!(opts && opts.keepFocus) && !btn.hidden) btn.focus();
+		}
+		function toggleDrawerStitchSettings() {
+			if (stitchSettingsOpen) closeStitchSettings();
+			else openStitchSettings();
+		}
+		// 丸ボタンは、新UI で結合画像があるときだけ出す。出せない状態になったら、開いていたパネルも一緒に閉じる
+		function updateDrawerStitchFab() {
+			const btn = document.getElementById('stitch-drawer-fab');
+			if (!btn) return;
+			const show = !!deckMode && !!sectionReady.stitch;
+			btn.hidden = !show;
+			if (!show && stitchSettingsOpen) closeStitchSettings({ keepFocus: true });
 		}
 
 		// 照合対象のスキル名 → 分類（1＝超優先／2＝優先／3＝通常。C-57 の (10)）。照合結果の表で名前の前に競馬の印を出すために持つ。
@@ -5681,6 +6051,8 @@
 			const finish = () => { if (openDrawerKey !== key) el.hidden = true; };
 			el.addEventListener('transitionend', finish, { once: true });
 			setTimeout(finish, 400);
+			// 結合画像の引き出しの中の「結合画像の設定」は、引き出しと一緒に閉じる（T96）
+			if (key === 'stitch') closeStitchSettings({ keepFocus: true });
 			if (def.onClose) def.onClose();
 		}
 
@@ -5774,6 +6146,8 @@
 			document.getElementById(sec.empty).hidden = ready;
 			sectionReady[key] = !!ready;
 			updateResultTabs();
+			// 結合画像の引き出しの中の「結合画像の設定」の丸ボタンと「画像を更新」（T96）
+			if (key === 'stitch') { updateDrawerStitchFab(); updateStitchRefreshUi(); }
 		}
 
 		/* ------------------------------------------------------------
@@ -5907,6 +6281,12 @@
 
 		// メニュー外タップで閉じる（開いたままスクロールして誤爆するのを防ぐ）
 		document.addEventListener('click', (e) => {
+			// 引き出しの中の「結合画像の設定」は、パネルと丸ボタンの外（引き出しの本文など）を押すと閉じる（T96。exam と同じ。
+			// 開いた直後に lucide.createIcons() がアイコンを作り直すので contains() ではなく composedPath() で見る）
+			if (stitchSettingsOpen) {
+				const path = e.composedPath ? e.composedPath() : [];
+				if (!path.includes(document.getElementById('stitch-drawer-pop')) && !path.includes(document.getElementById('stitch-drawer-fab'))) closeStitchSettings({ keepFocus: true });
+			}
 			if (!fabOpen) return;
 			if (!document.getElementById('fab-nav').contains(e.target)) setFabOpen(false);
 		});
@@ -5918,6 +6298,8 @@
 			if (skillsetPanelOpen) closeSkillsetPanel();
 			else if (uiNoticeOpen) closeUiNotice();
 			else if (skillsetGuideOpen) closeSkillsetGuide();
+			// 結合画像の引き出しの中の「結合画像の設定」は、引き出しより手前にあるので先に閉じる（T96）
+			else if (stitchSettingsOpen) closeStitchSettings();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 			else return;
@@ -6228,6 +6610,8 @@
 		function updateDeckEntryVisibility() {
 			const item = document.getElementById('fab-item-deck');
 			if (item) item.hidden = !deckMode;
+			// 結合画像の設定（T96）: 新UI は「結合画像の設定」、旧UI は「種類の枠」のチェック
+			updateStitchPartsPlacement();
 			fabSyncSetItems();
 			updateDeckAlphaSendButton();
 			// Deck の項目を出し入れしたら、畳んでいるときの赤丸も数え直す
@@ -6409,6 +6793,37 @@
 						<p id="stitch-save-name-note" class="mt-1 text-[11px] text-amber-600" hidden>ファイル名に使えない文字を全角に直しました。</p>
 					</div>
 					<div id="stitch-result-content" class="space-y-4"></div>
+				</div>
+			</div>
+		</div>
+		<!-- ===== 引き出しの中の「結合画像の設定」（T96・C-284。exam.html の #stitch-drawer-fab / #stitch-drawer-pop と同じ作り） =====
+		     新UI で結合画像があるときだけ、引き出しの内側の右下に丸ボタンを出す（updateDrawerStitchFab）。
+		     押すと丸ボタンの真上に設定パネル（.uma-popover--drawer。640px 以下は引き出しの下辺からのシート）を開く。
+		     中身は③と同じ renderStitchPartsPanel（模式図なし・id は drawer-）と「画像を更新」。
+		     チェックを変えただけでは作り直さず、「画像を更新」で OCR を回さずに作り直す（updateStitchRefreshUi / refreshStitchedImages）。
+		     閉じ方は ✕・パネルの外（引き出しの本文）のクリック・Esc（Esc は引き出しより先にこちらを閉じる）。 -->
+		<button type="button" id="stitch-drawer-fab" class="uma-fab-toggle uma-drawer-fab" onclick="toggleDrawerStitchSettings()"
+			aria-controls="stitch-drawer-pop" aria-expanded="false" aria-label="結合画像の設定を開く" hidden>
+			<i data-lucide="sliders-horizontal"></i>
+		</button>
+		<div id="stitch-drawer-pop" class="uma-popover uma-popover--drawer" hidden role="dialog" aria-labelledby="stitch-drawer-pop-title">
+			<div class="uma-popover-head">
+				<h2 id="stitch-drawer-pop-title" class="uma-popover-title">
+					<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+					<span>結合画像の設定</span>
+				</h2>
+				<button type="button" id="stitch-drawer-pop-close" class="uma-popover-close" onclick="closeStitchSettings()" aria-label="閉じる">
+					<i data-lucide="x"></i>
+				</button>
+			</div>
+			<div class="uma-popover-body">
+				<div id="stitch-parts-panel-drawer"></div>
+				<div class="stitch-refresh">
+					<button type="button" id="stitch-refresh-btn" onclick="refreshStitchedImages()" class="uma-btn uma-btn--primary" disabled>
+						<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+						<span id="stitch-refresh-label">画像を更新</span>
+					</button>
+					<p id="stitch-refresh-note" class="stitch-refresh-note" hidden>画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。</p>
 				</div>
 			</div>
 		</div>

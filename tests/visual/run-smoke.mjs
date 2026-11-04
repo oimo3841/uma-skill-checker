@@ -132,6 +132,7 @@ import { register102 } from './blocks-102.mjs';
 import { register103 } from './blocks-103.mjs';
 import { register104 } from './blocks-104.mjs';
 import { register105 } from './blocks-105.mjs';
+import { register106 } from './blocks-106.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -8543,6 +8544,8 @@ await block('special と exam の操作感を揃える（59セッション目・
 	// 段0-1) 因子周回を選んでいない（新UI。段7b の ⑪で「周回因子セット」を「因子周回」にした）
 	// **C-63 の (7) で「このまま結合すると印は入りません」の後半を落とした** ―― 印が付くのは
 	// 一体のボタンからだけになったので、「このまま結合すると」が指すものが無くなった。
+	// T96（C-284）: 新UI の「種類の枠」のチェックは「結合画像の設定」の「分類マーカー」になり、既定は OFF。注意の文は分類マーカーが ON のときだけ出すので入れてから見る
+	await page.evaluate(() => setStitchPart('marker', true));
 	const s0 = await status();
 	assert(s0.shown && s0.tone === 'warn' && s0.text === '②で因子周回を選ぶと、種類の枠を付けられるようになります。',
 		'段0: セット未選択のときは「②で選ぶと付けられる」と出る', s0);
@@ -8576,12 +8579,14 @@ await block('special と exam の操作感を揃える（59セッション目・
 		'段0: 「OCRの結果があるので…」は画面に出ない（コード内のコメントは対象外）');
 
 	// 段0-4) 印を付けない設定のときは、その旨だけを出す（OCR の有無に関わらず）
-	await page.uncheck('#opt-tier-marks');
+	// T96（C-284）: 新UI は「結合画像の設定」の「分類マーカー」。OFF（シンプル）のときの「種類の枠は付けません」の文は外した（何も言わない）。
+	// 旧UI の「種類の枠」のチェックが今までどおり出ることは blocks-106 の T96(1) で見る
+	await page.uncheck('#opt-stitch-marker');
 	await page.waitForTimeout(200);
 	const s3 = await status();
-	assert(s3.tone === 'off' && s3.text === '種類の枠は付けません（上のチェックを入れると付きます）。',
-		'段0: 印 OFF のときは「付けません」', s3);
-	await page.check('#opt-tier-marks');
+	assert(s3.tone === 'none' && s3.text === '',
+		'段0 → T96: 分類マーカー OFF のときは何も言わない（「種類の枠は付けません」の文は外した）', s3);
+	await page.check('#opt-stitch-marker');
 	await page.waitForTimeout(200);
 	assert((await status()).tone === 'none', '段0: 印を戻すと元の判定に戻る');
 	// 「焼く」という言い方はやめた（C-63 の (7)-4）。利用者に見える文字列に残っていないこと
@@ -15488,6 +15493,8 @@ await register103({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register104({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T95（2026-11-04）: ③の照合を全スキルの名前で行い、②に無い名前に当たった行を捨てる（T93 の §4-3 の誤りの直し。見出しは「T95全スキルで照合」）
 await register105({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T96（2026-11-04）: UmaStar の「結合画像の設定」（装飾パーツを付けるか付けないか・既定はシンプル・表示後の「画像を更新」。C-284。見出しは「T96結合画像の設定」）
+await register106({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

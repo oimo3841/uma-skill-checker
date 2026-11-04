@@ -47,6 +47,7 @@ export async function register90(env) {
 			// ①の絞り込みの行は育成ウマ娘を選んでいるときに出る
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: 'uma-0001', cardIds: [] }));
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
+			localStorage.setItem('uma-special-stitch-parts', JSON.stringify({ marker: true, roster: true, factor: true, sp: true, table: true })); // T96（C-284）: 既定はシンプル（全部 OFF）になった。この塊は種類の枠・星取表・上段を描く今までの見た目（全部 ON）を見る
 		}, IDS);
 		await reloadReady(sp.page);
 		await closeNotices(sp.page);

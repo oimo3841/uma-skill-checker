@@ -35,6 +35,7 @@ export async function register86(env) {
 		await sp.page.evaluate(({ scope }) => {
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '2');
+			localStorage.setItem('uma-special-stitch-parts', JSON.stringify({ marker: true, roster: true, factor: true, sp: true, table: true })); // T96（C-284）: 既定はシンプル（全部 OFF）になった。この塊は種類の枠・星取表・上段を描く今までの見た目（全部 ON）を見る
 		}, { scope: o.ids ? Object.assign({ skillIds: o.ids, name: '', updatedAt: '', skillIcons: {}, parentHintLevel: 5 }, o.scope || {}) : null });
 		await reloadReady(sp.page);
 		await closeNotices(sp.page);

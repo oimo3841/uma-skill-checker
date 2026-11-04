@@ -28,6 +28,7 @@ export async function register87(env) {
 			if (ids) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', updatedAt: '', skillIcons: {}, parentHintLevel: 5 }));
 			else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '2');
+			localStorage.setItem('uma-special-stitch-parts', JSON.stringify({ marker: true, roster: true, factor: true, sp: true, table: true })); // T96（C-284）: 既定はシンプル（全部 OFF）になった。この塊は種類の枠・星取表・上段を描く今までの見た目（全部 ON）を見る
 		}, { ids: o.ids || null });
 		await reloadReady(sp.page);
 		await closeNotices(sp.page);

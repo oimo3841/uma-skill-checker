@@ -38,6 +38,7 @@ export async function register62(env) {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', '1');
+			localStorage.setItem('uma-special-stitch-parts', JSON.stringify({ marker: true, roster: true, factor: true, sp: true, table: true })); // T96（C-284）: 既定はシンプル（全部 OFF）になった。この塊は種類の枠・星取表・上段を描く今までの見た目（全部 ON）を見る
 		}, { roster: o.roster || null, scope: o.ids ? { skillIds: o.ids, name: '', updatedAt: '', skillIcons: {}, parentHintLevel: 5 } : null });
 		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
@@ -277,7 +278,8 @@ export async function register62(env) {
 			window.drawFactorFramesOnPerson = origDraw;
 			devGeometry = [];
 			tierMarksEnabled = false;
-			const offCount = drawFactorFramesOnPerson(canvas(), 0);
+			// T96（C-284）: 「種類の枠」のチェックが効くのは旧UI だけになった（新UI は「結合画像の設定」で、分類マーカー OFF はシンプルの緑の枠）。旧UI の設定で見る
+			const offCount = drawFactorFramesOnPerson(canvas(), 0, { legacy: true, marker: false });
 			tierMarksEnabled = true;
 			setPerson([{ scale: 1, columnXs: [200, 350, 500], rows: GOOD[0].rows }]);
 			const threeCols = drawFactorFramesOnPerson(canvas(), 0);
@@ -289,7 +291,7 @@ export async function register62(env) {
 			return { order, legend: !!withBar._layout.legend, offCount, threeCols, noStep, dev };
 		});
 		assert(r.order.join() === 'stitch,frames' && r.legend, '結合画像の枠(5): 枠は1人分の結合の後に描き、枠があれば凡例の帯が付く', r);
-		assert(r.offCount === 0, '結合画像の枠(5): 「種類の枠を付ける」が OFF なら描かない', r.offCount);
+		assert(r.offCount === 0, '結合画像の枠(5): 「種類の枠を付ける」が OFF なら描かない（T96: 旧UI の設定）', r.offCount);
 		assert(r.threeCols === 0 && r.noStep === 0 && r.dev.some((s) => s.includes('[種類の枠]') && s.includes('列がちょうど2本')) && r.dev.some((s) => s.includes('[種類の枠]') && s.includes('行の間隔')),
 			'結合画像の枠(5): 列が2本でない・行の間隔が測れないときは描かず、開発ログに理由を残す', r);
 		assert(jsErrors(errors).length === 0, '結合画像の枠(5): コンソールエラー0', jsErrors(errors).slice(0, 3));

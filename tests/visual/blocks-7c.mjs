@@ -599,7 +599,8 @@ export async function register7c(env) {
 			const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { t: Math.round(b.top), b: Math.round(b.bottom), l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height * 10) / 10, w: Math.round(b.width) }; };
 			const hd = document.querySelector('header');
 			const cs = getComputedStyle(hd);
-			const fab = document.querySelector('.uma-fab-toggle');
+			// T96（C-284）: 結合画像の引き出しの中にも同じ class の丸ボタン（#stitch-drawer-fab・ふだんは隠れている）ができたので、右下のメインボタンは id で引く
+			const fab = document.querySelector('#fab-toggle');
 			const grid = document.querySelector('#deck-roster-panel .usd-roster-grid-wrap');
 			const gr = grid.getBoundingClientRect(), fr = fab.getBoundingClientRect();
 			const ix = Math.max(0, Math.min(gr.right, fr.right) - Math.max(gr.left, fr.left)), iy = Math.max(0, Math.min(gr.bottom, fr.bottom) - Math.max(gr.top, fr.top));
@@ -612,7 +613,7 @@ export async function register7c(env) {
 			const iconTaps = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-ghbtn, #deck-roster-panel .usd-roster-take')).filter((e) => e.getClientRects().length > 0).map((e) => { const b = e.getBoundingClientRect(); return Math.min(b.width, b.height); });
 			return { vw: innerWidth, vh: innerHeight, docH: document.documentElement.scrollHeight, docW: document.documentElement.scrollWidth, scrollY: window.scrollY,
 				header: r('header'), headerRadius: cs.borderTopLeftRadius, headerBorderL: cs.borderLeftWidth, step: r('.step-tabs'), top: r('#deck-roster-panel .usd-roster-top'), lower: r('#deck-roster-panel .usd-roster-lower'), lowerSubBorders: subs,
-				sum: r('#deck-roster-panel [data-usd-el="pt-sumrow"]'), filter: r('#deck-roster-panel [data-usd-el="filter-row"]'), grid: r('#deck-roster-panel .usd-roster-grid-wrap'), fab: r('.uma-fab-toggle'),
+				sum: r('#deck-roster-panel [data-usd-el="pt-sumrow"]'), filter: r('#deck-roster-panel [data-usd-el="filter-row"]'), grid: r('#deck-roster-panel .usd-roster-grid-wrap'), fab: r('#fab-toggle'),
 				fabOverlap: Math.round(ix * iy), fabOverlapRatio: Math.round(100 * ix * iy / (gr.width * gr.height) * 10) / 10, fullRows: rows, smallFonts: small, minTap: taps.length ? Math.round(Math.min(...taps) * 10) / 10 : null, minIcon: iconTaps.length ? Math.round(Math.min(...iconTaps) * 10) / 10 : null,
 				rowH: (() => { const c = document.querySelector('#deck-roster-panel .usd-roster-grow[data-skill-id] .usd-roster-gc'); return c ? Math.round(c.getBoundingClientRect().height) : null; })() };
 		});
