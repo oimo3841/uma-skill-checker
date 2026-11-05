@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06b';
 
 	/* ============================================================
 	 * 定数
@@ -7839,6 +7839,9 @@
 		'.usd-factor-circlebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--uma-r-sm);',
 		'  background: transparent; color: var(--uma-text-heading); cursor: pointer; }',
 		'.usd-factor-circlebtn:hover { background: rgba(0,0,0,.08); }',
+		// T108: 新しいモードの◎のボタン（押せない）。ほかの押せない所と同じ
+		'.usd-factor-circlebtn:disabled { opacity: 0.45; cursor: not-allowed; }',
+		'.usd-factor-circlebtn:disabled:hover { background: transparent; }',
 		'.usd-factor-circlebtn[aria-pressed="true"],',
 		// T29: 表示の切り替えは aria-pressed を持たないので、カード一覧以外（表・分類）のときに data-usd-view で同じ枠
 		'.usd-factor-viewbtn[data-usd-view="table"], .usd-factor-viewbtn[data-usd-view="group"] { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
@@ -14488,7 +14491,7 @@
 				// T52（C-262 の (5)(6)）: 星取表の列見出しの並べ替えの入口。◎の候補が無いときは◎を選べない（操作の行の◎のボタンも出ていない）
 				const cst = factorPtState(currentTarget());
 				const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
-				openToneSortPopover(btn, 'tone-sort:' + draftScopeKey, factorTableSort === null ? factorToneActive() : null, factorTableSort === null, hasCircle ? null : new Set(['circle']), (k) => {
+				openToneSortPopover(btn, 'tone-sort:' + draftScopeKey, factorTableSort === null ? factorToneActive() : null, factorTableSort === null, hasCircle && !cst.noPlan ? null : new Set(['circle']), (k) => {
 					setFactorSort(k === null ? null : 'tone', k);
 					render();
 					focusNoScroll(container.querySelector('[data-usd-el="tone-sort-entry"][data-usd-where="factor"]'));
@@ -17494,13 +17497,16 @@
 			// C-245: ②独自の候補が無くても、①に関わる○の行（①の◎の候補）があれば出す
 			const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
 			if (!hasCircle) factorCircleMode = false;
+			// T108（307）: 新しいモードでは◎のモードに入れない（薄く押せない）。保存してある値（keepCircleIds）は消さない。戻すと押せる
+			const circleOff = !!(cst && cst.noPlan);
+			if (circleOff && factorCircleMode) { setFactorSort(null); renderSelectedList(); }
 			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
 			// C-235: 並びは［削除（ゴミ箱のアイコンだけ・28px の丸）］［虫眼鏡（4つの入口の小窓）］［◎］［表］（T52・C-262 の (1): ↺ は合計の行の右端へ戻した）
 			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
 					+ ' aria-label="削除" title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-4 h-4" aria-hidden="true"></i></button>'
 				+ '<button type="button" class="usd-reset-btn usd-search-btn" data-usd-act="entry-search" data-usd-el="entry-search" aria-haspopup="dialog" aria-expanded="false" aria-label="スキルを探して追加" title="スキルを探して追加">'
 					+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>'
-				+ (hasCircle ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
+				+ (hasCircle ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"' + (circleOff ? ' disabled aria-disabled="true"' : '')
 					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
 					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
 				// ②因子周回 段3: 表示の切り替え（T29: カード一覧 → 表 → 分類。カード一覧以外のときは◎のボタンと同じ選択の枠）

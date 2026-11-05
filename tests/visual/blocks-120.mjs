@@ -7,6 +7,7 @@
 //  - 脚質オススメと条件で検索の「サポカ外」からレース場の印を持つスキルを外す（292・294）。条件で検索の表示名は「サポカ外（レース場を除く）」。
 //  - 条件で検索の「シナリオスキル」を選ぶとパッシブでも出す（293。「＋」の進化スキルは出さない）。
 //  - Deck α: 「デフォルト」と、独立したまとまり「レース指定なし／本育成編成なし」（298）。
+//  - ◎のモード（307）: 新しいモードでは押せない。戻すと押せる。保存の値は残る。
 // スキル名・レース名は検査の側に書かない（恒久ルール1。データから引く）。T108_SHOTS=<フォルダ> で画像を残す。
 import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
@@ -189,6 +190,67 @@ export async function register120(env) {
 			await pickEntry(sp.page, 'editor-pick');
 			await sp.page.waitForTimeout(400);
 			await shot(sp, mode + '-search', w);
+			await sp.ctx.close();
+		}
+	});
+
+	await block('T108 ◎のモード（307）: 新しいモードでは押せない・戻すと押せる・保存の値は残る', async () => {
+		for (const w of [390, 1280]) {
+			const tag = 'T108 ◎ ' + w + 'px ';
+			const sp = await open({ w, h: 844 });
+			const P = '#deck-template-panel ';
+			const BTN = P + '[data-usd-el="factor-circle-mode"]';
+			const state = () => sp.page.evaluate(({ BTN, P }) => {
+				const b = document.querySelector(BTN);
+				const scope = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}');
+				const roster = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || '{}');
+				return { has: !!b, disabled: !!b && b.disabled, pressed: b && b.getAttribute('aria-pressed'), opacity: b ? parseFloat(getComputedStyle(b).opacity) : null, cursor: b ? getComputedStyle(b).cursor : null,
+					toggles: document.querySelectorAll(P + '[data-usd-el="factor-circle-toggle"]').length, cls: document.querySelector(P + '[data-usd-el="skill-group"]').classList.contains('usd-skillgroup--circle'),
+					keep: JSON.stringify([scope.keepCircleIds || [], roster.keepCircleIds || []]) };
+			}, { BTN, P });
+			const a = await state();
+			assert(a.has && !a.disabled && a.opacity === 1 && a.pressed === 'false', tag + 'デフォルト: 押せる', a);
+			await sp.page.click(BTN);
+			await sp.page.waitForTimeout(250);
+			const b = await state();
+			assert(b.pressed === 'true' && b.toggles > 0 && b.cls, tag + 'デフォルト: 押すとモードに入る', b);
+			await sp.page.click(P + '[data-usd-el="factor-circle-toggle"]');
+			await sp.page.waitForTimeout(250);
+			const saved = await state();
+			assert(saved.keep !== a.keep, tag + '前提: ◎を○に変えると値が保存される', saved.keep);
+			// モードに入ったまま新しいモードへ
+			await setMode(sp.page, 'noplan');
+			const c = await state();
+			assert(c.has && c.disabled && c.opacity < 1 && c.cursor === 'not-allowed' && c.pressed === 'false' && c.toggles === 0 && !c.cls, tag + '新しいモード: 薄く押せない・入っていたモードは切れる', c);
+			assert(c.keep === saved.keep, tag + '新しいモード: 保存の値は消えない', [saved.keep, c.keep]);
+			await sp.page.evaluate((BTN) => document.querySelector(BTN).click(), BTN);
+			await sp.page.waitForTimeout(150);
+			const d = await state();
+			assert(d.pressed === 'false' && d.toggles === 0, tag + '新しいモード: 押しても入らない', d);
+			// 表の並べ替えの小窓からも入れない
+			await sp.page.click(P + '[data-usd-el="factor-view"]');
+			await sp.page.waitForTimeout(250);
+			await sp.page.click(P + '[data-usd-el="tone-sort-entry"][data-usd-where="factor"]');
+			await sp.page.waitForSelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]');
+			const pick = await sp.page.evaluate(() => document.querySelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]').disabled);
+			assert(pick, tag + '新しいモード: 表の並べ替えの◎も選べない', pick);
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(150);
+			await setMode(sp.page, 'default');
+			await sp.page.click(P + '[data-usd-el="tone-sort-entry"][data-usd-where="factor"]');
+			await sp.page.waitForSelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]');
+			const pick2 = await sp.page.evaluate(() => document.querySelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]').disabled);
+			assert(!pick2, tag + 'デフォルト: 表の並べ替えの◎を選べる', pick2);
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(150);
+			const e = await state();
+			assert(e.has && !e.disabled && e.opacity === 1 && e.keep === saved.keep, tag + 'デフォルトに戻すと押せる・値はそのまま', e);
+			await sp.page.click(BTN);
+			await sp.page.waitForTimeout(250);
+			const f = await state();
+			const marks = await sp.page.evaluate((P) => [...document.querySelectorAll(P + '[data-usd-el="factor-circle-toggle"]')].filter((t) => t.getAttribute('aria-pressed') === 'false').length, P);
+			assert(f.pressed === 'true' && f.toggles === b.toggles && marks >= 1, tag + '戻してモードに入ると、○にした行は○のまま', { f, marks });
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
 	});
