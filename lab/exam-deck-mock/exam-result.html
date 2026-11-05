@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>UmaExam 照合結果</title>
+	<link rel="icon" href="data:," />
+	<!--
+		T104 段1 のモックの部品（lab/exam-deck-mock/make-mock.mjs が T100 のモック lab/result-heatmap-mock.html から作る。手で直さない）。T100 段1 のモック（作業用）。UmaStar（special）と UmaExam（exam）の「照合結果」の引き出しを、スマホの幅で
+		今の形と新しい形（★の記号をやめ、人ごとのマスを★の数で塗るヒートマップ）で並べて見るためのページ。
+		**ツール本体には組み込まない**（どのページからもリンクしない）。ゲームの画面の画像は使わない。外へは何も送らない・何も保存しない。
+		表の中身は仮のデータ（test-images の静止画1セットを今の製品で照合した結果の、スキル名と★の数だけ。★不明の「?」は見本のために2マスだけ足した）。
+		「今の形」は製品の引き出しの寸法（余白・文字の大きさ・列の幅）を写した。新しい形は 640px 未満（今のツールの sm の切り替え）のときだけ効く。
+		PC（640px 以上）では新しい形を選んでも今の形のまま（下の @media の外は今の形）。
+
+		引数: ?tool=star|exam（無ければ一覧のページ）・?form=now|new・?theme=light|dark・?sets=a|ab（UmaExam の親Bセットの有無）
+	-->
+	<style>
+html, body { margin: 0; height: 100%; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+button { font: inherit; }
+
+/* ===== ツールごとの色（製品の値を写した） ===== */
+:root[data-tool="star"] {
+	--uma-surface: #fffdf8; --uma-surface-sunken: #fbf6ec; --uma-surface-muted: #efe4cf;
+	--uma-text: #2a2216; --uma-text-heading: #2a2216; --uma-text-muted: #4a3e2c; --uma-text-subtle: #6a5b45; --uma-text-faint: #716250;
+	--uma-border: #cdbb9f; --uma-border-strong: #b49c72; --usd-ui-line: #8f7a52; --usd-ui-sel: #43321a;
+	--uma-control: #43321a; --uma-control-text: #ffffff; --uma-control-mark: #43321a;
+	--uma-drawer-bg: #f6eedf; --uma-page: #f4faf0; --uma-scrim: rgba(15, 23, 42, .45);
+	--slate-200: #cdbb9f; --slate-300: #b49c72; --slate-400: #716250; --slate-500: #6a5b45; --slate-700: #3d3120; --slate-800: #2a2216; --slate-900: #1f190f; --slate-50: #fbf6ec;
+	--amber-500: #fe9a00; --amber-600: #e17100;
+	--person-bg: #eff6ff; --person-fg: #193cb8; --person-tint: rgba(43, 127, 255, .07); --person-border: #bedbff; --person-50: rgba(239, 246, 255, .5); --person-700: #1447e6; --person-600: #155dfc; --person-500: #2b7fff;
+	--person-b-bg: #fef2f2; --person-b-fg: #9f0712; --person-b-border-strong: #ffa2a2; --person-b-border-soft: #ffc9c9; --person-b-tint: rgba(251, 44, 54, .07);
+	--tone-heal: #0b5fa5; --tone-passive: #1b7a3a; --tone-debuff: #b3261e; --mark-gene: #581c87; --mk-star: #b7791f; --mk-other: #7c5bd6;
+	--deck-btn: #43321a; --deck-btn-text: #ffffff;
+	/* ヒートマップ（緑。UmaStar のアクセント green-600 の系統） */
+	--hm-empty: #fffdf8; --hm-s1: #cdeed6; --hm-n1: #14532d; --hm-s2: #7fd39b; --hm-n2: #0b3d1f; --hm-s3: #1e7f45; --hm-n3: #ffffff;
+	--hm-unk-base: #ece7dd; --hm-unk-line: #b5ab98; --hm-unk-text: #3d3428; --hm-gap: #f6eedf;
+}
+:root[data-tool="star"][data-theme="dark"] {
+	--uma-surface: #363431; --uma-surface-sunken: #2c2b29; --uma-surface-muted: #403e39;
+	--uma-text: #f3f1ec; --uma-text-heading: #f3f1ec; --uma-text-muted: #dcd8cf; --uma-text-subtle: #bdb9b0; --uma-text-faint: #a9a59a;
+	--uma-border: #5c5a55; --uma-border-strong: #7d7a71; --usd-ui-line: #a9a59a; --usd-ui-sel: #e6e0d2;
+	--uma-control: #4d4a44; --uma-control-mark: #e6e0d2;
+	--uma-drawer-bg: #1d1c1a; --uma-page: #181716; --uma-scrim: rgba(0, 0, 0, .55);
+	--slate-200: #5c5a55; --slate-300: #7d7a71; --slate-400: #a9a59a; --slate-500: #bdb9b0; --slate-700: #dcd8cf; --slate-800: #f3f1ec; --slate-900: #f3f1ec; --slate-50: #2c2b29;
+	--amber-500: #ffb900; --amber-600: #ffd230;
+	--person-bg: #172a4a; --person-fg: #a9c9ff; --person-tint: rgba(74, 158, 245, .10); --person-border: #26426b; --person-50: rgba(23, 42, 74, .5); --person-700: #a9c9ff; --person-600: #8ec5ff; --person-500: #8ec5ff;
+	--person-b-bg: #3a1a1d; --person-b-fg: #ffb3b3; --person-b-border-strong: #a3474d; --person-b-border-soft: #6b2d33; --person-b-tint: rgba(251, 44, 54, .10);
+	--tone-heal: #5aa9ff; --tone-passive: #5fd889; --tone-debuff: #ff7f75; --mark-gene: #a08aff; --mk-star: #e0b04a; --mk-other: #a08aff;
+	--deck-btn: #4d4a44; --deck-btn-text: #ffffff;
+	--hm-empty: #262523; --hm-s1: #1f4a30; --hm-n1: #c3f3d2; --hm-s2: #3fa566; --hm-n2: #04170c; --hm-s3: #8de3a9; --hm-n3: #04170c;
+	--hm-unk-base: #34322e; --hm-unk-line: #5c5a55; --hm-unk-text: #f3f1ec; --hm-gap: #1d1c1a;
+}
+:root[data-tool="exam"] {
+	--uma-surface: #ffffff; --uma-surface-sunken: #f6f9fe; --uma-surface-muted: #dce6f6;
+	--uma-text: #0e1c3a; --uma-text-heading: #0e1c3a; --uma-text-muted: #2c3c5c; --uma-text-subtle: #4a5b7c; --uma-text-faint: #566789;
+	--uma-border: #a9bddd; --uma-border-strong: #7f9ccb; --usd-ui-line: #7f9ccb; --usd-ui-sel: #1d3d73;
+	--uma-control: #1d3d73; --uma-control-text: #ffffff; --uma-control-mark: #1d3d73;
+	--uma-drawer-bg: #f5f6fb; --uma-page: #dfe8f5; --uma-scrim: rgba(15, 23, 42, .45);
+	--slate-50: #f6f9fe; --slate-100: #e3ebf8; --slate-200: #a9bddd; --slate-300: #8aa7d4; --slate-400: #566789; --slate-500: #4a5b7c; --slate-600: #3b4b6b; --slate-700: #24365a; --slate-800: #0e1c3a; --slate-900: #0b1630;
+	--amber-500: #c97000; --amber-600: #dd7400; --symbol-faint: #6d89b5;
+	--person-bg: #eff6ff; --person-fg: #1e40af; --person-tint: rgba(59, 130, 246, .07); --person-border: #bfdbfe; --person-50: rgba(239, 246, 255, .5); --person-700: #1d4ed8; --person-600: #2563eb; --person-500: #3b82f6;
+	--person-b-bg: #fef2f2; --person-b-fg: #991b1b; --person-b-border-strong: #fca5a5; --person-b-border-soft: #fecaca; --person-b-tint: rgba(239, 68, 68, .07);
+	--person-b-50: rgba(254, 242, 242, .5); --person-b-700: #b91c1c; --person-b-600: #dc2626; --person-b-200: #fecaca;
+	--total-th-bg: #f1f5f9; --total-th-text: #334155; --total-th-border: #cbd5e1; --total-td-bg: #f8fafc; --total-td-border: #e2e8f0;
+	--copy-btn: #2563eb; --pill-on: #0b1630; --pill-on-text: #ffffff; --pill-off: #e3ebf8; --pill-off-text: #3b4b6b;
+	--deck-note-bg: #eef2ff; --deck-note-border: #c6d2ff; --deck-note-text: #432dd7; --deck-note-btn: #4f39f6;
+	--hl-border: #e9c46a; --hl-bg: rgba(253, 246, 222, .5); --hl-text: #8a5a00;
+	--badge-blue-bg: #c4dbfb; --badge-blue-text: #0c3f94; --badge-gold-bg: #f9e3a0; --badge-gold-text: #6e3600; --badge-green-bg: #bfeed8; --badge-green-text: #0f5233; --badge-purple-bg: #d6d6fa; --badge-purple-text: #33267f;
+	--deco-border: #a8d4ff; --deco-soft-50: rgba(224, 240, 255, .5); --deco-text: #0c3b6b; --deco-strong-70: rgba(9, 87, 165, .7); --exam-blue-border-strong: #93c5fd;
+	--green-skill: #007a55; --green-skill-on: #ffffff; --green-skill-border: #a4f4cf; --hl-person-bg: rgba(255, 255, 255, .7);
+	--hlc-sp-border: #fee685; --hlc-sp-bg: rgba(255, 251, 235, .6); --hlc-sp-text: #bb4d00; --hlc-sp-num: #e17100; --hlc-sp-sub: #ffb900;
+	--hlc-g-border: #a4f4cf; --hlc-g-bg: rgba(236, 253, 245, .6); --hlc-g-text: #007a55; --hlc-g-num: #009966; --hlc-g-sub: #00d492;
+	--emerald-500: #179c5b; --amber-500-mark: #c97000;
+	/* ヒートマップ（青。UmaExam の --uma-c-* の系統） */
+	--hm-empty: #ffffff; --hm-s1: #cbe5ff; --hm-n1: #0c3b6b; --hm-s2: #7cbcfb; --hm-n2: #08284a; --hm-s3: #0b6bcb; --hm-n3: #ffffff;
+	--hm-unk-base: #e6ebf3; --hm-unk-line: #a9b6cb; --hm-unk-text: #1f2d47; --hm-gap: #f5f6fb;
+}
+:root[data-tool="exam"][data-theme="dark"] {
+	--uma-surface: #324058; --uma-surface-sunken: #2a364b; --uma-surface-muted: #2f3d57;
+	--uma-text: #f1f4fa; --uma-text-heading: #f1f4fa; --uma-text-muted: #d3dbeb; --uma-text-subtle: #b3bed2; --uma-text-faint: #9aa8c0;
+	--uma-border: #4a5e80; --uma-border-strong: #6379a0; --usd-ui-line: #6379a0; --usd-ui-sel: #f1f4fa;
+	--uma-control: #3466cc; --uma-control-mark: #f1f4fa;
+	--uma-drawer-bg: #12171f; --uma-page: #171e2b; --uma-scrim: rgba(0, 0, 0, .55);
+	--slate-50: #2a364b; --slate-100: #2f3d57; --slate-200: #4a5e80; --slate-300: #6379a0; --slate-400: #9aa8c0; --slate-500: #b3bed2; --slate-600: #c3cce0; --slate-700: #d3dbeb; --slate-800: #f1f4fa; --slate-900: #f1f4fa;
+	--amber-500: #f99c00; --amber-600: #fdc700; --symbol-faint: #717d92;
+	--person-bg: #172a4a; --person-fg: #a9c9ff; --person-tint: rgba(74, 158, 245, .10); --person-border: #26426b; --person-50: rgba(23, 42, 74, .5); --person-700: #a9c9ff; --person-600: #8ec5ff; --person-500: #8ec5ff;
+	--person-b-bg: #3a1a1d; --person-b-fg: #ffb3b3; --person-b-border-strong: #a3474d; --person-b-border-soft: #6b2d33; --person-b-tint: rgba(251, 44, 54, .10);
+	--person-b-50: rgba(58, 26, 29, .5); --person-b-700: #ffb3b3; --person-b-600: #ff8a8a; --person-b-200: #6b2d33;
+	--total-th-bg: #2f3d57; --total-th-text: #f1f4fa; --total-th-border: #6379a0; --total-td-bg: #2a364b; --total-td-border: #4a5e80;
+	--copy-btn: #3466cc; --pill-on: #f1f4fa; --pill-on-text: #12171f; --pill-off: #2f3d57; --pill-off-text: #c3cce0;
+	--deck-note-bg: #221f45; --deck-note-border: #3d3780; --deck-note-text: #b8b0ff; --deck-note-btn: #8b7dff;
+	--hl-border: #6b5520; --hl-bg: rgba(60, 48, 20, .5); --hl-text: #f2cf6b;
+	--badge-blue-bg: #1f4a8a; --badge-blue-text: #ffffff; --badge-gold-bg: #6a4a0a; --badge-gold-text: #ffe08a; --badge-green-bg: #1d6a45; --badge-green-text: #ffffff; --badge-purple-bg: #3d3780; --badge-purple-text: #ffffff;
+	--deco-border: #1f4166; --deco-soft-50: rgba(17, 37, 59, .5); --deco-text: #cbe5ff; --deco-strong-70: rgba(140, 196, 251, .7); --exam-blue-border-strong: #3b6fb8;
+	--green-skill: #34d399; --green-skill-on: #0f1318; --green-skill-border: #1f5a43; --hl-person-bg: rgba(50, 64, 88, .7);
+	--hlc-sp-border: color-mix(in oklab, oklch(76.9% 0.188 70.08) 30%, #171d26); --hlc-sp-bg: color-mix(in oklab, oklch(76.9% 0.188 70.08) 14%, #171d26); --hlc-sp-text: oklch(87.9% 0.169 91.605); --hlc-sp-num: #fdc700; --hlc-sp-sub: #ffd230;
+	--hlc-g-border: color-mix(in oklab, oklch(69.6% 0.17 162.48) 30%, #171d26); --hlc-g-bg: color-mix(in oklab, oklch(69.6% 0.17 162.48) 14%, #171d26); --hlc-g-text: oklch(84.5% 0.143 164.978); --hlc-g-num: #5ee9b5; --hlc-g-sub: #00d492;
+	--emerald-500: oklch(69.6% 0.17 162.48); --amber-500-mark: oklch(76.9% 0.188 70.08);
+	--hm-empty: #222c3d; --hm-s1: #1d4f86; --hm-n1: #d6ebff; --hm-s2: #4a90dc; --hm-n2: #03101f; --hm-s3: #8cc4fb; --hm-n3: #08284a;
+	--hm-unk-base: #363e4c; --hm-unk-line: #5c6779; --hm-unk-text: #f1f4fa; --hm-gap: #12171f;
+}
+
+/* ===== 引き出しの骨格（css/shell.css の .uma-drawer を写した） ===== */
+.page-bg { position: fixed; inset: 0; background: var(--uma-page); }
+.backdrop { position: fixed; inset: 0; background: var(--uma-scrim); }
+.drawer { position: fixed; top: 0; right: 0; width: min(96vw, 1100px); height: 100%; display: flex; flex-direction: column;
+	background: var(--uma-drawer-bg); box-shadow: -8px 0 32px rgba(0, 0, 0, .18); color: var(--uma-text); }
+.dr-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); }
+.dr-title { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 700; color: var(--uma-text-heading); }
+.dr-title svg { width: 16px; height: 16px; color: #16a34a; }
+.btn-close { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--uma-border-strong); background: var(--uma-surface); color: var(--uma-text-heading); font-size: 12px; font-weight: 600; }
+.dr-tabs { flex-shrink: 0; display: flex; gap: 8px; padding: 0 16px; background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); }
+.dr-tab { display: flex; align-items: center; gap: 6px; padding: 10px 8px; margin-bottom: -1px; background: none; border: 0; border-bottom: 2px solid transparent; font-size: 12px; line-height: 16px; font-weight: 600; color: var(--uma-text-subtle); }
+.dr-tab.sel { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
+.dr-tab .dot { width: 8px; height: 8px; border-radius: 50%; background: #e11d48; box-shadow: 0 0 0 3px rgba(225, 29, 72, .2); }
+.uma-drawer-body { flex: 1; min-height: 0; overflow-y: auto; background: var(--uma-drawer-bg); }
+.content { padding: 16px; }
+.ic { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ===== 今の形（製品の寸法を写した。PC はこのまま） ===== */
+/* UmaStar: Deck (αテスト)に送る（uma-btn--primary uma-btn--lg）と停止の1行 */
+#deck-alpha-send-note { margin-bottom: 24px; }
+.btn-deck { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 12px 20px; border: 0; border-radius: 14px;
+	background: var(--deck-btn); color: var(--deck-btn-text); font-size: 14px; font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+.deck-stop { margin: 6px 0 0; font-size: 11px; line-height: 16.5px; color: var(--slate-500); }
+/* UmaExam: UmaSkill Deck への受け渡しの案内（deck-note） */
+#deck-handoff-note { margin-bottom: 24px; }
+.deck-note { border: 1px solid var(--deck-note-border); border-radius: 12px; background: var(--deck-note-bg); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 640px) { .deck-note { flex-direction: row; align-items: center; justify-content: space-between; } .deck-note-btn { flex-shrink: 0; } }
+.deck-note-title { margin: 0; font-size: 12px; line-height: 16px; font-weight: 700; color: var(--deck-note-text); }
+.deck-note-detail { margin: 2px 0 0; font-size: 11px; line-height: 1.625; color: var(--deck-note-text); }
+.deck-note-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border: 0; border-radius: 12px; background: var(--deck-note-btn); color: #fff; font-size: 12px; font-weight: 600; }
+/* サマリーカード */
+.stat-grid { display: grid; gap: 12px; margin-bottom: 24px; grid-template-columns: repeat(var(--stat-cols-sm, 2), minmax(0, 1fr)); }
+@media (min-width: 640px) { .stat-grid { grid-template-columns: repeat(var(--stat-cols, 4), minmax(0, 1fr)); } }
+.stat { border-radius: 12px; border: 1px solid var(--slate-200); background: color-mix(in srgb, var(--slate-50) 50%, transparent); padding: 12px; text-align: center; }
+@media (min-width: 768px) { .stat { padding: 16px; } }
+.stat-label { margin: 0 0 4px; font-size: 11px; line-height: 16.5px; font-weight: 500; color: var(--slate-500); }
+.stat-num { margin: 0; font-size: 18px; line-height: 28px; font-weight: 800; color: var(--slate-900); }
+@media (min-width: 768px) { .stat-num { font-size: 24px; line-height: 32px; } }
+.stat-sub { margin: 2px 0 0; font-size: 10px; line-height: 15px; font-weight: 500; color: var(--slate-400); }
+.stat.p-a { border-color: var(--person-border); background: var(--person-50); }
+.stat.p-a .stat-label { color: var(--person-700); } .stat.p-a .stat-num { color: var(--person-600); } .stat.p-a .stat-sub { color: var(--person-500); }
+.stat.p-b { border-color: var(--person-b-200, var(--person-b-border-soft)); background: var(--person-b-50, transparent); }
+.stat.p-b .stat-label { color: var(--person-b-700, var(--person-b-fg)); } .stat.p-b .stat-num { color: var(--person-b-600, var(--person-b-fg)); } .stat.p-b .stat-sub { color: var(--person-b-600, var(--person-b-fg)); }
+/* 検索・絞り込み・コピー */
+.ctrlbox { display: block; }
+.ctrl { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+@media (min-width: 640px) { .ctrl { flex-direction: row; } }
+.srch { position: relative; width: 100%; }
+@media (min-width: 640px) { .srch { width: 256px; } }
+.srch svg { position: absolute; left: 12px; top: 8px; width: 16px; height: 16px; color: var(--slate-400); }
+#table-search { width: 100%; padding: 6px 12px 6px 36px; font-size: 12px; line-height: 16px; border-radius: 8px; border: 1px solid var(--slate-200); background: var(--uma-surface); color: var(--uma-text); }
+.pills { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: 100%; font-size: 12px; }
+@media (min-width: 640px) { .pills { width: auto; } }
+.pill { padding: 4px 12px; line-height: 16px; border-radius: 8px; border: 1px solid var(--usd-ui-line); background: var(--uma-surface); color: var(--uma-text-muted); font-size: 12px; font-weight: 500; }
+.pill.active { color: var(--uma-text-heading); border-color: var(--usd-ui-sel); box-shadow: inset 0 0 0 1px var(--usd-ui-sel); }
+:root[data-tool="exam"] .pill { border: 0; background: var(--pill-off); color: var(--pill-off-text); }
+:root[data-tool="exam"] .pill.active { background: var(--pill-on); color: var(--pill-on-text); box-shadow: none; }
+:root[data-tool="exam"] .ctrl { margin-bottom: 8px; }
+.copy-slot { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.btn-copy { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border-radius: 12px; border: 0; background: var(--uma-control); color: #fff; font-size: 12px; font-weight: 700; }
+:root[data-tool="exam"] .btn-copy { height: auto; padding: 8px 16px; background: var(--copy-btn); font-weight: 600; }
+/* UmaExam だけの行（件数・横スクロールの注記・列の切り替え・ハイライト） */
+.ex-count, .ex-note { margin: 0 0 4px; font-size: 11px; line-height: 16.5px; color: var(--slate-400); }
+.ex-note { margin-bottom: 12px; }
+.ex-toggle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.ex-toggle span { font-size: 11px; color: var(--slate-500); }
+.ex-toggle button { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; border: 1px solid; }
+.ex-toggle .on-a { background: var(--person-bg); color: var(--person-fg); border-color: var(--person-border); }
+.ex-toggle .on-b { background: var(--person-b-bg); color: var(--person-b-fg); border-color: var(--person-b-border-soft); }
+/* UmaExam のハイライト（exam.html の #exam-highlight と .hl-cards を写した） */
+.ex-hl { border: 1px solid var(--deco-border); background: var(--deco-soft-50); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+@media (min-width: 768px) { .ex-hl { padding: 20px; } }
+.ex-hl-head { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+@media (min-width: 640px) { .ex-hl-head { flex-direction: row; align-items: center; justify-content: space-between; } }
+.ex-hl h3 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 700; color: var(--deco-text); }
+.ex-hl h3 svg { width: 16px; height: 16px; }
+.ex-hl-modes { display: flex; gap: 4px; font-size: 12px; background: var(--uma-surface); border: 1px solid var(--green-skill-border); border-radius: 8px; padding: 2px; align-self: stretch; }
+@media (min-width: 640px) { .ex-hl-modes { align-self: auto; } }
+.ex-hl-modes span { padding: 4px 12px; border-radius: 6px; font-weight: 500; line-height: 16px; color: var(--green-skill); }
+.ex-hl-modes span.on { background: var(--green-skill); color: var(--green-skill-on); }
+.ex-hl-sets { display: flex; flex-direction: column; gap: 12px; }
+.ex-hl-set { border-radius: 16px; padding: 12px; border: 2px solid var(--exam-blue-border-strong); background: var(--person-bg); }
+.ex-hl-set.b { border-color: var(--person-b-border-strong); background: var(--person-b-bg); }
+.ex-hl-setname { margin: 0 0 8px; font-size: 11px; line-height: 16.5px; font-weight: 700; color: var(--person-fg); }
+.ex-hl-set.b .ex-hl-setname, .ex-hl-set.b .ex-hl-pname { color: var(--person-b-fg); }
+.ex-hl-people { display: grid; gap: 10px; }
+@media (min-width: 1024px) { .ex-hl-people { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ex-hl-person { border-radius: 12px; background: var(--hl-person-bg); padding: 8px; }
+@media (min-width: 640px) { .ex-hl-person { padding: 10px; } }
+.ex-hl-pname { margin: 0 0 6px; font-size: 11px; line-height: 16.5px; font-weight: 700; color: var(--person-fg); }
+.hl-cards { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hlc { display: flex; flex-direction: column; justify-content: center; border-radius: 8px; padding: 8px; text-align: center; border: 1px solid var(--hlc-sp-border); background: var(--hlc-sp-bg); }
+@media (min-width: 640px) { .hlc { padding: 10px; } }
+.hlc-l { margin: 0 0 2px; font-size: 11px; line-height: 16.5px; font-weight: 500; color: var(--hlc-sp-text); }
+.hlc-n { margin: 0; font-size: 16px; line-height: 24px; font-weight: 800; color: var(--hlc-sp-num); }
+@media (min-width: 768px) { .hlc-n { font-size: 20px; line-height: 28px; } }
+.hlc-n span { font-size: 12px; font-weight: 500; color: var(--hlc-sp-sub); }
+.hlc.g { border-color: var(--hlc-g-border); background: var(--hlc-g-bg); }
+.hlc.g .hlc-l { color: var(--hlc-g-text); } .hlc.g .hlc-n { color: var(--hlc-g-num); } .hlc.g .hlc-n span { color: var(--hlc-g-sub); }
+.ex-hl-foot { margin: 12px 0 0; font-size: 11px; line-height: 16.5px; color: var(--deco-strong-70); }
+/* UmaExam の分類の印（●★の色つきの記号。exam.html の SCREEN_MARK） */
+.gl { font-weight: 700; margin-right: 4px; }
+.gl-emerald-500 { color: var(--emerald-500); } .gl-amber-500 { color: var(--amber-500-mark); } .gl-plain { color: var(--uma-text); }
+
+/* 表 */
+.tbl-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--slate-200); margin-bottom: 24px; }
+.result-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.result-table th { background: var(--uma-surface-muted); font-weight: 600; font-size: 12px; line-height: 16px; color: var(--uma-text-muted); border-bottom: 2px solid var(--uma-border); padding: 12px 16px; text-align: center; }
+.result-table th.nm { text-align: center; }
+.result-table td { border-bottom: 1px solid var(--uma-surface-muted); padding: 12px 16px; font-size: 14px; line-height: 20px; text-align: center; }
+.result-table td.nm { text-align: left; font-weight: 500; color: var(--slate-800); }
+.result-table th.pc { background: var(--person-bg); color: var(--person-fg); }
+.result-table td.pc { background: var(--person-tint); }
+.result-table th.pc.pb { background: var(--person-b-bg); color: var(--person-b-fg); }
+.result-table td.pc.pb { background: var(--person-b-tint); }
+.result-table th.pc.bd { border-left: 2px solid var(--person-b-border-strong); }
+.result-table td.pc.bd { border-left: 2px solid var(--person-b-border-soft); }
+.result-table th.tot { background: var(--uma-surface-muted); color: var(--uma-text-heading); border-left: 2px solid var(--uma-border-strong); }
+.result-table td.tot { background: var(--uma-surface-sunken); border-left: 2px solid var(--uma-border); font-weight: 700; color: var(--slate-700); }
+:root[data-tool="exam"] .result-table th { background: var(--uma-surface-muted); font-size: 13px; color: var(--uma-text-muted); padding: 12px 16px; }
+:root[data-tool="exam"] .result-table th.tot { background: var(--total-th-bg); color: var(--total-th-text); border-left-color: var(--total-th-border); }
+:root[data-tool="exam"] .result-table td.tot { background: var(--total-td-bg); border-left-color: var(--total-td-border); }
+:root[data-tool="exam"] .result-table th:first-child, :root[data-tool="exam"] .result-table td:first-child { position: sticky; left: 0; z-index: 1; box-shadow: 2px 0 4px -2px rgba(15, 23, 42, .12); }
+:root[data-tool="exam"] .result-table td:first-child { background: var(--uma-surface); }
+@media (max-width: 640px) {
+	:root[data-tool="exam"] .result-table th, :root[data-tool="exam"] .result-table td { padding: 8px; font-size: 12px; }
+}
+.st-on { color: var(--amber-500); } .st-off { color: var(--slate-300); }
+.st-none { color: var(--slate-300); font-size: 12px; }
+:root[data-tool="exam"] .st-none, :root[data-tool="exam"] .st-off { color: var(--symbol-faint); }
+.st-unk { color: var(--amber-600); font-size: 12px; font-weight: 700; }
+/* スキル名の印（②のマーカー・遺伝子の◇・UmaExam の分類のバッジ）と名前の色 */
+.mk { display: inline-block; width: 16px; height: 16px; border-radius: 3px; vertical-align: -3px; margin-right: 4px; position: relative; }
+.mk-star { background: var(--mk-star); } .mk-other { background: var(--mk-other); }
+.mk::after { content: ""; position: absolute; inset: 4px; border-radius: 1px; background: rgba(255, 255, 255, .85); }
+.mk-gene { background: none; } .mk-gene::after { inset: 3px; transform: rotate(45deg); background: none; border: 2px solid var(--mark-gene); border-radius: 0; }
+.sn { text-decoration: underline; text-decoration-color: var(--uma-border-strong); text-underline-offset: 2px; }
+.tone-heal { color: var(--tone-heal); } .tone-passive { color: var(--tone-passive); } .tone-debuff { color: var(--tone-debuff); }
+.bdg { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 3px; margin-right: 4px; border-radius: 4px; font-size: 10px; font-weight: 700; vertical-align: 1px; }
+.bdg-blue { background: var(--badge-blue-bg); color: var(--badge-blue-text); } .bdg-gold { background: var(--badge-gold-bg); color: var(--badge-gold-text); }
+.bdg-green { background: var(--badge-green-bg); color: var(--badge-green-text); } .bdg-purple { background: var(--badge-purple-bg); color: var(--badge-purple-text); }
+/* ヒートマップのマス（新しい形でだけ使う。今の形は★の記号） */
+.hm { display: none; }
+
+/* ===== 新しい形（スマホ＝640px 未満だけ。PC は上の今の形のまま） =====
+   文字は2つ: 13px（見出し・数字）／11px（それ以外と表）。上の欄とボタンの高さを抑える。方眼紙のデザインは使わない */
+@media (max-width: 639.98px) {
+	.f-new #deck-alpha-send-note { margin-bottom: 10px; }
+	.f-new .btn-deck { min-height: 36px; padding: 6px 12px; border-radius: 10px; font-size: 13px; line-height: 18px; gap: 6px; }
+	.f-new .btn-deck .ic { width: 13px; height: 13px; }
+	.f-new .deck-stop { margin-top: 3px; line-height: 15px; }
+	.f-new #deck-handoff-note { margin-bottom: 10px; }
+	.f-new .deck-note { padding: 8px 10px; gap: 6px; }
+	.f-new .deck-note-title { font-size: 11px; line-height: 15px; }
+	.f-new .deck-note-detail { line-height: 15px; }
+	.f-new .deck-note-btn { flex-shrink: 0; padding: 0 10px; height: 30px; font-size: 11px; border-radius: 8px; }
+	/* 上の欄: 1行の小さな箱（対象スキル数｜親A｜祖A1｜祖A2）。数字は 13px、ほかは 11px */
+	.f-new .stat-grid { display: grid; grid-template-columns: repeat(var(--stat-n), minmax(0, 1fr)); gap: 0; margin-bottom: 10px;
+		border: 1px solid var(--slate-200); border-radius: 10px; background: var(--uma-surface); overflow: hidden; }
+	.f-new .stat { border: 0; border-radius: 0; background: transparent; padding: 4px 2px 5px; }
+	.f-new .stat + .stat { border-left: 1px solid var(--slate-200); }
+	.f-new .stat.p-a { background: var(--person-50); } .f-new .stat.p-b { background: var(--person-b-50, transparent); }
+	.f-new .stat-label { margin: 0; font-size: 11px; line-height: 14px; }
+	.f-new .stat-num { font-size: 13px; line-height: 17px; }
+	.f-new .stat-sub { margin: 0; font-size: 11px; line-height: 14px; }
+	/* 検索とコピーを1行、絞り込みを次の1行に */
+	.f-new .ctrlbox { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-bottom: 8px; }
+	.f-new .ctrl { display: contents; }
+	.f-new .srch { grid-column: 1; grid-row: 1; }
+	.f-new .srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
+	.f-new #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
+	.f-new .copy-slot { grid-column: 2; grid-row: 1; margin: 0; gap: 4px; }
+	.f-new .btn-copy, :root[data-tool="exam"] .f-new .btn-copy { height: 28px; padding: 0 10px; border-radius: 8px; font-size: 11px; gap: 4px; }
+	.f-new .btn-copy .ic { width: 12px; height: 12px; }
+	.f-new .pills { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; font-size: 11px; }
+	.f-new .pill { padding: 0 10px; height: 24px; line-height: 22px; font-size: 11px; }
+	.f-new .ex-count { grid-column: 1 / -1; grid-row: 3; margin: 0; line-height: 14px; }
+	.f-new .ex-note { grid-column: 1 / -1; grid-row: 4; margin: 0; line-height: 14px; }
+	.f-new .ex-toggle { grid-column: 1 / -1; grid-row: 5; margin: 0; gap: 6px; }
+	.f-new .ex-toggle button { padding: 0 8px; height: 24px; }
+	/* UmaExam のハイライト: 人ごとに1行（人｜sp70緑｜緑）。文言と数は今のまま */
+	.f-new .ex-hl { padding: 6px 8px; margin-bottom: 10px; border-radius: 10px; }
+	.f-new .ex-hl-head { flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+	.f-new .ex-hl h3 { font-size: 11px; line-height: 14px; gap: 4px; }
+	.f-new .ex-hl h3 svg { width: 13px; height: 13px; }
+	.f-new .ex-hl-modes { font-size: 11px; align-self: auto; }
+	.f-new .ex-hl-modes span { padding: 1px 6px; line-height: 15px; }
+	.f-new .ex-hl-sets { gap: 6px; }
+	.f-new .ex-hl-set { padding: 4px 6px; border-radius: 8px; border-width: 1px; }
+	.f-new .ex-hl-setname { margin: 0 0 2px; line-height: 14px; }
+	.f-new .ex-hl-people { gap: 2px; }
+	.f-new .ex-hl-person { display: grid; grid-template-columns: 2.7em minmax(0, 0.8fr) minmax(0, 1.2fr); align-items: center; gap: 4px; padding: 0; background: transparent; border-radius: 0; }
+	.f-new .ex-hl-pname { margin: 0; line-height: 14px; }
+	.f-new .hl-cards { display: contents; }
+	.f-new .hlc { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: center; column-gap: 4px; padding: 1px 4px; border-radius: 6px; }
+	.f-new .hlc-l { margin: 0; line-height: 14px; }
+	.f-new .hlc-n { font-size: 13px; line-height: 17px; }
+	.f-new .hlc-n span { font-size: 11px; }
+	.f-new .ex-hl-foot { margin-top: 4px; line-height: 14px; }
+	/* 表: スキル｜人の列。★の記号をやめ、マスを★の数で塗る（★0＝塗りなし・★1〜3＝テーマ色の3段）。数字は 11px の太字 */
+	.f-new .tbl-wrap { border-radius: 8px; margin-bottom: 16px; }
+	.f-new .result-table { min-width: 0 !important; table-layout: fixed; }
+	.f-new .result-table th, :root[data-tool="exam"] .f-new .result-table th { padding: 4px 2px; font-size: 11px; line-height: 14px; font-weight: 700; border-bottom-width: 1px; }
+	.f-new .result-table th.nm { text-align: left; padding-left: 6px; }
+	/* 製品の名前の列は w-1/4 などの幅の指定を持つ。新しい形では名前の列を残りの幅いっぱいにし、人の列を 40px にそろえる */
+	.f-new .result-table th.nm { width: auto !important; }
+	.f-new .result-table th.pc { width: var(--hm-col, 40px); }
+	.f-new .result-table td, :root[data-tool="exam"] .f-new .result-table td { padding: 0; font-size: 11px; line-height: 14px; border-bottom: 1px solid var(--uma-surface-muted); }
+	.f-new .result-table td.nm, :root[data-tool="exam"] .f-new .result-table td.nm { padding: 4px 4px 4px 6px; position: static; box-shadow: none; }
+	.f-new .result-table th:first-child { position: static; box-shadow: none; }
+	.f-new .mk { width: 13px; height: 13px; margin-right: 3px; vertical-align: -2px; }
+	.f-new .mk::after { inset: 3px; } .f-new .mk-gene::after { inset: 2px; border-width: 1.5px; }
+	.f-new .gl { margin-right: 3px; }
+	.f-new .result-table td.pc { background: var(--hm-empty); box-shadow: inset 1px 0 0 var(--hm-gap); }
+	.f-new .result-table td.pc.bd { border-left: 2px solid var(--person-b-border-strong); }
+	.f-new .result-table th.tot, .f-new .result-table td.tot, .f-new .result-table col.c-tot { display: none; }
+	.f-new .st { display: none; }
+	.f-new .hm { display: block; height: 100%; min-height: 22px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+	.f-new td.h1 { background: var(--hm-s1) !important; } .f-new td.h1 .hm { color: var(--hm-n1); }
+	.f-new td.h2 { background: var(--hm-s2) !important; } .f-new td.h2 .hm { color: var(--hm-n2); }
+	.f-new td.h3 { background: var(--hm-s3) !important; } .f-new td.h3 .hm { color: var(--hm-n3); }
+	.f-new td.hu { background-color: var(--hm-unk-base) !important; background-image: repeating-linear-gradient(45deg, var(--hm-unk-line) 0 1px, transparent 1px 5px); }
+	.f-new td.hu .hm { color: var(--hm-unk-text); }
+	.f-new td.h0 .hm { color: transparent; }
+}
+
+/* ===== 一覧のページ（引数なし） ===== */
+.gal { background: #e9e7e2; color: #222; min-height: 100%; height: auto; }
+:root[data-theme="dark"] .gal { background: #121212; color: #ddd; }
+.gal-head { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 16px; background: inherit; border-bottom: 1px solid rgba(127, 127, 127, .35); font-size: 13px; }
+.gal-head h1 { margin: 0; font-size: 15px; }
+.gal-head button { padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(127, 127, 127, .6); background: transparent; color: inherit; font-size: 12px; }
+.gal-head button[aria-pressed="true"] { background: #222; color: #fff; border-color: #222; }
+:root[data-theme="dark"] .gal-head button[aria-pressed="true"] { background: #eee; color: #111; border-color: #eee; }
+.gal section { padding: 12px 16px 24px; }
+.gal h2 { margin: 8px 0 4px; font-size: 14px; }
+.gal p.note { margin: 0 0 10px; font-size: 12px; opacity: .8; max-width: 70em; line-height: 1.6; }
+.frames { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.frames figure { margin: 0; }
+.frames figcaption { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.frames iframe { display: block; border: 1px solid rgba(127, 127, 127, .5); background: #fff; }
+.phone { width: 375px; height: 812px; }
+.pcwrap { width: 640px; height: 450px; overflow: hidden; border: 1px solid rgba(127, 127, 127, .5); }
+.pcwrap iframe { width: 1280px; height: 900px; border: 0; transform: scale(.5); transform-origin: 0 0; }
+.pal { border-collapse: collapse; font-size: 12px; }
+.pal th, .pal td { border: 1px solid rgba(127, 127, 127, .4); padding: 4px 8px; text-align: left; }
+.sw { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 22px; font-weight: 700; font-size: 11px; vertical-align: middle; }
+	
+/* T104: 「Deck (αテスト)に送る」は UmaStar と同じ部品（製品は .uma-btn--primary .deck-accent。地はそのページの --uma-control） */
+:root[data-tool="exam"] { --deck-btn: var(--copy-btn); --deck-btn-text: #fff; }
+/* T104: 送り先を選ぶ小窓・右下のボタン群・ツール切り替え（見本） */
+.send-pop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
+.send-pop-in { background: var(--uma-surface); color: var(--uma-text); width: 100%; max-width: 420px; border-radius: 16px 16px 0 0; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.send-pop-t { margin: 0; font-size: 14px; font-weight: 700; }
+.send-pop-b { min-height: 44px; border: 1px solid var(--uma-surface-muted); border-radius: 10px; background: transparent; color: var(--uma-text); font-size: 13px; font-weight: 600; }
+.nav-mock { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 90; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding: 12px; font-size: 12px; }
+.tool-menu { width: 288px; max-width: calc(100vw - 24px); background: var(--uma-surface); color: var(--uma-text); border-radius: 16px; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.tool-h { margin: 0; padding: 8px 12px; font-size: 10px; font-weight: 700; opacity: .65; }
+.tool-i { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 700; position: relative; }
+.tool-i small { display: block; font-weight: 400; font-size: 11px; opacity: .7; margin-top: 2px; }
+.tool-i.cur { background: var(--deco-soft-50); color: var(--deco-text); }
+.tool-sel { position: absolute; right: 10px; top: 10px; font-size: 10px; }
+.fab-mock { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.fab-i { background: var(--uma-surface); color: var(--uma-text); border-radius: 999px; padding: 10px 16px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.fab-i.dk, .tool-i.dk { outline: 2px solid var(--deck-note-btn); outline-offset: -2px; }
+</style>
+</head>
+<body>
+<script>
+(function () {
+	'use strict';
+	const q = new URLSearchParams(location.search);
+	const theme = q.get('theme') === 'dark' ? 'dark' : 'light';
+	document.documentElement.setAttribute('data-theme', theme);
+	const tool = q.get('tool');
+
+	/* ---- 仮のデータ（今の製品で静止画1セット〔親A・祖A1・祖A2〕を照合した結果の、名前と★の数だけ）----
+	   [名前, [親A, 祖A1, 祖A2]（-1＝未検出・0＝★不明・1〜3＝★の数）, 名前の色, 印]
+	   ★不明は今のデータに無いので、見本のために2マス（札幌レース場○の祖A1・ダートの遺伝子の祖A2）を「?」にした */
+	const STAR_ROWS = [["連綿",[-1,-1,-1],"","star"],["綺羅星",[-1,-1,-1],"heal","other"],["バーニングソウル",[-1,-1,-1],"","other"],["レースの真髄・速",[-1,-1,-1],"","other"],["レースの真髄・根",[-1,-1,-1],"","other"],["夢の途中",[-1,-1,-1],"","other"],["逃げためらい",[-1,-1,-1],"debuff","other"],["アオハル点火・速",[-1,-1,-1],"","other"],["本気で休んで、もう一度",[-1,-1,-1],"","other"],["想いを背負って",[-1,-1,-1],"","other"],["アメリカンドリーム",[-1,-1,-1],"","other"],["恩返し、召し上がれ",[-1,-1,-1],"","other"],["快速",[-1,-1,-1],"heal","other"],["前だけ見据えて",[-1,-1,-1],"","other"],["右回り○",[2,-1,-1],"passive","other"],["京都レース場○",[1,-1,2],"passive","other"],["札幌レース場○",[2,0,2],"passive","other"],["根幹距離○",[2,-1,3],"passive","other"],["秋ウマ娘○",[2,-1,-1],"passive","other"],["伏兵○",[1,-1,-1],"passive","other"],["左回り○",[-1,2,-1],"passive","other"],["東京レース場○",[-1,3,-1],"passive","other"],["阪神レース場○",[-1,1,3],"passive","other"],["函館レース場○",[-1,3,3],"passive","other"],["小倉レース場○",[-1,2,2],"passive","other"],["良バ場○",[-1,-1,1],"passive","other"],["冬ウマ娘○",[-1,-1,2],"passive","other"],["芝の遺伝子",[-1,-1,-1],"","gene"],["ダートの遺伝子",[-1,2,0],"","gene"],["逃げの遺伝子",[-1,-1,-1],"","gene"],["先行の遺伝子",[-1,-1,-1],"","gene"],["差しの遺伝子",[-1,-1,-1],"","gene"],["追込の遺伝子",[2,-1,-1],"","gene"],["短距離の遺伝子",[-1,-1,-1],"","gene"],["マイルの遺伝子",[-1,-1,-1],"","gene"],["中距離の遺伝子",[-1,-1,-1],"","gene"],["長距離の遺伝子",[-1,-1,-1],"","gene"]];
+	const STAR_STAT = { total: '27', totalSub: '＋遺伝子10種', found: ['6', '6', '8'], foundSub: ['＋遺伝子1', '＋遺伝子1', '＋遺伝子1'] };
+	/*__EXAM_DATA__*/
+	// [名前, [親A, 祖A1, 祖A2], 印の色, 印の記号, 印の title]
+	const EXAM_ROWS = [["右回り〇",[2,-1,-1],"emerald-500","●","その他緑（42種）"],["左回り〇",[-1,0,-1],"emerald-500","●","その他緑（42種）"],["東京レース場〇",[-1,3,-1],"emerald-500","●","その他緑（42種）"],["中山レース場〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["阪神レース場〇",[-1,1,0],"emerald-500","●","その他緑（42種）"],["京都レース場〇",[1,-1,2],"emerald-500","●","その他緑（42種）"],["中京レース場〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["札幌レース場〇",[2,3,2],"amber-500","★","sp70緑（17種）"],["函館レース場〇",[-1,3,3],"amber-500","★","sp70緑（17種）"],["福島レース場〇",[-1,-1,2],"amber-500","★","sp70緑（17種）"],["新潟レース場〇",[-1,-1,-1],"amber-500","★","sp70緑（17種）"],["小倉レース場〇",[-1,2,2],"amber-500","★","sp70緑（17種）"],["根幹距離〇",[2,-1,3],"emerald-500","●","その他緑（42種）"],["非根幹距離〇",[-1,2,-1],"emerald-500","●","その他緑（42種）"],["良バ場〇",[-1,-1,1],"emerald-500","●","その他緑（42種）"],["道悪〇",[2,-1,-1],"emerald-500","●","その他緑（42種）"],["春ウマ娘〇",[3,-1,2],"emerald-500","●","その他緑（42種）"],["夏ウマ娘〇",[3,-1,3],"emerald-500","●","その他緑（42種）"],["秋ウマ娘〇",[2,-1,-1],"emerald-500","●","その他緑（42種）"],["冬ウマ娘〇",[-1,-1,2],"emerald-500","●","その他緑（42種）"],["晴れの日〇",[3,-1,-1],"emerald-500","●","その他緑（42種）"],["曇りの日〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["雨の日〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["雪の日〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["内枠得意〇",[-1,-1,2],"emerald-500","●","その他緑（42種）"],["外枠得意〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["おひとり様〇",[1,-1,-1],"emerald-500","●","その他緑（42種）"],["対抗意識〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["徹底マーク〇",[3,-1,-1],"emerald-500","●","その他緑（42種）"],["伏兵〇",[1,-1,-1],"emerald-500","●","その他緑（42種）"],["ポジションセンス",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["臨機応変",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先駆け",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["トリック(前)",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["トリック(後)",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げ駆け引き",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先行駆け引き",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["差し駆け引き",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["追込駆け引き",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げけん制",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げ焦り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げためらい",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先行けん制",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先行焦り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先行ためらい",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["差しけん制",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["差し焦り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["差しためらい",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["追込けん制",[-1,-1,1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["追込焦り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["追込ためらい",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["大井レース場〇",[2,-1,-1],"emerald-500","●","その他緑（42種）"],["短距離直線〇",[3,-1,3],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["短距離コーナー〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["マイル直線〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["マイルコーナー〇",[-1,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["負けん気",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["中距離直線〇",[1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["中距離コーナー〇",[1,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["ホークアイ",[-1,2,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["長距離直線〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["長距離コーナー〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["目くらまし",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げ直線〇",[-1,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げコーナー〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["危険回避",[-1,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["リスタート",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先行直線〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["先行コーナー〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["巧みなステップ",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["直滑降",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["まき直し",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["かく乱",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["差し直線〇",[-1,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["差しコーナー〇",[-1,3,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["がんばり屋",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["十万バリキ",[-1,2,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["追込直線〇",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["追込コーナー〇",[2,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["お見通し",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["策士",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["逃げのコツ〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["先行のコツ〇",[3,-1,-1],"emerald-500","●","その他緑（42種）"],["差しのコツ〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["追込のコツ〇",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["ラッキーセブン",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["地固め",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["尻尾上がり",[2,2,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["ふり絞り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["シンパシー",[-1,2,-1],"amber-500","★","sp70緑（17種）"],["一匹狼",[-1,-1,2],"amber-500","★","sp70緑（17種）"],["あやしげな作戦",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["川崎レース場〇",[-1,-1,3],"amber-500","★","sp70緑（17種）"],["船橋レース場〇",[-1,2,3],"amber-500","★","sp70緑（17種）"],["盛岡レース場〇",[3,2,2],"amber-500","★","sp70緑（17種）"],["ナイター〇",[-1,-1,-1],"amber-500","★","sp70緑（17種）"],["小回り〇",[2,1,1],"amber-500","★","sp70緑（17種）"],["交流重賞〇",[2,1,2],"amber-500","★","sp70緑（17種）"],["踏み込み上手",[-1,2,2],"emerald-500","●","その他緑（42種）"],["泥遊び〇",[3,-1,-1],"emerald-500","●","その他緑（42種）"],["土煙",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["一番乗り",[2,-1,1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["探求心",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["ロンシャンレース場〇",[3,2,-1],"amber-500","★","sp70緑（17種）"],["急発進",[2,-1,1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["直線コース〇",[2,-1,3],"amber-500","★","sp70緑（17種）"],["瞬発力",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["風切り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["無二",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["無三",[-1,-1,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["ダート直線〇",[-1,-1,1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["ダートコーナー〇",[-1,2,2],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["熱狂的",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["光差す方へ",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["駆け降り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["登竜門",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["影を追って",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["精神力",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["弾ける足取り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["急降下",[2,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["華麗な足取り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["余勢を駆って",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["サンタアニタパークレース場〇",[-1,-1,1],"amber-500","★","sp70緑（17種）"],["デルマーレース場〇",[1,2,2],"amber-500","★","sp70緑（17種）"],["実直な走り",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["ポイントマン",[-1,-1,-1],"[var(--exam-mark-plain)]","●","その他の対象スキル（74種）"],["勝負勘",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["右回りの目覚め",[-1,2,2],"emerald-500","●","その他緑（42種）"],["左回りの目覚め",[-1,3,3],"emerald-500","●","その他緑（42種）"],["春の目覚め",[2,1,2],"emerald-500","●","その他緑（42種）"],["夏の目覚め",[-1,-1,-1],"emerald-500","●","その他緑（42種）"],["秋の目覚め",[2,-1,-1],"emerald-500","●","その他緑（42種）"],["冬の目覚め",[-1,-1,-1],"emerald-500","●","その他緑（42種）"]];
+	const EXAM_STAT = {"total":"133","totalSub":"","found":["31","23","38"]};
+	const EXAM_DECK_DETAIL = "親A・祖A1・祖A2 の3人分・スキル133件を渡しました（対象：技能試験）。UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。";
+	const EXAM_HL_DATA = [{"labels":["sp70緑","緑（実質53種）"],"nums":[["7","17"],["21","53"]]},{"labels":["sp70緑","緑（実質53種）"],"nums":[["10","17"],["17","53"]]},{"labels":["sp70緑","緑（実質53種）"],"nums":[["13","17"],["24","53"]]}];
+	const EXAM_HL_FOOT = "※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。";
+	/*__EXAM_DATA_END__*/
+
+	const SVG = {
+		list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>',
+		x: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+		img: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3-3-9 9"/></svg>',
+		send: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 21.7a.5.5 0 0 0 .9-.1l6.5-19a.5.5 0 0 0-.6-.6l-19 6.5a.5.5 0 0 0-.1.9l7.9 3.2a2 2 0 0 1 1.1 1.1z"/><path d="m21.9 2.1-10.9 10.9"/></svg>',
+		search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+		copy: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+		layers: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>'
+	};
+	const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+	if (!tool) { renderGallery(); return; }
+
+	document.documentElement.setAttribute('data-tool', tool === 'exam' ? 'exam' : 'star');
+	const form = q.get('form') === 'new' ? 'new' : 'now';
+	const sets = q.get('sets') === 'ab' && tool === 'exam' ? 'ab' : 'a';
+	renderFrame(tool === 'exam' ? 'exam' : 'star', form, sets);
+
+	function renderFrame(t, f, s) {
+		const isExam = t === 'exam';
+		const labels = s === 'ab' ? ['親A', '祖A1', '祖A2', '親B', '祖B1', '祖B2'] : ['親A', '祖A1', '祖A2'];
+		const baseRows = isExam ? EXAM_ROWS : STAR_ROWS;
+		// UmaExam の親Bセットは仮に「親Aセットの★を1つずらした値」（見本のためだけ）
+		const rows = baseRows.map((r) => {
+			const v = r[1].slice(0, 3);
+			const vb = s === 'ab' ? [v[2], v[0], v[1]] : [];
+			return { name: r[0], vals: v.concat(vb), tone: r[2], mark: r[3], title: r[4] || '' };
+		});
+		const stat = isExam ? EXAM_STAT : STAR_STAT;
+		const n = labels.length;
+		const showTotal = n >= 2;
+		let html = '<div class="page-bg"></div><div class="backdrop"></div>';
+		html += '<aside class="drawer f-' + f + '" id="result-drawer" role="dialog" aria-label="照合結果">';
+		html += '<div class="dr-head"><span class="dr-title">' + SVG.list + '<span>' + (isExam ? '判定の結果' : '照合結果（★の数）') + '</span></span>' +
+			'<button type="button" class="btn-close">' + SVG.x + '<span>閉じる</span></button></div>';
+		html += '<div class="dr-tabs"><button type="button" class="dr-tab sel">' + SVG.list.replace('<svg', '<svg class="ic"') + '<span>照合結果</span></button>' +
+			'<button type="button" class="dr-tab">' + SVG.img + '<span>' + (isExam ? '結合画像の表示' : '結合画像') + '</span><span class="dot"></span></button></div>';
+		html += '<div class="uma-drawer-body"><div class="content"><div id="result-wrap">';
+		if (true) {
+			html += '<div id="deck-alpha-send-note"><button type="button" class="btn-deck" id="deck-alpha-send-btn">' + SVG.send + '<span>Deck (αテスト)に送る</span></button>' +
+				'<p class="deck-stop">UmaSkill Deck は開発を停止しました。</p></div>';
+		} else {
+			html += '<div id="deck-handoff-note"><div class="deck-note"><div><p class="deck-note-title">この結果をUmaSkill Deckに取り込めます</p>' +
+				'<p class="deck-note-detail">' + esc(EXAM_DECK_DETAIL) + '</p></div>' +
+				'<button type="button" class="deck-note-btn">' + SVG.layers + '<span>UmaSkill Deckを開いて取り込む</span></button></div></div>';
+		}
+		// サマリー
+		const statColsSm = isExam ? (n + 1 <= 4 ? n + 1 : 2) : (n + 1 <= 3 ? n + 1 : 2);
+		html += '<div id="stat-grid" class="stat-grid" style="--stat-n:' + (n + 1) + ';--stat-cols:' + Math.min(n + 1, n + 1 > 4 ? n + 1 : 4) + ';--stat-cols-sm:' + statColsSm + '">';
+		html += '<div class="stat"><p class="stat-label">対象スキル数</p><p class="stat-num">' + esc(stat.total) + '</p>' + (stat.totalSub ? '<p class="stat-sub">' + esc(stat.totalSub) + '</p>' : '') + '</div>';
+		labels.forEach((lb, i) => {
+			const found = i < 3 ? stat.found[i] : stat.found[[2, 0, 1][i - 3]];
+			const sub = stat.foundSub ? (i < 3 ? stat.foundSub[i] : stat.foundSub[[2, 0, 1][i - 3]]) : '';
+			html += '<div class="stat ' + (i < 3 ? 'p-a' : 'p-b') + '"><p class="stat-label">' + lb + ' 検出</p><p class="stat-num">' + esc(found) + '</p>' + (sub ? '<p class="stat-sub">' + esc(sub) + '</p>' : '') + '</div>';
+		});
+		html += '</div>';
+		if (isExam) html += EXAM_HIGHLIGHT_HTML(s === 'ab');
+		// 検索・絞り込み・コピー
+		html += '<div class="ctrlbox"><div class="ctrl"><div class="srch">' + SVG.search + '<input type="text" id="table-search" placeholder="' + (isExam ? 'スキル名' : '名前') + 'で絞り込み..." /></div>' +
+			'<div class="pills"><button type="button" class="pill active" id="filter-all">すべて</button><button type="button" class="pill" id="filter-found">誰かが検出</button><button type="button" class="pill" id="filter-not-found">全員未検出</button></div></div>';
+		if (isExam) {
+			html += '<p class="ex-count">「すべて」に該当: ' + rows.length + '件 / 全' + rows.length + '件中</p>';
+			html += '<p class="ex-note">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>';
+			if (s === 'ab') html += '<div class="ex-toggle"><span>表示する列：</span><button type="button" class="on-a">親Aセット</button><button type="button" class="on-b">親Bセット</button></div>';
+		}
+		html += '<div class="copy-slot"><button type="button" class="btn-copy" id="result-copy-btn">' + SVG.copy + '<span>★の数をコピー（' + n + '列）</span></button></div></div>';
+		// 表
+		const nameHead = isExam ? 'スキル名（リスト順）' : '名前（リスト順）';
+		const nameW = n <= 1 ? '40%' : n === 2 ? '33.333%' : n <= 4 ? '25%' : '20%';
+		html += '<div class="tbl-wrap"><table class="result-table"' + (isExam ? ' style="min-width:' + (112 + n * 56 + (showTotal ? 56 : 0)) + 'px"' : '') + '>';
+		
+		html += '<thead><tr><th class="nm" style="width:' + nameW + '">' + nameHead + '</th>' +
+			labels.map((lb, i) => '<th class="pc' + (i >= 3 ? ' pb' : '') + (i === 3 ? ' bd' : '') + '">' + lb + '</th>').join('') +
+			(showTotal ? '<th class="tot">★合計</th>' : '') + '</tr></thead><tbody>';
+		rows.forEach((r) => {
+			let mark = '';
+			if (isExam) mark = r.mark ? '<span class="gl gl-' + (r.tone.indexOf('mark-plain') >= 0 ? 'plain' : r.tone) + '" title="' + esc(r.title) + '">' + esc(r.mark) + '</span>' : '';
+			else mark = '<span class="mk mk-' + r.mark + '" role="img" aria-label="' + (r.mark === 'gene' ? '遺伝子' : r.mark === 'star' ? 'サポカ外スキル' : 'その他（親から継承）') + '"></span>';
+			const nameHtml = (isExam || r.mark === 'gene') ? esc(r.name) : '<span class="sn' + (r.tone ? ' tone-' + r.tone : '') + '">' + esc(r.name) + '</span>';
+			html += '<tr><td class="nm">' + mark + nameHtml + '</td>';
+			let total = 0;
+			r.vals.forEach((v, i) => {
+				const cls = 'pc' + (i >= 3 ? ' pb' : '') + (i === 3 ? ' bd' : '');
+				let star, hmCls, hmTxt;
+				if (v < 0) { star = '<span class="st-none">−</span>'; hmCls = 'h0'; hmTxt = ''; }
+				else if (v === 0) { star = '<span class="st-unk" title="スキルは検出できましたが★の数を確定できませんでした">?</span>'; hmCls = 'hu'; hmTxt = '?'; }
+				else { total += v; star = '<span class="st-on">' + '★'.repeat(v) + '</span><span class="st-off">' + '★'.repeat(3 - v) + '</span>'; hmCls = 'h' + v; hmTxt = String(v); }
+				html += '<td class="' + cls + ' ' + hmCls + '"><span class="st">' + star + '</span><span class="hm" aria-label="' + (v < 0 ? '未検出' : v === 0 ? '★不明' : '★' + v) + '">' + hmTxt + '</span></td>';
+			});
+			if (showTotal) html += '<td class="tot">' + total + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div></div></div></div></aside>';
+		document.body.innerHTML = html;
+		if (isExam && s === 'ab') document.querySelector('.result-table').style.setProperty('--hm-col', '36px');
+		// 親Aセット・親Bセットの両方が送れるときは小窓で選ぶ（UmaStar と同じ形。103）。1つなら登録の画面へ。親のページの ?screen=register を開く
+		const go = () => { (window.parent !== window ? window.parent : window).location.href = '../exam-deck-mock.html?screen=register&theme=' + theme; };
+		document.getElementById('deck-alpha-send-btn').onclick = () => {
+			if (s !== 'ab') { go(); return; }
+			const pop = document.createElement('div'); pop.className = 'send-pop';
+			pop.innerHTML = '<div class="send-pop-in" role="dialog" aria-label="Deck (αテスト)に送る"><p class="send-pop-t">Deck (αテスト)に送る</p><button type="button" class="send-pop-b">親Aセット</button><button type="button" class="send-pop-b">親Bセット</button></div>';
+			pop.onclick = (e) => { if (e.target === pop) pop.remove(); };
+			pop.querySelectorAll('.send-pop-b').forEach((b) => { b.onclick = go; });
+			document.body.appendChild(pop);
+		};
+		if (q.get('pop') === '1') document.getElementById('deck-alpha-send-btn').click();
+		// 右下のボタン群とツール切り替えの項目（224）。?nav=1 で開いた形を見せる
+		if (q.get('nav') === '1') {
+			const nav = document.createElement('div'); nav.className = 'nav-mock';
+			nav.innerHTML = '<div class="tool-menu"><p class="tool-h">ツール切り替え</p><a class="tool-i">UmaStar OCR<small>チャンミ/LoH用OCR（β版）</small></a><div class="tool-i cur">UmaExam OCR<span class="tool-sel">選択中</span><small>技能試験用OCR</small></div><a class="tool-i dk">Deck (αテスト)</a><a class="tool-i">お知らせ</a></div>' +
+				'<div class="fab-mock"><span class="fab-i">結合画像の設定</span><span class="fab-i">照合結果</span><span class="fab-i">結合画像の表示</span><span class="fab-i dk">Deck (αテスト)</span></div>';
+			document.body.appendChild(nav);
+		}
+	}
+
+	function renderGallery() {
+		document.body.className = 'gal';
+		document.documentElement.classList.add('gal');
+		const th = theme;
+		const fr = (t, f, extra, cap, cls) => '<figure><figcaption>' + cap + '</figcaption>' +
+			(cls === 'pc' ? '<div class="pcwrap">' : '') +
+			'<iframe class="' + (cls === 'pc' ? '' : 'phone') + '" loading="lazy" title="' + cap + '" src="?tool=' + t + '&form=' + f + '&theme=' + th + (extra || '') + '"></iframe>' +
+			(cls === 'pc' ? '</div>' : '') + '</figure>';
+		const PAL = [
+			['UmaStar ライト', '#fffdf8', '#cdeed6', '#14532d', '7.29', '#7fd39b', '#0b3d1f', '6.87', '#1e7f45', '#ffffff', '5.03', '#ece7dd', '#b5ab98', '#3d3428', '9.91／5.37'],
+			['UmaStar ダーク', '#262523', '#1f4a30', '#c3f3d2', '8.21', '#3fa566', '#04170c', '5.99', '#8de3a9', '#04170c', '12.09', '#34322e', '#5c5a55', '#f3f1ec', '11.33／6.10'],
+			['UmaExam ライト', '#ffffff', '#cbe5ff', '#0c3b6b', '8.74', '#7cbcfb', '#08284a', '7.39', '#0b6bcb', '#ffffff', '5.28', '#e6ebf3', '#a9b6cb', '#1f2d47', '11.51／6.72'],
+			['UmaExam ダーク', '#222c3d', '#1d4f86', '#d6ebff', '6.83', '#4a90dc', '#03101f', '5.75', '#8cc4fb', '#08284a', '8.07', '#363e4c', '#5c6779', '#f1f4fa', '9.77／5.19']
+		];
+		const sw = (bg, fg, txt) => '<span class="sw" style="background:' + bg + ';color:' + fg + '">' + txt + '</span>';
+		const swU = (b, l, t) => '<span class="sw" style="background-color:' + b + ';background-image:repeating-linear-gradient(45deg,' + l + ' 0 1px,transparent 1px 5px);color:' + t + '">?</span>';
+		let pal = '<table class="pal"><thead><tr><th>ツール・テーマ</th><th>★0（塗りなし）</th><th>★1</th><th>★2</th><th>★3</th><th>★不明</th><th>数字／「?」と地のコントラスト</th></tr></thead><tbody>';
+		PAL.forEach((p) => {
+			pal += '<tr><td>' + p[0] + '</td><td>' + sw(p[1], '#888', '') + ' ' + p[1] + '</td><td>' + sw(p[2], p[3], '1') + ' ' + p[2] + '</td><td>' + sw(p[5], p[6], '2') + ' ' + p[5] + '</td><td>' + sw(p[8], p[9], '3') + ' ' + p[8] +
+				'</td><td>' + swU(p[11], p[12], p[13]) + ' ' + p[11] + '</td><td>★1 ' + p[4] + '・★2 ' + p[7] + '・★3 ' + p[10] + '・? ' + p[14] + '</td></tr>';
+		});
+		pal += '</tbody></table>';
+		document.body.innerHTML =
+			'<div class="gal-head"><h1>照合結果のスマホのヒートマップ（T100 段1 モック）</h1>' +
+			'<span>テーマ: <button type="button" data-th="light" aria-pressed="' + (th === 'light') + '">ライト</button> <button type="button" data-th="dark" aria-pressed="' + (th === 'dark') + '">ダーク</button></span></div>' +
+			'<section><h2>UmaStar（375×812）</h2><p class="note">左が今の形、右が新しい形。表は「名前｜親A｜祖A1｜祖A2」で、★の数でマスを塗る（数字つき）。札幌レース場○の祖A1 とダートの遺伝子の祖A2 は「?」（★不明）の見本。</p>' +
+			'<div class="frames">' + fr('star', 'now', '', '今の形') + fr('star', 'new', '', '新しい形') + '</div></section>' +
+			'<section><h2>UmaExam（375×812）</h2><p class="note">左が今の形（親Aセットだけ）、中が新しい形（親Aセットだけ）、右が新しい形で親Bセットもあるとき（親Bセットの値は見本のための仮の値）。</p>' +
+			'<div class="frames">' + fr('exam', 'now', '', '今の形') + fr('exam', 'new', '', '新しい形') + fr('exam', 'new', '&sets=ab', '新しい形（親Bセットあり）') + '</div></section>' +
+			'<section><h2>PC（1280×900・半分に縮小）</h2><p class="note">新しい形を選んだ状態で開いている。640px 以上では今の形のまま（新しい形の指定は 640px 未満の中だけ）。</p>' +
+			'<div class="frames">' + fr('star', 'new', '', 'UmaStar（新しい形の指定のまま）', 'pc') + fr('exam', 'new', '', 'UmaExam（新しい形の指定のまま）', 'pc') + '</div></section>' +
+			'<section><h2>塗りの3段と★不明の色</h2>' + pal + '</section>';
+		document.querySelectorAll('[data-th]').forEach((b) => b.addEventListener('click', () => {
+			const u = new URL(location.href); u.searchParams.set('theme', b.getAttribute('data-th')); location.href = u.toString();
+		}));
+	}
+	// UmaExam のハイライト（親Aセット。親Bセットがあるときは親Bセットの箱も。B の数は見本のための仮の値＝A の人を1つずらしたもの）
+	function EXAM_HIGHLIGHT_HTML(withB) {
+		const target = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>';
+		const person = (name, d) => '<div class="ex-hl-person"><p class="ex-hl-pname">' + name + '</p><div class="hl-cards">' +
+			d.labels.map((lb, k) => '<div class="hlc' + (k === 1 ? ' g' : '') + '"><p class="hlc-l">' + esc(lb) + '</p><p class="hlc-n">' + d.nums[k][0] + '<span>/' + d.nums[k][1] + '</span></p></div>').join('') + '</div></div>';
+		let h = '<div class="ex-hl"><div class="ex-hl-head"><h3>' + target + '<span>ハイライト</span></h3><div class="ex-hl-modes"><span class="on">実質53種（既定）</span><span>59種個別</span></div></div><div class="ex-hl-sets">';
+		h += '<div class="ex-hl-set"><p class="ex-hl-setname">親Aセット</p><div class="ex-hl-people">' + ['親A', '祖A1', '祖A2'].map((nm, i) => person(nm, EXAM_HL_DATA[i])).join('') + '</div></div>';
+		if (withB) h += '<div class="ex-hl-set b"><p class="ex-hl-setname">親Bセット</p><div class="ex-hl-people">' + ['親B', '祖B1', '祖B2'].map((nm, i) => person(nm, EXAM_HL_DATA[[2, 0, 1][i]])).join('') + '</div></div>';
+		h += '</div><p class="ex-hl-foot">' + esc(EXAM_HL_FOOT) + '</p></div>';
+		return h;
+	}
+})();
+</script>
+</body>
+</html>

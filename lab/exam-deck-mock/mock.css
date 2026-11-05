@@ -1,0 +1,45 @@
+/* lab/exam-deck-mock/mock.css — T104 段1 のモックで製品の css/deck-alpha.css に足す分（段2 で css/deck-alpha.css に入れる候補）と、一覧のページの見た目。 */
+
+/* 表の角: UmaExam の表は「最大」「効率」の見出しを列の真上に置く（押すと大きい順。選択中は黒の塗り＝131） */
+.vp.vc .chd { display: flex; align-items: stretch; justify-content: flex-end; min-height: 20px; }
+.vp.vc .chd .chn { flex: 1; min-width: 0; font-size: 11px; color: var(--gp-sub); padding: 2px 6px; white-space: nowrap; overflow: hidden; }
+.vp.vc .chd button { flex: none; padding: 2px 0; text-align: center; font-size: 10px; border-left: 1px solid var(--gp-line); }
+.vp.vc .chd button.sorted { background: var(--gp-sel); color: var(--gp-sel-text); border-left-color: var(--gp-sel); }
+/* 効率の列: 塗らない（ヒートマップの濃淡と混ざらないように文字だけ） */
+.vl th.ef { text-align: center; padding: 0; font-family: var(--dk-mono); font-variant-numeric: tabular-nums; font-size: 10px; font-weight: 400; color: var(--gp-ink); border-left: 1px solid var(--gp-line); cursor: default; }
+/* 本育成設計の充足 N/133 */
+.plancov { margin-top: 4px; display: flex; align-items: baseline; gap: 6px; color: var(--gp-ink); }
+.plancov b { font-size: 20px; line-height: 1; }
+.plancov small { font-size: 10px; color: var(--gp-sub); letter-spacing: .12em; }
+/* 切り替え（案A: セットの小窓の中／案B: 見出しの帯の中） */
+.modeline { padding: 2px 0 8px; }
+.modeline .seg { display: flex; }
+.modeline .seg button { flex: 1; min-height: 40px; }
+.hd .seg.mode { flex: none; border-color: var(--gp-band-text); }
+.hd .seg.mode button { min-height: 32px; padding: 0 6px; font-size: 11px; color: var(--gp-band-text); background: transparent; border-color: var(--gp-band-text); }
+.hd .seg.mode button[aria-pressed="true"] { background: var(--gp-band-text); color: var(--gp-band-bottom); }
+
+/* 旧 Deck のページ（?screen=old）: 製品のページの <style> の写し（old-page.css）に、Tailwind の分だけここで足す */
+.old-wrap { max-width: 768px; margin: 0 auto; padding: 16px; color: var(--uma-text); font-size: 14px; }
+.old-wrap header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.old-wrap h1 { margin: 0; font-size: 18px; line-height: 28px; font-weight: 700; color: var(--color-slate-800, var(--uma-text-heading)); }
+.old-wrap header p { margin: 0; font-size: 12px; color: var(--color-slate-400, var(--uma-text-subtle)); }
+/* 223 の1行と入口: 見出しの帯のすぐ下に1行で */
+.old-stop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.old-stop a { text-decoration: none; }
+.old-stop p { margin: 0; font-size: 11px; color: var(--uma-text-subtle); }
+.old-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+.old-card { border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); padding: 16px; margin-bottom: 10px; font-size: 13px; color: var(--uma-text-subtle); }
+
+/* 一覧のページ（引数なし） */
+body.mock-list { overflow: auto; padding: 16px; }
+.mock-list h1 { font-size: 16px; margin: 0 0 4px; }
+.mock-list h2 { font-size: 13px; margin: 18px 0 6px; border-top: 2px solid var(--gp-ink); padding-top: 8px; }
+.mock-list p { margin: 0 0 6px; font-size: 12px; color: var(--gp-sub); }
+.mock-list ul { margin: 0; padding-left: 1.2em; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.mock-list a { color: var(--gp-ink); }
+.mock-list .frames { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.mock-list figure { margin: 0; flex: none; }
+.mock-list figcaption { font-size: 11px; color: var(--gp-sub); margin-bottom: 4px; }
+.mock-list iframe { width: 375px; height: 700px; border: 1px solid var(--gp-ink); background: #fff; }
+@media (max-width: 720px) { .mock-list iframe { width: 343px; } }

@@ -1,0 +1,422 @@
+/* uma-skill-deck.html の <style> の写し（make-mock.mjs が作る。手で直さない） */
+で、
+	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-01a" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
+	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
+	<style type="text/tailwindcss">@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
+		   全部見えてしまわないための保険で、このページは意図的に残している。
+		   （css/common.css にも html:not(.uma-tw-ready) 限定の同趣旨の保険があるが、
+		     こちらは常時有効。このページには hidden と sm:inline を併記した要素が
+		     無いため、常に効かせても既存の挙動は変わらない） */
+		.hidden { display: none !important; }
+
+		/* このツールのアクセント。共通部品はこの変数を見て色が決まる。
+		   値は css/tokens.css の --uma-deck-*（濃いめの暖かいグレー）から引く。
+		   special / exam の「Deck 行き」の部品も同じトークンを見るので、色はそちらで1か所で変える。 */
+		:root {
+			--uma-accent: var(--uma-deck-accent);
+			--uma-accent-hover: var(--uma-deck-accent-hover);
+			--uma-accent-soft: var(--uma-deck-accent-soft);
+			--uma-accent-soft-text: var(--uma-deck-accent-soft-text);
+			--uma-accent-border: var(--uma-deck-accent-border);
+			--uma-accent-ring: var(--uma-deck-accent-ring);
+
+			/* ページの地。半透明を含むので --uma-deck-* の段とは別に持つ。
+			   【2026-09-15・43セッション目】藍寄りの淡いグラデーションだったのを、
+			   Deck の色（暖かいグレー）に合わせて灰色系へ寄せた。値の直書きはここだけ。 */
+			--uma-page-bg: #f6f5f4;
+			--uma-page-glow: rgba(214, 211, 209, 0.55);   /* stone-300 の半透明 */
+			--uma-page-mid: #f3f2f1;
+			--uma-page-high: #faf9f8;
+			/* 比較シートの「★不明N件」の文字（js/uma-skill-deck.js がインラインで当てる。C-134 段6 で変数にした。値は以前と同じ） */
+			--deck-unknown-text: #b45309;
+		}
+		/* ダーク（C-134 段6）: 地は tokens.css の青黒（決定6。Deck の暖灰は暗い面には残さない）。
+		   アクセント（--uma-deck-*）は tokens.css が暖灰の色相のまま明るい側へ差し替える */
+		:root[data-theme="dark"] { --deck-unknown-text: #f6c453; }
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); }
+
+		/* ページの地。作り（淡い色面＋放射グラデーション）は UmaStar OCR と共通で、色相だけが違う。 */
+		body {
+			background-color: var(--uma-page-bg);
+			background-image:
+				radial-gradient(ellipse 720px 300px at 50% -4%, var(--uma-page-glow), transparent 70%),
+				linear-gradient(180deg, var(--uma-page-mid) 0%, var(--uma-page-high) 42%, #ffffff 100%);
+			background-repeat: no-repeat;
+			background-attachment: fixed;
+		}
+
+		/* .glass-card / .icon-btn / 入力欄の一括指定は css/common.css へ移した。
+		   （.icon-btn は .uma-icon-btn、入力欄は .uma-input を併記して使う） */
+
+		/* タブ。3つ横並びの切り替えで、この画面にしか出てこないためここに置く。 */
+		.tab-btn {
+			padding: var(--uma-sp-2) var(--uma-sp-1);
+			border-radius: var(--uma-r-lg);
+			font-size: var(--uma-fs-sm);
+			line-height: var(--uma-lh-sm);
+			font-weight: 500;
+			text-align: center;
+			color: var(--uma-text-muted);
+			background: var(--uma-surface);
+			border: 1px solid var(--uma-border);
+			cursor: pointer;
+			transition: background-color var(--uma-transition), border-color var(--uma-transition), color var(--uma-transition);
+		}
+		.tab-btn:hover:not(.tab-active) { border-color: var(--uma-border-strong); background: var(--uma-surface-sunken); }
+		/* 選んでいるタブは操作の色（黒）で示す。Deck の色は見出し・装飾の側に回した
+		   （2026-09-15・43セッション目） */
+		.tab-active {
+			background: var(--uma-control-soft);
+			color: var(--uma-control-mark);
+			border-color: var(--uma-control-border);
+			font-weight: 600;
+		}
+
+		/* 一覧の行の見た目は css/common.css の .uma-list-row が持つ。
+		   （core.js の .usd-list-card と同じ定義が二重にあったため一本化した） */
+
+		/* ============================================================
+		 * 比較シートのグリッド
+		 *
+		 * 構造: <table> ではなく div + CSS Grid。
+		 *   <tr> への角丸指定はブラウザに無視されるため、行全体を1枚のカードで
+		 *   囲む見せ方ができない。加えて sticky 列と「行を囲む枠」は相性が悪く、
+		 *   横スクロールすると枠が途中で千切れて見える。そこで「行を囲む」のを
+		 *   やめ、情報セルと値タイルをそれぞれ独立した角丸要素にしてカード感を出す。
+		 *
+		 * 行の地色: tr が無いので、行の全セルに --row-bg を直接付ける。
+		 *   sticky セルにも同じ変数が効くので、下を通過する要素が透けない。
+		 *   後から「効果タイプで行を色分け」を足すときは、この --row-bg の
+		 *   付け方を変えるだけで済む（セル側の規則は無改修）。
+		 *
+		 * 色: 生のhexは書かない。すべて css/common.css のトークン経由で参照する
+		 *   （F-19: Tailwind v4 と v3 でパレット実値が違い、直書きは静かにズレる）。
+		 *   ★の色 --uma-star / --uma-star-empty は common.css に既にある。
+		 * ============================================================ */
+		.deck-grid-wrap {
+			overflow: auto;
+			max-height: 60vh;
+			border: 1px solid var(--uma-border);
+			border-radius: var(--uma-r-lg);
+			box-shadow: var(--uma-shadow-1);
+			background: var(--uma-surface);
+		}
+		/* 列幅: 情報セル192px ＋ 候補列76px×人数 ＋ 余りを埋める列。
+		   列数はJSが --deck-cand-count に入れる。
+		   モックアップの情報セルは168pxだが、実物には「行（スキル）の削除」ボタンが
+		   あるぶん幅が要る。末尾の 1fr は、候補が少ないときに行の地色（ゼブラ）を
+		   右端まで届かせるためのもので、JS側が空セルを1つ出す。 */
+		.deck-grid {
+			display: grid;
+			grid-template-columns: 192px repeat(var(--deck-cand-count, 1), 76px) minmax(0, 1fr);
+			width: 100%;
+			min-width: min-content;
+		}
+		/* 候補0人のとき。repeat() は0を受け付けない（宣言ごと無効になる）ので、
+		   候補列を持たない定義に差し替える。JS側も行ごとに
+		   「情報セル＋余り列」の2つしか出さないため、両者の数が合っていないと
+		   セルが1つずつ隣の列へずれて重なって見える。 */
+		.deck-grid--no-cand { grid-template-columns: 192px minmax(0, 1fr); }
+		.deck-cell {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			/* グリッド項目の既定は min-width:auto で、中身の最小幅までしか縮まない。
+			   これがあると情報セルがトラック幅(168px)を超えて広がり、
+			   スキル名のクリップ（6文字ぶん）が一切効かなくなる。 */
+			min-width: 0;
+			padding: var(--uma-sp-2) var(--uma-sp-1);
+			background: var(--row-bg, var(--uma-surface));
+			/* 横のヘアラインのみ。縦の罫線は引かない（v7準拠） */
+			border-bottom: 1px solid var(--uma-border);
+		}
+		.deck-row-a { --row-bg: var(--uma-surface); }
+		.deck-row-b { --row-bg: var(--uma-surface-sunken); }
+
+		/* ---- ヘッダー行（候補名）: 上端固定 ---- */
+		.deck-head {
+			position: sticky; top: 0; z-index: 3;
+			--row-bg: var(--uma-surface-muted);
+			padding-top: var(--uma-sp-3);
+			font-size: var(--uma-fs-sm); font-weight: 700;
+			color: var(--uma-text-subtle);
+		}
+		/* 左上の角。top と left の両方で固定されるので、他より1段高くして最優先にする。 */
+		.deck-corner {
+			position: sticky; top: 0; left: 0; z-index: 4;
+			justify-content: flex-start;
+			padding-left: var(--uma-sp-3);
+		}
+
+		/* ---- 情報セル（スキル名＋計）: 左端固定 ---- */
+		.deck-info {
+			position: sticky; left: 0; z-index: 2;
+			justify-content: space-between;
+			gap: var(--uma-sp-2);
+			padding: var(--uma-sp-2-5) var(--uma-sp-3);
+		}
+		.deck-name {
+			display: flex; align-items: center; gap: var(--uma-sp-2);
+			flex: 1 1 auto; min-width: 0;
+			font-size: var(--uma-fs-md); font-weight: 500;
+		}
+		/* 行（スキル）の削除。情報セルの右端に小さく添える。 */
+		.deck-name-del {
+			flex: 0 0 auto; padding: 0; background: none; border: none;
+			color: var(--uma-text-faint); cursor: pointer; line-height: 0;
+		}
+		.deck-name-del:hover { color: var(--uma-text-muted); }
+		/* 効果タイプのドット。色分けは別フェーズなので、今はプレースホルダーの1色。 */
+		.deck-cat-dot {
+			width: 8px; height: 8px; border-radius: var(--uma-r-full);
+			flex: 0 0 auto;
+			background: var(--uma-border-strong);
+		}
+
+		/* ---- スキル名のフェード表示 ----
+		   約6文字ぶんの幅でクリップし、実際にはみ出しているものだけ右端をフェードさせる。
+		   .is-truncated は JS が scrollWidth/clientWidth の実測で付ける（文字数の決め打ちはしない）。 */
+		.deck-name-wrap { position: relative; min-width: 0; }
+		/* 6em = 全角6文字ぶん。実フォント（14px）での実測値で決めている:
+		   漢字6文字=84px(=6em) / 東京レース場○(7文字)=86px / 漢字7文字=98px。
+		   6.4em(89.6px)だと7文字の「東京レース場○」まで収まってしまい、
+		   フェードが一度も効かなかった。 */
+		/* 追加カタログ（シナリオ因子・遺伝子）の行に付く印。OCRツール側の一覧・結果と同じ形と色。
+		   .deck-name-clip の**外**に置く。中に入れると印のぶんだけ名前が早く切れ、
+		   「6em ＝ 全角6文字ぶん」という上のクリップ幅の前提が崩れる。
+		   **カテゴリごとに色が違う**（段G）。形は js/uma-skill-deck.js の CATALOG_CATEGORY_GLYPHS。
+		   素の .deck-catalog-mark の色は、知らないカテゴリが来たときの既定。 */
+		.deck-catalog-mark { flex: 0 0 auto; color: var(--uma-mark-catalog); font-weight: 700; }
+		/* 遺伝子は SVG の印（段G-2）。大きさとベースラインは共通CSSの .uma-glyph-mark と
+		   同じ値にしてある ―― ここは .deck-name の中なので、独立して指定する。 */
+		.deck-catalog-mark--geneFactor { color: var(--uma-mark-gene); width: 1.2em; height: 1.2em;
+			display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.28em; }
+		.deck-catalog-mark--geneFactor svg { display: block; width: 100%; height: 100%; }
+		.deck-name-clip {
+			display: block; max-width: 6em;
+			overflow: hidden; white-space: nowrap;
+			background: none; border: none; padding: 0;
+			font: inherit; color: inherit; text-align: left;
+			cursor: default;
+		}
+		.deck-name-wrap.is-truncated .deck-name-clip {
+			-webkit-mask-image: linear-gradient(to right, black 72%, transparent 100%);
+			mask-image: linear-gradient(to right, black 72%, transparent 100%);
+			cursor: pointer;
+		}
+
+		/* ---- 計バッジ ----
+		   0=控えめなグレー / 1以上=薄い藍。値タイル（彩度の高い★）より弱いトーンに留め、
+		   「値タイルが主役・計は補助」という序列を保つ。切り替えは実色のみ（opacity不使用）。 */
+		.deck-total {
+			flex: 0 0 auto;
+			min-width: 22px; text-align: center;
+			padding: var(--uma-sp-1) var(--uma-sp-2);
+			border-radius: var(--uma-r-md);
+			font-size: var(--uma-fs-md); font-weight: 700;
+			background: var(--uma-surface-muted); color: var(--uma-text-subtle);
+			transition: background-color var(--uma-transition), color var(--uma-transition);
+		}
+		.deck-total--on { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+
+		/* ---- 候補名チップ ----
+		   ヘッダーの地色（--uma-surface-muted）から明確に浮かせるため、
+		   Deckのアクセント（藍）の淡い面と枠線を当てる。 */
+		.deck-cand-pill {
+			position: relative;
+			display: inline-flex; align-items: center; gap: var(--uma-sp-1);
+			max-width: 100%;
+			padding: var(--uma-sp-1) var(--uma-sp-2-5);
+			border: 1px solid var(--uma-accent-border);
+			border-radius: var(--uma-r-full);
+			background: var(--uma-accent-soft);
+			font-size: var(--uma-fs-xs); font-weight: 700;
+			color: var(--uma-text);
+		}
+		.deck-cand-pill input[type=checkbox] {
+			width: 11px; height: 11px; margin: 0; flex: 0 0 auto;
+			accent-color: var(--uma-control-mark);
+		}
+		.deck-cand-name {
+			background: none; border: none; padding: 0;
+			font: inherit; color: inherit; cursor: pointer;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		}
+		.deck-cand-x {
+			position: absolute; top: -6px; right: -6px;
+			width: 15px; height: 15px; padding: 0;
+			border: 1px solid var(--uma-accent-border);
+			border-radius: var(--uma-r-full);
+			background: var(--uma-surface);
+			color: var(--uma-text-subtle);
+			font-size: var(--uma-fs-2xs); line-height: 1;
+			display: flex; align-items: center; justify-content: center;
+			cursor: pointer;
+		}
+		.deck-cand-x:hover { border-color: var(--uma-border-strong); color: var(--uma-text); }
+
+		/* ---- 値タイル（★） ----
+		   1タップで 0→1→2→3→0 と巡回する（js/uma-skill-deck.js の cycleStar）。
+		   <button> なので Tab移動・Enter・Space が素で効く。 */
+		.star-tile {
+			position: relative;
+			width: 42px; height: 38px;
+			border: none; border-radius: var(--uma-r-md);
+			padding: 0;
+			display: flex; align-items: center; justify-content: center;
+			background: var(--uma-surface-muted);
+			cursor: pointer; user-select: none;
+			transition: transform 80ms ease, background-color var(--uma-transition);
+		}
+		.star-tile:hover { background: var(--uma-border); }
+		.star-tile:active { transform: scale(.92); }
+		.star-tile:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }
+		/* Lv0 は控えめな☆1個、Lv1〜3 は★。Lv3 だけ「上1・下2」のピラミッド配置。 */
+		.star-off { font-size: 14px; line-height: 1; color: var(--uma-star-empty); }
+		.star-on { color: var(--uma-star); }
+		.star-single { font-size: 17px; line-height: 1; }
+		.star-pair { display: flex; gap: 3px; line-height: 1; }
+		.star-pair span { font-size: 14px; }
+		.star-pyramid { display: flex; flex-direction: column; align-items: center; }
+		.star-pyramid .star-top { font-size: 12px; line-height: 1; }
+		.star-pyramid .star-bottom { display: flex; gap: 2px; line-height: 1; margin-top: -2px; }
+		.star-pyramid .star-bottom span { font-size: 12px; }
+
+		/* ---- 手動修正の可視化 ----
+		   OCRが読んだ値から人が動かしたセルを示す。★の色を変えるのではなく
+		   タイルの枠線（リング）で示している。色相の変化（黄→赤）だけに頼ると
+		   判別しづらい人がいるため、「枠があるか無いか」という形の違いで分かるようにする。
+		   右上の点は、離れた位置からでも「直したセルがある」と気づくための補助。
+		   枠は inset の box-shadow で描く。border だと 42×38px の内寸が変わり、
+		   ★の位置が修正の有無でずれてしまうため。 */
+		.star-tile.is-edited { box-shadow: inset 0 0 0 2px var(--uma-danger-text); }
+		.star-tile.is-edited::after {
+			content: "";
+			position: absolute; top: -3px; right: -3px;
+			width: 7px; height: 7px; border-radius: var(--uma-r-full);
+			background: var(--uma-danger-text);
+			border: 1.5px solid var(--uma-surface);
+		}
+		/* 無効にした候補の列では、修正の印も他と同じく彩度を落とす
+		   （比較対象から外した列が視線を集めないようにする）。 */
+		.col-disabled .star-tile.is-edited { box-shadow: inset 0 0 0 2px var(--uma-danger-border); }
+		.col-disabled .star-tile.is-edited::after { background: var(--uma-danger-border); }
+
+		/* ---- 無効にした候補の列 ----
+		   注意: sticky を使うグリッド内では opacity<1 を使わないこと。
+		   opacity は新しいスタッキングコンテキストを生成し、sticky要素間の
+		   z-index順序を壊すため、スクロール時に別セルが手前に描画される
+		   不具合の原因になる。無効状態の表現は実色の変更のみで行う。 */
+		.deck-cell.col-disabled { --row-bg: var(--uma-surface-muted); }
+		.col-disabled, .col-disabled * { color: var(--uma-text-faint); }
+		.col-disabled .deck-cand-pill { background: var(--uma-surface); border-color: var(--uma-border); }
+		/* 無効列の★も、0/1以上の区別は残しつつ彩度を落として前に出させない。
+		   詳細度(0,2,0)なので .star-on(0,1,0) に必ず勝つ。 */
+		.col-disabled .star-on { color: var(--uma-border-strong); }
+		.col-disabled .star-tile { background: var(--uma-surface-muted); }
+
+		/* ---- スマホ幅 ----
+		   デスクトップの目安値（情報192px・候補76px）のままだと 375px で候補が
+		   1列強しか見えず、「複数候補を並べて見比べる」という用途を満たさない。
+		   タップ領域そのもの（タイル42×38px）は縮めず、その周りの余白と
+		   情報セルだけを詰めて、候補が2列見えるようにする。 */
+		@media (max-width: 480px) {
+			.deck-grid {
+				grid-template-columns: 148px repeat(var(--deck-cand-count, 1), 64px) minmax(0, 1fr);
+			}
+			.deck-grid--no-cand { grid-template-columns: 148px minmax(0, 1fr); }
+			.deck-info { padding-left: var(--uma-sp-2); padding-right: var(--uma-sp-2); }
+			.deck-corner { padding-left: var(--uma-sp-2); }
+			/* 4em = 全角4文字ぶん。狭い幅では名前より候補の見比べを優先し、
+			   はみ出しはフェード＋タップでの全文表示に任せる。 */
+			.deck-name-clip { max-width: 4em; }
+		}
+
+		/* ---- トースト ----
+		   左下の「元に戻す」と同じ高さ（bottom-6）に出すと、狭い幅では重なる
+		   （実測：375px で「候補「親A」を削除しました」がボタンに食い込んだ）。
+		   トーストは数秒で消えるが、押す前に文面が読めないと困るので、ボタンの上へ逃がす。 */
+		@media (max-width: 640px) {
+			#toast { bottom: 4.75rem; }
+		}
+		/* スキル選択モーダル（.usd-modal は z-index:80）より前に出す。
+		   スキルを足したときのトーストはモーダルを開いたまま出るので、
+		   Tailwind の z-[60] のままだとモーダルの裏に回って一度も見えない（実測で確認）。
+		   special.html が #toast を 110 にしているのと同じ値に揃えてある。
+		   このページで 80 より上に居る要素は他に無い（最前面がモーダル、次がスキル名の
+		   ツールチップ 70）。引き出しも確認ダイアログのオーバーレイも持たない。
+		   Tailwind のユーティリティは @layer utilities に入るので、レイヤーに属さない
+		   この指定のほうが強い（F-18）。 */
+		#toast { z-index: 110; }
+
+		/* ---- コントロールエリア ----
+		   .uma-pill / .uma-btn は special.html と共有する共通部品なので本体は触らず、
+		   Deck側のクラスにだけ「丸く・影あり」を上書きする。 */
+		.row-filter-btn, .deck-pill-btn {
+			border-radius: var(--uma-r-full);
+			box-shadow: var(--uma-shadow-1);
+		}
+		/* 行の絞り込みは .uma-pill（UmaStar OCR の結果表と同じ形）を併記して使う。
+		   選択状態は .active（js/uma-skill-deck.js が付け外しする）。 */
+
+		/* ===== C-144（2026-10-12）: UmaSkill Deck の配色（モノトーン主体でわずかに紫。おいもさんの仮設定） =====
+		   **色味を後で調整しやすいよう、値はこの2つの :root にだけ書く**（下の規則は変数を参照するだけ）。
+		   面は4層（ページ → カード → パネル → オプション）。スキルの種類・バッジ・レアリティ・★など意味のある色は変えない */
+		:root {
+			--uma-page-bg: #e9e8ee;
+			--uma-glass-bg: #f3f2f7; --uma-card-border: #b5b3c4; --uma-card-shadow: 0 2px 10px rgba(60, 50, 100, .14);
+			--uma-panel-bg: #f9f8fc; --uma-panel-border: #aeacc0;
+			--uma-surface: #ffffff; --uma-option-border: #9d9bb2;
+			--uma-surface-sunken: #f9f8fc; --uma-surface-muted: #e6e4ee; --uma-surface-group: #e6e4ee;
+			--uma-text: #1d1b2a; --uma-text-heading: #1d1b2a; --uma-text-muted: #3a3850; --uma-text-subtle: #5a5870; --uma-text-faint: #605e75;
+			--uma-border: #c5c3d3; --uma-border-strong: #9d9bb2; --uma-dash: #9d9bb2;
+			--uma-control: #3b3652; --uma-control-hover: #2e2a42; --uma-control-soft: #e6e4ee; --uma-control-border: #9d9bb2;
+			--uma-aux-bg: #ffffff; --uma-aux-border: #9d9bb2;
+			--uma-control-rim: 0 0 0 1px var(--uma-control);   /* 選んでいる塗りの部品は、ライトでも縁を 2px にして太さでも示す */
+			--uma-control-disabled-bg: #e6e4ee;
+			--uma-surface-inverse: #3b3652;
+			--uma-band: #e6e4ee; --uma-group-bg: #ffffff; --uma-group-line: #aeacc0; --uma-config-bg: #f9f8fc;
+			--uma-table-rule: #d6d4e0; --uma-table-rule-strong: #aeacc0; --uma-table-head-bg: #f3f2f7; --uma-table-col-alt: #f6f5fa; --uma-table-col-key: #ecebf3;
+			--uma-drawer-bg: #f3f2f7;
+			--deck-head-from: #dcdae8; --deck-head-to: #ebe9f3; --deck-head-line: #aeacc0;
+			--color-slate-50: #f9f8fc; --color-slate-100: #ecebf3; --color-slate-200: #c5c3d3; --color-slate-300: #aeacc0;
+			--color-slate-400: #605e75; --color-slate-500: #5a5870; --color-slate-600: #48465e; --color-slate-700: #33314a;
+			--color-slate-800: #1d1b2a; --color-slate-900: #15131f; --color-slate-950: #0e0c16;
+		}
+		:root[data-theme="dark"] {
+			--uma-page-ground: #17161c;
+			--uma-glass-bg: #221f28; --uma-card-border: #5a5666; --uma-card-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+			--uma-panel-bg: #2b2832; --uma-panel-border: #686475;
+			--uma-surface: #36333f; --uma-option-border: #7b7788;
+			--uma-surface-sunken: #2b2832; --uma-surface-muted: #3d3a47; --uma-surface-group: #2b2832;
+			--uma-text: #f1f0f5; --uma-text-heading: #f1f0f5; --uma-text-muted: #d9d7e2; --uma-text-subtle: #bdbac8; --uma-text-faint: #a9a6b6;
+			--uma-border: #5a5666; --uma-border-strong: #7b7788; --uma-dash: #7b7788;
+			--uma-control: #4a4655; --uma-control-hover: #575266; --uma-control-text: #ffffff; --uma-control-edge: #e6e3ef;
+			--uma-control-rim: 0 0 0 1px #e6e3ef; --uma-control-mark: #e6e3ef; --uma-control-soft: #3d3a47; --uma-control-border: #7b7788;
+			--uma-aux-bg: #36333f; --uma-aux-border: #a9a5b6;
+			--uma-control-disabled: #7b7788; --uma-control-disabled-bg: #2b2832;
+			--uma-surface-inverse: #e6e3ef; --uma-text-inverse: #221f28;
+			--uma-band: #2b2832; --uma-group-bg: #2b2832; --uma-group-line: #686475; --uma-config-bg: #221f28;
+			--uma-table-rule: #4a4655; --uma-table-rule-strong: #686475; --uma-table-head-bg: #2b2832; --uma-table-col-alt: #2b2832; --uma-table-col-key: #322f3a;
+			--uma-drawer-bg: #1c1a22;
+			--deck-head-from: #35323f; --deck-head-to: #2f2c38; --deck-head-line: #686475;
+			--color-white: var(--uma-surface);
+			--color-slate-50: #2b2832; --color-slate-100: #36333f; --color-slate-200: #5a5666; --color-slate-300: #7b7788;
+			--color-slate-400: #a9a6b6; --color-slate-500: #bdbac8; --color-slate-600: #cfcdd9; --color-slate-700: #e1dfe9;
+			--color-slate-800: #f1f0f5; --color-slate-900: #f6f5f9; --color-slate-950: #fbfafc;
+		}
+		body { background-color: var(--uma-page-bg); background-image: none; }
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); }
+		/* 見出しの帯（タイトルの行） */
+		body > div > header:first-child { background: linear-gradient(90deg, var(--deck-head-from), var(--deck-head-to)); border: 1px solid var(--deck-head-line); border-radius: var(--uma-r-lg); padding: var(--uma-sp-2) var(--uma-sp-3); }
+		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
+		.tab-btn { background: var(--uma-aux-bg); border-color: var(--uma-aux-border); color: var(--uma-text-heading); }
+		.tab-btn.tab-active { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }
+	

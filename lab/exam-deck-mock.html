@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: blob:; connect-src 'self'; frame-src 'self'; form-action 'none'; base-uri 'none'" />
+	<title>UmaExam 用 Deck モック</title>
+	<link rel="icon" href="data:," />
+	<!--
+		T104 段1 のモック（作業用）。Deck (αテスト) に UmaExam 用の表を加える形を見るページ。どのページからもリンクしない。ゲームの画面の画像は使わない。
+		親の★・因子は仮のデータ（lab/exam-deck-mock/mock-data.js）。保存は sessionStorage の uma-lab-exam-deck だけ（製品の保存データには触れない）。
+		表の画面と登録の画面は、製品の js/deck-alpha*.js の写しに UmaExam 用を足したもの（lab/exam-deck-mock/make-mock.mjs が作る）。見た目は製品の css/deck-alpha.css をそのまま読み、足す分だけ mock.css に書いた。
+		引数: ?screen=deck|register|exam|old（無ければ一覧）・?theme=light|dark・
+		      deck: ?mode=exam|star・?sw=head（切り替えを見出しの帯に置く案B。無ければ案A＝セットの小窓の中）・?pair=1（親A・親Bを選んだ状態）・?lv=0|1|2・?pane=…・?sheet=set・?rs=eff
+		      exam: ?sets=ab（親Bセットあり）・?pop=1（送り先の小窓）・?nav=1（右下のボタン群とツール切り替え）
+	-->
+	<script src="../js/theme.js?v=2026-10-08b"></script>
+	<link rel="stylesheet" href="../css/tokens.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="../css/deck-alpha.css?v=2026-11-05c" />
+	<link rel="stylesheet" href="exam-deck-mock/mock.css" />
+</head>
+<body>
+<!-- 表の画面（deck-alpha.html の body の写し。data-star＝UmaStar 用だけ・data-exam＝UmaExam 用だけ） -->
+<template id="t-deck">
+<div class="app" id="app">
+	<div class="top">
+	<header class="hd">
+		<h1>Deck <span class="muted small">(αテスト)</span></h1>
+		<button class="nudge" id="nudge" type="button" hidden></button>
+		<span class="seg sm mode" id="modeSeg" role="group" aria-label="表" hidden><button type="button" data-mode="star" aria-pressed="true">UmaStar</button><button type="button" data-mode="exam" aria-pressed="false">UmaExam</button></span>
+		<button class="rsel" id="setBtn" type="button" aria-haspopup="dialog"><span class="t" id="setText">指定なし</span><span class="car" aria-hidden="true">▾</span></button>
+		<button class="hbtn" id="toolBtn" type="button" aria-label="ツール切り替え" title="ツール切り替え"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button>
+		<button class="hbtn" id="themeBtn" type="button" aria-label="ライト／ダークの切り替え" title="ライト／ダーク" data-theme-state="auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="auto"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="light"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="dark"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
+		<button class="btn icon more" type="button" id="moreBtnPc" aria-haspopup="dialog" aria-label="バックアップ" title="バックアップ">⋯</button>
+	</header>
+	<nav class="tb" aria-label="道具">
+		<span class="seg tabs" role="group" aria-label="引き出し">
+			<button class="tab" type="button" data-tab="parent" aria-pressed="false">親(列)<i class="dot" id="dotParent" hidden></i></button>
+			<button class="tab" type="button" data-tab="skill" aria-pressed="false">スキル(行)<i class="dot" id="dotSkill" hidden></i></button>
+			<button class="tab" type="button" data-tab="view" aria-pressed="false">表示</button>
+			<button class="tab" type="button" data-tab="sort" aria-pressed="false">ソート<i class="dot" id="dotSort" hidden></i></button>
+			<button class="tab" type="button" data-tab="plan" aria-pressed="false">本育成設計<i class="dot" id="dotPlan" hidden></i></button>
+		</span>
+		<button class="btn more" type="button" id="moreBtn" aria-haspopup="dialog" aria-label="バックアップ" title="バックアップ">⋯</button>
+	</nav>
+	</div>
+	<aside class="panes" id="panes" hidden>
+		<section class="pane" data-pane="parent" hidden>
+			<h3 class="ph">親(列)</h3>
+			<div class="it" data-star><span class="lab">脚質</span><span class="opts" id="pf-style"></span></div>
+			<div class="it"><span class="lab">持ち主</span><span class="opts" id="pf-owner"></span></div>
+		</section>
+		<section class="pane" data-pane="skill" hidden>
+			<h3 class="ph">スキル(行)</h3>
+			<div class="it" id="sf-listRow"><span class="lab">一覧</span><span class="opts" id="sf-list"></span></div>
+			<div class="it" data-star><span class="lab">分類</span><span class="opts" id="sf-cat"></span></div>
+			<div class="it" data-star><span class="lab">距離</span><span class="opts" id="sf-dist"></span></div>
+			<div class="it" data-star><span class="lab">脚質</span><span class="opts" id="sf-style"></span></div>
+			<div class="it"><span class="lab">名前</span><span class="opts"><input class="txt" id="sf-q" type="search" placeholder="スキル名で探す" aria-label="スキル名で探す" autocomplete="off" /></span></div>
+		</section>
+		<section class="pane" data-pane="view" hidden>
+			<h3 class="ph">表示</h3>
+			<div class="it"><span class="lab">段階</span><span class="opts"><span class="seg sm" role="group" aria-label="表示の段階" id="lvSeg">
+				<button type="button" data-lv="0" aria-pressed="false">全体</button>
+				<button type="button" data-lv="1" aria-pressed="true">縮小</button>
+				<button type="button" data-lv="2" aria-pressed="false">拡大</button>
+			</span></span></div>
+			<div class="it"><span class="lab">基準</span><span class="opts"><span class="seg sm" role="group" aria-label="充足の基準"><button type="button" data-th="1" aria-pressed="true">★1以上</button><button type="button" data-th="2" aria-pressed="false">★2以上</button></span></span></div>
+			<div class="it"><span class="lab">祖</span><span class="opts"><button class="tag" type="button" id="gpToggle" aria-pressed="true">祖2人も数える</button><button class="tag" type="button" id="geneToggle" aria-pressed="true" data-star>遺伝子の行</button></span></div>
+			<div class="it" data-exam hidden><span class="lab">列</span><span class="opts"><button class="tag" type="button" id="colMax" aria-pressed="true">最大</button><button class="tag" type="button" id="colEff" aria-pressed="true">効率</button></span></div>
+			<div class="it"><span class="lab">凡例</span><span class="opts legend" id="legend"><span><i class="sw" style="background:var(--dk-s1)"></i>1-2</span><span><i class="sw" style="background:var(--dk-s2)"></i>3-4</span><span><i class="sw" style="background:var(--dk-s3)"></i>5-6</span><span><i class="sw" style="background:var(--dk-s4)"></i>7-8</span><span><i class="sw" style="background:var(--dk-s5)"></i>9</span><span><i class="sw unk"></i>★不明</span><span class="fr">フレンド</span><span class="old" data-star>前回までの一覧</span></span></div>
+		</section>
+		<section class="pane" data-pane="sort" hidden>
+			<h3 class="ph">ソート</h3>
+			<div class="it"><span class="lab">親(列)</span><span class="opts"><select class="sel" id="cs" aria-label="親(列)の並び"><option value="def">登録日の新しい順</option><option value="many">対象スキルの多い順</option><option value="owner">持ち主ごと</option></select></span></div>
+			<div class="it"><span class="lab">スキル(行)</span><span class="opts"><select class="sel" id="rs" aria-label="スキル(行)の並び"></select></span></div>
+			<div class="it" id="catLegendRow" hidden><span class="lab">凡例</span><span class="opts legend" id="catLegend"><span><i class="sw" style="background:var(--dk-cat-scenario)"></i>シナリオスキル</span><span><i class="sw" style="background:var(--dk-cat-outside)"></i>サポカ外</span><span><i class="sw" style="background:var(--dk-cat-factor)"></i>シナリオ因子</span><span><i class="sw" style="background:var(--dk-cat-other)"></i>その他</span></span></div>
+		</section>
+		<section class="pane" data-pane="plan" hidden>
+			<h3 class="ph">本育成設計</h3>
+			<div class="ped" id="planTree"></div>
+			<div class="plist" id="planList"></div>
+			<div class="it"><span class="opts"><button class="btn pri" type="button" id="planGo">絞り込み</button><button class="btn" type="button" id="planOff" hidden>絞り込みをやめる</button><button class="btn" type="button" id="planClear">6人を空にする</button></span></div>
+			<div class="small muted" id="planSum"></div>
+		</section>
+	</aside>
+	<div class="stage" id="stage" tabindex="0" aria-label="ヒートマップ"></div>
+	<footer class="dock" id="dock">
+		<div class="r1">
+			<button class="slot" type="button" id="slotA"><b>A</b><span class="nm none">未選択</span></button>
+			<button class="slot" type="button" id="slotB"><b>B</b><span class="nm none">未選択</span></button>
+			<span class="cov mono" id="cov">—<small>充足</small></span>
+		</div>
+		<div class="r2">
+			<button class="btn" type="button" id="recB">親Bのおすすめ</button>
+			<button class="btn" type="button" id="recPair">2組を探す</button>
+			<button class="tag" type="button" id="onlyMiss" aria-pressed="false" hidden>未所持スキル</button>
+			<button class="tag" type="button" id="sixCols" aria-pressed="false" hidden>6人で見る</button>
+			<button class="btn" type="button" id="clearSel" hidden>選び直す</button>
+		</div>
+		<div class="miss" id="miss"></div>
+	</footer>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="importFile" accept="application/json,.json" hidden />
+</template>
+<!-- 登録の画面（deck-alpha-register.html の body の写し） -->
+<template id="t-register">
+<main class="reg" id="reg">
+	<div class="topline"><h1>Deck (αテスト)に登録</h1><span class="muted small">UmaExam から</span><span class="sp" style="flex:1"></span><span class="need" id="needTop" hidden></span></div>
+	<div id="body"></div>
+</main>
+<div class="regbar" id="regbar" hidden><span class="sum" id="regSum"></span><button class="btn pri" type="button" id="regBtn">登録する</button></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
+<div class="toast" id="toast" hidden></div>
+</template>
+<!-- 旧 UmaSkill Deck のページの先頭（223）。下は今のページの形の見本 -->
+<template id="t-old">
+<div class="old-wrap">
+	<header><div><h1>UmaSkill Deck</h1><p>js 2026-11-01a・core 2026-11-02d・css 2026-11-01a</p></div></header>
+	<div class="old-stop"><a class="uma-btn uma-btn--primary btn-deck-accent deck-accent" href="?screen=deck">Deck (αテスト)</a><p>UmaSkill Deck は開発を停止しました。</p></div>
+	<nav class="old-tabs"><button class="tab-btn tab-active" type="button">スキルセット</button><button class="tab-btn" type="button">比較シート</button><button class="tab-btn" type="button">データ管理</button></nav>
+	<div class="old-card">（今のページの中身。変えない）</div>
+	<div class="old-card">（今のページの中身。変えない）</div>
+</div>
+</template>
+<script>
+(function () {
+	'use strict';
+	const Q = new URLSearchParams(location.search);
+	const th = Q.get('theme');
+	if (th === 'light' || th === 'dark') document.documentElement.setAttribute('data-theme', th);
+	const screen = Q.get('screen');
+	const load = (list) => list.reduce((p, src) => p.then(() => new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'exam-deck-mock/' + src; s.onload = res; s.onerror = () => rej(new Error(src)); document.body.appendChild(s); })), Promise.resolve());
+	const put = (id) => { document.body.appendChild(document.getElementById(id).content.cloneNode(true)); };
+	if (screen === 'deck') { put('t-deck'); load(['data-snapshot.js', 'core.js', 'mock-data.js', 'deck.js']); return; }
+	if (screen === 'register') { document.body.className = 'page'; put('t-register'); load(['data-snapshot.js', 'core.js', 'mock-data.js', 'register.js']); return; }
+	if (screen === 'old') {
+		// 旧ページの色は css/deck-alpha.css の差し替えを受けないので、外して旧ページの分を読む
+		document.querySelector('link[href*="deck-alpha.css"]').remove();
+		['../css/common.css?v=2026-11-01a', 'exam-deck-mock/old-page.css'].forEach((href) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.insertBefore(l, document.querySelector('link[href*="mock.css"]')); });
+		put('t-old'); return;
+	}
+	if (screen === 'exam') { location.replace('exam-deck-mock/exam-result.html?tool=exam&form=new&theme=' + (th || 'light') + (Q.get('sets') ? '&sets=' + Q.get('sets') : '') + (Q.get('pop') ? '&pop=1' : '') + (Q.get('nav') ? '&nav=1' : '')); return; }
+	// 一覧
+	document.body.className = 'mock-list';
+	const t = th === 'dark' ? 'dark' : 'light';
+	const fr = (href, cap) => '<figure><figcaption>' + cap + '</figcaption><iframe loading="lazy" title="' + cap + '" src="' + href + '&theme=' + t + '"></iframe></figure>';
+	document.body.innerHTML = '<h1>UmaExam 用 Deck（T104 段1 モック）</h1><p>親の★・因子は仮のデータです。ここで押した内容はこのタブの中だけに残ります（製品の保存データには触れません）。</p>' +
+		'<p>テーマ: <a href="?theme=light">ライト</a>／<a href="?theme=dark">ダーク</a></p>' +
+		'<h2>開く</h2><ul>' +
+		'<li><a href="?screen=deck&mode=exam&theme=' + t + '">表の画面（UmaExam 用）</a>：見出しの「技能試験 ▾」を押すと UmaStar／UmaExam の切り替え（案A）</li>' +
+		'<li><a href="?screen=deck&mode=exam&pair=1&pane=plan&theme=' + t + '">表の画面（UmaExam 用・親A親Bを選び、本育成設計を開いた形）</a></li>' +
+		'<li><a href="?screen=deck&mode=star&theme=' + t + '">表の画面（UmaStar 用）</a>：今の製品と同じ形</li>' +
+		'<li><a href="?screen=deck&mode=exam&sw=head&theme=' + t + '">切り替えの案B（見出しの帯の中に置く）</a></li>' +
+		'<li><a href="?screen=register&theme=' + t + '">登録の画面（UmaExam から送ったとき）</a></li>' +
+		'<li><a href="?screen=exam&theme=' + t + '">UmaExam の照合結果の上の「Deck (αテスト)に送る」</a>／<a href="?screen=exam&sets=ab&pop=1&theme=' + t + '">親Bセットもあるときの小窓</a>／<a href="?screen=exam&nav=1&theme=' + t + '">右下のボタン群とツール切り替え</a></li>' +
+		'<li><a href="?screen=old&theme=' + t + '">旧 UmaSkill Deck のページの先頭の1行</a></li>' +
+		'</ul><h2>スマホの幅で並べて見る</h2><div class="frames">' +
+		fr('?screen=deck&mode=exam', '表（UmaExam 用）') + fr('?screen=deck&mode=exam&pair=1&pane=view', '表示の欄（最大・効率の列）') + fr('?screen=deck&mode=exam&sheet=set', '切り替え（案A）') + fr('?screen=deck&mode=exam&sw=head', '切り替え（案B）') + fr('?screen=register', '登録の画面') + fr('?screen=exam', '照合結果') + fr('?screen=old', '旧ページ') + '</div>';
+})();
+</script>
+</body>
+</html>
