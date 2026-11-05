@@ -254,10 +254,10 @@ export async function register114(env) {
 				const { ctx, page, errs } = await open(1280, 900, theme, 'a');
 				const m = await probe(page), l = await layout(page);
 				await shot(page, 'exam-1280-' + theme + '-a');
-				assert(m.atTop >= 24, theme + '/a 開いた直後に表の行が24行以上（変更前は0）', m.atTop);
+				assert(m.atTop >= 20, theme + '/a 開いた直後に表の行が20行以上（変更前は0）', m.atTop);
 				assert(m.rowH.length === 1 && m.rowH[0] === 21, theme + '/a 1行21px（変更前は46px）', m.rowH);
 				assert(m.parts.stat === 26 && m.parts.search === 28 && m.parts.filter === 26 && m.parts.copy === 28 && m.parts.deckBtn === 28 && m.parts.thead === 23, theme + '/a 上の欄とボタンの高さ', m.parts);
-				assert(m.parts.hl <= 84 && m.parts.ctrl <= 50, theme + '/a ハイライト 84px 以下・検索とボタンの箱 50px 以下', m.parts);
+				assert(m.parts.hl <= 140 && m.parts.ctrl <= 68, theme + '/a ハイライト 140px 以下（3行）・検索とボタンの箱 68px 以下（件数と注記が2行になる）', m.parts);
 				assert(l.tableW === 480 && !l.bodyHs, theme + '/a 表は幅いっぱいに伸ばさない（480px）・横スクロールなし', l.tableW);
 				assert(errs.length === 0, theme + '/a コンソールのエラー0', errs);
 				await ctx.close();
@@ -323,9 +323,8 @@ export async function register114(env) {
 			const f = await read(page);
 			assert(f.n > 0 && f.clipped.length === 0, w + '/' + sets + ' 名前を省略しない', f);
 			if (sets === 'ab') assert(f.tops[0] === f.tops[1], w + '/ab 親Aと親Bが同じ行', f.tops);
-			// 因子と遺伝子を左右に置くのは 1280px の親Aセット＋親Bセットのときだけ
-			const side = w >= 1200 && sets === 'ab';
-			assert(f.cards.every((c) => c.length === 2 && (side ? c[0] === c[1] : c[1] > c[0])), w + '/' + sets + (side ? ' 因子と遺伝子は左右' : ' 因子と遺伝子は上下'), f.cards);
+			// 引き出しの幅に上限を設けたので、因子と遺伝子は常に上下（決定 228）
+			assert(f.cards.every((c) => c.length === 2 && c[1] > c[0]), w + '/' + sets + ' 因子と遺伝子は上下', f.cards);
 			assert(errs.length === 0, w + '/' + sets + ' コンソールのエラー0', errs);
 			await ctx.close();
 		}
@@ -337,4 +336,89 @@ export async function register114(env) {
 		assert(errs.length === 0, '375/ab コンソールのエラー0', errs);
 		await ctx.close();
 	});
+
+	// ===== 引き出しの幅と目覚め系の注記（決定 228・241〜243）=====
+	const NOTE = '※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。';
+	const widthProbe = (page) => page.evaluate(() => {
+		const r = (el) => el.getBoundingClientRect();
+		const vis = (el) => !!el && el.getClientRects().length > 0;
+		const body = document.querySelector('#result-drawer .uma-drawer-body');
+		const ctrl = ['.rc-srch', '.rc-pills', '#result-copy-slot'].map((q) => Math.round(r(document.querySelector('#result-drawer ' + q)).top));
+		const tog = document.getElementById('table-set-toggle-wrap');
+		if (vis(tog)) ctrl.push(Math.round(r(tog).top));
+		const persons = [...document.querySelectorAll('#exam-highlight-grid [data-person-group]')];
+		return {
+			drawerW: Math.round(r(document.getElementById('result-drawer')).width),
+			tableW: Math.round(r(document.getElementById('result-table-el')).width),
+			statTops: [...new Set([...document.querySelectorAll('#stat-grid > div')].map((d) => Math.round(r(d).top)))],
+			statH: Math.round(r(document.getElementById('stat-grid')).height),
+			personTops: persons.map((g) => Math.round(r(g).top)),
+			personHs: persons.map((g) => Math.round(r(g).height)),
+			setTops: [...document.querySelectorAll('#exam-highlight-grid > div')].map((d) => Math.round(r(d).top)),
+			ctrlTops: ctrl,
+			clipped: [...document.querySelectorAll('#result-drawer .truncate, #stat-grid p, #exam-highlight .hl-card--center p')].filter((e) => vis(e) && e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent),
+			bodyHs: body.scrollWidth > body.clientWidth,
+			noteVisible: vis(document.getElementById('hl-note')),
+			noteText: document.getElementById('hl-note').textContent,
+			btnVisible: vis(document.getElementById('hl-note-btn')),
+		};
+	});
+	for (const theme of ['light', 'dark']) {
+		await block('T100ヒートマップ exam ―― 引き出しの幅 1280×900（' + theme + '）: 親Aだけは表の幅に近く上の欄1行・ハイライト3行、親Bありは左右に並べて6列の表の幅に近い', async () => {
+			{
+				const { ctx, page, errs } = await open(1280, 900, theme, 'a');
+				const w = await widthProbe(page);
+				await shot(page, 'exam-1280-' + theme + '-a-width');
+				assert(w.drawerW === 530 && w.tableW === 480, theme + '/a 引き出し 530px・表 480px', w);
+				assert(w.statTops.length === 1 && w.statH === 26, theme + '/a 上の欄は1行', w);
+				assert(w.personTops.length === 3 && new Set(w.personTops).size === 3 && w.personHs.every((h) => h <= 22), theme + '/a ハイライトは3行', w);
+				assert(Math.max(...w.ctrlTops) - Math.min(...w.ctrlTops) <= 2, theme + '/a 検索とボタンは1行', w.ctrlTops);
+				assert(w.clipped.length === 0 && !w.bodyHs, theme + '/a 省略なし・横スクロールなし', w);
+				assert(w.noteVisible && !w.btnVisible && w.noteText === NOTE, theme + '/a PC は注記をそのまま出す・「？」なし', w);
+				assert(errs.length === 0, theme + '/a コンソールのエラー0', errs);
+				await ctx.close();
+			}
+			const { ctx, page, errs } = await open(1280, 900, theme, 'ab');
+			const w = await widthProbe(page);
+			await shot(page, 'exam-1280-' + theme + '-ab-width');
+			assert(w.drawerW === 750 && w.tableW === 660, theme + '/ab 引き出し 750px・表 660px', w);
+			assert(w.statTops.length === 1 && w.statH === 26, theme + '/ab 上の欄は1行', w);
+			assert(w.setTops.length === 2 && w.setTops[0] === w.setTops[1], theme + '/ab 親Aと親Bが左右', w.setTops);
+			assert(Math.max(...w.ctrlTops) - Math.min(...w.ctrlTops) <= 2, theme + '/ab 検索とボタンは1行', w.ctrlTops);
+			assert(w.clipped.length === 0 && !w.bodyHs, theme + '/ab 省略なし・横スクロールなし', w);
+			assert(w.noteVisible && !w.btnVisible, theme + '/ab PC は注記をそのまま出す', w);
+			// 結合画像のタブは今の幅のまま
+			await page.evaluate(() => { const t = document.getElementById('result-tab-stitch'); t.disabled = false; selectResultTab('stitch'); });
+			const sw = await page.evaluate(() => Math.round(document.getElementById('result-drawer').getBoundingClientRect().width));
+			assert(sw === 1100, theme + ' 結合画像のタブは 1100px のまま', sw);
+			assert(errs.length === 0, theme + '/ab コンソールのエラー0', errs);
+			await ctx.close();
+		});
+
+		await block('T100ヒートマップ exam ―― 目覚め系の注記 375×812（' + theme + '）: 画面に出ず「？」で開く・文は1字も同じ・外を押すと閉じる', async () => {
+			for (const sets of ['a', 'ab']) {
+				const { ctx, page, errs } = await open(375, 812, theme, sets);
+				const w = await widthProbe(page);
+				assert(!w.noteVisible && w.btnVisible, theme + '/' + sets + ' 注記は出さず「？」を出す', w);
+				await page.click('#hl-note-btn');
+				const o = await page.evaluate(() => {
+					const n = document.getElementById('hl-note'), b = document.getElementById('hl-note-btn'), c = getComputedStyle(n);
+					const rc = n.getBoundingClientRect();
+					const top = document.elementFromPoint(rc.left + rc.width / 2, rc.top + rc.height / 2);
+					return { text: n.innerText, expanded: b.getAttribute('aria-expanded'), l: rc.left, r: rc.right, vw: innerWidth, fg: c.color, bg: c.backgroundColor, onTop: !!top && n.contains(top), h: Math.round(rc.height) };
+				});
+				await shot(page, 'exam-375-' + theme + '-' + sets + '-note');
+				assert(o.text === NOTE && o.expanded === 'true', theme + '/' + sets + ' 開いた文が元の注記と同じ', o);
+				assert(o.onTop && o.l >= 0 && o.r <= o.vw, theme + '/' + sets + ' 小窓が画面の中で一番上に出る', o);
+				assert(ratio(o.fg, o.bg) >= 4.5, theme + '/' + sets + ' 文字の比 4.5 以上', o);
+				await page.mouse.click(180, 780);
+				assert(await page.evaluate(() => getComputedStyle(document.getElementById('hl-note')).display === 'none' && document.getElementById('hl-note-btn').getAttribute('aria-expanded') === 'false'), theme + '/' + sets + ' 外を押すと閉じる');
+				await page.click('#hl-note-btn');
+				await page.keyboard.press('Escape');
+				assert(await page.evaluate(() => getComputedStyle(document.getElementById('hl-note')).display === 'none' && !document.getElementById('result-drawer').hidden), theme + '/' + sets + ' Esc で小窓だけ閉じる');
+				assert(errs.length === 0, theme + '/' + sets + ' コンソールのエラー0', errs);
+				await ctx.close();
+			}
+		});
+	}
 }

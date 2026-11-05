@@ -954,11 +954,28 @@
 		#result-drawer #stat-grid > div { background-color: transparent !important; }
 		#result-drawer #stat-grid > div.hm-stat-bd { border-left: 2px solid var(--exam-red-border-strong) !important; }
 		#result-drawer #exam-highlight-grid > div { background-color: transparent !important; }
+		#hl-note-btn { display: none; }
+		@media (max-width: 639.98px) {
+			/* 目覚め系の注記はスマホでは「？」の中へ（決定 228・242）。PC は今のまま */
+			#result-drawer #hl-note-btn { display: inline-flex; flex: none; margin-left: 2px; font-size: 11px; }
+			#result-drawer #exam-highlight { position: relative; }
+			#result-drawer #exam-highlight > #hl-note { display: none; }
+			#result-drawer #exam-highlight.hl-note-open { z-index: 5; }
+			#result-drawer #exam-highlight.hl-note-open > #hl-note {
+				display: block; position: absolute; left: 8px; right: 8px; top: 32px; margin: 0; padding: 8px 10px;
+				border: 1px solid var(--uma-border-strong); border-radius: 8px; background: var(--uma-surface);
+				box-shadow: var(--uma-shadow-3); color: var(--uma-text-heading); font-size: 12px; line-height: 18px;
+			}
+		}
 		#melop-copy-btn-A { border-color: var(--exam-blue-border-strong); color: var(--exam-blue-text); }
 		#melop-copy-btn-B { border-color: var(--exam-red-border-strong); color: var(--exam-red-text); }
 		#melop-copy-btn-A:hover { background-color: var(--exam-blue-bg); }
 		#melop-copy-btn-B:hover { background-color: var(--exam-red-bg); }
 		@media (min-width: 640px) {
+			/* 引き出しの幅の上限（決定 228・241）: 星取表の幅を基準に。検索とボタンの行が1行に入る幅まで表からはみ出す。
+			   結合画像のタブと、結果が無いときは今の幅のまま */
+			#result-drawer:has(#result-tab-result[aria-selected="true"]):has(#result-wrap:not(.hidden)) { width: min(96vw, 530px); }
+			#result-drawer:has(#result-tab-result[aria-selected="true"]):has(#result-wrap:not(.hidden)):has(#exam-highlight-grid.hl-sets-2) { width: min(96vw, 750px); }
 			#result-drawer #result-drawer-slot { padding: 8px 12px; }
 			/* Deck への受け渡しの案内 */
 			#result-drawer #deck-handoff-note { margin-bottom: 8px; }
@@ -975,7 +992,7 @@
 			#result-drawer #stat-grid p { margin: 0; font-size: 11px; line-height: 16px; }
 			#result-drawer #stat-grid p:nth-child(2) { font-size: 15px; line-height: 20px; }
 
-			/* ハイライト: 親Aセットだけのときは1行、親Bセットもあるときは左右に2つ */
+			/* ハイライト: 親Aセットだけのときは人を縦に3行（見出しは左）、親Bセットもあるときは左右に2つ */
 			#result-drawer #exam-highlight { margin-bottom: 8px; padding: 4px 8px 5px; border-radius: 8px; }
 			#result-drawer #exam-highlight > div:first-child { align-items: center; gap: 6px; margin-bottom: 3px; }
 			#result-drawer #exam-highlight h3 { gap: 4px; font-size: 11px; line-height: 14px; }
@@ -988,8 +1005,7 @@
 			#result-drawer #exam-highlight-grid > div > div { grid-template-columns: minmax(0, 1fr); gap: 2px 8px; }
 			#result-drawer #exam-highlight-grid:not(.hl-sets-2) > div { display: flex; align-items: center; column-gap: 8px; }
 			#result-drawer #exam-highlight-grid:not(.hl-sets-2) > div > p { margin: 0; }
-			#result-drawer #exam-highlight-grid:not(.hl-sets-2) > div > div { flex: 1 1 0; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-			#result-drawer #exam-highlight-grid:not(.hl-sets-2) > div > div:has(.hl-cards--factors, .hl-cards--genes) { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+			#result-drawer #exam-highlight-grid:not(.hl-sets-2) > div > div { flex: 1 1 0; min-width: 0; }
 			#result-drawer [data-person-group] { display: grid; grid-template-columns: 2.7em repeat(4, minmax(0, 1fr)); align-items: center; gap: 2px 4px; padding: 0; border-radius: 0; background: transparent; }
 			#result-drawer [data-person-group] > p { margin: 0; line-height: 14px; }
 			#result-drawer [data-person-group] .hl-cards { display: contents; }
@@ -997,20 +1013,20 @@
 			#result-drawer .hl-card--center p { margin: 0; line-height: 14px; }
 			#result-drawer .hl-card--center p:last-child { font-size: 13px; line-height: 17px; }
 			#result-drawer .hl-card--center p:last-child span { font-size: 11px; }
-			/* シナリオ因子・遺伝子の一覧は人の行の下に上下で。見出しは一覧の左。親Aセット＋親Bセットで幅が足りるときだけ（下の 1200px）2つを左右に */
+			/* シナリオ因子・遺伝子の一覧は人の行の下に上下で。見出しは一覧の左 */
 			#result-drawer [data-hl-card] { grid-column: 2 / span 4; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; column-gap: 6px; padding: 0 4px; border-radius: 6px; }
 			#result-drawer [data-hl-card] p { margin: 0; line-height: 14px; }
 			#result-drawer #exam-highlight > p { margin-top: 3px; line-height: 14px; }
 
 			/* 検索・絞り込み・件数・コピーを同じ行へ（入らない分は次の行） */
-			#result-drawer #result-ctrlbox { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 6px; }
+			#result-drawer #result-ctrlbox { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 6px; }
 			#result-drawer #result-ctrlbox > * { margin: 0; }
 			#result-drawer .rc-ctrl { display: contents; }
-			#result-drawer .rc-srch { order: 1; width: 190px; }
+			#result-drawer .rc-srch { order: 1; width: 140px; }
 			#result-drawer .rc-srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
 			#result-drawer #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
 			#result-drawer .rc-pills { order: 2; width: auto; font-size: 11px; }
-			#result-drawer .rc-pills button { height: 26px; padding: 0 10px; font-size: 11px; line-height: 24px; }
+			#result-drawer .rc-pills button { height: 26px; padding: 0 8px; font-size: 11px; line-height: 24px; }
 			#result-drawer #table-set-toggle-wrap { order: 3; gap: 4px; }
 			#result-drawer #table-set-toggle-wrap button { height: 26px; padding: 0 8px; }
 			#result-drawer #result-copy-slot { order: 4; margin-left: auto; gap: 4px; }
@@ -1028,10 +1044,6 @@
 			#result-drawer .result-table th:first-child { width: 240px !important; }
 			#result-drawer .result-table th:not(:first-child) { min-width: 60px; }
 			#result-drawer .result-table td { padding: 1px 8px; font-size: 12px; line-height: 18px; white-space: nowrap; }
-		}
-		@media (min-width: 1200px) {
-			#result-drawer .hl-sets-2 .hl-cards--factors.hl-cards--genes [data-hl-card="factor"] { grid-column: 2 / span 2; }
-			#result-drawer .hl-sets-2 .hl-cards--factors.hl-cards--genes [data-hl-card="gene"] { grid-column: 4 / span 2; }
 		}
 		/* 360px より狭い画面: 見出しが折り返さず、スキル名の列に7文字入るように、さらに1段小さくする */
 		@media (max-width: 359.98px) {
@@ -1734,6 +1746,7 @@
 						<h3 class="text-xs font-bold text-[var(--uma-deco-text)] flex items-center gap-1.5">
 							<i data-lucide="target" class="w-4 h-4"></i>
 							<span>ハイライト</span>
+							<button type="button" id="hl-note-btn" class="uma-help-btn" aria-expanded="false" aria-controls="hl-note" aria-label="ハイライトの補足を見る" title="ハイライトの補足を見る" onclick="toggleHighlightNote()">?</button>
 						</h3>
 						<div class="flex items-center gap-1 text-xs bg-white rounded-lg border border-[var(--uma-green-skill-border)] p-0.5 shrink-0">
 							<button type="button" onclick="setCountMode('equivalence')" id="mode-equivalence" class="mode-btn">実質53種（既定）</button>
@@ -1741,7 +1754,7 @@
 						</div>
 					</div>
 					<div id="exam-highlight-grid" class="grid gap-3"></div>
-					<p class="text-[11px] text-[var(--uma-deco-strong)]/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
+					<p id="hl-note" class="text-[11px] text-[var(--uma-deco-strong)]/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
 				</div>
 	
 				<!-- 検索・絞り込み・コピーを包む箱（スマホで1つの格子に組む。T100。PC では効かない） -->
@@ -3591,6 +3604,33 @@
 		/* ============================================================
 		 * 緑59種の集計モード（実質53種 / 59種個別）
 		 * ============================================================ */
+		// ハイライトの注記の小窓（スマホだけ「？」から開く。T100・決定 228・242）。外を押す・Esc で閉じる
+		function setHighlightNoteOpen(open) {
+			const box = document.getElementById('exam-highlight');
+			const btn = document.getElementById('hl-note-btn');
+			box.classList.toggle('hl-note-open', open);
+			btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+			document.removeEventListener('pointerdown', onHighlightNoteOutside, true);
+			document.removeEventListener('keydown', onHighlightNoteKey, true);
+			if (open) {
+				document.addEventListener('pointerdown', onHighlightNoteOutside, true);
+				document.addEventListener('keydown', onHighlightNoteKey, true);
+			}
+		}
+		function toggleHighlightNote() {
+			setHighlightNoteOpen(!document.getElementById('exam-highlight').classList.contains('hl-note-open'));
+		}
+		function onHighlightNoteOutside(e) {
+			if (e.target.closest('#hl-note-btn, #hl-note')) return;
+			setHighlightNoteOpen(false);
+		}
+		function onHighlightNoteKey(e) {
+			if (e.key !== 'Escape') return;
+			e.stopPropagation();
+			setHighlightNoteOpen(false);
+			document.getElementById('hl-note-btn').focus();
+		}
+
 		function setCountMode(mode) {
 			countMode = (mode === 'individual') ? 'individual' : 'equivalence';
 			// 「技能試験ハイライト」（結果エリア）のモード切替ボタン。
