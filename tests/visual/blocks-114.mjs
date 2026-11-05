@@ -421,4 +421,150 @@ export async function register114(env) {
 			}
 		});
 	}
+
+	// ===== UmaStar（special.html）: 段2 のヒートマップ・見直し・幅の上限（決定 200〜204・215・219〜222・228・244）=====
+	const STAR_PALETTE = {
+		light: { empty: 'rgb(255, 253, 248)', s1: 'rgb(205, 238, 214)', s2: 'rgb(127, 211, 155)', s3: 'rgb(30, 127, 69)', unk: 'rgb(236, 231, 221)' },
+		dark: { empty: 'rgb(38, 37, 35)', s1: 'rgb(31, 74, 48)', s2: 'rgb(63, 165, 102)', s3: 'rgb(141, 227, 169)', unk: 'rgb(52, 50, 46)' }
+	};
+	const openStar = async (width, height, theme, sets) => {
+		const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
+		// ②のスキルを入れた状態で開く（スキルの名前は一番長いものを含む40件）
+		const master = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'uma-skill-deck-skills.json'), 'utf8')).skills;
+		const longest = master.slice().sort((a, b) => b.name.length - a.name.length).slice(0, 5);
+		const ids = longest.concat(master.filter((s) => !longest.includes(s)).slice(0, 35)).map((s) => String(s.id));
+		const RACE = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/upcoming-races.json'), 'utf8')).races[0];
+		await ctx.addInitScript(({ t, ids, RACE }) => { try { if (!sessionStorage.getItem('__t100')) {
+			sessionStorage.setItem('__t100', '1'); localStorage.clear(); localStorage.setItem('uma-tools-theme', t);
+			localStorage.setItem('umaSkillDeck:userData', JSON.stringify({ schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] }));
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ race: RACE, skillFilter: { style: 'sashi' } }));
+			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', updatedAt: '', skillIcons: {}, parentHintLevel: 5 }));
+			localStorage.setItem('umaSkillDeck:stepTab', '1');
+		} } catch (e) {} }, { t: theme, ids, RACE });
+		const page = await ctx.newPage();
+		page.setDefaultTimeout(30000);
+		const errs = [];
+		page.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errs.push(m.text()); });
+		page.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
+		await page.goto(base + '/special.html', { waitUntil: 'load', timeout: 60000 });
+		await page.waitForFunction(() => typeof deckMode !== 'undefined' && deckMode && skillList.length > 0, null, { timeout: 20000 });
+		for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('[data-act="notice-ok"]').catch(() => {});
+		await page.evaluate((sets) => {
+			const mk = (p) => {
+				const det = [], stars = {};
+				skillList.forEach((n, r) => { const v = [0, 1, 2, 3][(r + p) % 4]; if (v) { det.push(n); stars[n] = v; } });
+				return { detectedSkills: new Set(det), skillStars: stars, skillSources: {}, matchReasons: {} };
+			};
+			personResults = PERSON_LABELS.map(() => null);
+			[0, 1, 2].forEach((i) => { personResults[i] = mk(i); });
+			if (sets === 'ab') [3, 4, 5].forEach((i) => { personResults[i] = mk(i); });
+			const unk = skillList.find((n) => personResults[1].detectedSkills.has(n));
+			personResults[1].skillStars[unk] = null;
+			renderResults();
+			openDrawer('result');
+		}, sets);
+		await page.waitForTimeout(350);
+		await page.mouse.move(0, 0);
+		return { ctx, page, errs };
+	};
+	const starProbe = (page) => page.evaluate(() => {
+		const r = (el) => el.getBoundingClientRect();
+		const vis = (el) => !!el && el.getClientRects().length > 0;
+		const q = (s) => document.querySelector(s);
+		const drawer = q('#result-drawer'), body = drawer.querySelector('.uma-drawer-body'), table = drawer.querySelector('.result-table');
+		const thead = table.querySelector('thead'), rows = [...table.querySelectorAll('tbody tr')], ths = [...thead.querySelectorAll('th')];
+		body.scrollTop = 0;
+		const b = r(body), top = Math.max(b.top, r(thead).bottom);
+		const atTop = rows.filter((tr) => { const x = r(tr); return x.top >= top - 0.5 && x.bottom <= b.bottom + 0.5; }).length;
+		const cell = (c) => { const td = table.querySelector('tbody td.' + c); if (!td) return null; const n = td.querySelector('.hm-num'), cs = getComputedStyle(td); return { bg: cs.backgroundColor, img: cs.backgroundImage, color: getComputedStyle(n).color, txt: n.textContent, numVisible: vis(n), starVisible: vis(td.querySelector('.hm-st')) }; };
+		const tot = table.querySelector('tbody td.hm-total'), totCs = getComputedStyle(tot);
+		const fonts = {};
+		document.querySelectorAll('#result-wrap *').forEach((el) => {
+			if (!vis(el) || el.closest('.copy-source-hidden')) return;
+			if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && el.tagName !== 'INPUT') return;
+			const k = getComputedStyle(el).fontSize; fonts[k] = (fonts[k] || 0) + 1;
+		});
+		const names = [...table.querySelectorAll('.result-skillname')];
+		const statCells = [...document.querySelectorAll('#stat-grid > div')];
+		const ctrl = ['.rc-srch', '.rc-pills', '#result-copy-slot'].map((s) => Math.round(r(document.querySelector('#result-drawer ' + s)).top));
+		const tw = r(table).width, nw = r(ths[0]).width;
+		return {
+			drawerW: Math.round(r(drawer).width), tableW: Math.round(tw), atTop, rowH: [...new Set(rows.map((tr) => Math.round(r(tr).height * 10) / 10))],
+			colsPct: (tw - nw) / tw * 100, heads: ths.map((th) => th.textContent), headOneLine: ths.every((th) => r(th).height < 32),
+			statTops: [...new Set(statCells.map((d) => Math.round(r(d).top)))], statH: Math.round(r(q('#stat-grid')).height), statBg: statCells.slice(1).map((d) => getComputedStyle(d).backgroundColor),
+			statFg: statCells.slice(1).map((d) => getComputedStyle(d.querySelector('p')).color),
+			thBg: ths.slice(1, -1).map((th) => getComputedStyle(th).backgroundColor), ctrlTops: ctrl, ctrlH: Math.round(r(q('#result-ctrlbox')).height),
+			bodyHs: body.scrollWidth > body.clientWidth, tblHs: table.parentElement.scrollWidth > table.parentElement.clientWidth + 1, pageHs: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+			clipped: names.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent), minNameW: Math.min(...names.map((e) => r(e).width)), nameFs: names.length ? parseFloat(getComputedStyle(names[0]).fontSize) : 0,
+			nameRight: names.every((e) => r(e).right <= r(e.parentElement).right + 0.5 && r(e).left < r(e.parentElement).right && e.parentElement.scrollWidth <= e.parentElement.clientWidth + 1), longW: Math.round(r(names[0]).width),
+			widest: Math.max(...names.map((e) => e.scrollWidth)),
+			fonts, cells: { h0: cell('hm0'), h1: cell('hm1'), h2: cell('hm2'), h3: cell('hm3'), hu: cell('hmu') }, total: { bg: totCs.backgroundColor, color: totCs.color, fw: totCs.fontWeight, txt: tot.textContent },
+			copy: document.getElementById('copy-data').value, highlight: !!q('#exam-highlight'), deckNote: vis(q('#deck-alpha-send-note')) ? Math.round(r(q('#deck-alpha-send-note')).height) : null,
+		};
+	});
+	const starWant = (page) => page.evaluate(() => {
+		const unk = skillList.find((n) => personResults[1].detectedSkills.has(n) && personResults[1].skillStars[n] === null);
+		const used = activePersonIndexes();
+		return skillList.map((n, r) => used.map((p) => { const v = [0, 1, 2, 3][(r + p) % 4]; return (!v || (p === 1 && n === unk)) ? '' : String(v); }).join('\t')).join('\n');
+	});
+	for (const theme of ['light', 'dark']) {
+		await block('T100ヒートマップ special ―― 1280×900（' + theme + '）: 引き出しの幅・上の欄1行・検索とボタン1行・行の高さ・親Aと親Bの色・★の記号のまま', async () => {
+			const C = COLORS[theme];
+			for (const [sets, dw, tw] of [['a', 530, 480], ['ab', 750, 660]]) {
+				const { ctx, page, errs } = await openStar(1280, 900, theme, sets);
+				const m = await starProbe(page);
+				await shot(page, 'star-1280-' + theme + '-' + sets);
+				assert(m.drawerW === dw && m.tableW <= tw + 40, theme + '/' + sets + ' 引き出し ' + dw + 'px・表が基準の幅に近い', { d: m.drawerW, t: m.tableW });
+				assert(m.statTops.length === 1 && m.statH <= 42, theme + '/' + sets + ' 上の欄は1本の帯（因子を含めているときは箱の中が2段）', { t: m.statTops, h: m.statH });
+				const noFactorH = await page.evaluate(() => { const ps = [...document.querySelectorAll('#stat-grid p[id*="factor"]')]; ps.forEach((p) => { p.hidden = true; }); const h = Math.round(document.getElementById('stat-grid').getBoundingClientRect().height); ps.forEach((p) => { p.hidden = false; }); return h; });
+				assert(noFactorH === 26, theme + '/' + sets + ' 因子が無いときの上の欄は 26px', noFactorH);
+				assert(Math.max(...m.ctrlTops) - Math.min(...m.ctrlTops) <= 2 && m.ctrlH <= 28, theme + '/' + sets + ' 検索とボタンは1行', m.ctrlTops);
+				assert(Math.max(...m.rowH) <= 22 && m.atTop >= 25, theme + '/' + sets + ' 1行 22px 以下・開いた直後に25行以上', { r: m.rowH, a: m.atTop });
+				assert(m.clipped.length === 0 && !m.bodyHs && !m.tblHs && !m.pageHs, theme + '/' + sets + ' 名前の省略なし・横スクロールなし', m);
+				assert(m.statBg.every((c) => c === 'rgba(0, 0, 0, 0)') && m.statFg[0] === C.aText && m.thBg[0] === C.aBg, theme + '/' + sets + ' 親Aの色（exam と同じ値）・上の欄は地なし', m);
+				if (sets === 'ab') assert(m.statFg[3] === C.bText && m.thBg[3] === C.bBg, theme + ' 親Bの色（exam と同じ値）', m);
+				assert(m.cells.h1.starVisible && !m.cells.h1.numVisible, theme + '/' + sets + ' PC は★の記号のまま', m.cells.h1);
+				assert(!m.highlight, theme + '/' + sets + ' UmaStar にハイライトは無い');
+				assert(m.copy === await starWant(page), theme + '/' + sets + ' コピーの中身');
+				assert(errs.length === 0, theme + '/' + sets + ' コンソールのエラー0', errs);
+				await ctx.close();
+			}
+		});
+		await block('T100ヒートマップ special ―― 375×812（' + theme + '）: 緑の3段・数字・合計の列・4列で約 2/3・横スクロールなし・文字の大きさ', async () => {
+			const P = STAR_PALETTE[theme];
+			for (const sets of ['a', 'ab']) {
+				const { ctx, page, errs } = await openStar(375, 812, theme, sets);
+				const m = await starProbe(page);
+				await shot(page, 'star-375-' + theme + '-' + sets);
+				const c = m.cells;
+				assert(c.h1.bg === P.s1 && c.h2.bg === P.s2 && c.h3.bg === P.s3 && c.h0.bg === P.empty && c.hu.bg === P.unk, theme + '/' + sets + ' マスの地', c);
+				assert(c.h1.txt === '1' && c.h2.txt === '2' && c.h3.txt === '3' && c.hu.txt === '?' && c.h1.numVisible && !c.h1.starVisible && /repeating-linear-gradient/.test(c.hu.img), theme + '/' + sets + ' 数字・★不明は斜線に「?」', c);
+				const rs = [ratio(c.h1.color, c.h1.bg), ratio(c.h2.color, c.h2.bg), ratio(c.h3.color, c.h3.bg), ratio(c.hu.color, c.hu.bg), ratio(m.total.color, m.total.bg)];
+				assert(rs.every((x) => x >= 4.5), theme + '/' + sets + ' 文字の比 4.5 以上', rs);
+				assert(m.heads[m.heads.length - 1] === '★合計' && m.headOneLine, theme + '/' + sets + ' 合計の列・見出し1行', m.heads);
+				assert(!m.bodyHs && !m.tblHs && !m.pageHs, theme + '/' + sets + ' 横スクロールなし', m);
+				assert(m.statTops.length === 1, theme + '/' + sets + ' 上の欄は1行に', m.statTops);
+				assert(m.nameRight, theme + '/' + sets + ' 名前のボタンが列の中に収まる（「…」だけにならない）', m.nameRight);
+				assert(m.longW >= 7 * m.nameFs, theme + '/' + sets + ' 長い名前も7文字見える', { w: m.longW, fs: m.nameFs });
+				assert(Object.keys(m.fonts).every((k) => ['10px', '11px', '13px'].includes(k)), theme + '/' + sets + ' 文字は 10・11・13px だけ', m.fonts);
+				if (sets === 'a') assert(m.colsPct > 63 && m.colsPct < 70 && m.atTop >= 8, theme + '/a 人と合計の4列で約 2/3・開いた直後に8行以上', { p: m.colsPct, a: m.atTop });
+				assert(m.copy === await starWant(page), theme + '/' + sets + ' コピーの中身');
+				assert(errs.length === 0, theme + '/' + sets + ' コンソールのエラー0', errs);
+				await ctx.close();
+			}
+		});
+	}
+	await block('T100ヒートマップ special ―― 360・320px は横スクロールなし、③のセットの枠は親A・親Bの変数', async () => {
+		for (const w of [360, 320]) {
+			const { ctx, page, errs } = await openStar(w, 700, 'light', 'ab');
+			const m = await starProbe(page);
+			assert(!m.bodyHs && !m.tblHs && !m.pageHs && m.headOneLine, w + 'px 横スクロールなし・見出し1行', m);
+			assert(errs.length === 0, w + 'px コンソールのエラー0', errs);
+			await ctx.close();
+		}
+		const { ctx, page } = await openStar(1280, 900, 'light', 'a');
+		const p = await page.evaluate(() => { const e = document.querySelector('.upload-set-panel'); if (!e) return null; const c = getComputedStyle(e); return { bc: c.borderTopColor, bg: c.backgroundColor }; });
+		assert(p && p.bc === 'rgb(208, 219, 234)', '③の親Aセットの枠は落ち着かせた色', p);
+		await ctx.close();
+	});
 }

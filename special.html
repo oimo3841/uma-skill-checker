@@ -157,8 +157,8 @@
 			--uma-accent: #4ade80; --uma-accent-hover: #86efac; --uma-accent-soft: #12301f;
 			--uma-accent-soft-text: #8be3ac; --uma-accent-border: #1f5a37; --uma-accent-ring: #4ade80;
 		}
-		:root[data-theme="dark"] .person-col-blue { --person-bg: #172a4a; --person-fg: #a9c9ff; --person-border-strong: #3b6fb8; --person-border-soft: #26426b; --person-tint: rgba(74, 158, 245, .10); }
-		:root[data-theme="dark"] .person-col-red  { --person-bg: #3a1a1d; --person-fg: #ffb3b3; --person-border-strong: #a3474d; --person-border-soft: #6b2d33; --person-tint: rgba(251, 44, 54, .10); }
+		:root[data-theme="dark"] .person-col-blue { --person-bg: #1b2738; --person-fg: #b4c8e6; --person-border-strong: #4d6a93; --person-border-soft: #2d3d54; --person-tint: rgba(110, 150, 210, .08); }
+		:root[data-theme="dark"] .person-col-red  { --person-bg: #2e2022; --person-fg: #e6bdbd; --person-border-strong: #8d5a5e; --person-border-soft: #4e3437; --person-tint: rgba(210, 110, 110, .08); }
 		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す。
 		   C-235: タイトルの行も上に残すので、帯はその直下（--site-header-h。syncStickyTop が入れる）。
 		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
@@ -191,6 +191,7 @@
 		/* ③ 画像をアップロード（T56・C-258 の (2)。モック T43 の形。exam.html と同じ値）
 		   (2)-2: セットの見出しを消し、「セットをクリア」はパネルの右上に重ねる */
 		.upload-set-panel { position: relative; }
+		.upload-set-panel.person-col-blue, .upload-set-panel.person-col-red { border-color: var(--person-border-soft); background-color: var(--person-tint); }
 		.upload-set-clear { position: absolute; top: 10px; right: 14px; margin: 0 !important; z-index: 1; }
 		/* (2)-6: タブの帯を行いっぱいに広げる（「＋親Bセット」が帯の半分の幅〔.uma-subtab の max-width〕で「…」に切れないように。モックと同じ） */
 		.uma-subtabs-row > #personset-tabs { flex: 1 1 0; min-width: 0; }
@@ -344,8 +345,8 @@
 		   コメントに残っていた）が、Tailwindのユーティリティは @layer utilities に
 		   入るため、レイヤーに属さないこの指定の方が強い。前提が変わったのでクラスに戻した。
 		   exam.html を合流させるときは、このブロックごと共通化できる。 */
-		.person-col-blue { --person-bg: #eff6ff; --person-fg: #193cb8; --person-border-strong: #8ec5ff; --person-border-soft: #bedbff; --person-tint: rgba(43, 127, 255, .07); }
-		.person-col-red  { --person-bg: #fef2f2; --person-fg: #9f0712; --person-border-strong: #ffa2a2; --person-border-soft: #ffc9c9; --person-tint: rgba(251, 44, 54, .07); }
+		.person-col-blue { --person-bg: #eef2f8; --person-fg: #2f4a80; --person-border-strong: #a9bcd8; --person-border-soft: #d0dbea; --person-tint: rgba(70, 105, 165, .05); }
+		.person-col-red  { --person-bg: #f8f0f0; --person-fg: #843a3a; --person-border-strong: #d8afaf; --person-border-soft: #ecd8d8; --person-tint: rgba(165, 80, 80, .05); }
 		.result-table th.person-col { background-color: var(--person-bg); color: var(--person-fg); }
 		.result-table td.person-col { background-color: var(--person-tint); }
 		.result-table th.person-col.person-set-boundary { border-left: 2px solid var(--person-border-strong); }
@@ -649,6 +650,135 @@
 			#stitch-parts-panel .stitch-show { gap: var(--uma-sp-2); padding: var(--uma-sp-2); }
 			#stitch-parts-panel .stitch-wire { align-self: flex-start; }
 			#stitch-parts-panel .stitch-show-item { padding-left: var(--uma-sp-1); padding-right: 0; }
+		}
+		/* ===== 照合結果のスマホのヒートマップ（T100・C-290。exam.html と同じ形）=====
+		   640px 未満の引き出し（#result-drawer の中）だけ。★の記号の代わりに人のマスを★の数で塗り、数字を出す
+		   （★0・未検出は塗りなし、★不明は斜線に「?」）。文字は 13px と 11px。列が5つ以上（.hm-dense）の表だけ 10px。
+		   緑の3段は段1 のモックで確かめた値（基準の面とマスの数字のコントラスト 4.5 以上） */
+		:root {
+			--star-hm-empty: #fffdf8; --star-hm-s1: #cdeed6; --star-hm-n1: #14532d; --star-hm-s2: #7fd39b; --star-hm-n2: #0b3d1f; --star-hm-s3: #1e7f45; --star-hm-n3: #ffffff;
+			--star-hm-unk-base: #ece7dd; --star-hm-unk-line: #b5ab98; --star-hm-unk-text: #3d3428; --star-hm-gap: #f6eedf;
+		}
+		:root[data-theme="dark"] {
+			--star-hm-empty: #262523; --star-hm-s1: #1f4a30; --star-hm-n1: #c3f3d2; --star-hm-s2: #3fa566; --star-hm-n2: #04170c; --star-hm-s3: #8de3a9; --star-hm-n3: #04170c;
+			--star-hm-unk-base: #34322e; --star-hm-unk-line: #5c5a55; --star-hm-unk-text: #f3f1ec; --star-hm-gap: #1d1c1a;
+		}
+		.hm-num { display: none; }
+		/* 上の欄は地を塗らず、線と文字だけで親A・親Bを見分ける（決定 221） */
+		#result-drawer #stat-grid > div { background-color: transparent !important; }
+		#result-drawer #stat-grid > div.hm-stat-bd { border-left: 2px solid var(--person-border-strong) !important; }
+		@media (max-width: 639.98px) {
+			#result-drawer .uma-drawer-content { padding: 10px 12px; }
+			/* Deck (αテスト)へ送る */
+			#result-drawer #deck-alpha-send-note { margin-bottom: 10px; }
+			#result-drawer #deck-alpha-send-btn { min-height: 0; height: 30px; padding: 0 10px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
+			#result-drawer #deck-alpha-send-note > p { margin-top: 2px; line-height: 14px; }
+
+			/* 上の欄（対象スキル数・各人の検出数）: 1つの箱に1行 */
+			#result-drawer #stat-grid { grid-template-columns: repeat(var(--hm-stat-n, 4), minmax(0, 1fr)); gap: 0; margin-bottom: 10px; border: 1px solid var(--uma-border); border-radius: 10px; overflow: hidden; }
+			#result-drawer #stat-grid > div { padding: 4px 2px 5px; border: 0; border-radius: 0; }
+			#result-drawer #stat-grid > div + div { border-left: 1px solid var(--uma-border); }
+			#result-drawer #stat-grid p { margin: 0; font-size: 11px; line-height: 14px; }
+			#result-drawer #stat-grid p:nth-child(2) { font-size: 13px; line-height: 17px; }
+			/* 5つ以上（親Aセット＋親Bセット）も1行に並べる。対象スキル数の列だけ広く、文字は 10px */
+			#result-drawer #stat-grid.hm-stat-tight { grid-template-columns: minmax(0, 1.5fr) repeat(calc(var(--hm-stat-n, 7) - 1), minmax(0, 1fr)); }
+			#result-drawer #stat-grid.hm-stat-tight > div { padding: 3px 1px 4px; }
+			#result-drawer #stat-grid.hm-stat-tight p { font-size: 10px; line-height: 13px; word-break: keep-all; }
+			#result-drawer #stat-grid.hm-stat-tight p:nth-child(2) { font-size: 13px; line-height: 16px; }
+			#result-drawer #stat-grid.hm-stat-tight p:nth-child(3), #result-drawer #stat-grid.hm-stat-tight p:nth-child(3) * { word-break: normal; white-space: normal; }
+
+			/* 検索・コピー・絞り込み */
+			#result-drawer #result-ctrlbox { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-bottom: 8px; }
+			#result-drawer #result-ctrlbox > * { margin: 0; }
+			#result-drawer .rc-ctrl { display: contents; }
+			#result-drawer .rc-srch { grid-column: 1; grid-row: 1; }
+			#result-drawer .rc-srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
+			#result-drawer #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
+			#result-drawer #result-copy-slot { grid-column: 2; grid-row: 1; gap: 4px; }
+			#result-drawer #result-copy-slot button { min-height: 0; height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
+			#result-drawer .rc-pills { grid-column: 1 / -1; grid-row: 2; font-size: 11px; }
+			#result-drawer .rc-pills button { min-height: 0; height: 24px; padding: 0 10px; font-size: 11px; line-height: 22px; }
+
+			/* 表: 横スクロールなし。人3人＋合計の4列で約 2/3、名前の列で約 1/3 */
+			#result-drawer .rc-tbl-wrap { margin-bottom: 16px; border-radius: 8px; }
+			#result-drawer .result-table { min-width: 0 !important; table-layout: fixed; }
+			#result-drawer .result-table th { padding: 4px 1px; border-bottom-width: 1px; font-size: 11px; font-weight: 700; line-height: 14px; white-space: nowrap; overflow: hidden; }
+			#result-drawer .result-table th:first-child { width: auto !important; padding-left: 6px; text-align: left; }
+			#result-drawer .result-table th:not(:first-child) { width: 16.67%; }
+			#result-drawer .result-table td { padding: 0; border-bottom: 1px solid var(--uma-surface-muted); font-size: 11px; line-height: 14px; }
+			#result-drawer .result-table td:first-child { padding: 4px 4px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			/* 印と名前のボタンを1行に。長い名前は「…」（全文は title） */
+			#result-drawer .result-table td:first-child svg, #result-drawer .result-table td:first-child img { width: 12px; height: 12px; }
+			#result-drawer .result-skillname { max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+			#result-drawer .result-table td.hm-cell { background-color: var(--star-hm-empty) !important; box-shadow: inset 1px 0 0 var(--star-hm-gap); }
+			#result-drawer .result-table td.hm-bd { border-left: 2px solid var(--person-border-strong) !important; }
+			#result-drawer .hm-st { display: none; }
+			#result-drawer .hm-num { display: flex; align-items: center; justify-content: center; min-height: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+			#result-drawer .result-table td.hm1 { background-color: var(--star-hm-s1) !important; } #result-drawer td.hm1 .hm-num { color: var(--star-hm-n1); }
+			#result-drawer .result-table td.hm2 { background-color: var(--star-hm-s2) !important; } #result-drawer td.hm2 .hm-num { color: var(--star-hm-n2); }
+			#result-drawer .result-table td.hm3 { background-color: var(--star-hm-s3) !important; } #result-drawer td.hm3 .hm-num { color: var(--star-hm-n3); }
+			#result-drawer .result-table td.hmu { background-color: var(--star-hm-unk-base) !important; background-image: repeating-linear-gradient(45deg, var(--star-hm-unk-line) 0 1px, transparent 1px 5px); }
+			#result-drawer td.hmu .hm-num { color: var(--star-hm-unk-text); }
+			/* 合計の列は塗らない（人のマスと見分ける）。地は今の合計の列の色・左に太い線・太字 */
+			#result-drawer .result-table td.hm-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+			/* 列が5つ以上: 人と合計の列を狭く、表の文字を 10px に。名前の列には7文字以上入る */
+			#result-drawer .result-table.hm-dense th, #result-drawer .result-table.hm-dense td { font-size: 10px; line-height: 13px; }
+			#result-drawer .result-table.hm-dense th { padding: 4px 0; }
+			#result-drawer .result-table.hm-dense th:first-child { padding-left: 4px; }
+			#result-drawer .result-table.hm-dense th:not(:first-child) { width: 30px; }
+			#result-drawer .result-table.hm-dense th.hm-total-th { width: 34px; }
+			#result-drawer .result-table.hm-dense td:first-child { padding: 4px 2px 5px 4px; }
+		}
+		/* ===== 照合結果の引き出しの密度と幅（T100。決定 219・228・241・244。exam.html と同じ形）===== */
+		@media (min-width: 640px) {
+			/* 引き出しの幅の上限: 星取表の幅を基準に。検索とボタンの行が1行に入る幅まで表からはみ出す。結果が無いときは今の幅のまま */
+			#result-drawer:has(#result-wrap:not(.hidden)) { width: min(96vw, 530px); }
+			#result-drawer:has(#result-wrap:not(.hidden)):has(#stat-grid.hm-has-b) { width: min(96vw, 750px); }
+			#result-drawer .uma-drawer-content { padding: 8px 12px; }
+			/* Deck (αテスト)へ送る: ボタンと停止の1行を同じ行に */
+			#result-drawer #deck-alpha-send-note:not(.hidden) { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+			#result-drawer #deck-alpha-send-btn { flex: none; width: auto; min-height: 0; height: 28px; padding: 0 12px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
+			#result-drawer #deck-alpha-send-note > p { margin: 0; line-height: 14px; }
+
+			/* 上の欄: 1本の帯。ラベルと数を1行に（入らない幅では2段） */
+			#result-drawer #stat-grid { grid-template-columns: auto repeat(calc(var(--hm-stat-n, 4) - 1), minmax(0, 1fr)); gap: 0; margin-bottom: 8px; border: 1px solid var(--uma-border); border-radius: 8px; overflow: hidden; }
+			#result-drawer #stat-grid > div { display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; justify-content: center; column-gap: 6px; padding: 2px 8px; border: 0; border-radius: 0; }
+			#result-drawer #stat-grid > div + div { border-left: 1px solid var(--uma-border); }
+			#result-drawer #stat-grid p { margin: 0; font-size: 11px; line-height: 16px; }
+			#result-drawer #stat-grid p:nth-child(2) { font-size: 15px; line-height: 20px; }
+
+			/* 検索・絞り込み・コピーを同じ行へ（入らない分は次の行） */
+			#result-drawer #result-ctrlbox { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 6px; }
+			#result-drawer #result-ctrlbox > * { margin: 0; }
+			#result-drawer .rc-ctrl { display: contents; }
+			#result-drawer .rc-srch { width: 140px; }
+			#result-drawer .rc-srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
+			#result-drawer #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
+			#result-drawer .rc-pills { width: auto; font-size: 11px; }
+			#result-drawer .rc-pills button { min-height: 0; height: 26px; padding: 0 8px; font-size: 11px; line-height: 24px; }
+			#result-drawer #result-copy-slot { margin-left: auto; gap: 4px; }
+			#result-drawer #result-copy-slot button { min-height: 0; height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
+
+			/* 表: 列を内容に近い幅へ（幅いっぱいに引き伸ばさない）。行を低く。列の並びは今のまま */
+			#result-drawer .rc-tbl-wrap { width: fit-content; max-width: 100%; margin-bottom: 12px; border-radius: 8px; }
+			#result-drawer .result-table { width: auto; }
+			#result-drawer .result-table th { padding: 3px 8px; border-bottom-width: 1px; font-size: 12px; line-height: 16px; white-space: nowrap; }
+			#result-drawer .result-table th:first-child { width: 240px !important; }
+			#result-drawer .result-table th:not(:first-child) { min-width: 60px; }
+			#result-drawer .result-table td { padding: 1px 8px; font-size: 12px; line-height: 18px; white-space: nowrap; }
+		}
+		/* 360px より狭い画面: 見出しが折り返さず、名前の列に7文字入るように、さらに1段小さくする */
+		@media (max-width: 359.98px) {
+			#result-drawer .result-table th:first-child { padding-left: 4px; font-size: 10px; }
+			#result-drawer .result-table td:first-child { padding: 4px 2px 5px 4px; font-size: 10px; line-height: 13px; }
+			#result-drawer .result-table.hm-dense th, #result-drawer .result-table.hm-dense td { font-size: 9px; }
+			#result-drawer .result-table.hm-dense th:not(:first-child) { width: 25px; }
+			#result-drawer .result-table.hm-dense th.hm-total-th { width: 30px; }
 		}
 	</style>
 </head>
@@ -1526,7 +1656,7 @@
 			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
 			// T56（C-258 の (2)-2）: 見出し「親Aセット（1人分だけでもOK）」は消した（図と入力欄で分かるため）。「セットをクリア」はパネルの右上に重ねる
 			return `
-				<div class="upload-set-panel rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
+				<div class="upload-set-panel ${HUE_CLASS[set.hue]} rounded-2xl border p-4">
 					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
@@ -2684,14 +2814,20 @@
 				</div>`;
 			used.forEach(i => {
 				const [color, label] = PERSON_STAT_META[i];
+				// 親Bセットの最初の枠（親Aセットの右隣）だけ境の線を付ける（引き出しの中。T100）
+				const boundary = i >= 3 && used[0] < 3 && used.find(u => u >= 3) === i;
 				html += `
-				<div class="rounded-xl border border-${color}-200 bg-${color}-50/50 p-3 md:p-4 text-center">
-					<p class="text-[11px] font-medium text-${color}-700 mb-1">${label} 検出</p>
-					<p class="text-lg md:text-2xl font-extrabold text-${color}-600" id="stat-found-${i + 1}">0</p>
-					<p class="text-[10px] font-medium text-${color}-500 mt-0.5" id="stat-found-factor-${i + 1}" hidden></p>
+				<div class="${HUE_CLASS[color]}${boundary ? ' hm-stat-bd' : ''} rounded-xl border p-3 md:p-4 text-center" style="border-color:var(--person-border-soft);background-color:var(--person-bg);">
+					<p class="text-[11px] font-medium mb-1" style="color:var(--person-fg)">${label} 検出</p>
+					<p class="text-lg md:text-2xl font-extrabold" style="color:var(--person-fg)" id="stat-found-${i + 1}">0</p>
+					<p class="text-[10px] font-medium mt-0.5" style="color:var(--person-fg)" id="stat-found-factor-${i + 1}" hidden></p>
 				</div>`;
 			});
 			grid.innerHTML = html;
+			// スマホの1行の箱の列の数と、親Aセット＋親Bセットの印（引き出しの幅の上限。T100）
+			grid.style.setProperty('--hm-stat-n', cols);
+			grid.classList.toggle('hm-stat-tight', cols > 4);
+			grid.classList.toggle('hm-has-b', used.some(u => u < 3) && used.some(u => u >= 3));
 		}
 
 		// 親Aセット(青)・親Bセット(赤)の色分けに使う実際の色値（Examと同一）。
@@ -2739,10 +2875,12 @@
 				html += `<th class="text-center person-col ${m.hueClass}${boundary}">${PERSON_LABELS[m.idx]}</th>`;
 			});
 			if (showTotal) {
-				html += '<th class="text-center person-total">★合計</th>';
+				html += '<th class="hm-total-th text-center person-total">★合計</th>';
 			}
 			html += '</tr>';
 			thead.innerHTML = html;
+			// スマホでは、列が5つ以上なら狭い列・小さな文字にする（T100。css の .hm-dense）
+			thead.closest('table').classList.toggle('hm-dense', used.length + (showTotal ? 1 : 0) >= 5);
 		}
 
 		function updateCopyLabels(used) {
@@ -2835,6 +2973,16 @@
 			updateDeckAlphaSendButton();
 		}
 
+		// 人のマスのスマホの塗り（T100）。未検出と★0は塗りなし・★不明は斜線・★1〜3は緑の3段
+		function heatClass(stars) {
+			if (stars === null) return 'hmu';
+			return stars ? 'hm' + stars : 'hm0';
+		}
+		function heatNumber(stars) {
+			if (stars === null) return '?';
+			return stars ? String(stars) : '';
+		}
+
 		function starBadge(stars) {
 			if (stars === undefined) {
 				return '<span class="text-slate-300 text-xs">−</span>';
@@ -2867,7 +3015,7 @@
 
 				const cells = meta.map((m, idx) => {
 					const boundary = m.boundary ? ' person-set-boundary' : '';
-					return `<td class="text-center person-col ${m.hueClass}${boundary}">${starBadge(vals[idx])}</td>`;
+					return `<td class="hm-cell ${heatClass(vals[idx])}${m.boundary ? ' hm-bd' : ''} text-center person-col ${m.hueClass}${boundary}"><span class="hm-st">${starBadge(vals[idx])}</span><span class="hm-num">${heatNumber(vals[idx])}</span></td>`;
 				}).join('');
 
 				// ★合計はコピー用データには含めない（表示のみ・集計の目安）。
@@ -2875,7 +3023,7 @@
 				let totalCell = '';
 				if (showTotal) {
 					const total = vals.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
-					totalCell = `<td class="text-center font-bold text-slate-700 person-total">${total}</td>`;
+					totalCell = `<td class="hm-total text-center font-bold text-slate-700 person-total">${total}</td>`;
 				}
 
 				// ②のスキルの印は名前の左。★の数（橙）は右の列なので、位置と形で役割が分かれる。
@@ -2895,7 +3043,7 @@
 					? `<button type="button" class="result-skillname ${UmaSkillDeckCore.skillNameToneClass(skillId)}" data-result-skill-id="${escapeHtml(skillId)}">${escapeHtml(skill)}</button>`
 					: escapeHtml(skill);
 				tableHtml += `<tr class="transition-colors">
-					<td class="font-medium text-slate-800">${tierMark}${nameHtml}</td>
+					<td class="font-medium text-slate-800" title="${escapeHtml(skill)}">${tierMark}${nameHtml}</td>
 					${cells}
 					${totalCell}
 				</tr>`;
@@ -7119,13 +7267,15 @@
 					<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
 					<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
 
+					<!-- 検索・絞り込み・コピーを包む箱（スマホで1つの格子に、PC で1本の行に組む。T100） -->
+					<div id="result-ctrlbox">
 					<!-- 検索・フィルターバー -->
-					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-						<div class="relative w-full sm:w-64">
+					<div class="rc-ctrl flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+						<div class="rc-srch relative w-full sm:w-64">
 							<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
 							<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control-mark)]" />
 						</div>
-						<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+						<div class="rc-pills flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
 							<button type="button" onclick="setFilter('all')" id="filter-all" class="uma-pill active">すべて</button>
 							<button type="button" onclick="setFilter('found')" id="filter-found" class="uma-pill">誰かが検出</button>
 							<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="uma-pill">全員未検出</button>
@@ -7140,9 +7290,10 @@
 							<span id="copy-btn-label">★の数をコピー</span>
 						</button>
 					</div>
+					</div>
 
 					<!-- テーブル -->
-					<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+					<div class="rc-tbl-wrap overflow-x-auto rounded-xl border border-slate-200 mb-6">
 						<table class="result-table">
 							<thead id="result-thead"></thead>
 							<tbody id="result-tbody"></tbody>
