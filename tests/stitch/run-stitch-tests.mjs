@@ -178,6 +178,10 @@ async function readExpect(caseDir) {
 function judgeExpect(expect, result) {
 	if (!expect) return { status: 'NONE', reasons: ['期待値なし（expect.json が無い）'] };
 	if (expect._parseError) return { status: 'NG', reasons: ['expect.json を読めない: ' + expect._parseError] };
+	// 1枚だけの OCR 用のケース（T107）。結合は断るのが正しい
+	if (expect.stitchRejects === true) {
+		return result.ok ? { status: 'NG', reasons: ['結合を断るはずのケースが結合できた'] } : { status: 'OK', reasons: [] };
+	}
 	const reasons = [];
 	if (!result.ok) {
 		reasons.push('結合に失敗した: ' + result.error);
