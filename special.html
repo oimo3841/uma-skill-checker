@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-02d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-06a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
@@ -486,6 +486,12 @@
 		.glass-card .bg-slate-50\/50 { background-color: var(--uma-panel-bg); border-color: var(--uma-panel-border); }
 		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
 		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
+		/* T108: 「レース指定なし／本育成編成なし」の①のタブ（押せない）。①の中身は消さない。件数のバッジは出さない */
+		.step-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+		.step-tab:disabled:hover { color: inherit; }
+		.step-tab:disabled .step-tab-badge { display: none; }
+		.stitch-show-item.is-off { opacity: 0.45; cursor: not-allowed; }
+		.stitch-show-item.is-off input { cursor: not-allowed; }
 		.step-tab-badge--ready { background: var(--star-badge-green-bg); color: var(--star-badge-green-text); border-color: var(--star-badge-green-line); }
 		.step-tab-badge--ready { box-shadow: inset 0 0 0 1px var(--star-badge-green-line); }
 		.step-tab-badge--alert { background: var(--star-badge-red-bg); color: var(--star-badge-red-text); border-color: var(--star-badge-red-line); }
@@ -2257,13 +2263,20 @@
 		// タブは 0（①本育成編成。Deck連携モードだけ）・1（②周回因子セット／旧UIはスキルリスト）・2（③画像）。
 		// id の番号と画面の丸数字は別物（C-51 の11節①。html 側のコメント参照）。
 		const STEP_TAB_IDS = [0, 1, 2];
+		// T108: 「レース指定なし／本育成編成なし」のときの印（core の onNoPlanChange が入れる）。①のタブを薄くして押せなくする。丸数字は付け直さない
+		let noPlanMode = false;
 		function visibleStepTabs() {
 			return STEP_TAB_IDS.filter(k => { const t = document.getElementById('step-tab-' + k); return t && !t.hidden; });
+		}
+		/** 押して移れるタブ（←→キー・スワイプが使う）。見えているタブから、無効にした①を除く（T108） */
+		function usableStepTabs() {
+			return visibleStepTabs().filter(k => !(noPlanMode && k === 0));
 		}
 		// 前回開いていたタブ（段7d の ③）。F5 で戻る。書き出しの対象外（umaSkillDeck:userData の外）。初めての訪問は①（本育成編成）
 		const STEP_TAB_STORAGE_KEY = 'umaSkillDeck:stepTab';
 		// opts.noSave … 画面の組み替え（新UI／旧UIの切り替えの途中）で自動に開くときは、記憶を書き換えない
 		function selectStepTab(n, opts) {
+			if (noPlanMode && Number(n) === 0) n = 1;   // T108: ①は開かない
 			if (deckMode && !(opts && opts.noSave) && STEP_TAB_IDS.indexOf(Number(n)) !== -1) writeStored(STEP_TAB_STORAGE_KEY, String(Number(n)));
 			// どのタブを見ているかの印（段7c の P。CSS が①のタブだけ、本文の下の余白を詰めて表を画面いっぱいにする）
 			document.body.setAttribute('data-step-tab', String(n));
@@ -2289,7 +2302,7 @@
 
 		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）。隠れているタブは飛ばす
 		function onStepTabKeydown(e) {
-			const tabs = visibleStepTabs();
+			const tabs = usableStepTabs();
 			const cur = tabs.find(k => document.getElementById('step-tab-' + k).getAttribute('aria-selected') === 'true');
 			const i = tabs.indexOf(cur);
 			if (i < 0) return;
@@ -2362,7 +2375,7 @@
 			const dx = t.clientX - s.x, dy = t.clientY - s.y;
 			const dir = UmaSkillDeckCore.swipeDirectionOf(dx, dy);
 			if (dir === 0 || UmaSkillDeckCore.swipeScrollerMoved(s.scrollers)) return;
-			const tabs = visibleStepTabs();
+			const tabs = usableStepTabs();
 			const cur = tabs.findIndex(k => document.getElementById('step-tab-' + k).getAttribute('aria-selected') === 'true');
 			const next = tabs[cur + dir];
 			if (cur < 0 || next === undefined) return;
@@ -3675,13 +3688,15 @@
 			if (!(deckMode && deckScope)) return null;
 			let roster = null;
 			try { roster = deckRosterPanel ? deckRosterPanel.getRoster() : null; } catch (e) { roster = null; }
+			// T108: 新しいモードでは①（育成ウマ娘・本育成のカード）と理論値SP を写さない。因子周回のカードは写す
+			const noPlan = !!roster && UmaSkillDeckCore.outside.isNoPlan(roster);
 			const ids = (a) => Array.isArray(a) ? a.filter(id => typeof id === 'string' && id) : [];
 			const outside = (roster && roster.outsideOptions) || {};
 			let sp = null;
 			try {
 				const sum = (deckTemplateManager && deckTemplateManager.getSetSummary) ? deckTemplateManager.getSetSummary() : null;
 				const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : null;
-				if (sum && num(sum.total) !== null) {
+				if (sum && num(sum.total) !== null && !noPlan) {
 					sp = { total: num(sum.total), totalKinds: num(sum.totalKinds), rosterPt: num(sum.rosterPt) || 0, factorPt: num(sum.factorPt) || 0,
 						statusLabel: typeof sum.statusLabel === 'string' ? sum.statusLabel : '',
 						// T51: 継承固有の種類・ヒントLv と共通スキルのヒントLv（core の getSetSummary が返す値。画面の選択欄からは読まない）
@@ -3689,8 +3704,8 @@
 				}
 			} catch (e) { sp = null; }
 			return {
-				umaId: (roster && typeof roster.umaId === 'string' && roster.umaId) ? roster.umaId : null,
-				rosterCards: ids(roster && roster.cardIds),
+				umaId: (!noPlan && roster && typeof roster.umaId === 'string' && roster.umaId) ? roster.umaId : null,
+				rosterCards: noPlan ? [] : ids(roster && roster.cardIds),
 				factorCards: ids(outside.cards),
 				sp: sp
 			};
@@ -5231,9 +5246,13 @@
 			syncStitchPartsUi();
 		}
 
+		// T108: 新しいモードでは本育成編成・理論値SP を無効にする（保存値は変えない。デフォルトやレースに戻せば元のチェックに戻る）
+		function stitchPartsShown() {
+			return (deckMode && noPlanMode) ? Object.assign({}, stitchParts, { roster: false, sp: false }) : stitchParts;
+		}
 		// 結合画像に使う設定。新UI は「結合画像の設定」。旧UI は今までどおり（種類の枠は tierMarksEnabled・ほかは材料があれば描く・3列・バーあり）。legacy で見分ける
 		function stitchPartsNow() {
-			if (deckMode) return Object.assign({ legacy: false }, stitchParts);
+			if (deckMode) return Object.assign({ legacy: false }, stitchPartsShown());
 			return Object.assign(stitchPartsAll(true), { marker: tierMarksEnabled, legacy: true });
 		}
 		function sameStitchParts(a, b) {
@@ -5332,18 +5351,24 @@
 
 		// 置いてある全部のパネルへ、いまの状態（形・チェック・模式図）を映す
 		function syncStitchPartsUi() {
+			const parts = stitchPartsShown();
 			const cols = stitchParts.cols === 2 ? 2 : 3;
 			document.querySelectorAll('[data-stitch-show-panel]').forEach(panel => {
 				panel.querySelectorAll('[data-stitch-cols]').forEach(b => { b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-stitch-cols')) === cols)); });
 				panel.querySelectorAll('input[data-stitch-part-key]').forEach(input => {
-					input.checked = !!stitchParts[input.getAttribute('data-stitch-part-key')];
+					const key = input.getAttribute('data-stitch-part-key');
+					input.checked = !!parts[key];
+					const off = !!(deckMode && noPlanMode) && (key === 'roster' || key === 'sp');
+					input.disabled = off;
+					const item = input.closest('.stitch-show-item');
+					if (item) item.classList.toggle('is-off', off);
 				});
 				['sp', 'roster', 'factor', 'table', 'marker', 'title'].forEach(k => {
-					panel.querySelectorAll('[data-stitch-part="' + k + '"]').forEach(el => { el.hidden = !stitchParts[k]; });
+					panel.querySelectorAll('[data-stitch-part="' + k + '"]').forEach(el => { el.hidden = !parts[k]; });
 				});
-				panel.querySelectorAll('[data-stitch-wire-top]').forEach(el => { el.hidden = !(stitchParts.sp || stitchParts.roster || stitchParts.factor); });
-				panel.querySelectorAll('[data-stitch-wire-top2]').forEach(el => { el.hidden = !(stitchParts.roster || stitchParts.factor); });
-				panel.querySelectorAll('[data-stitch-wire-col3]').forEach(el => { el.hidden = !(stitchParts.sp || stitchParts.table); });
+				panel.querySelectorAll('[data-stitch-wire-top]').forEach(el => { el.hidden = !(parts.sp || parts.roster || parts.factor); });
+				panel.querySelectorAll('[data-stitch-wire-top2]').forEach(el => { el.hidden = !(parts.roster || parts.factor); });
+				panel.querySelectorAll('[data-stitch-wire-col3]').forEach(el => { el.hidden = !(parts.sp || parts.table); });
 				panel.querySelectorAll('[data-stitch-wire-cols]').forEach(el => { el.hidden = Number(el.getAttribute('data-stitch-wire-cols')) !== cols; });
 				panel.querySelectorAll('.stitch-wire-sheet').forEach(el => el.classList.toggle('is-marker', !!stitchParts.marker));
 			});
@@ -6074,6 +6099,8 @@
 						raceSlot: document.getElementById('hdr-race-slot'),
 						// 段8・D: ②のタブの脇の「N種」を、②の先頭の N に合わせる
 						onSetSummary: (sum) => updateSkillCountBadge(sum),
+						// T108: 「レース指定なし／本育成編成なし」の出し入れ（帯を描くたびに知らせが来る）
+						onNoPlanChange: (on) => applyNoPlanMode(on),
 						// 段8・E: シナリオ因子／遺伝子のチェックの置き場（③の先頭の1行）
 						scopesBar: document.getElementById('deck-scopes-bar'),
 						// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せる（見出し＋出っ張り＋枠。段K）。
@@ -6265,6 +6292,18 @@
 
 		// ②のタブの「N種」（段7d の ⑫）。金スキルと、その前段の白スキルを両方取るときは合わせて1種に数える。
 		// 前段のデータは本育成編成のパネルが読むので、読み終えたときにも数え直す（UmaSkillDeckCore.onSkillPtLoaded）
+		/* T108: 「レース指定なし／本育成編成なし」: ①のタブを薄くして押せなくする・①を開いていれば②へ移る（タブの記憶は書かない）・結合画像の設定を映し直す */
+		function applyNoPlanMode(on) {
+			const v = !!on;
+			if (v === noPlanMode) return;
+			noPlanMode = v;
+			const tab = document.getElementById('step-tab-0');
+			if (tab) {
+				tab.disabled = v;
+				if (v && tab.getAttribute('aria-selected') === 'true') selectStepTab(1, { noSave: true });
+			}
+			syncStitchPartsUi();
+		}
 		function updateSkillCountBadge(setSum) {
 			const badge = document.getElementById('skill-count-badge');
 			if (!badge || !deckMode) return;
@@ -6723,7 +6762,8 @@
 			const on = !!raceBtn && raceBtn.getAttribute('aria-pressed') === 'true';
 			const text = document.getElementById('fab-race-text');
 			text.hidden = !on;
-			text.textContent = on ? (raceBtn.textContent || '').replace('▾', '').trim() : '';
+			// T108: 新しいモードは短い形（「レース／本育成編成なし」）
+			text.textContent = on ? (raceBtn.getAttribute('data-usd-short') || (raceBtn.textContent || '').replace('▾', '').trim()) : '';
 		}
 		function fabOpenSetBar(act) {
 			setFabOpen(false);
@@ -7047,16 +7087,19 @@
 					blue: null, red: null, skills: skills, genes: genes
 				};
 			});
-			let race = null, style = null;
+			let race = null, style = null, noPlan = false;
 			try {
 				const roster = deckRosterPanel ? deckRosterPanel.getRoster() : null;
 				race = roster && roster.race && roster.race.id ? roster.race.id : null;
+				noPlan = !!roster && UmaSkillDeckCore.outside.isNoPlan(roster);   // T108: 独立したまとまりへ送る
 				const sel = roster ? UmaSkillDeckCore.outside.resolvedFilterOf(roster) : {};
 				style = sel.style || null;
-			} catch (e) { race = null; style = null; }
+			} catch (e) { race = null; style = null; noPlan = false; }
 			const send = deckScope ? UmaSkillDeckCore.getSkillEntries(deckScope.skillIds)
 				.filter(e => !factorNormSet.has(normalizeText(e.name))).map(e => e.id) : [];
-			return { format: 'uma-deck-send', v: 1, sentAt: new Date().toISOString(), from: 'star', race: race, style: style, send: send, owner: 'self', persons: persons };
+			const out = { format: 'uma-deck-send', v: 1, sentAt: new Date().toISOString(), from: 'star', race: race, style: style, send: send, owner: 'self', persons: persons };
+			if (noPlan) out.noPlan = true;
+			return out;
 		}
 		function sendSetToDeckAlpha(setIdx) {
 			try { localStorage.setItem(DECK_ALPHA_SEND_KEY, JSON.stringify(buildDeckAlphaSend(setIdx))); }

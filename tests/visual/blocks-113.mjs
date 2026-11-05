@@ -76,7 +76,7 @@ export async function register113(env) {
 						exam: 'exam' in S.doc, exp: JSON.stringify(a.K.buildExport(S.doc)), hasFrom: S.doc.parents.some((p) => 'from' in p || 'sheet' in p), gene: !document.getElementById('geneToggle').hidden, col: !document.getElementById('colMax').closest('.it').hidden, cat: !document.getElementById('sf-cat').closest('.it').hidden, style: !document.getElementById('pf-style').closest('.it').hidden };
 				});
 				const nw = w === 375 ? 76 : 112;
-				assert(r.mode === 'star' && r.setText === '指定なし' && r.aria === 'レース/周回セット：指定なし', tag + ' 開くと UmaStar 用の表・「指定なし」', r);
+				assert(r.mode === 'star' && r.setText === 'デフォルト' && r.aria === 'レース/周回セット：デフォルト', tag + ' 開くと UmaStar 用の表・「デフォルト」', r);
 				assert(r.cols.join() === nw + ',24' && r.corner === '最大' && !r.chd && r.ef === 0 && !r.eff, tag + ' 名前と最大の2列だけ・効率の列は無い・角は今の「最大」', r.cols);
 				assert(r.rs === 'def,few,max,cat', tag + ' スキル(行)の並びは今の4つ', r.rs);
 				assert(r.rows === r.own && r.cnt.includes(r.parents + '人') && r.cnt.includes(r.rows + '種') && r.gl === 3, tag + ' 親14人・行は親が持つスキル全部・遺伝子の3行', r.cnt);

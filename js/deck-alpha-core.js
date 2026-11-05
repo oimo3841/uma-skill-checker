@@ -11,6 +11,8 @@
  *   ★不明は -1、読めなかった因子は null。
  *   第1版からの差分: bundles → sets（レースの一覧の行と結ぶ）・親の bundles → sets・tags は style だけ（距離・バ場はセットの条件）・
  *   targets（目標の6人・次善・必須）→ plans（セットごとの本育成設計の6人と絞り込みの状態）。
+ * T108（2026-11-05）: UmaStar 用の「指定なし」を「デフォルト」に改名（鍵 'none'・保存の形は同じ）。独立したまとまり「レース指定なし／本育成編成なし」を足す:
+ *   doc.norace = { id:'norace', kind:'norace', skills:{id:回}, sends }（送ったときだけ）・親の sets の 'norace'・親の from:'norace'（デフォルトの表に出さない）。既存の親は今のまま。読み込み時に補わない。
  * T97（2026-11-04・140）: 「指定なし」で送った②のスキルの一覧を doc.none = { id:'none', kind:'none', skills:{id:最後に入った送りの回}, sends } に持つ
  *   （レースのセットと同じ形・同じ数え方。一度も送っていなければ無い＝今までの保存データ・書き出しのファイルはそのまま読める）。
  * T104（2026-11-05・UmaExam 用の表）: schema は 2 のまま次を足す（どれも無くてよい＝今までの保存データ・書き出しのファイルはそのまま読める。移行はしない）。
@@ -20,7 +22,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_CORE_VERSION = '2026-11-05a';
+	const DECK_ALPHA_CORE_VERSION = '2026-11-06a';
 	const D = window.DECK_ALPHA_DATA;
 	const DB_NAME = 'uma-deck';
 	const DB_VER = 1;
@@ -84,16 +86,17 @@
 	/** UmaStar の「レース」の欄に出る行（selectable: false の行は出ない＝Deck では終了とみなす） */
 	function activeRaces() { return D.races.filter((r) => r.selectable); }
 	function arcCatOf(r) { return r.surface === 'dirt' ? 'dirt' : (DIST[r.distanceCategory] ? r.distanceCategory : 'medium'); }
+	const NORACE_NAME = 'レース指定なし／本育成編成なし', NORACE_SHORT = 'レース／本育成編成なし';
 	/** セットの条件（遺伝子の行に使う距離・バ場。C-271 の 23・25） */
 	function setCond(set) {
-		if (!set || set.kind === 'exam') return { dist: null, surface: null };
+		if (!set || set.kind === 'exam' || set.kind === 'norace') return { dist: null, surface: null };
 		if (set.kind === 'race') return { dist: DIST[set.race.distanceCategory] ? set.race.distanceCategory : null, surface: set.race.surface || null };
 		if (set.cat === 'dirt') return { dist: null, surface: 'dirt' };
 		return { dist: set.cat, surface: 'turf' };
 	}
-	function setName(set) { if (!set) return '指定なし'; if (set.kind === 'exam') return '技能試験'; return set.kind === 'race' ? (raceDateText(set.race) ? raceDateText(set.race) + ' ' : '') + set.race.name : ARC[set.cat]; }
+	function setName(set) { if (!set) return 'デフォルト'; if (set.kind === 'norace') return NORACE_NAME; if (set.kind === 'exam') return '技能試験'; return set.kind === 'race' ? (raceDateText(set.race) ? raceDateText(set.race) + ' ' : '') + set.race.name : ARC[set.cat]; }
 	/** 見出しのボタンの短い表記（UmaStar の帯のレースのボタンと同じ「京都 芝3000m」の形。終了レースはカテゴリの名前） */
-	function setShort(set) { if (!set) return '指定なし'; if (set.kind === 'exam') return '技能試験'; return set.kind === 'race' ? (raceShortText(set.race) || set.race.name) : ARC[set.cat]; }
+	function setShort(set) { if (!set) return 'デフォルト'; if (set.kind === 'norace') return NORACE_SHORT; if (set.kind === 'exam') return '技能試験'; return set.kind === 'race' ? (raceShortText(set.race) || set.race.name) : ARC[set.cat]; }
 	function newRaceSet(r) { return { id: 'r:' + r.id, kind: 'race', raceId: r.id, race: { id: r.id, name: r.name, date: r.date, dateLabel: r.dateLabel, venue: r.venue, surface: r.surface, distance: r.distance, distanceCategory: r.distanceCategory }, skills: {}, sends: 0 }; }
 	function newArcSet(cat) { return { id: 'arc:' + cat, kind: 'arc', cat, skills: {}, sends: 0 }; }
 	/** UmaStar の②から送られたスキルの一覧を足す（C-271 の 3）。前の一覧と OR。最新の送りに入っていたかは skills[id] === sends で分かる。①の脚質は記録しない（C-272 の 2） */
@@ -101,15 +104,18 @@
 		set.sends = (set.sends || 0) + 1;
 		ids.forEach((id) => { set.skills[id] = set.sends; });
 	}
-	/** 「指定なし」の一覧（T97・140。一度も送っていなければ作る） */
+	/** 「デフォルト」の一覧（T97・140。一度も送っていなければ作る） */
 	function newNoneList() { return { id: 'none', kind: 'none', skills: {}, sends: 0 }; }
 	/** 技能試験の一覧（T104。UmaExam から一度も送っていなければ保存データに無い） */
 	function newExamList() { return { id: 'exam', kind: 'exam', skills: {}, sends: 0 }; }
+	/** 「レース指定なし／本育成編成なし」の一覧（T108。形は「デフォルト」の一覧と同じ。送ったときだけ保存データに入る） */
+	function newNoRaceList() { return { id: 'norace', kind: 'norace', skills: {}, sends: 0 }; }
+	function cleanNoRace(n) { return n && typeof n === 'object' && n.skills && typeof n.skills === 'object' && typeof n.sends === 'number' && n.sends > 0 ? { id: 'norace', kind: 'norace', skills: n.skills, sends: n.sends } : null; }
 	function cleanExam(n) { return n && typeof n === 'object' && n.skills && typeof n.skills === 'object' && typeof n.sends === 'number' && n.sends > 0 ? { id: 'exam', kind: 'exam', skills: n.skills, sends: n.sends } : null; }
-	/** UmaStar 用の表の「指定なし」に出す親か（UmaExam から新しく登録した親は出さない。レースのセットに入るのは親の小窓で選んだときだけ。233・245） */
-	function inNoneList(p) { return p.from !== 'exam'; }
+	/** UmaStar 用の表の「デフォルト」に出す親か（UmaExam から新しく登録した親は出さない。レースのセットに入るのは親の小窓で選んだときだけ。233・245。T108: 新しいモードの親も出さない） */
+	function inNoneList(p) { return p.from !== 'exam' && p.from !== 'norace'; }
 	/** 送りの回を区別する一覧か（レースのセットと「指定なし」の一覧。終了レースのカテゴリでは区別しない） */
-	function sendsKind(set) { return !!set && (set.kind === 'race' || set.kind === 'none'); }
+	function sendsKind(set) { return !!set && (set.kind === 'race' || set.kind === 'none' || set.kind === 'norace'); }
 	/** そのスキルが前回までの一覧にだけあるか */
 	function oldOnly(set, id) { return sendsKind(set) && set.sends > 1 && id in set.skills && set.skills[id] < set.sends; }
 	/** 「指定なし」の一覧の形を確かめる（崩れていれば無いものとする） */
@@ -175,7 +181,7 @@
 		if (!persistAsked) { persistAsked = true; try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* 使えない環境では何もしない */ } }
 		return r;
 	}
-	function docHead(doc) { const h = { schema: doc.schema, next: doc.next, sets: doc.sets, plans: doc.plans, data: doc.data }; if (doc.none) h.none = doc.none; if (doc.exam) h.exam = doc.exam; return h; }
+	function docHead(doc) { const h = { schema: doc.schema, next: doc.next, sets: doc.sets, plans: doc.plans, data: doc.data }; if (doc.none) h.none = doc.none; if (doc.exam) h.exam = doc.exam; if (doc.norace) h.norace = doc.norace; return h; }
 
 	/* ---------- 設定（表示の状態。データの文書とは別に meta の settings に持つ） ---------- */
 	const DEFAULT_SETTINGS = { theme: 'auto', gp: true, th: 1, geneRows: true, lastExport: null, cur: 'none', mode: 'star', colMax: true, colEff: true };
@@ -185,12 +191,12 @@
 	function assemble(loaded) {
 		const head = loaded.meta.doc || null;
 		const doc = emptyDoc(); doc.parents = loaded.parents.slice();
-		if (head) { doc.schema = head.schema || SCHEMA; doc.next = head.next || 1; doc.sets = head.sets || []; doc.plans = head.plans || {}; doc.data = head.data || D.versions; const nn = cleanNone(head.none); if (nn) doc.none = nn; const ne = cleanExam(head.exam); if (ne) doc.exam = ne; }
+		if (head) { doc.schema = head.schema || SCHEMA; doc.next = head.next || 1; doc.sets = head.sets || []; doc.plans = head.plans || {}; doc.data = head.data || D.versions; const nn = cleanNone(head.none); if (nn) doc.none = nn; const ne = cleanExam(head.exam); if (ne) doc.exam = ne; const nr = cleanNoRace(head.norace); if (nr) doc.norace = nr; }
 		doc.parents.sort((a, b) => numId(a.id) - numId(b.id));
 		return doc;
 	}
 	function numId(id) { return +String(id).replace(/^p/, '') || 0; }
-	function findSet(doc, key) { if (key === 'exam') return doc.exam || newExamList(); return key && key !== 'none' ? doc.sets.find((s) => s.id === key) || null : null; }
+	function findSet(doc, key) { if (key === 'norace') return doc.norace || newNoRaceList(); if (key === 'exam') return doc.exam || newExamList(); return key && key !== 'none' ? doc.sets.find((s) => s.id === key) || null : null; }
 	/** 選べるセットの並び（レースの一覧の順 → 終了レースのカテゴリ） */
 	function orderedSets(doc) {
 		const races = activeRaces().map((r) => doc.sets.find((s) => s.id === 'r:' + r.id)).filter(Boolean);
@@ -308,6 +314,7 @@
 		const out = { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: local, data: doc.data, next: doc.next, sets: doc.sets, parents: doc.parents, plans: doc.plans };
 		if (doc.none) out.none = doc.none; // 「指定なし」の一覧（T97。送ったことがあるときだけ）
 		if (doc.exam) out.exam = doc.exam; // 技能試験の一覧（T104。送ったことがあるときだけ）
+		if (doc.norace) out.norace = doc.norace; // レース指定なし／本育成編成なしの一覧（T108。送ったことがあるときだけ）
 		return out;
 	}
 	function exportFileName() { const d = new Date(); return 'uma-deck-star-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json'; }
@@ -335,6 +342,7 @@
 		const doc = { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: j.savedAt || null, data: j.data || D.versions, next: j.next || (j.parents.length + 1), sets: body.sets, parents: body.parents, plans: body.plans };
 		const nn = cleanNone(j.none); if (nn) doc.none = nn;
 		const ne = cleanExam(j.exam); if (ne) doc.exam = ne;
+		const nr = cleanNoRace(j.norace); if (nr) doc.norace = nr;
 		return { doc, migrated, fromSchema: j.schema };
 	}
 	function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (!isFinite(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
@@ -355,13 +363,13 @@
 	function applyTheme(mode) { document.documentElement.setAttribute('data-theme', isDark(mode) ? 'dark' : 'light'); }
 	function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-	/* ---------- レース/周回セットの選択欄（Deck の見出しと登録の画面で共通。UmaStar の「レース」の欄と同じ形: 指定なし → 一覧の行〔1行目＝日付＋名前、2行目＝条件〕） ---------- */
+	/* ---------- レース/周回セットの選択欄（Deck の見出しと登録の画面で共通。UmaStar の「レース」の欄と同じ形: デフォルト → レース指定なし／本育成編成なし → 一覧の行〔1行目＝日付＋名前、2行目＝条件〕） ---------- */
 	function setListHtml(doc, cur, opts) {
 		const o = opts || {};
 		const cnt = (id) => doc.parents.reduce((n, p) => n + ((p.sets || []).includes(id) ? 1 : 0), 0);
-		const nNone = doc.parents.filter(inNoneList).length; // 「指定なし」に出る親の数（233）
+		const nNone = doc.parents.filter(inNoneList).length; // 「デフォルト」に出る親の数（233）
 		const opt = (key, l1, l2, extra) => '<label class="ropt' + (key === cur ? ' on' : '') + '"><input type="radio" name="setpick" value="' + esc(key) + '"' + (key === cur ? ' checked' : '') + '><span class="rtx"><span class="l1">' + esc(l1) + '</span>' + (l2 ? '<span class="l2">' + esc(l2) + '</span>' : '') + '</span>' + (extra ? '<span class="rn">' + esc(extra) + '</span>' : '') + '</label>';
-		let h = '<div class="rlist" role="radiogroup" aria-label="レース/周回セット">' + opt('none', '指定なし', '', o.counts ? '親' + nNone + '人' : '');
+		let h = '<div class="rlist" role="radiogroup" aria-label="レース/周回セット">' + opt('none', 'デフォルト', '', o.counts ? '親' + nNone + '人' : '') + opt('norace', NORACE_NAME, '', o.counts ? '親' + cnt('norace') + '人' : '');
 		activeRaces().forEach((r) => { const id = 'r:' + r.id; const has = doc.sets.some((s) => s.id === id); h += opt(id, (raceDateText(r) ? raceDateText(r) + ' ' : '') + r.name, raceShortText(r), o.counts ? (has ? '親' + cnt(id) + '人' : '親0人') : ''); });
 		const arcs = ARC_ORDER.map((c) => doc.sets.find((s) => s.id === 'arc:' + c)).filter(Boolean);
 		if (arcs.length && !o.noArc) { h += '<div class="rgh">終了レース</div>'; arcs.forEach((s) => { h += opt(s.id, ARC[s.cat], '', o.counts ? '親' + cnt(s.id) + '人' : ''); }); }
@@ -369,6 +377,6 @@
 	}
 
 	window.DeckAlpha = { VERSION: DECK_ALPHA_CORE_VERSION, D, SK, GENES, COS, UNIQ, RACES, BLUE, RED, DIST, STYLE, SURF, CAT, PHASE, GENE_KEY, ARC, ARC_ORDER, POS, skill, costume, fullName, charaName, shortName, uniqName, starText, blueText, redText,
-		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, newExamList, inNoneList, EFF: D.efficiency, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
+		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, newNoRaceList, newExamList, inNoneList, EFF: D.efficiency, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
 		store, DEFAULT_SETTINGS, emptyDoc, assemble, makeModel, emptyPlan, planFull, planMatch, findPairs, recommendB, matchCandidates, buildExport, exportFileName, parseImport, migrate1to2, daysSince, dependents, removeParent, isDark, applyTheme, esc };
 })();

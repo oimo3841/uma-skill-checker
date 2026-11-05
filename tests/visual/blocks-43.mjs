@@ -348,7 +348,7 @@ export async function register43(env) {
 		const u0 = await sp.page.evaluate(() => UmaSkillDeckCore.undoCount());
 		await openStyle(sp.page);
 		let m = await readModal(sp.page);
-		assert(m.styles.find((x) => x[1] === 'true')[0] === 'sashi' && m.raceText === 'レース：指定なし', 'C-184 ①で選んでいる脚質（差し）が小窓に出る・レースは指定なし', m.styles);
+		assert(m.styles.find((x) => x[1] === 'true')[0] === 'sashi' && m.raceText === 'レース：デフォルト', 'C-184 ①で選んでいる脚質（差し）が小窓に出る・レースはデフォルト（T108）', m.styles);
 		await pickRaceInModal(sp.page, 'race-0003');
 		let r = await rosterOf(sp.page);
 		m = await readModal(sp.page);

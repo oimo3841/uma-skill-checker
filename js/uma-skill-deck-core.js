@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-02d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06a';
 
 	/* ============================================================
 	 * 定数
@@ -585,13 +585,15 @@
 		// 絞り込みの選択肢として出しても1件も当たらない。値そのものは消さずに残す
 		// （データが持っており、tagLabel() が表示名に直すのに要る）。
 		{ key: 'scenario', label: 'その他', emptyMeansNone: true, options: [
-			{ v: 'scenario', t: 'シナリオスキル' },
+			// showsPoolExcluded（T108）: この値を選んだときは、この値を持つパッシブ（緑スキル）も「条件で検索」に出す。「＋」の進化スキルは継承できないので出さない
+			{ v: 'scenario', t: 'シナリオスキル', showsPoolExcluded: true },
 			{ v: 'scenario_factor', t: 'シナリオ因子', internalOnly: true },
 			{ v: 'gene', t: '遺伝子', internalOnly: true },
 			// 「サポカ外」（C-222・2026-10-28）。**データのタグには無い値**で、ツールが付ける（toolTag。中身は toolTagIdsOf）。
-			// non-support-skills.json（脚質オススメの「サポカ外」と同じ一覧）から、excludeValues の値（シナリオスキル）を持つものを除いたもの。
+			// non-support-skills.json（脚質オススメの「サポカ外」と同じ一覧）から、excludeValues の値（シナリオスキル）を持つものと、
+			// excludeAxes の軸に値を持つもの（レース場の印。T108）を除いたもの。データは変えず、ツールの側で外す。②の自動のマーカーはここを読まない。
 			// 選ぶと、パッシブ（緑スキル）でもこの一覧にあれば「条件で検索」に出す（pickerPoolOf）。軸内は他の値と OR
-			{ v: 'non_support', t: 'サポカ外', toolTag: 'nonSupport', excludeValues: ['scenario'] }
+			{ v: 'non_support', t: 'サポカ外（レース場を除く）', toolTag: 'nonSupport', excludeValues: ['scenario'], excludeAxes: ['trackVenue'] }
 		]},
 		/* **パッシブ（ゲーム内の緑スキル）。71セッション目・段8 で新設。**
 		 *
@@ -5189,7 +5191,7 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'acquirePicks', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'acquirePicks', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'noPlan', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -5200,6 +5202,20 @@
 	function raceOfRoster(r) {
 		return normalizeRaceRow(r && r.race);
 	}
+	/*
+	 * レース欄の新しいモード「レース指定なし／本育成編成なし」（T108・2026-11-05）。roster.noPlan === true。
+	 * 本育成編成を前提としない使い方（特定のレースを意識せず、汎用的な因子のために周回する）のためのもの。
+	 * 触ったときだけ書く・ほかの選択（デフォルト・レース）に戻すと項目ごと消す・schemaVersion は変えない・読み込み時に補わない（ルール28）。
+	 * ①の中身（育成ウマ娘・カード・設定）は消さず、計算と表示で使わないだけ。元の値はデフォルトやレースに戻せばそのまま効く。race とは同時に持たない。
+	 * 「デフォルト」は roster.race も noPlan も無い今までの形（T108 で「指定なし」から改名。動きと保存の形は同じ）。
+	 */
+	const RACE_DEFAULT_LABEL = 'デフォルト';
+	const RACE_NO_PLAN_LABEL = 'レース指定なし／本育成編成なし';
+	const RACE_NO_PLAN_SHORT = 'レース／本育成編成なし';
+	function isNoPlanRoster(r) {
+		return !!r && r.noPlan === true;
+	}
+
 	/**
 	 * 「レース条件で決まる緑スキル」か（脚質オススメの「緑スキル（レース条件）」と、レースを選んでいないときのオススメサポの母集団で共通）。
 	 * 白スキル（Pt 未収録で区分が不明なものも含む。金スキルは入れない）のうち、レース場のタグを持つか、レース環境のタグが回り・季節か、小回り／直線コースのタグを持つもの
@@ -6307,6 +6323,8 @@
 		// 黒は --usd-rarity-ssr-text（淡い3色の上で 4.5 以上。ダークでは同じ名前を差し替える）
 		'.uma-btn.usd-outside-entry { background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to)); color: var(--usd-rarity-ssr-text); border-color: var(--usd-skill-unique-edge); box-shadow: var(--uma-shadow-1); }',
 		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(0.97); }',
+		// T108: 新しいモードのオススメサポ（押せない）。色を抜いて薄くする
+		'.uma-btn.usd-outside-entry:disabled { filter: grayscale(1); opacity: 0.45; cursor: not-allowed; }',
 		// 脚質オススメの小窓。器はオススメサポと同じ（.usd-modal / .usd-modal-panel / .usd-out-head / .usd-out-body / .usd-modal-foot）。上に固定＝.usd-sty-top、リストだけ縦に送る、下に固定＝.usd-modal-foot
 		'.usd-sty-top { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-4); border-bottom: 1px solid var(--uma-border); }',
 		'.usd-sty-pick { display: flex; align-items: center; flex-wrap: wrap; gap: var(--uma-sp-2); min-width: 0; }',
@@ -7677,6 +7695,10 @@
 		'  padding: 0 4px; min-height: 26px; cursor: pointer; font-variant-numeric: tabular-nums; white-space: nowrap; }',
 		'.usd-uniq-step:last-child { border-radius: 0 var(--uma-r-full) var(--uma-r-full) 0; padding-right: 6px; }',
 		'.usd-uniq-step:hover { background: var(--uma-surface-muted); }',
+		// T108: 新しいモードの「継承固有」「共通スキル」（押せない）
+		'.usd-uniq--off { opacity: 0.45; }',
+		'.usd-uniq--off .usd-uniq-step { cursor: not-allowed; }',
+		'.usd-uniq--off .usd-uniq-step:hover { background: transparent; }',
 		'.usd-uniq-step:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
 		'.usd-uniq-step::before, .usd-band-sumbtn::before, .usd-band-cfg .usd-reset-btn::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; bottom: -9px; }',
 		'.usd-band-cfg .usd-reset-btn { position: relative; }',
@@ -8982,7 +9004,7 @@
 		// 理由が重なるときは1つだけ: 本育成編成 → レース条件 → ①の絞り込み の順
 		const tools = toolTagSelections(pickerFilters);
 		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id)
-			&& (!isPoolExcluded(s) || tools.some(t => t.ids.has(s.id)))
+			&& (!isPoolExcluded(s) || tools.some(t => t.ids.has(s.id)) || isPoolOptedIn(s, pickerFilters))
 			&& matchesPickerFilters(s, pickerFilters, usable, tools)
 			// 低効果の除外（ONのとき）。効果量が分からないスキル（isLowEffectSkill が false）は外さない側
 			&& (ignoreLowEffect || !pickerLowOff || !isLowEffectSkill(s.id)))
@@ -9020,7 +9042,7 @@
 		const ex = opt.excludeValues || [];
 		return nonSupportState.ids.filter(id => {
 			const tags = getSkillTags(id) || {};
-			return !((tags[axis.key] || []).some(v => ex.includes(v)));
+			return !((tags[axis.key] || []).some(v => ex.includes(v))) && !(opt.excludeAxes || []).some(k => (tags[k] || []).length > 0);
 		});
 	}
 	/**
@@ -9089,6 +9111,15 @@
 	 */
 	function isPoolExcluded(skill) {
 		return TAG_AXES.some(a => a.poolExcluded && (((skill.tags && skill.tags[a.key]) || []).length > 0));
+	}
+
+	/**
+	 * 母集団から外したもの（パッシブ）を、絞り込みの選択で「条件で検索」に出すか（T108）。showsPoolExcluded の印が付いた値を選んでいて、スキルがその値を持つとき。
+	 * 名前は書かない（恒久ルール1）。進化スキル（「＋」）は継承できないので出さない。
+	 */
+	function isPoolOptedIn(skill, filters) {
+		if (isEvolvedSkillId(skill.id)) return false;
+		return TAG_AXES.some(a => a.options.some(o => o.showsPoolExcluded && ((filters && filters[a.key]) || []).includes(o.v) && ((skill.tags && skill.tags[a.key]) || []).includes(o.v)));
 	}
 
 	/**
@@ -13869,14 +13900,25 @@
 		 */
 		rosterOutsideSink.setRace = function (row) {
 			if (row === null || row === undefined) {
-				if (roster.race === undefined) return true;
+				if (roster.race === undefined && roster.noPlan === undefined) return true;
 				delete roster.race;
+				delete roster.noPlan;
 			} else {
 				const n = normalizeRaceRow(row);
 				if (!n) return false;
 				if (roster.race !== undefined && JSON.stringify(roster.race) === JSON.stringify(n)) return true;
 				roster.race = n;
+				delete roster.noPlan;
 			}
+			persistNow();
+			render();
+			return true;
+		};
+		/** 「レース指定なし／本育成編成なし」にする（T108）。①の中身は消さない。レースだけ外す（固定した距離・バ場を残さないため） */
+		rosterOutsideSink.setNoPlan = function () {
+			if (roster.noPlan === true && roster.race === undefined) return true;
+			delete roster.race;
+			roster.noPlan = true;
 			persistNow();
 			render();
 			return true;
@@ -14817,10 +14859,12 @@
 		function setRaceBtnHtml() {
 			// 段13・B1: 選んでいるときは条件の短い形（「京都 芝2200m」「芝 中距離」）を出す。入りきらなければ 11→10px（C-235）、それでも入らなければ「…」で切る。レース名の全文は選択欄の中で見る
 			const race = raceOfRoster(rosterOutsideSink.getRoster());
-			const lab = race ? 'レース：' + (raceDateText(race) ? raceDateText(race) + ' ' : '') + race.name : 'レース';
-			const text = race ? (raceShortText(race) || 'レース') : 'レース';
-			return '<button type="button" class="usd-setbar-race' + (race ? ' usd-setbar-race--on' : '') + '" data-usd-act="set-race" data-usd-el="set-race-btn" aria-haspopup="dialog" aria-expanded="false"'
-				+ ' aria-pressed="' + (race ? 'true' : 'false') + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '">'
+			// T108: デフォルトは「レース指定」。新しいモードは「レース指定なし／本育成編成なし」、入りきらなければ「レース／本育成編成なし」（fitRaceSlot）
+			const noPlan = isNoPlanRoster(rosterOutsideSink.getRoster());
+			const lab = race ? 'レース：' + (raceDateText(race) ? raceDateText(race) + ' ' : '') + race.name : (noPlan ? RACE_NO_PLAN_LABEL : 'レース指定');
+			const text = race ? (raceShortText(race) || 'レース') : (noPlan ? RACE_NO_PLAN_LABEL : 'レース指定');
+			return '<button type="button" class="usd-setbar-race' + (race || noPlan ? ' usd-setbar-race--on' : '') + '" data-usd-act="set-race" data-usd-el="set-race-btn" aria-haspopup="dialog" aria-expanded="false"' + (noPlan ? ' data-usd-long="' + esc(RACE_NO_PLAN_LABEL) + '" data-usd-short="' + esc(RACE_NO_PLAN_SHORT) + '"' : '')
+				+ ' aria-pressed="' + (race || noPlan ? 'true' : 'false') + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '">'
 				+ '<span class="usd-setbar-race-text" data-usd-el="set-race-text">' + esc(text) + '</span><span class="usd-setbar-caret usd-setbar-race-caret" aria-hidden="true">▾</span></button>';
 		}
 		/** タイトルの行のレースのボタン: 入りきらなければ文字を 11→10px（data-usd-tight）。それでも入らなければ CSS の「…」 */
@@ -14830,7 +14874,13 @@
 			if (!b) return;
 			b.removeAttribute('data-usd-tight');
 			const t = b.querySelector('.usd-setbar-race-text');
-			if (t && t.scrollWidth > t.clientWidth + 1) b.setAttribute('data-usd-tight', '');
+			if (!t) return;
+			// T108: 新しいモードは、まず長い形で測り、入らなければ短い形（「レース／本育成編成なし」）
+			if (b.hasAttribute('data-usd-short')) {
+				t.textContent = b.getAttribute('data-usd-long');
+				if (t.scrollWidth > t.clientWidth + 1) t.textContent = b.getAttribute('data-usd-short');
+			}
+			if (t.scrollWidth > t.clientWidth + 1) b.setAttribute('data-usd-tight', '');
 		}
 		// セット名の鉛筆（lucide の pencil・16px。字の ✎ はフォントで形と大きさが変わるので線画にする。T46）
 		const SET_NAME_PEN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
@@ -14853,7 +14903,10 @@
 				else left += setRaceBtnHtml();
 			} else if (raceSlotEl) raceSlotEl.innerHTML = '';
 			let right = '';
-			if (sum) {
+			// T108: 新しいモードでは右上の SP の積み上げと種類数のカウントを出さない
+			const noPlanNow = isNoPlanRoster(linkedRosterOf(target));
+			if (typeof opts.onNoPlanChange === 'function') { try { opts.onNoPlanChange(noPlanNow); } catch (e) { /* 呼び出し元の不具合で帯を止めない */ } }
+			if (sum && !noPlanNow) {
 				// 1行目「16,230 Pt／169種」、2行目「切れ者・①＋②」＋ ?（式「合計 ＝ ① X ＋ ② Y」）
 				const sub = (sum.statusLabel ? sum.statusLabel + '・' : '') + '①＋②';
 				right = '<span class="usd-setbar-sum" data-usd-el="set-total" data-total="' + sum.total + '" data-kinds="' + sum.totalKinds + '">'
@@ -14890,16 +14943,17 @@
 			}
 		}
 		/**
-		 * レース条件の選択欄（④・段9）。先頭に「指定なし」、続けて一覧の行（1行目＝日付＋レース名、2行目＝公開された条件だけ）。
-		 * セットが持っているレースが一覧に無い（一覧から外れた・一覧が読めない）ときは、その行を「指定なし」の次に出し、「（一覧から外れました）」と添える。
+		 * レース条件の選択欄（④・段9）。先頭に「デフォルト」、次に「レース指定なし／本育成編成なし」（T108）、続けて一覧の行（1行目＝日付＋レース名、2行目＝公開された条件だけ）。
+		 * セットが持っているレースが一覧に無い（一覧から外れた・一覧が読めない）ときは、その行を一覧の先頭に出し、「（一覧から外れました）」と添える。
 		 * 選ぶと①の roster に書く（rosterOutsideSink.setRace。①が空のセットなら編成が作られる）。
 		 */
 		function fillRaceList(body, onPicked) {
 			const cur = rosterOutsideSink ? raceOfRoster(rosterOutsideSink.getRoster()) : null;
+			const curNoPlan = !!rosterOutsideSink && isNoPlanRoster(rosterOutsideSink.getRoster());
 			// selectable: false の行（終わったレース）は選択肢に出さない。表示だけ隠す（upcomingRaces・getUpcomingRaces からは除かない）。
 			// セットが持っているレースが選べない行のとき（保存済みの race-0001 など）は、下の「一覧に無いレース」と同じ扱い
 			const list = (upcomingRaces || []).filter(x => x.selectable !== false);
-			const items = [{ row: null, key: '' }];
+			const items = [{ row: null, key: '' }, { row: null, key: 'no-plan', noPlan: true }];
 			if (cur && !list.some(x => x.id === cur.id)) items.push({ row: cur, key: cur.id, gone: true });
 			list.forEach(x => items.push({ row: x, key: x.id }));
 			const group = infoEl('div', 'usd-link-list');
@@ -14907,7 +14961,7 @@
 			group.setAttribute('aria-label', 'レース');
 			group.setAttribute('data-usd-el', 'race-list');
 			items.forEach(o => {
-				const on = cur ? (o.row !== null && o.key === cur.id) : o.row === null;
+				const on = cur ? (o.row !== null && o.key === cur.id) : (o.row === null && !!o.noPlan === curNoPlan);
 				const lab = infoEl('label', 'usd-link-opt usd-race-opt' + (on ? ' usd-link-opt--on' : ''));
 				lab.setAttribute('data-usd-el', 'race-opt');
 				lab.setAttribute('data-race-id', o.key);
@@ -14920,12 +14974,13 @@
 				input.addEventListener('change', () => {
 					if (!input.checked || !rosterOutsideSink) return;
 					closeSkillInfo();
-					rosterOutsideSink.setRace(o.row);   // 2026-10-21: ②へは自動で足さない（足したいときは入口の「脚質オススメ」）
+					if (o.noPlan) rosterOutsideSink.setNoPlan();
+					else rosterOutsideSink.setRace(o.row);   // 2026-10-21: ②へは自動で足さない（足したいときは入口の「脚質オススメ」）
 					if (typeof onPicked === 'function') onPicked();
 				});
 				lab.appendChild(input);
 				const txt = infoEl('span', 'usd-race-txt');
-				if (o.row === null) txt.appendChild(infoEl('span', 'usd-link-name', '指定なし'));
+				if (o.row === null) txt.appendChild(infoEl('span', 'usd-link-name', o.noPlan ? RACE_NO_PLAN_LABEL : RACE_DEFAULT_LABEL));
 				else {
 					const l1 = infoEl('span', 'usd-link-name usd-race-name', (raceDateText(o.row) ? raceDateText(o.row) + ' ' : '') + o.row.name + (o.gone ? '（一覧から外れました）' : ''));
 					l1.setAttribute('data-usd-el', 'race-line1');
@@ -15199,8 +15254,10 @@
 			const linked = linkedRosterOf(currentTarget());
 			// C-131: 同じものとして扱うスキルの組の相手も「本育成で得るスキル」にする（右回り○を①で得るなら右回りの目覚めも。逆も同じ。組のデータが読めていなければ今までどおり）
 			// C-223: special の②（setBased）では、①での合計のヒントLv が低い白（rosterLowHintWhiteIdsOf）は選べる。組の相手は、選べないスキルの相手だけを足す
-			const sure = linked ? (setBased ? withEquivalents(grouped && rosterPtSource ? rosterFixedSureIdsOf(rosterPtInputsOf(linked)) : []) : rosterSureIdsOf(linked)) : [];
-			const off = linked ? rosterOffIdsOf(linked).filter(id => sure.indexOf(id) === -1) : [];
+			// T108: 新しいモードでは①で得るスキルを選べなくしない（①を使わない）
+			const planOn = linked && !(setBased && isNoPlanRoster(linked));
+			const sure = planOn ? (setBased ? withEquivalents(grouped && rosterPtSource ? rosterFixedSureIdsOf(rosterPtInputsOf(linked)) : []) : rosterSureIdsOf(linked)) : [];
+			const off = planOn ? rosterOffIdsOf(linked).filter(id => sure.indexOf(id) === -1) : [];
 			const next = sure.concat(off);
 			// C-129: セットのレース条件（special の②＝setBased だけ。Deck 単体ページでは効かせない）
 			const race = setBased && linked ? raceOfRoster(linked) : null;
@@ -15338,7 +15395,9 @@
 		function factorPtState(target) {
 			if (!grouped || !rosterPtSource) return null;
 			const linkedRoster = linkedRosterOf(target);
-			const inp = linkedRoster ? rosterPtInputsOf(linkedRoster) : emptyRosterPtInputs();
+			// T108: 新しいモードでは①を計算に入れない（切れ者・勉強家の割引も、①で取得の扱いも無い）
+			const noPlan = setBased && isNoPlanRoster(linkedRoster);
+			const inp = linkedRoster && !noPlan ? rosterPtInputsOf(linkedRoster) : emptyRosterPtInputs();
 			if (inp.status !== 'ok') return { inp: inp };
 			const allIds = skillIdsOf(target) || [];
 			// 段8（setBased）: ①で得るスキル（①の表に出ている●でオンのもの）は②の Pt と種に数えない（因子セットから除いて計算する。自動では外さない）
@@ -15354,7 +15413,7 @@
 				factorSkillIds: plan.pricedIds(ids), tiers: plan.pricedTiers(tiersOf(target)), parentHintLevel: F, inheritedUnique: inheritedUniqueOf(target) || {}
 			});
 			const overlap = factorOverlapOf(r, inp, ids);
-			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r,
+			return { noPlan: noPlan, inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r,
 				circleCandidates: plan.candidates, circleOf: plan.circleOf, rowPts: factorRowPts(r, plan.circleOf, overlap, ids), plan: plan, overlap: overlap,
 				rosterCircle: factorRosterCircleOf(inp, allIds, plan) };
 		}
@@ -15620,10 +15679,11 @@
 			if (!st || !st.r || !st.r.ok) return null;
 			const r = st.r;
 			const uq = resolveInheritedUnique(inheritedUniqueOf(target), st.rules);
-			const uniqPt = r.inheritedUniquePt, uniqKinds = uq.count;
-			const commonPt = r.cuts[r.cuts.length - 1].total - r.roster.total - uniqPt;
+			// T108: 新しいモードでは継承固有を数えない（「N種」は②のスキルの種だけ）
+			const uniqPt = st.noPlan ? 0 : r.inheritedUniquePt, uniqKinds = st.noPlan ? 0 : uq.count;
+			const commonPt = r.cuts[r.cuts.length - 1].total - r.roster.total - r.inheritedUniquePt;
 			const commonKinds = countSkillKinds(st.ids);
-			const linked = linkedRosterOf(target);
+			const linked = st.noPlan ? null : linkedRosterOf(target);
 			const rs = linked ? rosterPtSummaryOf(linked) : null;
 			const rosterPt = rs ? rs.total : 0;
 			const rosterKinds = countSkillKinds((st.inp && st.inp.sureIds) || []);
@@ -15634,7 +15694,7 @@
 			// C-178: ①で取る金と、②にあるその前段の白は、見出しの合計の種数だけ1種に数える（①の帯・②の帯の種数は変えない）。
 			// C-223: ①にもある白（overlapSure）は①の種で金と組になっている（countSkillKinds）ので、ここでは②の側から除く（二重に引かない）
 			const crossPaired = countCrossPairedKinds((st.inp && st.inp.sureIds) || [], overlapKinds > 0 ? st.ids.filter(id => overlapSure.indexOf(id) === -1) : st.ids);
-			return { rosterPt: rosterPt, rosterKinds: rosterKinds, statusLabel: rs ? rs.statusLabel : '',
+			return { noPlan: !!st.noPlan, rosterPt: rosterPt, rosterKinds: rosterKinds, statusLabel: rs ? rs.statusLabel : '',
 				uniqPt: uniqPt, uniqKinds: uniqKinds, commonPt: commonPt, commonKinds: commonKinds,
 				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired, overlapKinds: overlapKinds, overlapSureIds: overlapSure,
 				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds - crossPaired - overlapKinds,
@@ -15657,6 +15717,8 @@
 				if (panel) panel.classList.toggle('usd-panel--taken', taken.has(id));
 				// ②因子周回 段2: ◎として数える行は◎＋前段の○の合算（rowPts）
 				const x = !taken.has(id) && st && st.r && st.r.ok ? st.rowPts.get(id) : null;
+				// T108: 新しいモードでは行の Pt も出さない（スキルPt の積み上げをしない）
+				if (st && st.noPlan) { sp.textContent = ''; return; }
 				// C-223: ①と重なる行の Pt は差。C-242（2026-10-30）: 名前の脇の文言はやめ、マイナスの Pt を押すと小窓（factorOverlapDetailOf が文面を作れる行だけ）
 				const isOverlap = !!(x && x.overlap);
 				if (panel) { if (isOverlap) panel.setAttribute('data-usd-overlap', x.overlap); else panel.removeAttribute('data-usd-overlap'); }
@@ -15800,6 +15862,11 @@
 		function renderPtNeed() {
 			// C-244: 選択欄は Pt のデータの読み込みに関係なく出す
 			if (setBased) { renderFactorCards(); renderFactorFilter(); }
+			// T108: 新しいモードではオススメサポを押せない（脚質オススメは使える）
+			if (setBased) {
+				const ob = q(container, 'outside-open');
+				if (ob) ob.disabled = isNoPlanRoster(linkedRosterOf(currentTarget()));
+			}
 			const el = q(container, 'pt-need');
 			if (!el) return;
 			// 段8: 帯の合計も同じ数字から出すので、ここで描き直す（継承固有・ヒントLv・ランクの ON/OFF の変更でも追随する）
@@ -15868,21 +15935,23 @@
 			// 保存の形（inheritedUnique・parentHintLevel）と範囲・既定は今のまま。読み上げ名は今の値と、押すと何になるか
 			const rules = skillPtData.rules;
 			const uq0 = resolveInheritedUnique(inheritedUniqueOf(target), rules);
+			// T108: 新しいモードでは「継承固有」「共通スキル」を押せなくして薄く出し（値は消さない）、合計は「N種」だけにする（Pt を積み上げない・小窓も無い）
+			const noPlan = !!sum.noPlan;
 			const step = (act, el, name, list, cur, fmt) => {
 				const nx = cycleNext(list, cur);
-				const label = name + '：' + fmt(cur) + '（押すと' + fmt(nx) + '）';
+				const label = noPlan ? name + '：' + fmt(cur) + '（' + RACE_NO_PLAN_SHORT + 'では使いません）' : name + '：' + fmt(cur) + '（押すと' + fmt(nx) + '）';
 				return '<button type="button" class="usd-uniq-step" data-usd-act="' + act + '" data-usd-el="' + el + '" data-value="' + cur + '" data-next="' + nx + '"'
-					+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '">' + fmt(cur) + '</button>';
+					+ (noPlan ? ' disabled aria-disabled="true"' : '') + ' aria-label="' + esc(label) + '" title="' + esc(label) + '">' + fmt(cur) + '</button>';
 			};
 			let cfg = '<span class="usd-band-cfg" data-usd-el="band-cfg">'
-				+ '<span class="usd-uniq" role="group" aria-label="継承固有" data-usd-el="uniq">'
+				+ '<span class="usd-uniq' + (noPlan ? ' usd-uniq--off' : '') + '" role="group" aria-label="継承固有" data-usd-el="uniq">'
 				+ '<span class="usd-uniq-label">継承固有</span>'
 				+ step('uniq-count-next', 'uniq-count', '継承固有の種類', inheritedUniqueCountChoices(), uq0.count, v => v + '種')
 				+ step('uniq-level-next', 'uniq-level', '継承固有のヒントLv', inheritedUniqueLevelChoices(rules), uq0.hintLevel, v => 'Lv' + v)
 				+ '</span>';
 			if (rules) {
 				const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
-				cfg += '<span class="usd-uniq" role="group" aria-label="共通スキル" data-usd-el="parent-level-group">'
+				cfg += '<span class="usd-uniq' + (noPlan ? ' usd-uniq--off' : '') + '" role="group" aria-label="共通スキル" data-usd-el="parent-level-group">'
 					+ '<span class="usd-uniq-label">共通スキル</span>'
 					+ step('pt-parent-level-next', 'pt-parent-level', '共通スキルのヒントLv', parentHintLevelChoices(rules).slice().sort((a, b) => a - b), F, v => 'Lv' + v)
 					+ '</span>';
@@ -15891,9 +15960,11 @@
 			el.innerHTML = '<div class="usd-setband usd-bandbox" data-usd-el="set-head" data-cuts="' + esc(cuts) + '">'
 				+ '<div class="usd-band-main">'
 				// 案d: 「?」は無く、合計の数字を押すと「②の Pt」の小窓（今の「?」と同じ中身。①の合計の行と同じ形）
-				+ '<button type="button" class="usd-band-sumbtn" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
+				+ (noPlan
+					? '<span class="usd-band-sum" data-usd-el="factor-sum"><strong class="usd-band-kinds" data-usd-el="factor-count">' + sum.factorKinds + '</strong><span class="usd-band-kunit">種</span></span>'
+					: '<button type="button" class="usd-band-sumbtn" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
 				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明を開く" title="②の Pt の説明を開く">'
-				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span></button>'
+				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span></button>')
 				+ cfg
 				+ '</div></div>';
 			el.hidden = false;
@@ -17484,7 +17555,8 @@
 		 * ①の条件に合わないものも、レース条件に合わないものと同じ「レース条件に合わないため」に数える。進化スキルは data に入っていない。
 		 */
 		function outsideSkillPlanOf() {
-			const ids = nonSupportState.status === 'ok' ? nonSupportState.ids : [];
+			// T108: レース場の印（trackVenue）を持つスキルはこの項目に出さない。レースに合うものは「緑スキル（レース条件）」の項目に出る
+			const ids = (nonSupportState.status === 'ok' ? nonSupportState.ids : []).filter(id => ((getSkillTags(id) || {}).trackVenue || []).length === 0);
 			const target = currentTarget();
 			const cur = skillIdsOf(target) || [];
 			const linked = linkedRosterOf(target);
@@ -17616,13 +17688,15 @@
 			return factorRowPtText(x);   // C-223: ①と重なる行は、足したときの差（−60 Pt など）
 		}
 		/** 行の Pt（そのスキルを②に足したときのタイルの Pt）。モデルを作ったときに、足せる行を全部足して1回で数える */
+		function styleNoPlan() { return !!rosterOutsideSink && isNoPlanRoster(rosterOutsideSink.getRoster()); }
 		function styleRowPtText(row) {
-			if (row.gray || !styleUi.ptRows) return '';
+			if (row.gray || !styleUi.ptRows || styleNoPlan()) return '';   // T108: 新しいモードでは Pt を出さない
 			return stylePtText(styleUi.ptRows.rowPts.get(row.id));
 		}
 		/** 「追加するスキル N種（合計 … Pt）」。合計は、チェックしたものを②に足したときの②の Pt の増え方（前段を含む）。Pt 未収録は合計に入れず、数を添える */
 		function styleHeadText(ids) {
 			let s = '追加するスキル ' + ids.length + '種';
+			if (styleNoPlan()) return s;   // T108: 新しいモードでは合計の Pt を出さない
 			const c = ids.length > 0 ? stylePtCalc(ids) : null;
 			if (ids.length > 0 && c) {
 				const last = c.r.cuts.length - 1;
@@ -17771,15 +17845,16 @@
 			const m = styleUi.model;
 			if (!el || !m) return;
 			const top = q(el, 'style-top');
-			const raceText = m.race ? (raceShortText(m.race) || m.race.name) : '指定なし';
-			const raceLab = m.race ? 'レース：' + (raceDateText(m.race) ? raceDateText(m.race) + ' ' : '') + m.race.name : 'レース：指定なし';
+			const noPlan = styleNoPlan();
+			const raceText = m.race ? (raceShortText(m.race) || m.race.name) : RACE_DEFAULT_LABEL;
+			const raceLab = m.race ? 'レース：' + (raceDateText(m.race) ? raceDateText(m.race) + ' ' : '') + m.race.name : (noPlan ? RACE_NO_PLAN_LABEL : 'レース：' + RACE_DEFAULT_LABEL);
 			top.innerHTML = '<div class="usd-sty-pick">'
-				+ '<button type="button" class="usd-out-segbtn usd-out-optbtn usd-sty-racebtn" data-usd-act="style-race" data-usd-el="style-race-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="' + (m.race ? 'true' : 'false') + '"'
-				+ ' aria-label="' + esc(raceLab) + '" title="' + esc(raceLab) + '"><span class="usd-out-optlabel" data-usd-el="style-race-text">' + esc('レース：' + raceText) + '</span><span class="usd-out-optcaret" aria-hidden="true">▾</span></button>'
+				+ '<button type="button" class="usd-out-segbtn usd-out-optbtn usd-sty-racebtn" data-usd-act="style-race" data-usd-el="style-race-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="' + (m.race || noPlan ? 'true' : 'false') + '"'
+				+ ' aria-label="' + esc(raceLab) + '" title="' + esc(raceLab) + '"><span class="usd-out-optlabel" data-usd-el="style-race-text">' + esc(noPlan ? RACE_NO_PLAN_SHORT : 'レース：' + raceText) + '</span><span class="usd-out-optcaret" aria-hidden="true">▾</span></button>'
 				+ '<span class="usd-out-seg usd-sty-styles" role="group" aria-label="脚質">'
 				+ styleAxisOptions().map(o => '<button type="button" class="usd-out-segbtn usd-sty-stylebtn" data-usd-act="style-pick" data-usd-el="style-btn" data-style="' + esc(o.v) + '" aria-pressed="' + (m.style === o.v ? 'true' : 'false') + '">' + esc(o.t) + '</button>').join('')
 				+ '</span></div>'
-				+ '<p class="usd-sty-sync" data-usd-el="style-sync">ここで選んだレース・脚質は①にも反映されます</p>';
+				+ (noPlan ? '' : '<p class="usd-sty-sync" data-usd-el="style-sync">ここで選んだレース・脚質は①にも反映されます</p>');
 			const body = q(el, 'style-body');
 			const keep = body.scrollTop;
 			styleUi.ptRows = stylePtCalc(m.sections.reduce((a, sec) => a.concat(sec.rows.filter(r => !r.gray).map(r => r.id)), []));
@@ -19161,9 +19236,12 @@
 			getSkillExcluded: function () { return outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setSkillExcluded: function (skillId, excluded) { return rosterOutsideSink ? rosterOutsideSink.setSkillExcluded(skillId, excluded) : false; },
 			clearExcluded: function () { return rosterOutsideSink ? rosterOutsideSink.clearExcluded() : false; },
-			// ④（段8〜）: レース条件。setRace はレースの一覧の行か null（指定なし）。raceOf・lockedFilterOf・resolvedFilterOf は編成を引数に取る（読むだけ）
+			// ④（段8〜）: レース条件。setRace はレースの一覧の行か null（デフォルト）。raceOf・lockedFilterOf・resolvedFilterOf は編成を引数に取る（読むだけ）
 			getRace: function () { return raceOfRoster(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setRace: function (row) { return rosterOutsideSink ? rosterOutsideSink.setRace(row) : false; },
+			// T108: 「レース指定なし／本育成編成なし」。isNoPlan は編成を引数に取る（読むだけ）。LABELS は special が使う文言
+			setNoPlan: function () { return rosterOutsideSink ? rosterOutsideSink.setNoPlan() : false; },
+			isNoPlan: isNoPlanRoster, NO_PLAN_LABEL: RACE_NO_PLAN_LABEL, NO_PLAN_SHORT: RACE_NO_PLAN_SHORT,
 			raceOf: raceOfRoster, lockedFilterOf: function (r) { return raceLockedFilterOf(raceOfRoster(r)); }, resolvedFilterOf: resolvedFilterOf,
 			// ④（段10〜）・段13: 「種類」「除外」「枚数」と残りの枠の指定（roster.outsideOptions）。setOptions は項目ごとの置き換え（{ count } / { typeMin } / { exclude } / { pinned }）
 			optionsOf: outsideOptionsOf,

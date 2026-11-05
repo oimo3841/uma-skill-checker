@@ -150,6 +150,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 /* レース/周回セットのボタン（押すと一覧の小窓。登録の画面の「セット」の欄も同じ部品）。見出しの帯の上では白の線と文字 */
 .rsel { flex: 0 1 auto; margin-left: auto; min-width: 0; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; border: 1px solid var(--gp-ink); background: transparent; color: var(--gp-ink); padding: 0 8px; min-height: 36px; font-size: 12px; font-weight: 700; }
 .rsel .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* T108: 「レース／本育成編成なし」が1行に入らない幅は2行で（高さは今の 36px の中） */
+.rsel--two .t { white-space: normal; font-size: 11px; line-height: 1.2; text-align: left; }
 .rsel .car { color: var(--gp-sub); flex: none; font-weight: 400; }
 .hd .rsel { border-color: var(--gp-band-text); background: transparent; color: var(--gp-band-text); }
 .hd .rsel .car { color: var(--gp-band-text); }
@@ -477,4 +479,4 @@ details.fold[open] > summary::before { content: "▾"; }
 .modeline .seg { display: flex; }
 .modeline .seg button { flex: 1; min-height: 40px; }
 
-:root { --deck-alpha-css-version: "2026-11-05d"; }
+:root { --deck-alpha-css-version: "2026-11-06a"; }

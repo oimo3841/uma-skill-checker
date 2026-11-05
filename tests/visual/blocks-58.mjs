@@ -29,8 +29,10 @@ export async function register58(env) {
 	const isScenario = (id) => ((TAGS.get(id) || {}).scenario || []).includes('scenario');
 	const inPool = (id) => MASTER.some((s) => s.id === id) || (SEARCHABLE.has(id) && EXT.some((e) => e.id === id && !e.tagsPending));
 	// 期待値（データから独立に）: サポカ外の一覧のうち、シナリオスキルでなく、検索の母集団にあるもの
-	const WANT_NS = NONSUP.entries.map((e) => e.skillId).filter((id) => !isScenario(id) && inPool(id));
-	const SCENARIO_POOL = Array.from(TAGS.keys()).filter((id) => isScenario(id) && inPool(id) && !((TAGS.get(id) || {}).passive || []).length);
+	// T108（294）: レース場の印を持つスキルも外す
+	const WANT_NS = NONSUP.entries.map((e) => e.skillId).filter((id) => !isScenario(id) && inPool(id) && !((TAGS.get(id) || {}).trackVenue || []).length);
+	// T108（293）: シナリオスキルを選ぶとパッシブでも出す
+	const SCENARIO_POOL = Array.from(TAGS.keys()).filter((id) => isScenario(id) && inPool(id));
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const FILTER = { distance: 'long', style: 'nige', surface: 'dirt' };
 	const T = '#deck-template-panel ';
@@ -98,7 +100,7 @@ export async function register58(env) {
 		const sp = await openSp({ roster: { umaId: 'uma-0001', cardIds: [null, null, null, null, null, null] } });
 		await openFilter(sp.page);
 		const opt = await sp.page.evaluate(() => { const c = document.querySelector('[data-usd-el="filter-check"][data-axis="scenario"][data-value="non_support"]'); return c ? (c.closest('label') || c.parentElement).textContent.trim() : null; });
-		assert(opt === 'サポカ外', '検索小窓(1) その他の軸に「サポカ外」の選択肢がある', { opt });
+		assert(opt === 'サポカ外（レース場を除く）', '検索小窓(1) その他の軸に「サポカ外（レース場を除く）」の選択肢がある', { opt });
 		await filterBy(sp.page, 'scenario', 'non_support');
 		const a = await readRows(sp.page);
 		const got = a.rows.map((r) => r.id);

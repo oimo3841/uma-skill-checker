@@ -3,6 +3,7 @@
  * ツール切り替えの行をほかのツールのページへのリンクにしたこと。T92（段4 の 4-2）で「ホーム画面に追加」の案内を外し、ライト／ダークを js/theme.js の設定にそろえた。
  * T94（方眼紙デザイン・C-282）: 見出しのボタン（ツール切り替え・ライト／ダーク）を UmaStar と同じ形の svg にし、ライト／ダークのアイコンは利用者の選択（自動／ライト／ダーク）を示す。
  * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。
+ * T108（2026-11-05）: 「指定なし」を「デフォルト」に改名。独立したまとまり「レース指定なし／本育成編成なし」（鍵 'norace'。遺伝子の行と一覧の扱いは「デフォルト」と同じ）。
  * T97（2026-11-04）: 「指定なし」で送った一覧を「指定なし」の行に（140）・「指定なし」の遺伝子の3行を無効の形で出す（141）・表の上の2本指で段階を変えない（142）・
  * スマホで引き出しの外を押すと閉じる（143）。
  * T103（2026-11-05）: 列の見出し・左上の欄・名前の列を、スクロールの知らせを待って JS で動かすのをやめ、position: sticky で固定した（1コマ遅れて見出しがずれ、すきまにマスが見えていた）。
@@ -21,7 +22,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-05c';
+	const DECK_ALPHA_JS_VERSION = '2026-11-06a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -80,17 +81,17 @@
 	function pickSet(key) { S.settings.cur = key; saveSettings(); applySetDefaults(); renderAll(); }
 	/** 遺伝子の行の条件: 距離とバ場はセットの条件、脚質は親(列)の脚質の絞り（C-271 の 23） */
 	function cond() { const c = K.setCond(curSet()); return { dist: c.dist, surface: c.surface, styles: [...S.pf.style] }; }
-	/** 「指定なし」のときは 距離・脚質・バ場 の3行を出し、条件の無い行は無効（off: 行の名前もマスも薄く・マスは空。T97・141）。
+	/** 「デフォルト」のときは 距離・脚質・バ場 の3行を出し、条件の無い行は無効（off: 行の名前もマスも薄く・マスは空。T97・141）。
 	 *  脚質は親(列)の脚質の絞りがあれば今までどおり数える行。行の keys が空なので★の数はどれも 0（2組を探す・おすすめの並べ方は変わらない） */
 	function grows() {
 		if (isExam()) return []; // 技能試験の表に遺伝子の行は無い（96・97）
 		const g = S.M.geneRowsOf(cond());
-		if (curSet()) return g;
+		if (curSet() && curSet().kind !== 'norace') return g;
 		const st = g.find((r) => r.key === 'style');
 		return [{ key: 'dist', keys: [], label: '距離', off: true }, st || { key: 'style', keys: [], label: '脚質', off: true }, { key: 'surface', keys: [], label: 'バ場', off: true }];
 	}
 	/** 行の一覧を持つもの: セットを選んでいればそのセット、「指定なし」なら送った一覧（一度も送っていなければ無い。T97・140） */
-	const listSet = () => curSet() || (S.doc.none && S.doc.none.sends ? S.doc.none : null);
+	const listSet = () => { const c = curSet(); if (c && c.kind === 'norace') return c.sends ? c : null; return c || (S.doc.none && S.doc.none.sends ? S.doc.none : null); };
 
 	/* ---------- 本育成設計（セットごとに1つ保存。C-271 の 16） ---------- */
 	function plan() { const k = curKey(); return S.doc.plans[k] || (S.doc.plans[k] = K.emptyPlan()); }
@@ -102,7 +103,7 @@
 		S.pm = new Map();
 		let ps = S.doc.parents.filter((p) => {
 			if (s && !(p.sets || []).includes(s.id)) return false;
-			if (!s && !K.inNoneList(p)) return false; // UmaExam から登録した親は「指定なし」に出さない（233）
+			if (!s && !K.inNoneList(p)) return false; // UmaExam から登録した親は「デフォルト」に出さない（233）
 			if (f.style.size && !(p.tags.style || []).some((x) => f.style.has(x))) return false;
 			if (f.owner.size && !f.owner.has(p.owner)) return false;
 			if (pa) { const m = K.planMatch(M, p, pl); if (!m) return false; S.pm.set(p.id, m); }
@@ -115,10 +116,16 @@
 		if (pa) ps = ps.filter((p) => S.pm.get(p.id) === 1).concat(ps.filter((p) => S.pm.get(p.id) === 2)); // (1) そのまま使える → (2) 祖にできる
 		return ps;
 	}
-	/** 行の母集団: セットを選んでいればそのセットのスキルの一覧、「指定なし」なら送った一覧（T97・140）。一度も送っていなければ親が持っているスキル全部（C-271 の 4） */
+	/** 一覧を送っていない「レース指定なし／本育成編成なし」の行: そのまとまりの親（と祖）が持つスキル（T108） */
+	function noRaceRows() {
+		const set = new Set();
+		S.doc.parents.forEach((p) => { if ((p.sets || []).includes('norace')) S.M.fam(p).forEach((m) => Object.keys(m.skills || {}).forEach((id) => set.add(id))); });
+		return [...set].map(K.skill).sort((a, b) => a.order - b.order);
+	}
+	/** 行の母集団: セットを選んでいればそのセットのスキルの一覧、「デフォルト」なら送った一覧（T97・140）。一度も送っていなければ親が持っているスキル全部（C-271 の 4） */
 	function visRowsRaw() {
 		const f = S.sf, q = f.q.trim(), s = listSet();
-		const base = s ? Object.keys(s.skills).map(K.skill).sort((a, b) => a.order - b.order) : S.M.rows;
+		const base = s ? Object.keys(s.skills).map(K.skill).sort((a, b) => a.order - b.order) : (curSet() && curSet().kind === 'norace') ? noRaceRows() : S.M.rows;
 		const twoLists = K.sendsKind(s) && s.sends > 1;
 		return base.filter((x) => {
 			if (twoLists && f.list !== 'all') { const old = K.oldOnly(s, x.id); if (f.list === 'new' ? old : !old) return false; }
@@ -199,9 +206,20 @@
 		$('#dotSort').hidden = S.cs === 'def' && S.rs === 'def';
 		$('#dotPlan').hidden = !planActive();
 	}
+	/** T108: 「レース指定なし／本育成編成なし」の見出し: 入るなら長い形、入らなければ短い形（レース／本育成編成なし）、それでも入らなければ短い形を2行で */
+	function fitNoRaceLabel(s) {
+		const b = $('#setBtn'), t = $('#setText');
+		b.classList.remove('rsel--two');
+		if (!s || s.kind !== 'norace') return;
+		t.textContent = K.setName(s);
+		if (t.scrollWidth <= t.clientWidth + 1) return;
+		t.textContent = K.setShort(s);
+		if (t.scrollWidth > t.clientWidth + 1) b.classList.add('rsel--two');
+	}
 	function renderHeader() {
 		const s = curSet();
 		$('#setText').textContent = K.setShort(s);
+		fitNoRaceLabel(s);
 		$('#setBtn').setAttribute('aria-label', (isExam() ? 'セット：' : 'レース/周回セット：') + K.setName(s));
 		$('#setBtn').title = K.setName(s);
 		// ライト／ダークのボタンのアイコンは、UmaStar と同じく利用者の選択（自動／ライト／ダーク）を示す（T94・追加4。svg は data-theme-state で出し分け）
@@ -310,7 +328,7 @@
 		if (S.doc.parents.length && !isExam() && !curSet() && !S.doc.parents.some(K.inNoneList)) { V = null; stage.innerHTML = '<div class="empty"><span>UmaStar の親はまだいません。UmaStar の OCR から送ってください。</span></div>'; return; }
 		if (!S.doc.parents.length) { V = null; stage.innerHTML = '<div class="empty"><span>まだ親がいません。UmaStar か UmaExam の OCR から送るか、バックアップを読み込んでください。</span><button class="btn" type="button" id="emptyData">バックアップ</button></div>'; $('#emptyData').onclick = openData; return; }
 		const s = curSet();
-		if (s && !S.doc.parents.some((p) => (p.sets || []).includes(s.id))) { V = null; stage.innerHTML = '<div class="empty"><span>このセットにはまだ親がいません。</span><button class="btn" type="button" id="emptyNone">指定なしで見る</button></div>'; $('#emptyNone').onclick = () => pickSet('none'); return; }
+		if (s && !S.doc.parents.some((p) => (p.sets || []).includes(s.id))) { V = null; stage.innerHTML = '<div class="empty"><span>このセットにはまだ親がいません。</span><button class="btn" type="button" id="emptyNone">デフォルトで見る</button></div>'; $('#emptyNone').onclick = () => pickSet('none'); return; }
 		if (!cols.length || !rows.length) { V = null; stage.innerHTML = '<div class="empty"><span>条件に合う親かスキルがありません。</span><button class="btn" type="button" id="emptyClear">絞り込みを外す</button></div>'; $('#emptyClear').onclick = () => { S.pf = { style: new Set(), owner: new Set() }; S.sf = { list: 'all', cat: new Set(), dist: new Set(), style: new Set(), q: '' }; $('#sf-q').value = ''; S.onlyMiss = false; const pl = S.doc.plans[curKey()]; if (pl) { pl.applied = false; saveHead(); } renderAll(); }; return; }
 		if (S.lv === 0) drawOverview(ps, rows, cols); else drawTable(ps, rows, cols, force);
 		S.perf.lastRender = performance.now() - t0;
@@ -711,6 +729,7 @@
 				doc.sets.forEach((s) => { const t = S.doc.sets.find((x) => x.id === s.id); if (!t) S.doc.sets.push(s); else Object.keys(s.skills).forEach((id) => { if (!(id in t.skills)) t.skills[id] = Math.max(1, t.sends - 1); }); });
 				// 「指定なし」の一覧も同じ形で OR でまとめる（T97・140）
 				if (doc.none) { if (!S.doc.none) S.doc.none = doc.none; else Object.keys(doc.none.skills).forEach((id) => { if (!(id in S.doc.none.skills)) S.doc.none.skills[id] = Math.max(1, S.doc.none.sends - 1); }); }
+				if (doc.norace) { if (!S.doc.norace) S.doc.norace = doc.norace; else Object.keys(doc.norace.skills).forEach((id) => { if (!(id in S.doc.norace.skills)) S.doc.norace.skills[id] = Math.max(1, S.doc.norace.sends - 1); }); }
 				if (doc.exam) { if (!S.doc.exam) S.doc.exam = doc.exam; else Object.keys(doc.exam.skills).forEach((id) => { if (!(id in S.doc.exam.skills)) S.doc.exam.skills[id] = S.doc.exam.sends; }); }
 				S.doc.next = Math.max(next, S.doc.next); S.doc.parents = S.doc.parents.concat(add);
 				await K.store.putParents(add); await saveHead(); await runArchive(); rebuild(); closeSheet(); renderAll(); toast('足しました（親' + add.length + '人）');
@@ -749,7 +768,7 @@
 	$('#colMax').onclick = () => { S.settings.colMax = !S.settings.colMax; if (!S.settings.colMax && S.rs === 'max') S.rs = 'def'; saveSettings(); renderAll(); };
 	$('#colEff').onclick = () => { S.settings.colEff = !S.settings.colEff; if (!S.settings.colEff && S.rs === 'eff') S.rs = 'def'; saveSettings(); renderAll(); };
 	$('#geneToggle').onclick = () => { S.settings.geneRows = !S.settings.geneRows; saveSettings(); renderAll(); };
-	let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => renderStage(true), 150); });
+	let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { fitNoRaceLabel(curSet()); renderStage(true); }, 150); });
 	// 色が変わったとき（☾☀ のボタン・ほかのタブでの切り替え・OS の設定の変化。どれも js/theme.js が <html data-theme> を付け替える）に描き直す。
 	// ?theme= で固定しているあいだは、ほかから付け替えられても固定の色に戻す（撮影用）
 	new MutationObserver(() => {
@@ -757,7 +776,7 @@
 		if (!S.doc || !S.M) return; renderHeader(); renderStage(true); // 表のモデルを作る前（?theme= で開いた直後）は描かない（T94-4）
 	}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-	function renderAll() { renderHeader(); renderFilters(); renderPlan(); applyPanes(); renderStage(true); renderDock(); renderNudge(); }
+	function renderAll() { renderHeader(); renderFilters(); renderPlan(); applyPanes(); renderStage(true); renderDock(); renderNudge(); fitNoRaceLabel(curSet()); /* T108: 「未書き出し」が出ると見出しのボタンの幅が変わるので、そのあとで測る */ }
 
 	/* ---------- 確かめる用（検査。window.__deckAlpha から呼ぶ。画面には出ない） ---------- */
 	const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));

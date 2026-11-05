@@ -20,7 +20,7 @@
 	<!-- 画面の色（ライト／ダーク）は、ほかのツールと同じ設定（T88 の決めてほしいこと4 → B）。body の解析より前に色を決めるので同期で読む -->
 	<script src="js/theme.js?v=2026-10-08b"></script>
 	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
-	<link rel="stylesheet" href="css/deck-alpha.css?v=2026-11-05d" />
+	<link rel="stylesheet" href="css/deck-alpha.css?v=2026-11-06a" />
 </head>
 <body>
 <div class="app" id="app">
@@ -28,7 +28,7 @@
 	<header class="hd">
 		<h1>Deck <span class="muted small">(αテスト)</span></h1>
 		<button class="nudge" id="nudge" type="button" hidden></button>
-		<button class="rsel" id="setBtn" type="button" aria-haspopup="dialog"><span class="t" id="setText">指定なし</span><span class="car" aria-hidden="true">▾</span></button>
+		<button class="rsel" id="setBtn" type="button" aria-haspopup="dialog"><span class="t" id="setText">デフォルト</span><span class="car" aria-hidden="true">▾</span></button>
 		<!-- ツール切り替えとライト／ダーク: UmaStar・UmaExam の見出しのボタンと同じ形とアイコン（T94・追加4。ライト／ダークのアイコンは利用者の選択〔自動／ライト／ダーク〕を示す。js が data-theme-state を付ける） -->
 		<button class="hbtn" id="toolBtn" type="button" aria-label="ツール切り替え" title="ツール切り替え"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></button>
 		<button class="hbtn" id="themeBtn" type="button" aria-label="ライト／ダークの切り替え" title="ライト／ダーク" data-theme-state="auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="auto"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="light"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="dark"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
@@ -106,6 +106,6 @@
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden />
-<script src="js/deck-alpha-data.js?v=2026-11-05a" data-next="js/deck-alpha-core.js?v=2026-11-05a js/deck-alpha.js?v=2026-11-05c"></script>
+<script src="js/deck-alpha-data.js?v=2026-11-05a" data-next="js/deck-alpha-core.js?v=2026-11-06a js/deck-alpha.js?v=2026-11-06a"></script>
 </body>
 </html>

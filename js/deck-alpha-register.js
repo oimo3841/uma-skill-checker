@@ -24,15 +24,15 @@
  * 考え方: 確かめる所を最小にする。読めて決まったものは1行にたたみ（青・赤・緑の因子は1行の3つのボタン。C-272 の 8）、押すと直す形に入る（9）。
  * 決められなかった所（衣装の候補・★不明・読めなかった因子・祖が登録済みの親と同一か）だけを開いて「要確認」の数を上に出す。
  * ★不明のまま登録してもよい（Deck では「?」）。親Aの衣装だけは決めないと登録できない。
- * 送り先のレース/周回セットは、UmaStar で今選んでいるレースが初期値。「指定なし」でも登録できる（C-271 の 5）。
- * レースのセットへ送るときは、UmaStar の②のスキルの一覧を一緒に入れる（前の一覧と OR。C-271 の 3）。T97（140）から「指定なし」へ送るときも「指定なし」の一覧へ入れる。①の脚質はセットに記録しない（C-272 の 1・2）。
+ * 送り先のレース/周回セットは、UmaStar で今選んでいるレースが初期値。「デフォルト」（T108 で「指定なし」から改名）でも登録できる（C-271 の 5）。T108: UmaStar が「レース指定なし／本育成編成なし」のとき（送る形の noPlan: true）は、独立したまとまり（'norace'）が初期値。
+ * レースのセットへ送るときは、UmaStar の②のスキルの一覧を一緒に入れる（前の一覧と OR。C-271 の 3）。T97（140）から「デフォルト」へ送るときも「デフォルト」の一覧へ入れる。①の脚質はセットに記録しない（C-272 の 1・2）。
  * 「脚質」の欄は親の脚質の札（その親を何の脚質で育てたか。C-272 の 2）。初期値は UmaStar の①の脚質（版10 のまま）。
  * 祖の紐づけ（C-272 の 13〜15）: 同じ衣装の登録済みの親を候補にし、候補ごとに「登録済みの〇〇と同一」の行。「同一」か「新規登録」を選ぶ。
  * 衣装・白スキル・★が全部同じ親が1人だけなら「同一」を選んだ状態で出す（押し直せる）。
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-05a';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-06a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -55,9 +55,9 @@
 		if (!S.ocr) { renderNone(); return; }
 		S.scope = S.ocr.persons.length >= 3 ? 'fam' : 'one';
 		S.owner = S.ocr.owner === 'friend' ? 'friend' : 'self';
-		// UmaStar で今選んでいるレース（一覧に無ければ「指定なし」）と、親の脚質の札の初期値（①の脚質）
+		// UmaStar で今選んでいるレース（一覧に無ければ「デフォルト」。新しいモードは独立したまとまり。T108）と、親の脚質の札の初期値（①の脚質）
 		const live = K.activeRaces();
-		S.setKey = S.exam ? 'exam' : S.ocr.race && live.some((r) => r.id === S.ocr.race) ? 'r:' + S.ocr.race : 'none';
+		S.setKey = S.exam ? 'exam' : S.ocr.noPlan ? 'norace' : S.ocr.race && live.some((r) => r.id === S.ocr.race) ? 'r:' + S.ocr.race : 'none';
 		S.styles = S.ocr.style && K.STYLE[S.ocr.style] ? [S.ocr.style] : [];
 		S.persons = S.ocr.persons.map((o, i) => prepPerson(o, i));
 		render();
@@ -72,7 +72,7 @@
 		const stars = (o) => { const r = {}; if (o && typeof o === 'object') Object.keys(o).forEach((k) => { if (typeof o[k] === 'number') r[k] = o[k]; }); return r; };
 		const person = (o) => ({ uma: o && o.uma && K.costume(o.uma) ? o.uma : null, green: pair(o && o.green), greenCands: o && Array.isArray(o.greenCands) && o.greenCands.length ? o.greenCands.map(String) : null,
 			blue: pair(o && o.blue), red: pair(o && o.red), skills: stars(o && o.skills), genes: stars(o && o.genes), sheet: stars(o && o.sheet) });
-		return { from: j.from === 'exam' ? 'exam' : 'star', race: j.race || null, style: j.style || null, send: Array.isArray(j.send) ? j.send.map(String) : [], owner: j.owner, sentAt: j.sentAt || null, persons: j.persons.slice(0, 3).map(person) };
+		return { from: j.from === 'exam' ? 'exam' : 'star', race: j.race || null, noPlan: j.noPlan === true, style: j.style || null, send: Array.isArray(j.send) ? j.send.map(String) : [], owner: j.owner, sentAt: j.sentAt || null, persons: j.persons.slice(0, 3).map(person) };
 	}
 	function renderNone() {
 		$('#body').innerHTML = '<section class="card"><p class="small muted">送られた親がありません。UmaStar か UmaExam の OCR の結果から送ってください。</p><div class="row"><a class="btn pri" href="deck-alpha.html" style="flex:1">Deck (αテスト)を開く</a></div></section>';
@@ -165,8 +165,8 @@
 	function render() {
 		if (S.done) { renderDone(); return; }
 		$('#regbar').hidden = false; // データを読み終えるまでは出さない（HTML で hidden）
-		const setNow = S.exam ? K.findSet(S.doc, 'exam') : S.setKey === 'none' ? null : (S.doc.sets.find((x) => x.id === S.setKey) || K.newRaceSet(K.RACES.get(S.setKey.slice(2))));
-		// 「指定なし」へ送るときも②の一覧を「指定なし」の一覧に足す（T97・140）。前の一覧の数は「指定なし」の一覧から
+		const setNow = S.exam ? K.findSet(S.doc, 'exam') : S.setKey === 'none' ? null : S.setKey === 'norace' ? K.findSet(S.doc, 'norace') : (S.doc.sets.find((x) => x.id === S.setKey) || K.newRaceSet(K.RACES.get(S.setKey.slice(2))));
+		// 「デフォルト」へ送るときも②の一覧を「デフォルト」の一覧に足す（T97・140）。前の一覧の数は「デフォルト」の一覧から
 		const into = setNow || S.doc.none || null;
 		const sendN = S.ocr.send.length, had = into && into.sends ? Object.keys(into.skills).length : 0;
 		const noFam = S.ocr.persons.length < 3;
@@ -249,8 +249,10 @@
 		// レースのセット（無ければ作る）へ、②のスキルの一覧（前の一覧と OR）を入れる。脚質はセットに記録しない（C-272 の 2）
 		let set = null;
 		if (S.exam) { if (!doc.exam) doc.exam = K.newExamList(); K.addSend(doc.exam, S.ocr.send); set = doc.exam; }
+		// T108: 新しいモードは独立したまとまりへ（一覧の入れ方は「デフォルト」と同じ。空の一覧では作らない）
+		else if (S.setKey === 'norace') { if (S.ocr.send.length) { if (!doc.norace) doc.norace = K.newNoRaceList(); K.addSend(doc.norace, S.ocr.send); } set = K.findSet(doc, 'norace'); }
 		else if (S.setKey !== 'none') { set = doc.sets.find((x) => x.id === S.setKey); if (!set) { set = K.newRaceSet(K.RACES.get(S.setKey.slice(2))); doc.sets.push(set); } K.addSend(set, S.ocr.send); }
-		// 「指定なし」へ送るときは、②の一覧を「指定なし」の一覧へ（前の一覧と OR・送りの回の数え方はレースのセットと同じ。T97・140）。空の一覧では作らない
+		// 「デフォルト」へ送るときは、②の一覧を「デフォルト」の一覧へ（前の一覧と OR・送りの回の数え方はレースのセットと同じ。T97・140）。空の一覧では作らない
 		else if (S.ocr.send.length) { if (!doc.none) doc.none = K.newNoneList(); K.addSend(doc.none, S.ocr.send); }
 		const today = new Date(); const date = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 		const no = doc.parents.filter((p) => p.date === date).length + 1;
@@ -272,8 +274,8 @@
 		const id = 'p' + doc.next; doc.next++;
 		const parent = Object.assign({ id, date, no, owner: S.owner, sets: set ? [set.id] : [], tags: { style: S.styles.slice() }, gp }, member(main));
 		// Deck を開いたときに、送り先のセットを選んだ状態にする
-		if (S.exam) { parent.from = 'exam'; S.settings.mode = 'exam'; } // UmaExam から登録した親は「指定なし」に出さない（233）。開いたときは UmaExam 用の表
-		else { S.settings.cur = set ? set.id : 'none'; S.settings.mode = 'star'; }
+		if (S.exam) { parent.from = 'exam'; S.settings.mode = 'exam'; } // UmaExam から登録した親は「デフォルト」に出さない（233）。開いたときは UmaExam 用の表
+		else { if (S.setKey === 'norace') parent.from = 'norace'; /* T108: デフォルトの表に出さない */ S.settings.cur = set ? set.id : 'none'; S.settings.mode = 'star'; }
 		try { await K.store.putParents([parent]); await K.store.putHead(doc); await K.store.putMeta('settings', S.settings); }
 		catch (e) { toast('保存できませんでした'); return; }
 		try { localStorage.removeItem(INBOX); } catch (e) { /* 消せなくても登録は済んでいる */ }

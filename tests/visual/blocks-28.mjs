@@ -80,7 +80,8 @@ export async function register28(env) {
 	const MASTER = readJson('uma-skill-deck-skills.json').skills;
 	const EXT = readJson('data/extended-skills.json').entries;
 	const RACES = readJson('data/upcoming-races.json').races;
-	const NS_IDS = NS.entries.map((e) => String(e.skillId));
+	// T108（292）: 脚質オススメの「サポカ外」の項目はレース場の印を持つスキルを出さない
+	const NS_IDS = NS.entries.map((e) => String(e.skillId)).filter((id) => { const x = MASTER.find((s) => s.id === id) || EXT.find((s) => s.id === id); return !x || !x.tags || !(x.tags.trackVenue || []).length; });
 	const EFF = readJson('data/skill-effect-levels.json');
 	const RANK = new Map(EFF.stages.map((s) => [s.key, s.rank]));
 	const LOWMAX = RANK.get(EFF.lowEffectMax.key !== undefined ? EFF.lowEffectMax.key : EFF.lowEffectMax);
@@ -179,7 +180,7 @@ export async function register28(env) {
 			await sp.ctx.close();
 		}
 		// 「①の条件なし」と「本育成編成で 291 を得る」は同じになる（291 は低効果で、どちらでも出さない）。残りの4通りは違う
-		assert(LOW.has('291') && new Set(seen).size === 4, 'サポカ外(3) ①の条件・レース・本育成編成を変えると、候補が変わる（5つのシナリオで4通り。291 は低効果で出さないので、条件なしと本育成編成のシナリオは同じ）', seen.map((s) => s.split(',').length));
+		assert(LOW.has('291') && new Set(seen).size === 3, 'サポカ外(3) ①の条件・レース・本育成編成を変えると、候補が変わる（5つのシナリオで3通り。291 は低効果で出さないので、条件なしと本育成編成のシナリオは同じ。T108: レース場を外したので、中距離・先行・芝とレースのシナリオも同じ）', seen.map((s) => s.split(',').length));
 		assert(NS_IDS.every((id) => !skillOf(id).raceDistance), 'サポカ外(3) 全' + NS_IDS.length + '件にレースの距離の限定（raceDistance）は無い（上の期待値の組み立てに入れていない）', NS_IDS.filter((id) => skillOf(id).raceDistance));
 	});
 

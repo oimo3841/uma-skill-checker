@@ -332,7 +332,7 @@ export async function register12(env) {
 			const b = await barInfo(sp.page);
 			const tag = 'オススメサポ④段9 ' + w + 'px: ';
 			assert(a.btn && Math.round(a.btn.h) === 28 && a.btn.l >= a.pillR && a.btn.r <= a.sumL && a.sw <= a.iw && !a.on, tag + '「レース」のボタンはタイトルの行のタイトルの右・ツール切り替えの左に入り（C-235）、高さ28px。画面は横にはみ出さない', a);
-			assert(a.text === (w < 360 ? 'レース' : 'レース▾') && a.caretShown === (w >= 360), tag + (w < 360 ? '320px は「レース」だけ（▾を省く）' : '「レース ▾」'), { text: a.text, caret: a.caretShown });
+			assert(a.text === (w < 360 ? 'レース指定' : 'レース指定▾') && a.caretShown === (w >= 360), tag + (w < 360 ? '320px は「レース指定」だけ（▾を省く。T108）' : '「レース指定 ▾」（T108）'), { text: a.text, caret: a.caretShown });
 			assert(b.on && b.bg !== a.bg && b.barH === a.barH && b.btn.r <= b.sumL && b.sw <= b.iw, tag + '選ぶとボタンが濃色になる。帯の高さ（' + a.barH + 'px）は変わらない（文字は段13・B1 で条件の短い形）', { a: [a.barH, a.bg], b: [b.barH, b.bg, b.text] });
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
@@ -344,11 +344,11 @@ export async function register12(env) {
 		await openRaceList(sp.page);
 		const rows = await raceRows(sp.page);
 		const dateOf = (r) => (r.date ? Number(r.date.slice(5, 7)) + '/' + Number(r.date.slice(8, 10)) : r.dateLabel);
-		assert(rows.length === SEL.length + 1 && rows[0].id === '' && rows[0].line1 === '指定なし' && rows[0].checked && rows[0].line2 === null,
-			'オススメサポ④段9 先頭は「指定なし」（選ばれている）。続けて一覧の' + SEL.length + '行（選べるレースだけ。race-0001 は出ない）', rows.map((r) => r.line1));
-		assert(rows.slice(1).every((r, i) => r.id === SEL[i].id && r.line1 === dateOf(SEL[i]) + ' ' + SEL[i].name) && !rows.some((r) => r.id === 'race-0001'),
-			'オススメサポ④段9 1行目は「日付（決まっていなければ「11月下旬」のような表示）＋レース名」で、並びはファイルの行の順', rows.slice(1).map((r) => r.line1));
-		const line2 = rows.slice(1).map((r) => r.line2);
+		assert(rows.length === SEL.length + 2 && rows[0].id === '' && rows[0].line1 === 'デフォルト' && rows[0].checked && rows[0].line2 === null && rows[1].id === 'no-plan' && !rows[1].checked,
+			'オススメサポ④段9 先頭は「デフォルト」（選ばれている）、次に新しいモード（T108）。続けて一覧の' + SEL.length + '行（選べるレースだけ。race-0001 は出ない）', rows.map((r) => r.line1));
+		assert(rows.slice(2).every((r, i) => r.id === SEL[i].id && r.line1 === dateOf(SEL[i]) + ' ' + SEL[i].name) && !rows.some((r) => r.id === 'race-0001'),
+			'オススメサポ④段9 1行目は「日付（決まっていなければ「11月下旬」のような表示）＋レース名」で、並びはファイルの行の順', rows.slice(2).map((r) => r.line1));
+		const line2 = rows.slice(2).map((r) => r.line2);
 		assert(line2[0] === '京都 芝3000m 右・外・秋・昼' && line2[2] === '東京 芝2400m 左・冬・晴・良・昼' && line2[3] === 'ダート 中距離' && line2[4] === '芝 マイル デバフなし' && line2[5] === '芝 中距離'
 			&& line2.every((t) => t && !/不明|null|undefined/.test(t)),
 			'オススメサポ④段9 2行目は公開された条件だけ（天気・バ場状態が公開されていない行は、その語を出さない。「不明」とは書かない）。特殊ルールは「デバフなし」', line2);
@@ -369,7 +369,7 @@ export async function register12(env) {
 		assert(rows2.find((r) => r.id === R0.id).checked && !rows2[0].checked, 'オススメサポ④段9 開き直すと、選んだレースに印', rows2.map((r) => r.checked));
 		await sp.page.click('[data-usd-el="race-opt"][data-race-id=""] input');
 		await sp.page.waitForTimeout(300);
-		assert(!('race' in (await draftRoster(sp.page))) && !(await barInfo(sp.page)).on, 'オススメサポ④段9 「指定なし」を選ぶと、項目ごと消え、ボタンは元の見た目', true);
+		assert(!('race' in (await draftRoster(sp.page))) && !(await barInfo(sp.page)).on, 'オススメサポ④段9 「デフォルト」を選ぶと、項目ごと消え、ボタンは元の見た目', true);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 		// 一覧から外れたレース
@@ -378,8 +378,8 @@ export async function register12(env) {
 		await pickSet(sp2.page, 't1');
 		await openRaceList(sp2.page);
 		const rows3 = await raceRows(sp2.page);
-		assert(rows3[1].id === 'race-9999' && rows3[1].checked && /（一覧から外れました）$/.test(rows3[1].line1) && rows3[1].line2 === line2[SEL.findIndex((r) => r.id === R0.id)] && rows3.length === SEL.length + 2 && (await barInfo(sp2.page)).on,
-			'オススメサポ④段9 セットが持っているレースが一覧に無いときは、「指定なし」の次にその行を出し（選ばれている）、「（一覧から外れました）」と添える', rows3.slice(0, 3));
+		assert(rows3[2].id === 'race-9999' && rows3[2].checked && /（一覧から外れました）$/.test(rows3[2].line1) && rows3[2].line2 === line2[SEL.findIndex((r) => r.id === R0.id)] && rows3.length === SEL.length + 3 && (await barInfo(sp2.page)).on,
+			'オススメサポ④段9 セットが持っているレースが一覧に無いときは、「デフォルト」と新しいモードの次にその行を出し（選ばれている）、「（一覧から外れました）」と添える', rows3.slice(0, 3));
 		await sp2.ctx.close();
 		// ①が空の保存済みのセット（roster が無い）: 選ぶと編成が作られ、そこに入る
 		const sp3 = await openSp({ userData: SAVED(), roster: null });

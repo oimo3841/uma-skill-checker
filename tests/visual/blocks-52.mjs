@@ -48,8 +48,8 @@ export async function register52(env) {
 			const rows = await raceRows(sp.page);
 			const ids = rows.map((r) => r.id);
 			assert(!ids.some((id) => ENDED.includes(id)), `段0b(1) ${w}px: 選択欄に終わったレース（${ENDED.join()}）は出ない`, ids);
-			assert(JSON.stringify(ids) === JSON.stringify([''].concat(SEL.map((r) => r.id))), `段0b(2) ${w}px: 「指定なし」と、選べる全6行（race-0002〜0007）が並びどおりに出る`, ids);
-			assert(rows[0].checked && rows.slice(1).every((r) => !r.checked), `段0b(2) ${w}px: 何も選んでいないときは「指定なし」に印`, rows.map((r) => r.checked));
+			assert(JSON.stringify(ids) === JSON.stringify(['', 'no-plan'].concat(SEL.map((r) => r.id))), `段0b(2) ${w}px: 「デフォルト」・新しいモードと、選べる全6行（race-0002〜0007）が並びどおりに出る`, ids);
+			assert(rows[0].checked && rows.slice(1).every((r) => !r.checked), `段0b(2) ${w}px: 何も選んでいないときは「デフォルト」に印`, rows.map((r) => r.checked));
 			const loaded = await sp.page.evaluate(() => UmaSkillDeckCore.getUpcomingRaces().map((r) => ({ id: r.id, selectable: r.selectable })));
 			assert(loaded.length === RACES.length && loaded.find((r) => r.id === 'race-0001').selectable === false && loaded.filter((r) => r.selectable === false).length === 1, `段0b(5) ${w}px: getUpcomingRaces は全行（隠すのは表示だけ）・race-0001 は selectable: false のまま`, loaded);
 			assert(jsErrors(sp.errors).length === 0, `段0b(1) ${w}px: コンソールのエラー0`, jsErrors(sp.errors).slice(0, 3));
@@ -68,7 +68,7 @@ export async function register52(env) {
 			assert(bar && bar.length > 0 && bar !== 'レース', `段0b(3) ${w}px: 帯のレースの表示は、保存したレースの短い表記のまま（${bar}）`, bar);
 			await openRaceList(sp.page);
 			const rows = await raceRows(sp.page);
-			assert(rows[0].id === '' && !rows[0].checked && rows[1].id === 'race-0001' && rows[1].checked && /（一覧から外れました）$/.test(rows[1].line1) && rows.length === SEL.length + 2, `段0b(3) ${w}px: 「指定なし」の次に、選ばれた race-0001 の行が「（一覧から外れました）」つきで出る（全${SEL.length + 2}行）`, rows.slice(0, 3));
+			assert(rows[0].id === '' && !rows[0].checked && rows[2].id === 'race-0001' && rows[2].checked && /（一覧から外れました）$/.test(rows[2].line1) && rows.length === SEL.length + 3, `段0b(3) ${w}px: 「デフォルト」と新しいモードの次に、選ばれた race-0001 の行が「（一覧から外れました）」つきで出る（全${SEL.length + 2}行）`, rows.slice(0, 3));
 			// 選び直せる（選べるレースへ）。選ぶと race-0001 の行は消える
 			await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + SEL[0].id + '"] input');
 			await sp.page.waitForTimeout(300);

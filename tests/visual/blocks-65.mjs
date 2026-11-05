@@ -139,7 +139,7 @@ export async function register65(env) {
 		await page.waitForTimeout(200);
 		const opened = await page.evaluate((s) => ({ exp: document.querySelector(s).getAttribute('aria-expanded'), list: !!document.querySelector('[data-usd-el="race-list"]'), title: document.querySelector('[data-usd-el="info-pop"] .uma-popover-title').textContent }), RB);
 		assert(opened.exp === 'true' && opened.list && opened.title === 'レース', 'タイトルと帯(3): 押すとレースの小窓が開き、aria-expanded が true', opened);
-		await page.locator('[data-usd-el="race-radio"]').nth(1).check();
+		await page.locator('[data-usd-el="race-radio"]').nth(2).check();   // T108: 0＝デフォルト・1＝新しいモード・2 からレース
 		await page.waitForTimeout(400);
 		const picked = await page.evaluate((s) => { const b = document.querySelector(s); return b ? { on: b.getAttribute('aria-pressed'), text: b.textContent.replace('▾', '').trim() } : null; }, RB);
 		assert(picked && picked.on === 'true' && picked.text && picked.text !== 'レース', 'タイトルと帯(3): 選ぶとタイトルの行のボタンが濃色・短い形で描き直る', picked);

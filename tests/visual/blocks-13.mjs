@@ -264,7 +264,7 @@ export async function register13(env) {
 			const sp = await openSp({ roster: FULL, w });
 			const tag = 'オススメサポ段13B1 ' + w + 'px: ';
 			const a = await barInfo(sp.page);
-			assert(a.text === 'レース' && !a.on, tag + '指定なしは「レース」', a);
+			assert(a.text === 'レース指定' && !a.on, tag + 'デフォルトは「レース指定」（T108）', a);
 			await sp.page.evaluate((r) => UmaSkillDeckCore.outside.setRace(r), R0);
 			await sp.page.waitForTimeout(250);
 			const b = await barInfo(sp.page);
@@ -279,7 +279,7 @@ export async function register13(env) {
 			assert(c.text === exp2 && !c.cut && c.barH === a.barH, tag + '一部だけ公開のレース: 「' + exp2 + '」（公開されている分だけ）', c);
 			await sp.page.evaluate(() => UmaSkillDeckCore.outside.setRace(null));
 			await sp.page.waitForTimeout(250);
-			assert((await barInfo(sp.page)).text === 'レース', tag + '指定なしに戻すと「レース」', true);
+			assert((await barInfo(sp.page)).text === 'レース指定', tag + 'デフォルトに戻すと「レース指定」', true);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
