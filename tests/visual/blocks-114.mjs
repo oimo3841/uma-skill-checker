@@ -6,7 +6,9 @@
 //  - 表: 人3人＋合計の4列で約 2/3、スキル名の列で約 1/3。列が7つでも横スクロールなし・見出しは1行・スキル名の列に7文字以上。
 //  - 合計の列はスマホでも出す（見出しは PC と同じ文）。人のマスとは塗りで見分ける。
 //  - 親Bセットのマスも青の3段（見出しは今の赤・境は赤い線）。ハイライトは人ごとに1行。横スクロールの注記はスマホでは出さない。
-//  - 文字は 13px と 11px（列が5つ以上の表だけ 10px）。PC（640px 以上）は今のまま。
+//  - 文字は 13px と 11px（列が5つ以上の表だけ 10px）。
+//  - 見直し（決定 215〜222）: 引き出しの中の密度を上げる（PC）。親Aセットと親Bセットの部品を同じ行に並べる（PC・スマホ）。
+//    親A・親Bの色を落ち着かせる（面積と強さの両方）。PC の期待値は変更後の実測の固定値。
 // 色と高さの期待値は段1 のモックで決めて実測した値を固定で書く（実装の側の値を読まない）。データは作り物（OCR はしない。名前は skillList の順の規則で選ぶ）。
 // T100_SHOTS=<フォルダ> を付けて回すと、各場面の画像をそのフォルダに残す。
 import fs from 'node:fs';
@@ -125,7 +127,7 @@ export async function register114(env) {
 			tw, nw, colsPct: (tw - nw) / tw * 100, namePct: nw / tw * 100, heads, minVisible, colWidths: ths.slice(1).map((t) => r(t).width), lastHead: ths[ths.length - 1].textContent,
 			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth || table.parentElement.scrollWidth > table.parentElement.clientWidth + 1,
 			inlineMinW: table.style.minWidth, computedMinW: getComputedStyle(table).minWidth, layout: getComputedStyle(table).tableLayout,
-			parts: { deckBtn: h(q('#deck-handoff-btn')), stat: h(q('#stat-grid')), search: h(q('#table-search')), filter: h(q('#filter-all')), copy: h(q('#result-copy-btn')), thead: h(thead) },
+			parts: { deckBtn: h(q('#deck-handoff-btn')), hl: h(q('#exam-highlight')), ctrl: h(q('#result-ctrlbox')), stat: h(q('#stat-grid')), search: h(q('#table-search')), filter: h(q('#filter-all')), copy: h(q('#result-copy-btn')), thead: h(thead) },
 			fonts, cells: { h0: cell('hm0'), h1: cell('hm1'), h2: cell('hm2'), h3: cell('hm3'), hu: cell('hmu') },
 			total: tot && { bg: totCs.backgroundColor, color: totCs.color, fw: totCs.fontWeight, txt: tot.textContent, fs: totCs.fontSize },
 			bdLeft: bd ? getComputedStyle(bd).borderLeftColor : null, bdBg: bd ? getComputedStyle(bd).backgroundColor : null,
@@ -177,7 +179,7 @@ export async function register114(env) {
 			checkCells(theme, m, theme);
 			const P = PALETTE[theme];
 			assert([P.empty, P.s1, P.s2, P.s3, P.unk].includes(m.bdBg), theme + ' 親Bのマスも青の3段', m.bdBg);
-			const red = theme === 'light' ? 'rgb(252, 165, 165)' : 'rgb(163, 71, 77)';
+			const red = theme === 'light' ? 'rgb(216, 175, 175)' : 'rgb(141, 90, 94)';
 			assert(m.bdLeft === red, theme + ' セットの境は赤い線（--exam-red-border-strong）', m.bdLeft);
 			assert(Object.keys(m.fonts).sort().join() === '10px,11px,13px', theme + ' 文字は表の 10px と 11px・13px だけ', Object.keys(m.fonts));
 			assert(m.rowH.length === 1 && m.rowH[0] === 23 && m.atTable >= 29, theme + ' 1行23px', { h: m.rowH, t: m.atTable });
@@ -200,7 +202,7 @@ export async function register114(env) {
 		}
 	});
 
-	await block('T100ヒートマップ exam ―― PC（640px・1280px）は今のまま: ★の記号・数字なし・表の幅の指定・注記あり。コピーの中身は人の順に★の数', async () => {
+	await block('T100ヒートマップ exam ―― PC（640px・1280px）は★の記号のまま: 数字なし・表の幅の指定・注記あり。コピーの中身は人の順に★の数', async () => {
 		for (const w of [640, 1280]) for (const theme of ['light', 'dark']) {
 			const { ctx, page, errs, fix } = await open(w, 900, theme, 'ab');
 			const m = await probe(page);
@@ -217,6 +219,122 @@ export async function register114(env) {
 		const m = await probe(page);
 		const want = await page.evaluate(({ unk }) => skillList.map((n, r) => [0, 1, 2, 3, 4, 5].map((p) => { const v = [0, 1, 2, 3][(r + p) % 4]; return (!v || (p === 1 && n === unk)) ? '' : String(v); }).join('\t')).join('\n'), fix);
 		assert(m.copy === want, 'スマホの形でもコピーの中身は同じ');
+		await ctx.close();
+	});
+
+	// ===== 見直し（決定 215〜222。期待値は変更後の実測）=====
+	const COLORS = {
+		light: { aText: 'rgb(47, 74, 128)', bText: 'rgb(132, 58, 58)', aBg: 'rgb(238, 242, 248)', bBg: 'rgb(248, 240, 240)' },
+		dark: { aText: 'rgb(180, 200, 230)', bText: 'rgb(230, 189, 189)', aBg: 'rgb(27, 39, 56)', bBg: 'rgb(46, 32, 34)' }
+	};
+	const layout = (page) => page.evaluate(() => {
+		const r = (el) => el.getBoundingClientRect();
+		const cells = [...document.querySelectorAll('#stat-grid > div')];
+		const sets = [...document.querySelectorAll('#exam-highlight-grid > div')];
+		const cs = (el) => getComputedStyle(el);
+		return {
+			statTops: cells.map((c) => Math.round(r(c).top)),
+			statBg: cells.map((c) => cs(c).backgroundColor),
+			setTops: sets.map((x) => Math.round(r(x).top)), setBg: sets.map((x) => cs(x).backgroundColor), setBorder: sets.map((x) => cs(x).borderTopWidth),
+			statAText: cs(cells[1].querySelector('p')).color, statBText: cells[4] ? cs(cells[4].querySelector('p')).color : null,
+			thA: cs(document.querySelectorAll('#result-thead th')[1]).backgroundColor,
+			thB: document.querySelectorAll('#result-thead th')[4] ? cs(document.querySelectorAll('#result-thead th')[4]).backgroundColor : null,
+			togA: [cs(document.getElementById('table-toggle-A')).color, cs(document.getElementById('table-toggle-A')).backgroundColor],
+			togB: [cs(document.getElementById('table-toggle-B')).color, cs(document.getElementById('table-toggle-B')).backgroundColor],
+			tableW: r(document.getElementById('result-table-el')).width,
+			bodyHs: (() => { const b = document.querySelector('#result-drawer .uma-drawer-body'); return b.scrollWidth > b.clientWidth; })(),
+			labelsShown: sets.map((x) => [...x.querySelectorAll('[data-person-group]')].map((g) => [...g.querySelectorAll('.hl-card--center p:first-child')].filter((p) => p.getClientRects().length).length)),
+			groupH: [...document.querySelectorAll('[data-person-group]')].map((g) => Math.round(r(g).height)),
+		};
+	});
+	for (const theme of ['light', 'dark']) {
+		await block('T100ヒートマップ exam ―― 見直し 1280×900（' + theme + '）: 開いた直後の行・部品の高さ・親Aと親Bを同じ行に・色', async () => {
+			const C = COLORS[theme];
+			{
+				const { ctx, page, errs } = await open(1280, 900, theme, 'a');
+				const m = await probe(page), l = await layout(page);
+				await shot(page, 'exam-1280-' + theme + '-a');
+				assert(m.atTop >= 24, theme + '/a 開いた直後に表の行が24行以上（変更前は0）', m.atTop);
+				assert(m.rowH.length === 1 && m.rowH[0] === 21, theme + '/a 1行21px（変更前は46px）', m.rowH);
+				assert(m.parts.stat === 26 && m.parts.search === 28 && m.parts.filter === 26 && m.parts.copy === 28 && m.parts.deckBtn === 28 && m.parts.thead === 23, theme + '/a 上の欄とボタンの高さ', m.parts);
+				assert(m.parts.hl <= 84 && m.parts.ctrl <= 50, theme + '/a ハイライト 84px 以下・検索とボタンの箱 50px 以下', m.parts);
+				assert(l.tableW === 480 && !l.bodyHs, theme + '/a 表は幅いっぱいに伸ばさない（480px）・横スクロールなし', l.tableW);
+				assert(errs.length === 0, theme + '/a コンソールのエラー0', errs);
+				await ctx.close();
+			}
+			const { ctx, page, errs } = await open(1280, 900, theme, 'ab');
+			const m = await probe(page), l = await layout(page);
+			await shot(page, 'exam-1280-' + theme + '-ab');
+			assert(m.atTop >= 22, theme + '/ab 開いた直後に表の行が22行以上（変更前は0）', m.atTop);
+			assert(m.rowH.length === 1 && m.rowH[0] === 21, theme + '/ab 1行21px', m.rowH);
+			assert(m.parts.stat === 26 && m.parts.hl <= 142 && m.parts.ctrl <= 50, theme + '/ab 上の欄 26px・ハイライト 142px 以下・検索とボタンの箱 50px 以下', m.parts);
+			assert(new Set(l.statTops).size === 1 && l.statTops.length === 7, theme + '/ab 上の欄の7つが同じ行', l.statTops);
+			assert(l.setTops.length === 2 && l.setTops[0] === l.setTops[1], theme + '/ab ハイライトの親Aセットと親Bセットが同じ行', l.setTops);
+			assert(l.tableW === 660 && !l.bodyHs, theme + '/ab 表は幅いっぱいに伸ばさない（660px）・横スクロールなし', l.tableW);
+			// 色: 面積（上の欄とセットの箱は地を塗らない）と強さ
+			assert(l.statBg.slice(1).every((c) => c === 'rgba(0, 0, 0, 0)') && l.setBg.every((c) => c === 'rgba(0, 0, 0, 0)') && l.setBorder.every((b) => b === '1px'), theme + ' 上の欄とセットの箱は地なし・線 1px', l);
+			assert(l.statAText === C.aText && l.statBText === C.bText && l.thA === C.aBg && l.thB === C.bBg, theme + ' 親A・親Bの色', l);
+			assert(l.togA[0] === C.aText && l.togA[1] === C.aBg && l.togB[0] === C.bText && l.togB[1] === C.bBg, theme + ' 列のボタンは薄い地に濃い文字', [l.togA, l.togB]);
+			assert(ratio(l.togA[0], l.togA[1]) >= 4.5 && ratio(l.togB[0], l.togB[1]) >= 4.5 && ratio(C.aText, C.aBg) >= 4.5 && ratio(C.bText, C.bBg) >= 4.5, theme + ' 文字と地のコントラスト 4.5 以上');
+			assert(errs.length === 0, theme + '/ab コンソールのエラー0', errs);
+			await ctx.close();
+		});
+
+		await block('T100ヒートマップ exam ―― 見直し 375×812 親Bセットあり（' + theme + '）: 上の欄とハイライトの親Aと親Bが同じ行・見出しは各セットの最初の人だけ', async () => {
+			const { ctx, page, errs } = await open(375, 812, theme, 'ab');
+			const m = await probe(page), l = await layout(page);
+			assert(new Set(l.statTops).size === 1 && l.statTops.length === 7, theme + ' 上の欄の7つが同じ行', l.statTops);
+			assert(l.setTops.length === 2 && l.setTops[0] === l.setTops[1], theme + ' ハイライトの親Aセットと親Bセットが同じ行', l.setTops);
+			assert(l.labelsShown.every((x) => x.join() === '2,0,0'), theme + ' sp70緑・緑の見出しは各セットの最初の人だけ', l.labelsShown);
+			assert(m.atTop >= 7 && m.parts.stat <= 52 && m.parts.hl <= 186, theme + ' 開いた直後の行 7 以上（前は 2）・上の欄 52px 以下（前は 83）・ハイライト 186px 以下（前は 285）', { a: m.atTop, p: m.parts });
+			assert(!m.overflow && !l.bodyHs, theme + ' 横スクロールなし');
+			assert(errs.length === 0, theme + ' コンソールのエラー0', errs);
+			await ctx.close();
+		});
+	}
+
+	await block('T100ヒートマップ exam ―― 見直し シナリオ因子・遺伝子の一覧: PC は名前を省略しない・親Aと親Bは同じ行', async () => {
+		const seed = (page, sets) => page.evaluate((sets) => {
+			setScenarioFactorsAll(true);
+			setAptitudeGenesAll(true);
+			const longest = factorOnlyList.slice().sort((a, b) => b.length - a.length)[0];
+			const lg = geneOnlyList.slice().sort((a, b) => b.length - a.length)[0];
+			const hit = [longest].concat(factorOnlyList.filter((n) => n !== longest).slice(0, 3));
+			const gh = [lg].concat(geneOnlyList.filter((n) => n !== lg).slice(0, 3));
+			const mk = () => matchAllSkillsWithStars(skillList.slice(0, 40).concat(hit, gh).map((s, i) => ({ text: s, stars: (i % 3) + 1, starsReliable: true, rowKey: 'r' + i })), skillList, skillIndex, {});
+			personResults = PERSON_LABELS.map(() => null);
+			(sets === 'ab' ? [0, 1, 2, 3, 4, 5] : [0, 1, 2]).forEach((p) => {
+				personResults[p] = mk();
+				hit.forEach((n, i) => { personResults[p].skillStars[n] = [3, 3, 2, 1][i]; });
+				gh.forEach((n, i) => { personResults[p].skillStars[n] = [3, 3, 2, 1][i]; });
+			});
+			renderResults();
+			openDrawer('result');
+		}, sets);
+		const read = (page) => page.evaluate(() => {
+			const names = [...document.querySelectorAll('#exam-highlight-grid [data-hl-card] .truncate')];
+			const cards = [...document.querySelectorAll('[data-person-group]')].map((g) => [...g.querySelectorAll('[data-hl-card]')].map((c) => Math.round(c.getBoundingClientRect().top)));
+			return { n: names.length, clipped: names.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent), cards, tops: [...document.querySelectorAll('#exam-highlight-grid > div')].map((x) => Math.round(x.getBoundingClientRect().top)) };
+		});
+		for (const [w, sets] of [[1280, 'a'], [1280, 'ab'], [768, 'a'], [768, 'ab'], [640, 'a'], [640, 'ab']]) {
+			const { ctx, page, errs } = await open(w, 900, 'light', 'a');
+			await seed(page, sets);
+			await page.waitForTimeout(350);
+			const f = await read(page);
+			assert(f.n > 0 && f.clipped.length === 0, w + '/' + sets + ' 名前を省略しない', f);
+			if (sets === 'ab') assert(f.tops[0] === f.tops[1], w + '/ab 親Aと親Bが同じ行', f.tops);
+			// 因子と遺伝子を左右に置くのは 1280px の親Aセット＋親Bセットのときだけ
+			const side = w >= 1200 && sets === 'ab';
+			assert(f.cards.every((c) => c.length === 2 && (side ? c[0] === c[1] : c[1] > c[0])), w + '/' + sets + (side ? ' 因子と遺伝子は左右' : ' 因子と遺伝子は上下'), f.cards);
+			assert(errs.length === 0, w + '/' + sets + ' コンソールのエラー0', errs);
+			await ctx.close();
+		}
+		const { ctx, page, errs } = await open(375, 812, 'light', 'a');
+		await seed(page, 'ab');
+		await page.waitForTimeout(350);
+		const f = await read(page);
+		assert(f.tops[0] === f.tops[1] && f.cards.every((c) => c.length === 2 && c[1] > c[0]), '375/ab 親Aと親Bが同じ行・因子と遺伝子は上下', f);
+		assert(errs.length === 0, '375/ab コンソールのエラー0', errs);
 		await ctx.close();
 	});
 }

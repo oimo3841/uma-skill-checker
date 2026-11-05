@@ -7488,9 +7488,9 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 			// 文字の色は区分ごとに違う（因子＝--uma-catalog-text／遺伝子＝--uma-gene-text）
 			color: getComputedStyle(card).color,
 			moreColor: moreEl ? getComputedStyle(moreEl).color : null,
-			// 「他」は格子の外・カードの右下
+			// 「他」は格子の外（T100・C-292: 右下から一覧の右へ移した。★の列と重ならないことを見る）
 			moreText: moreEl ? moreEl.textContent : null,
-			moreBelowGrid: moreEl ? moreEl.getBoundingClientRect().top >= card.getBoundingClientRect().bottom - 1 : null
+			moreBelowGrid: moreEl ? (() => { const m = moreEl.getBoundingClientRect(), c = card.getBoundingClientRect(); return m.top >= c.bottom - 1 || m.left >= c.right - 1; })() : null
 		};
 	}, kind);
 
@@ -7534,7 +7534,7 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		assert(f.rows.every((r) => !r.clipped && r.title && r.title.startsWith(r.name)) && f.rows.some((r) => r.title.startsWith(seeded.longest)),
 			'ハイライト: 375px で長い因子名も省略されず、全文が title で分かる', f.rows.map((r) => [r.name, r.title, r.clipped]));
 		assert(f.moreText === '他' && f.moreBelowGrid,
-			'ハイライト: 「他」は格子の外・カードの右下にあり、★の列と重ならない', { more: f.moreText, below: f.moreBelowGrid });
+			'ハイライト: 「他」は格子の外にあり、★の列と重ならない', { more: f.moreText, below: f.moreBelowGrid });
 		assert(errors.length === 0, 'ハイライト: 375px でコンソールエラーが出ない', errors.slice(0, 3));
 		await ctx.close();
 	}
@@ -7559,10 +7559,11 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		await seedHighlight(page, true);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
-		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
-			'ハイライト: 768px ではまとまりの中の3枚が横並び', g.innerTops);
-		assert(g.tops[0] < g.tops[1] && g.tops[1] < g.tops[2],
-			'ハイライト: 768px ではまとまりはまだ縦に積む', g.tops);
+		// T100（C-292）: 引き出しの中は人の行に sp70緑・緑、その下に一覧
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
+			'ハイライト: 768px では人の行に sp70緑・緑、その下にシナリオ因子', g.innerTops);
+		assert(g.tops[0] <= g.tops[1] && g.tops[1] <= g.tops[2],
+			'ハイライト: 768px ではまとまりは入る数だけ横に並ぶ', g.tops);
 		await ctx.close();
 	}
 
@@ -7572,10 +7573,10 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		const seeded1280 = await seedHighlight(page, true);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
-		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
-			'ハイライト: 1280px でもまとまりの中の3枚は横並び', g.innerTops);
-		assert(g.tops[0] === g.tops[1] && g.tops[2] > g.tops[1],
-			'ハイライト: 1280px ではまとまりが横に2つずつ並ぶ', g.tops);
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
+			'ハイライト: 1280px でも人の行に sp70緑・緑、その下にシナリオ因子', g.innerTops);
+		assert(g.tops[0] === g.tops[1] && g.tops[1] === g.tops[2],
+			'ハイライト: 1280px ではまとまりが同じ行に3つ並ぶ', g.tops);
 		// 広い幅では名前が全部出る。★の左端が揃うのは幅を問わない
 		const f = await readFactorRows(page);
 		assert(f.rows.every((r) => !r.clipped) && f.rows.some((r) => r.name === seeded1280.longest),
@@ -7612,19 +7613,11 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		assert(g.cardCounts.every((n) => n === 4), tag + 'まとまりの中は4枚（sp70緑・緑・シナリオ因子・遺伝子）', g.cardCounts);
 		assert(g.cardHeads.every((x) => x[2] === 'シナリオ因子' && x[3] === '遺伝子'),
 			tag + '4枚目の見出しは「遺伝子」', g.cardHeads[0]);
-		if (w < 640) {
-			// T100（C-290。決定 201）: スマホでは sp70緑・緑を人の行に詰め、シナリオ因子・遺伝子はその下に順に幅いっぱいで置く
-			assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1] && t[3] > t[2]),
-				tag + '人の行（sp70緑・緑）の下にシナリオ因子、その下に遺伝子', g.innerTops[0]);
-			assert(g.innerWidths.every((x) => x[2] === x[3] && x[2] > x[0] + x[1]),
-				tag + 'シナリオ因子と遺伝子は人の行の幅いっぱい', g.innerWidths[0]);
-		} else {
-			// 2列 × 2段。1段目の2枚と2段目の2枚がそれぞれ同じ上端で、2段目は下にある
-			assert(g.innerTops.every((t) => t[0] === t[1] && t[2] === t[3] && t[2] > t[1]),
-				tag + '2列 × 2段（1段目 sp70緑・緑／2段目 シナリオ因子・遺伝子）', g.innerTops[0]);
-			assert(g.innerWidths.every((x) => new Set(x).size === 1),
-				tag + '4枚とも同じ幅', g.innerWidths[0]);
-		}
+		// T100（C-290・C-292）: 引き出しの中は sp70緑・緑を人の行に詰め、シナリオ因子・遺伝子はその下に順に置く（全部の幅で同じ）
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1] && t[3] > t[2]),
+			tag + '人の行（sp70緑・緑）の下にシナリオ因子、その下に遺伝子', g.innerTops[0]);
+		assert(g.innerWidths.every((x) => x[2] === x[3] && x[2] > x[0]),
+			tag + 'シナリオ因子と遺伝子は同じ幅で、人の行のカードより広い', g.innerWidths[0]);
 		assert(!g.overflow && !g.docOverflow, tag + '横スクロールが出ない', g);
 
 		const gr = await readFactorRows(page, 'gene');
@@ -7668,8 +7661,9 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		const g = await readGroups(page);
 		assert(g.cardCounts.every((n) => n === 3) && g.cardHeads.every((x) => x[2] === '遺伝子'),
 			'段H: 遺伝子だけなら3枚目が遺伝子', g.cardHeads[0]);
-		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
-			'段H: 遺伝子だけの3枚は 1280px で横並び', g.innerTops[0]);
+		// T100（C-292）: 人の行に sp70緑・緑、その下に遺伝子
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
+			'段H: 遺伝子だけのときは人の行の下に遺伝子（1280px）', g.innerTops[0]);
 		const gr = await readFactorRows(page, 'gene');
 		assert(gr.rows.every((r) => !r.clipped) && gr.rows.some((r) => r.name === seeded.longestGene),
 			'段H: 遺伝子だけの3枚（等分の3列）でも名前が省略されない', gr.rows.map((r) => r.name));
