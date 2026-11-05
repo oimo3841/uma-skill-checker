@@ -141,6 +141,7 @@ import { register111 } from './blocks-111.mjs';
 import { register112 } from './blocks-112.mjs';
 import { register114 } from './blocks-114.mjs';
 import { register113 } from './blocks-113.mjs';
+import { register115 } from './blocks-115.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -2381,13 +2382,13 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	await page.waitForTimeout(400);
 	const KEY_EXAM = 'umaSkillDeck:ocrHandoff:exam';
 	const readExam = () => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), KEY_EXAM);
-	const noteState = () => page.evaluate(() => ({
-		visible: !document.getElementById('deck-handoff-note').classList.contains('hidden'),
-		title: document.getElementById('deck-handoff-title').textContent,
-		detail: document.getElementById('deck-handoff-detail').textContent,
-		dot: !document.getElementById('deck-handoff-dot').hidden,
-		btn: document.getElementById('deck-handoff-btn-label').textContent
-	}));
+	// T104（224）: 旧 UmaSkill Deck の取り込みの案内・バッジ・引き出しをやめ、結果の上は「Deck (αテスト)に送る」と停止の1行。
+	// 旧 Deck への受け渡しのデータ（umaSkillDeck:ocrHandoff:exam）は今のまま書く。旧 Deck 側の取り込みは別のタブで確かめる。
+	const noteState = () => page.evaluate(() => {
+		const note = document.getElementById('deck-alpha-send-note');
+		return { visible: !note.classList.contains('hidden'), text: note.textContent.replace(/\s+/g, ' ').trim(),
+			oldGone: !document.getElementById('deck-handoff-note') && !document.getElementById('fab-dot-deck') && !document.getElementById('deck-drawer') && !document.getElementById('deck-drawer-trigger') };
+	});
 	let p = await readExam();
 	assert(p && p.source === 'exam' && p.scope.kind === 'manual' && p.scope.name === '技能試験' && p.skillNames.length === 133,
 		'exam: 判定が終わると :exam キーへ payload が書かれる（source=exam・scope=manual「技能試験」・133件）',
@@ -2397,11 +2398,11 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		&& Object.keys(p.persons[1].stars).length === 20,
 		'exam: persons は special と同じ形（親A 132件＋★不明1件・親B 20件）', p && p.persons.map((x) => [x.label, Object.keys(x.stars).length, x.unknownStars.length]));
 	let n = await noteState();
-	assert(n.visible && n.title.includes('取り込めます') && n.detail.startsWith('親A・親B の2人分・スキル133件を渡しました（対象：技能試験）') && n.dot,
-		'exam: 結果カードの先頭に「取り込めます」の案内と新着の印が出る', n);
+	assert(n.visible && n.text === 'Deck (αテスト)に送る UmaSkill Deck は開発を停止しました。' && n.oldGone,
+		'exam: 結果の先頭に「Deck (αテスト)に送る」と停止の1行・旧 Deck の案内とバッジと引き出しは無い', n);
 	assert(await page.evaluate(() => {
 		const wrap = document.getElementById('result-wrap');
-		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
+		return wrap.querySelector('#deck-alpha-send-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
 	}), 'exam: 案内は結果カードの中でサマリーより前にある');
 
 	/* --- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場 ---
@@ -2432,9 +2433,9 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		'exam: 結果があるので「まだありません」の案内は消える');
 	assert(!(await page.isVisible('#result-drawer')), 'exam: 合成しただけでは引き出しは開いていない');
 	assert(await page.isVisible('#fab-toggle'), 'exam: 右下ナビのメインボタンが出る');
-	assert(await page.isVisible('#fab-dot-deck') && !(await page.isVisible('#fab-dot-result')),
-		'exam: 渡し終わった直後は Deck の項目に新着バッジが立ち、照合結果には（見に行く前でも）立てない');
-	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
+	assert(!(await page.isVisible('#fab-dot-result')),
+		'exam: 渡し終わった直後でも、照合結果には（見に行く前でも）バッジを立てない');
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('fab-item-deck')).pointerEvents) === 'none',
 		'exam: 畳んだ状態ではサブボタンが押せない');
 	// 畳んだナビの外枠（透明な箱）が、その下にある要素のクリックを吸わないこと（F-30）
 	const fabBlocks = await page.evaluate(() => {
@@ -2474,7 +2475,7 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert(!(await page.isVisible('#fab-nav')), 'exam: 引き出しを開くとFABは隠れる');
 	assert(await page.evaluate(() => {
 		const wrap = document.getElementById('result-wrap');
-		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
+		return wrap.querySelector('#deck-alpha-send-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
 	}), 'exam: 案内は結果の中でサマリーより前にある');
 	assert(await page.isVisible('#exam-highlight') && await page.isVisible('#copy-btn-label'), 'exam: 緑スキルハイライトと「★の数をコピー」が引き出しの中にある');
 
@@ -2498,35 +2499,19 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		'exam: ラベルは何をコピーするかを言い切り、詳しい説明は title に入る', copyPlace);
 	assert(!copyPlace.windowShown, 'exam: 新UIでは「スプレッドシート貼り付け用データ」の窓を出さない', copyPlace);
 	assert(/^\d+\t\d+$/.test(copyPlace.value), 'exam: コピーされる中身（タブ区切りの★の数）は変えていない', copyPlace.value);
-	// 取り込み案内の色は Deck の色（.deck-accent → --uma-deck-accent-soft）。ページの青ではない
-	const noteColor = await page.evaluate(() => ({
-		box: getComputedStyle(document.getElementById('deck-handoff-box')).backgroundColor,
-		btn: getComputedStyle(document.getElementById('deck-handoff-btn')).backgroundColor,
-		deckSoft: getComputedStyle(document.documentElement).getPropertyValue('--uma-deck-accent-soft').trim()
-	}));
-	// Deck の色は暖灰（stone）。案内の枠と地は Deck の色、押せるボタンは操作の色（黒）
-	// （2026-09-15・43セッション目。赤紫を試したが戻した）
-	// C-144: 押せるボタンは、そのツールの操作色（--uma-control）
-	assert(noteColor.deckSoft === '#e7e5e4' && noteColor.box === 'rgb(231, 229, 228)' && noteColor.btn === await tokRgb(page, 'var(--uma-control)'),
-		'exam: 取り込み案内は Deck の色（暖灰）、ボタンは黒', noteColor);
+	// 「Deck (αテスト)に送る」は special と同じ部品（押せるボタンは、そのツールの操作色。C-144）
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-alpha-send-btn')).backgroundColor) === await tokRgb(page, 'var(--uma-control)'),
+		'exam: 「Deck (αテスト)に送る」のボタンは黒');
 
-	// 「UmaSkill Deck を開いて取り込む」→ Deck の引き出し（iframe）が開く。開いた時点で新着の印は下りる
-	await page.click('#deck-handoff-btn');
-	await page.waitForTimeout(1500);
-	assert(await page.isVisible('#deck-drawer'), 'exam: 案内のボタンで Deck の引き出しが開く');
-	assert(!(await page.evaluate(() => document.getElementById('result-drawer').classList.contains('open'))),
-		'exam: 乗り換えると照合結果の引き出しは畳まれる');
-	n = await noteState();
-	assert(!n.dot && n.title.includes('取り込めます'), 'exam: 一度開きに行ったら新着の印は消える（案内は未取り込みのまま）', n);
-	assert(await page.evaluate(() => !fabUnseen.deck), 'exam: Deck を開くとバッジが下りる');
-
-	// Deck 側（iframe）: 「UmaExam OCR」のバナー → 133件すべて解決 → 取り込み → 比較シートに★
+	// 旧 Deck 側: 引き出しをやめたので別のタブで開く。受け渡しのデータは今のまま読める（旧ページとデータは残す。T92 と同じ守る線）
 	const deckErrors = [];
 	page.on('console', (m) => { if (m.type() === 'error') deckErrors.push(m.text()); });
-	const deckFrame = page.frameLocator('#deck-drawer-frame');
+	const deckTab = await page.context().newPage();
+	deckTab.on('console', (m) => { if (m.type() === 'error') deckErrors.push(m.text()); });
+	await deckTab.goto(base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+	const deckFrame = deckTab;
 	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
-	const frame = page.frames().find((f) => f.url().includes('uma-skill-deck.html'));
-	assert(!!frame, 'exam: 引き出しの iframe が uma-skill-deck.html を読んでいる', page.frames().map((f) => f.url()));
+	const frame = deckTab;
 	assert(await frame.evaluate(() => document.querySelector('#ocr-handoff-banner [data-ocr-el="title"]').textContent) === 'UmaExam OCRの判定結果があります',
 		'exam: Deck 側に「UmaExam OCR」のバナーが出る');
 	const resolved = await frame.evaluate(() => {
@@ -2571,9 +2556,6 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		'exam: 比較シートに★が入る（★不明は0・表記ゆれの名前も正しい ID に入る）', rec);
 	const ex = await readExam();
 	assert(ex && ex.imported === true, 'exam: imported が :exam キーへ書き戻る');
-	n = await noteState();
-	assert(n.title.includes('取り込み済み') && n.btn === 'UmaSkill Deckを開く' && !n.dot,
-		'exam: iframe からの storage イベントで案内が「取り込み済み」に変わる', n);
 	assert(deckErrors.length === 0, 'exam: Deck 側にコンソールエラーなし', deckErrors.slice(0, 3));
 
 	// 既定から動かした人は scope の名前が「技能試験（調整あり）」。
@@ -2613,11 +2595,7 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子25種',
 		'exam: 「対象スキル数」カードの下に「＋シナリオ因子25種」が出る', factorSplit);
 	n = await noteState();
-	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
-		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
-	assert(n.detail.startsWith('親A・親B の2人分・スキル138件・シナリオ因子25件を渡しました'),
-		'exam: 取り込み案内は「スキル138件・シナリオ因子25件」と分けて書く', n.detail);
-	assert(await page.evaluate(() => fabUnseen.deck), 'exam: 判定し直すと Deck のバッジがまた点く');
+	assert(n.visible, 'exam: 判定し直しても「Deck (αテスト)に送る」は出たまま', n);
 	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
 	const factorResolve = await frame.evaluate(() => {
 		const r = resolveHandoffSkills(pendingOcrHandoff().payload);
@@ -2666,6 +2644,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		&& factorRow.plainExists && factorRow.plainHasMark === false,
 		'deck: 取り込んだシートでカタログ由来の行に◆が付き、白スキルの行には付かない', factorRow);
 	await frame.evaluate(() => closeRecordEditor());
+	await deckTab.close();
+	await page.bringToFront();
 	await page.waitForTimeout(300);
 
 	/* --- 検出数は**遺伝子も ON にしたうえで**もスキルだけ（68セッション目に追加）---
@@ -3005,12 +2985,10 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		'段J-2(exam): 逆に、因子・遺伝子を検出していなければ、その印は出ない', zeroSkill.onlySkill);
 
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
-	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
-	// （iframe の中で押した Esc は親には届かない。special の Deck 引き出しも同じ）。
-	await page.focus('#deck-drawer-close');
+	await page.focus('#result-drawer-close');
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(600);
-	assert(!(await page.isVisible('#deck-drawer')), 'exam: Esc で引き出しが閉じる');
+	assert(!(await page.isVisible('#result-drawer')), 'exam: Esc で引き出しが閉じる');
 	assert(await page.evaluate(() => document.body.style.overflow) === '', 'exam: 引き出しを閉じると本文のスクロールが戻る');
 	assert(await page.isVisible('#fab-nav'), 'exam: 引き出しを閉じるとFABが戻る');
 
@@ -4732,7 +4710,7 @@ await noticeBlock('exam.html — 既定は新UI／切り替えの告知モーダ
 			'exam: 旧UIでは窓を今までどおり出し、新UI用のボタンの置き場は畳む');
 		assert(await page.isVisible('#old-result-card') && await page.isVisible('#result-tbody') && await page.isVisible('#result-copy-btn'),
 			'exam: 旧UIでは照合結果が本文のカードとして出て、「まとめてコピー」も見出しにある');
-		assert(await page.evaluate(() => document.getElementById('deck-handoff-note').classList.contains('hidden')),
+		assert(await page.evaluate(() => document.getElementById('deck-alpha-send-note').classList.contains('hidden')),
 			'exam: 旧UIでは Deck の入口（取り込み案内）を出さない（F-29②）');
 		assert(await page.evaluate(() => !!JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam') || 'null')),
 			'exam: 受け渡しの書き込み自体は旧UIでも続いている');
@@ -6917,7 +6895,7 @@ await block('exam.html — 右下のボタン群の「結合画像の設定」',
 			hasStitch: !document.getElementById('stitch-result-wrap').classList.contains('hidden')
 		};
 	});
-	assert(nav.order === 'fab-item-result,fab-item-stitch,fab-item-settings,deck-drawer-trigger', '結合画像の設定: 右下のボタン群の並び', nav.order);
+	assert(nav.order === 'fab-item-result,fab-item-stitch,fab-item-settings,fab-item-deck', '結合画像の設定: 右下のボタン群の並び', nav.order);
 	assert(nav.label === '結合画像の設定' && nav.popHidden, '結合画像の設定: 項目のラベルと、初期はパネルが閉じていること', nav);
 	assert(nav.delays.join(',') === '0.09s,0.06s,0.03s,0s', '結合画像の設定: 4項目の展開の遅延は下から 0/.03/.06/.09 秒', nav.delays);
 
@@ -7123,7 +7101,7 @@ await block('未読の丸（2026-09-15・43セッション目）', async () => {
 
 	// 未読が増えても丸は1つのまま
 	const many = await page.evaluate(() => {
-		markFabUnseen('stitch'); markFabUnseen('deck');
+		markFabUnseen('stitch');
 		return document.querySelectorAll('.uma-fab-main .uma-fab-dot:not([hidden])').length;
 	});
 	assert(many === 1, '未読の丸: 未読が増えても畳んだボタンの丸は1つのまま', many);
@@ -7142,13 +7120,12 @@ await block('未読の丸（2026-09-15・43セッション目）', async () => {
 	const dots = await page.evaluate(() => {
 		const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
 		return {
-			result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'), deck: bg('fab-dot-deck'),
+			result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'),
 			tabResult: bg('result-tab-dot-result'), tabStitch: bg('result-tab-dot-stitch'),
-			handoff: bg('deck-handoff-dot'),
 		};
 	});
 	assert(Object.values(dots).every((c) => c === RED),
-		'未読の丸: 子項目・引き出しのタブ・取り込み案内の丸はすべて同じ赤', dots);
+		'未読の丸: 子項目・引き出しのタブの丸はすべて同じ赤', dots);
 
 	assert(errors.length === 0, '未読の丸: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
@@ -9348,7 +9325,8 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		// core は読まないので、core の表の本数からは除く（両方の表で data/ を網羅していることは run-verify §1 が見る）
 		const examOnly = (() => {
 			const m = /const EXAM_DATA_JSON_VERSIONS = \{([\s\S]*?)\};/.exec(fs.readFileSync(path.join(REPO_ROOT, 'exam.html'), 'utf8'));
-			return m ? [...m[1].matchAll(/'(data\/[a-z0-9-]+\.json)'/g)].map((x) => x[1]) : [];
+			// 固有スキルの名前の一覧は core と exam の両方が読む（T104。run-verify の IN_BOTH_TABLES）
+			return m ? [...m[1].matchAll(/'(data\/[a-z0-9-]+\.json)'/g)].map((x) => x[1]).filter((k) => k !== 'data/training-umamusume.json') : [];
 		})();
 		const dataFileCount = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json') && !examOnly.includes('data/' + f)).length;
 		assert(examOnly.length > 0 && !paths.some((k) => examOnly.includes(k)),
@@ -10460,7 +10438,8 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 	assert(await page.evaluate(() => [...document.querySelectorAll('#result-copy-slot > button')].map((b) => b.id).join(',')
 		=== 'melop-copy-btn-A,melop-copy-btn-B,result-copy-btn'), 'めろっぷ(5): ボタンはいつもの「★の数をコピー」の左に並ぶ');
 
-	// (6) 判定の流れ: オフでは拡張モードの処理を1つも通らず、オンでもいつもの結果・コピーは同じ
+	// (6) 判定の流れ: T104（232）で、新UI ではオフでも Deck (αテスト) へ送るために読み取りと照合を通すようにした。
+	//     コピーのボタンと開発ログの行はオンのときだけ。オンでもいつもの結果・コピーは同じ。
 	const flow = await page.evaluate(async () => {
 		const calls = { load: 0, top: 0, match: 0 };
 		const orig = { load: loadMelopSheet, top: readMelopTopRow, match: matchMelopLines, ppi: processPersonImages, tess: window.Tesseract };
@@ -10494,11 +10473,11 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 		loadMelopSheet = orig.load; readMelopTopRow = orig.top; matchMelopLines = orig.match; processPersonImages = orig.ppi; window.Tesseract = orig.tess;
 		return { off, on };
 	});
-	assert(flow.off.calls.load === 0 && flow.off.calls.top === 0 && flow.off.calls.match === 0 && flow.off.melop && !flow.off.btn && !flow.off.log,
-		'めろっぷ(6): オフで判定すると、並びのデータの読み込み・いちばん上の段・565行の照合を1つも通らない',
+	assert(flow.off.calls.top === 1 && flow.off.calls.match === 1 && !flow.off.melop && !flow.off.btn && !flow.off.log,
+		'めろっぷ(6): オフで判定しても（新UI）読み取りと照合を1回ずつ通す（232）。コピーのボタンと開発ログの行は出ない',
 		{ calls: flow.off.calls, melop: flow.off.melop, btn: flow.off.btn, log: flow.off.log });
-	assert(flow.on.calls.top === 1 && flow.on.calls.match === 1 && flow.on.melop && flow.on.btn,
-		'めろっぷ(6): オンで判定すると、1人につき1回ずつ読み取りと照合を通り、ボタンが出る', flow.on.calls);
+	assert(flow.on.calls.top === 2 && flow.on.calls.match === 2 && flow.on.melop && flow.on.btn,
+		'めろっぷ(6): オンで判定すると、1人につき1回ずつ読み取りと照合を通り（数はオフの分との累計）、ボタンが出る', flow.on.calls);
 	assert(JSON.stringify(flow.on.snap) === JSON.stringify(flow.off.snap) && flow.off.snap.copy.length > 0,
 		'めろっぷ(6): オンでも、いつもの判定・表・集計・「★の数をコピー」の中身はオフと1文字も変わらない',
 		{ 同じ: JSON.stringify(flow.on.snap) === JSON.stringify(flow.off.snap) });
@@ -15517,6 +15496,8 @@ await register112({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 // T100（2026-11-05）: 照合結果のスマホのヒートマップ（C-290。exam.html。人のマスを★の数で塗る・列の幅・7列・合計の列・PC は今のまま）。詳細は blocks-114.mjs
 await register114({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register113({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T104（2026-11-05）: UmaExam の照合結果から Deck (αテスト) へ送る（C-296 の続き。exam.html）
+await register115({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

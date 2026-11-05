@@ -1,4 +1,4 @@
-// UmaStar（special.html）の緑因子（継承固有）の読み取り（T92・Deck α へ送るときに使う）を、実画像で確かめる。
+// UmaStar（special.html）と UmaExam（exam.html。関数は special の写し。T104）の緑因子（継承固有）の読み取り（T92・Deck α へ送るときに使う）を、実画像で確かめる。
 //
 //   node tests/ocr/run-green-tests.mjs                     … test-images の直下のケース（expect.json の green）
 //   node tests/ocr/run-green-tests.mjs --truth=<JSONファイル>
@@ -6,7 +6,7 @@
 //                                                           形は { "<test-images からの相対パス>": ["<固有スキルの名前>", ★] }
 //   node tests/ocr/run-green-tests.mjs --degrade=0.6        … 画像を縮めて JPEG（品質 0.6）にしてから読む（画質が落ちたときに誤りが出ないかを見る）
 //
-// special.html の readGreenFactor() を**そのまま**呼ぶ（ロジックは複製しない）。
+// 各ページの readGreenFactor() を**そのまま**呼ぶ（ロジックは複製しない）。2ページとも同じ期待値で確かめ、どちらかが NG なら NG。
 // 期待値は各ケースの test-images/<ケース>/expect.json の green（書き方は test-images/README.md の melopTop と同じ考え方）:
 //   "green": ["<固有スキルの名前>", ★]
 // 数えるもの: 名前を読めた人数（読めた割合）・誤った名前の件数（目標 0。誤った名前を入れるより null を優先する）・★の一致。
@@ -92,14 +92,21 @@ if (cases.length === 0) {
 }
 const srv = await startServer();
 const browser = await chromium.launch();
-const page = await browser.newPage();
 const pageErrors = [];
+let ok = true;
+for (const pageFile of ['special.html', 'exam.html']) {
+const page = await browser.newPage();
 page.on('pageerror', (e) => pageErrors.push(e.message));
-await page.goto(srv.base + '/special.html', { waitUntil: 'load' });
-await page.waitForFunction(() => window.Tesseract && window.UmaSkillDeckCore);
-await page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false));
+await page.goto(srv.base + '/' + pageFile, { waitUntil: 'load' });
+if (pageFile === 'special.html') {
+	await page.waitForFunction(() => window.Tesseract && window.UmaSkillDeckCore);
+	await page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false));
+} else {
+	await page.waitForFunction(() => window.Tesseract && typeof loadGreenNames === 'function');
+	await page.evaluate(() => loadGreenNames());
+}
 
-console.log('UmaStar の緑因子（継承固有）の読み取り' + (TRUTH_FILE ? '（期待値: ' + TRUTH_FILE + '）' : '') + (DEGRADE ? '（画像を ' + DEGRADE + ' 倍に縮めて JPEG）' : '') + '\n');
+console.log('\n' + pageFile + ' の緑因子（継承固有）の読み取り' + (TRUTH_FILE ? '（期待値: ' + TRUTH_FILE + '）' : '') + (DEGRADE ? '（画像を ' + DEGRADE + ' 倍に縮めて JPEG）' : '') + '\n');
 let compared = 0, named = 0, wrong = 0, starOk = 0, starN = 0;
 const wrongCases = [], noExpect = [];
 for (const c of cases) {
@@ -123,14 +130,17 @@ for (const c of cases) {
 	if (got && typeof got.stars === 'number' && got.stars > 0) { starN++; if (got.stars === wantStars) starOk++; else mark += '（★ 読み ' + got.stars + ' / 期待 ' + wantStars + '）'; }
 	console.log(`${mark} ${c.name}\n${line}`);
 }
-await browser.close();
-await srv.close();
+await page.close();
 
 console.log(`\n名前を読めた ${named}/${compared}人・誤った名前 ${wrong}件・★の一致 ${starOk}/${starN}`);
 if (wrongCases.length) console.log('誤り: ' + wrongCases.join('・'));
 if (noExpect.length) console.log(`!! 期待値の無いケース（数えていない）: ${noExpect.join('・')} !!`);
-pageErrors.forEach((e) => console.log('[page error] ' + e));
-const ok = compared > 0 && wrong === 0 && starOk === starN && pageErrors.length === 0;
 if (compared === 0) console.log('照合できたケースが0件（期待値が1つも無い）');
+if (!(compared > 0 && wrong === 0 && starOk === starN)) ok = false;
+}
+await browser.close();
+await srv.close();
+pageErrors.forEach((e) => console.log('[page error] ' + e));
+if (pageErrors.length) ok = false;
 console.log(ok ? '=== 緑因子: OK ===' : '=== 緑因子: NG ===');
 process.exit(ok ? 0 : 1);

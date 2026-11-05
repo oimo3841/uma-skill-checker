@@ -16,7 +16,6 @@ export const LIGHT_SCENES = (() => {
 		out.push({ name: `exam-${w}`, file: 'exam.html', w });
 		out.push({ name: `deck-${w}`, file: 'uma-skill-deck.html', w });
 	}
-	out.push({ name: 'exam-375-deckdrawer', file: 'exam.html', w: 375, act: 'deck', viewportOnly: true });
 	// exam の結果の表（親A・親Bの人物色・★合計の列。JS がインラインの style で色を当てる）
 	out.push({ name: 'exam-375-results', file: 'exam.html', w: 375, act: 'examResults', viewportOnly: true });
 	out.push({ name: 'exam-1280-results', file: 'exam.html', w: 1280, act: 'examResults', viewportOnly: true });
@@ -46,7 +45,6 @@ export async function captureScene(browser, base, s, userData, theme = 'light') 
 	// 告知を閉じるとフォーカスがヘッダーのボタンへ戻り、その transition の途中で撮ると縁の画素が1段ゆれる（C-135 で判明）。外して落ち着かせる
 	await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
 	await page.waitForTimeout(600);
-	if (s.act === 'deck') { await page.evaluate(() => fabGoTo('deck')); await page.waitForTimeout(2500); }
 	if (s.act === 'examResults') {
 		await page.evaluate(() => {
 			const mk = (names, offset) => matchAllSkillsWithStars(names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {});

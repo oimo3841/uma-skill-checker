@@ -158,7 +158,11 @@ const examDataVerTable = (() => {
 const dataVerOwner = {};
 for (const k of Object.keys(dataVerTable)) dataVerOwner[k] = 'core.js';
 for (const k of Object.keys(examDataVerTable)) dataVerOwner[k] = 'exam.html';
-const bothTables = Object.keys(examDataVerTable).filter((k) => k in dataVerTable);
+// 例外（T104・2026-11-05）: 固有スキルの名前の一覧（training-umamusume.json）は、core と exam の両方が読む。exam は core を読まないので、
+// exam の表にも載せる。そのかわり両方の版が JSON の dataVersion と揃っていることを下の (2) で見る（データを受け入れるときは2か所を直す）。
+const IN_BOTH_TABLES = ['data/training-umamusume.json'];
+const bothTables = Object.keys(examDataVerTable).filter((k) => k in dataVerTable && !IN_BOTH_TABLES.includes(k));
+const coreVerOfBoth = Object.fromEntries(IN_BOTH_TABLES.filter((k) => k in dataVerTable).map((k) => [k, dataVerTable[k]]));
 Object.assign(dataVerTable, examDataVerTable);
 const dataFiles = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).sort();
 console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / theme=%s / announce=%s / video-frames=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, themeVer, announceVer, videoFramesVer, cssVer);
@@ -179,9 +183,7 @@ for (const [p, pat, ver, name] of [
 	['card-event-input.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
 	// special.html の旧 Deck の引き出し（iframe）は T92 で外した（124）。
-	// exam.html の引き出しパネルが読む iframe（DECK_PAGE_URL）。deck.js の版に合わせている値だが、
-	// HTMLの <script src> と違って目に付きにくく、実際に取り残されたことがある。
-	['exam.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
+	// exam.html の旧 Deck の引き出し（iframe・DECK_PAGE_URL）も T104 で外した（224）。ページの中に旧 Deck の版を持たなくなったので、検査するものが無い。
 	// ダークモード段1: 画面の色（js/theme.js）。3ページとも1か所ずつ
 	['special.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
 	['exam.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
@@ -200,7 +202,7 @@ check(masterJsonVer === masterVer,
 	{ 'core.js': masterJsonVer, 'uma-skill-deck-skills.json': masterVer });
 // (1) 表の顔ぶれが data/ の実ファイルと同じ（足し忘れ・消し忘れを落とす）
 check(Object.keys(examDataVerTable).length > 0, 'exam.html の EXAM_DATA_JSON_VERSIONS が読めた（' + Object.keys(examDataVerTable).join('・') + '）', examDataVerTable);
-check(bothTables.length === 0, 'data/ の同じファイルが core.js と exam.html の両方の表に載っていない', bothTables);
+check(bothTables.length === 0, 'data/ の同じファイルが core.js と exam.html の両方の表に載っていない（例外: ' + IN_BOTH_TABLES.join('・') + '）', bothTables);
 check(JSON.stringify(Object.keys(dataVerTable).sort()) === JSON.stringify(dataFiles.map((f) => 'data/' + f)),
 	'core.js の DATA_JSON_VERSIONS と exam.html の EXAM_DATA_JSON_VERSIONS で data/ の JSON すべてを網羅している（' + dataFiles.length + '件）',
 	{ 表: Object.keys(dataVerTable).sort(), 実ファイル: dataFiles.map((f) => 'data/' + f) });
@@ -211,6 +213,7 @@ check(JSON.stringify(Object.keys(dataVerTable).sort()) === JSON.stringify(dataFi
 		const m = /"dataVersion"\s*:\s*"([^"]+)"/.exec(read(p));
 		const actual = m ? m[1] : '(読めない)';
 		if (actual !== dataVerTable[p]) ng.push(p + ': ' + dataVerOwner[p] + '=' + dataVerTable[p] + ' / JSON=' + actual);
+		if (p in coreVerOfBoth && actual !== coreVerOfBoth[p]) ng.push(p + ': core.js=' + coreVerOfBoth[p] + ' / JSON=' + actual);
 	}
 	check(ng.length === 0, 'DATA_JSON_VERSIONS（＋exam の表）の版が data/ の各 dataVersion と一致（' + Object.keys(dataVerTable).length + '件）', ng);
 }
@@ -478,6 +481,8 @@ const INTENTIONALLY_REMOVED = {
 	// FAB の旧 Deck の項目とバッジ（#deck-drawer-trigger・#fab-dot-deck。項目は #fab-item-deck に替えた）・中で開く引き出し（#deck-drawer 一式）を消した。
 	// commit が進んだら免除は空に戻す。
 	// → T92 の commit（555d950）で HEAD から消えたので、免除は空に戻した。
+	// 2026-11-05（T104・224）: exam の旧 UmaSkill Deck の案内の箱（#deck-handoff-*）・FAB の項目とバッジ（#deck-drawer-trigger・#fab-dot-deck。項目は #fab-item-deck に替えた）・
+	// 中で開く引き出し（#deck-drawer 一式）を消した。commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

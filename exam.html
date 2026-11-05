@@ -842,13 +842,11 @@
 		}
 		.hm-num { display: none; }
 		@media (max-width: 639.98px) {
-			/* Deck への受け渡しの案内 */
-			#result-drawer #deck-handoff-note { margin-bottom: 10px; }
-			#result-drawer #deck-handoff-box { padding: 8px 10px; }
-			#result-drawer #deck-handoff-box > div { gap: 6px; }
-			#result-drawer #deck-handoff-title { font-size: 11px; line-height: 15px; }
-			#result-drawer #deck-handoff-detail { margin-top: 0; font-size: 11px; line-height: 15px; }
-			#result-drawer #deck-handoff-btn { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 11px; }
+			/* Deck (αテスト)へ送る（T104。special と同じ） */
+			#result-drawer #deck-alpha-send-note { margin-bottom: 10px; }
+			#result-drawer #deck-alpha-send-btn { min-height: 0; height: 30px; padding: 0 10px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
+			#result-drawer #deck-alpha-send-note > p { margin-top: 2px; line-height: 14px; }
 
 			/* 上の欄（対象スキル数・各人の検出数）: 1つの箱に1行 */
 			#result-drawer #stat-grid { grid-template-columns: repeat(var(--hm-stat-n, 4), minmax(0, 1fr)); gap: 0; margin-bottom: 10px; border: 1px solid var(--uma-border); border-radius: 10px; overflow: hidden; }
@@ -977,13 +975,11 @@
 			#result-drawer:has(#result-tab-result[aria-selected="true"]):has(#result-wrap:not(.hidden)) { width: min(96vw, 530px); }
 			#result-drawer:has(#result-tab-result[aria-selected="true"]):has(#result-wrap:not(.hidden)):has(#exam-highlight-grid.hl-sets-2) { width: min(96vw, 750px); }
 			#result-drawer #result-drawer-slot { padding: 8px 12px; }
-			/* Deck への受け渡しの案内 */
-			#result-drawer #deck-handoff-note { margin-bottom: 8px; }
-			#result-drawer #deck-handoff-box { padding: 4px 10px; }
-			#result-drawer #deck-handoff-box > div { gap: 8px; }
-			#result-drawer #deck-handoff-title { font-size: 11px; line-height: 15px; }
-			#result-drawer #deck-handoff-detail { margin-top: 0; line-height: 15px; }
-			#result-drawer #deck-handoff-btn { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 11px; }
+			/* Deck (αテスト)へ送る: ボタンと停止の1行を同じ行に（T104。special と同じ） */
+			#result-drawer #deck-alpha-send-note:not(.hidden) { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+			#result-drawer #deck-alpha-send-btn { flex: none; width: auto; min-height: 0; height: 28px; padding: 0 12px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
+			#result-drawer #deck-alpha-send-note > p { margin: 0; line-height: 14px; }
 
 			/* 上の欄: 1つの箱に1行。ラベルと数を1行に（入らない幅では2段） */
 			#result-drawer #stat-grid { grid-template-columns: auto repeat(calc(var(--hm-stat-n, 4) - 1), minmax(0, 1fr)); gap: 0; margin-bottom: 8px; border: 1px solid var(--uma-border); border-radius: 8px; overflow: hidden; }
@@ -1126,6 +1122,14 @@
 							</div>
 						</div>
 
+						<!-- 新しい Deck の α版（T104・224。special と同じ形）。URL に ? も # も付けない（恒久ルール32） -->
+						<a href="deck-alpha.html" id="tool-deck-alpha" class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 transition-colors group cursor-pointer">
+							<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+								<i data-lucide="layers" class="w-4 h-4"></i>
+							</div>
+							<p class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">Deck (αテスト)</p>
+						</a>
+
 						<!-- お知らせ（2nd Edition の告知）を、いつでも読み直せる（C-140・微調整2・E） -->
 						<button type="button" id="announce-menu-btn" onclick="openAnnounceFromMenu()" class="flex w-full items-center gap-3 p-2.5 mt-1 rounded-xl hover:bg-slate-100/80 transition-colors cursor-pointer text-left">
 							<span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><i data-lucide="bell" class="w-4 h-4"></i></span>
@@ -1213,6 +1217,23 @@
 			</div>
 			<div class="help-body">
 				<p id="eff-help-text" class="notice-text" style="white-space: pre-line;"></p>
+			</div>
+		</div>
+
+		<!-- Deck (αテスト)に送る: 親Aセットと親Bセットの両方が送れるときに、どちらを送るかを選ぶ（T104） -->
+		<div id="deck-alpha-send-backdrop" class="uma-overlay-backdrop" hidden onclick="closeDeckAlphaSendPicker()"></div>
+		<div id="deck-alpha-send-box" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="deck-alpha-send-title">
+			<div class="help-head">
+				<h2 id="deck-alpha-send-title" class="help-title">
+					<i data-lucide="send" class="w-4 h-4 text-[var(--uma-control-mark)]"></i>
+					<span>Deck (αテスト)に送る</span>
+				</h2>
+				<button id="deck-alpha-send-close" type="button" onclick="closeDeckAlphaSendPicker()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+			<div class="help-body">
+				<div id="deck-alpha-send-sets" class="flex gap-2"></div>
 			</div>
 		</div>
 
@@ -1647,8 +1668,8 @@
 	</div>
 
 	<!-- ===== 引き出しパネル =====
-	     special.html と同じ骨格（css/shell.css の .uma-drawer）。行き先は3つ（照合結果 / 結果画像 /
-	     UmaSkill Deck）で、背景の暗転は1枚を共有し、同時に開くのは1つだけ。開閉は openDrawer() /
+	     special.html と同じ骨格（css/shell.css の .uma-drawer）。行き先は2つ（照合結果 / 結果画像）で
+	     （旧 UmaSkill Deck の引き出しは T104 で外した）、背景の暗転は1枚を共有し、同時に開くのは1つだけ。開閉は openDrawer() /
 	     closeDrawer() が管理する。ボタンはこのページの既存の書き方（Tailwind のユーティリティ）で
 	     組む（共通部品 .uma-btn は読んでいない）。 -->
 	<div id="drawer-backdrop" class="uma-drawer-backdrop" hidden onclick="closeDrawer()"></div>
@@ -1707,32 +1728,15 @@
 				<div id="result-drawer-slot" class="uma-drawer-content">
 					<!-- 結果の実体。hidden クラスは「結果があるか」の印（setSectionReady が切り替える）。 -->
 					<div id="result-wrap" class="hidden">
-						<!-- ===== UmaSkill Deck への受け渡しの案内（第2段階・手順3）=====
-						     判定が終わると writeOcrHandoff() が localStorage へ書き出す。
-						     「Deck側に渡し終わった」ことは画面に出ないと分からないので、結果の先頭で知らせる。
-						     取り込みが済んだかどうかは refreshDeckHandoffState() が localStorage を見て
-						     切り替える（Deck側の取り込みは storage イベントで届く）。
-						     Deck は右下の FAB と同じ引き出し（iframe）で開く（以前は固定名の別タブ）。
-						     色は Deck の色（.deck-accent → css/tokens.css の --uma-deck-*。special と同じ .deck-note）。 -->
-						<div id="deck-handoff-note" class="hidden mb-6">
-							<div id="deck-handoff-box" class="deck-accent deck-note">
-								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-									<div class="flex items-start gap-2.5 min-w-0">
-										<span class="relative shrink-0 mt-0.5">
-											<i data-lucide="layers" class="w-4 h-4 deck-icon"></i>
-											<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
-										</span>
-										<div class="min-w-0">
-											<p id="deck-handoff-title" class="text-xs font-bold deck-note-title">この結果をUmaSkill Deckに取り込めます</p>
-											<p id="deck-handoff-detail" class="text-[11px] deck-note-text mt-0.5 leading-relaxed"></p>
-										</div>
-									</div>
-									<button type="button" id="deck-handoff-btn" onclick="fabGoTo('deck')" class="deck-note-btn shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-semibold transition-all shadow-xs cursor-pointer">
-										<i data-lucide="layers" class="w-3.5 h-3.5"></i>
-										<span id="deck-handoff-btn-label">UmaSkill Deckを開いて取り込む</span>
-									</button>
-								</div>
-							</div>
+						<!-- ===== Deck (αテスト) へ送る（T104・224。special の T92 と同じ形） =====
+						     以前はここに旧 UmaSkill Deck への取り込みの案内があった。新UI で、親が読めている親セットが
+						     あるときだけ出す（updateDeckAlphaSendButton）。旧 Deck への受け渡し（writeOcrHandoff）は今のまま続ける。 -->
+						<div id="deck-alpha-send-note" class="hidden mb-6">
+							<button type="button" id="deck-alpha-send-btn" onclick="sendToDeckAlpha()" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent deck-accent w-full" aria-haspopup="dialog">
+								<i data-lucide="send" class="w-4 h-4"></i>
+								<span>Deck (αテスト)に送る</span>
+							</button>
+							<p class="text-[11px] text-slate-500 mt-1.5">UmaSkill Deck は開発を停止しました。</p>
 						</div>
 	
 				<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
@@ -1945,12 +1949,11 @@
 			</span>
 		</button>
 
-		<button id="deck-drawer-trigger" type="button" class="uma-fab-item deck-accent" onclick="fabGoTo('deck')"
-			aria-controls="deck-drawer" aria-expanded="false">
-			<span>UmaSkill Deck</span>
+		<!-- T104（224）: 旧 UmaSkill Deck の引き出しをやめ、押すと deck-alpha.html を開く（fabOpenDeckAlpha）。旧 Deck の取り込み待ちのバッジは出さない -->
+		<button id="fab-item-deck" type="button" class="uma-fab-item deck-accent" onclick="fabOpenDeckAlpha()">
+			<span>Deck (αテスト)</span>
 			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
@@ -1989,26 +1992,6 @@
 			<div id="stitch-show-panel-fab"></div>
 		</div>
 	</div>
-
-	<!-- UmaSkill Deck。中身は iframe（uma-skill-deck.html をそのまま読む）。同一オリジンなので
-	     localStorage は共有され、OCR結果の取り込みはこの中の「読み込む」から行う。
-	     src は初回に開いたときに DECK_PAGE_URL（?v= は deck.js の版）を入れる。 -->
-	<aside id="deck-drawer" class="uma-drawer" hidden role="dialog" aria-modal="true" aria-label="UmaSkill Deck">
-		<div class="uma-drawer-header">
-			<div class="flex items-center gap-2 min-w-0">
-				<i data-lucide="layers" class="w-4 h-4 deck-accent deck-icon shrink-0"></i>
-				<p class="text-sm font-bold text-slate-800 truncate">UmaSkill Deck</p>
-				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">OCRの結果を保存して候補どうしを見比べられます</span>
-			</div>
-			<button id="deck-drawer-close" type="button" onclick="closeDrawer()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
-				<i data-lucide="x" class="w-3.5 h-3.5"></i>
-				<span>閉じる</span>
-			</button>
-		</div>
-		<div class="uma-drawer-body uma-drawer-body--frame">
-			<iframe id="deck-drawer-frame" title="UmaSkill Deck" loading="lazy"></iframe>
-		</div>
-	</aside>
 
 	<script>
 		/* ============================================================
@@ -4208,6 +4191,7 @@
 			personLines = PERSON_LABELS.map(() => null);
 			personGeometry = PERSON_LABELS.map(() => null);
 			personMelop = PERSON_LABELS.map(() => null);
+			personGreen = PERSON_LABELS.map(() => null);
 			// これ以降の personResults 等はこの run のもの
 			lastOcrRun = run;
 
@@ -4242,6 +4226,14 @@
 				if (run.melop) {
 					try { await loadEffData(); } catch (err) { console.warn('効率のデータを読み込めませんでした（合計の行を出しません）', err); }
 				}
+			}
+			// Deck (αテスト) へ送るぶん（T104・232）。新UI の判定では毎回、いちばん上の段（青・赤）と緑因子を読み、
+			// 573行の辞書で照合する。読めなくても判定は続ける（送るときに「読めなかった」になるだけ。知らせは出さない）
+			if (run.deck) {
+				try { await loadMelopSheet(); }
+				catch (err) { console.warn('Deck へ送るための行の並びを読み込めませんでした', err); }
+				try { await loadGreenNames(); }
+				catch (err) { console.warn('緑因子の名前の一覧を読み込めませんでした', err); }
 			}
 			// 効率で選ぶ（C-136）。照合は拡張モードの辞書で行うので、並びのデータと効率のデータを読む。
 			// 押した時点でまだ読めていなければ、ここで読んで今の境目と区間で控える。読めなければ効率なしで判定する
@@ -4294,6 +4286,16 @@
 								' / 赤 ' + (top.red ? (top.red.name || '読めず「' + top.red.text + '」') + '★' + top.red.stars : 'なし') +
 								' / 固有★' + top.uniqueStars + ' / 右隣 ' + top.extraLines.map(l => l.text).join('｜'))
 							: 'いちばん上の段が見つからない'));
+					} else if (run.deck && melopSheet) {
+						// T104（232）: 同じ読み取りを Deck (αテスト) へ送るぶんとして通す。コピーのボタンを出すかは今までどおり run.melop だけで決める
+						try {
+							const top = await readMelopTopRow(worker, files, melopSheet);
+							personMelop[p] = { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) };
+						} catch (e) { personMelop[p] = null; }
+					}
+					// T104: Deck (αテスト) へ送るときの緑因子（継承固有）。読めなくても判定は続ける
+					if (run.deck && examGreenNames) {
+						try { personGreen[p] = await readGreenFactor(worker, files); } catch (e) { personGreen[p] = null; }
 					}
 				}
 			} catch (err) {
@@ -4332,6 +4334,7 @@
 			renderResults();
 			// 判定が終わるたびに UmaSkill Deck へ渡す（親A/親B列の表示トグルでは書き直さない）
 			writeOcrHandoff();
+			updateDeckAlphaSendButton();
 			showToast('照合が完了しました');
 			// 結果は引き出しの中。判定だけなら、終わった時点で照合結果のタブを開く。
 			// 「OCR＋結合」のときは開かず、未読の印だけ立てて結合の完了を待つ。
@@ -5028,12 +5031,16 @@
 		 * - **モードが切れて判定したときは、読み取り・照合・出力の関数は1つも呼ばれない**（processImages の中の
 		 *   run.melop の分岐だけが入口）。呼ばれるのはボタンを隠したままにする renderMelopCopyButtons() だけ。
 		 *   検査は tests/visual/run-smoke.mjs の「めろっぷ」の塊。
+		 * - **T104（2026-11-05・232）で上の1つを変えた:** 新UI の判定では、モードが切れていても Deck (αテスト) へ送るために
+		 *   読み取りと照合を通す（run.deck）。**コピーのボタンを出すかは今までどおり run.melop だけで決める**（melopRunReady）。
 		 * ============================================================ */
 		// data/ のうち exam.html だけが読むものの版（dataVersion と揃える。test:verify §1 が見る）
 		const EXAM_DATA_JSON_VERSIONS = {
 			'data/melop-sheet-rows.json': '2026-10-28a',
 			// 「効率で選ぶ（βテスト）」と結合画像の効率の合計が読む（C-136）
-			'data/skill-efficiency.json': '2026-10-27a'
+			'data/skill-efficiency.json': '2026-10-27a',
+			// Deck (αテスト) へ送るときの緑因子の名前（固有スキルの名前。T104）
+			'data/training-umamusume.json': '2026-10-26a'
 		};
 		// 効率の区間の蹄鉄（左から銅・銀・金・虹＝効率の低い区間から高い区間）。画像はファイル名の日付が版
 		// （差し替えるときは新しい名前にする。test:verify §1 が img/ の実ファイルとの一致を見る）
@@ -5047,7 +5054,7 @@
 		const MELOP_MODE_STORAGE_KEY = 'uma-exam-melop-mode';
 		let melopModeEnabled = false;   // 保存値が無いときは OFF
 		let melopSheet = null;          // prepareMelopSheet() の戻り値（読み込めたら持ち続ける）
-		let personMelop = PERSON_LABELS.map(() => null); // 人ごとの { res, top }（拡張モードで判定したときだけ）
+		let personMelop = PERSON_LABELS.map(() => null); // 人ごとの { res, top }（拡張モード・効率・新UI の判定のとき。T104）
 
 		function restoreMelopMode() {
 			melopModeEnabled = readStored(MELOP_MODE_STORAGE_KEY) === '1';
@@ -6388,6 +6395,8 @@
 				skillIndex: skillIndex,
 				// めろっぷ！【LTC】専用拡張モード（C-101）。押した時点の状態で決める
 				melop: melopModeEnabled,
+				// Deck (αテスト) へ送るぶんを読むか（T104・232）。新UI の判定では毎回
+				deck: newUi,
 				// 効率で選ぶ（C-136）。押した時点の境目と区間の切り替え。新モードでない・データがまだ無いときは null
 				eff: effSnapshot()
 			};
@@ -8309,7 +8318,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			// 片道化（2026-09-15）: 新UIからは旧UIへ入れない。ボタンごと出さない（ラベルの更新は残す）
 			btn.hidden = true;
 			saveUiModeChoice();
-			refreshDeckHandoffState();
+			updateDeckAlphaSendButton();
 			if (window.lucide) lucide.createIcons();
 		}
 
@@ -8325,7 +8334,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			// 片道化（2026-09-15）: 旧UIにいる間は「新UIへ」（出口）を必ず出す。更新終了の注記は #old-step1-card と一緒に出る
 			btn.hidden = false;
 			saveUiModeChoice();
-			refreshDeckHandoffState();
+			updateDeckAlphaSendButton();
 			if (window.lucide) lucide.createIcons();
 		}
 
@@ -8424,8 +8433,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		 * 引き出しパネル（スライドオーバー）と右下の折りたたみFAB
 		 *
 		 * special.html（C-13・F-26・F-27）と同じ作り。骨格の CSS は css/shell.css。
-		 * 行き先は3つ（照合結果 / 結果画像 / UmaSkill Deck）。同時に開くのは1つだけで、
-		 * 背景の暗転は1枚を共有する。UmaSkill Deck だけ中身が iframe（uma-skill-deck.html）。
+		 * 行き先は2つ（照合結果 / 結果画像）。同時に開くのは1つだけで、
+		 * 背景の暗転は1枚を共有する（旧 UmaSkill Deck の引き出しは T104 で外した）。
 		 *
 		 * 「結果があるか」は #result-wrap / #stitch-result-wrap の hidden クラスが持ち、
 		 * 引き出しが開いているかとは別物（setSectionReady で切り替える）。
@@ -8436,22 +8445,9 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// 表示したかで外す相手が変わるので、ここには置かず selectResultTab() が持つ。
 		const DRAWERS = {
 			result: { el: 'result-drawer', close: 'result-drawer-close', triggers: ['fab-item-result', 'fab-item-stitch'] },
-			deck: { el: 'deck-drawer', close: 'deck-drawer-close', triggers: ['deck-drawer-trigger'], unseenKey: 'deck', onOpen: prepareDeckFrame, onClose: refreshDeckHandoffState }
 		};
 		let openDrawerKey = null;
 		let drawerBackdropTimer = null;
-
-		// Deck の引き出し（iframe）は初回に開いたときだけ読み込む（既定の利用では余計な通信を発生させない）。
-		// 開いた＝この結果については見に行った、とみなしてバッジを下ろす。取り込むかどうかは利用者の判断で、
-		// 取り込まなかった場合でも結果の案内は「取り込めます」のまま残る。
-		function prepareDeckFrame() {
-			const seen = readOcrHandoff();
-			deckSeenHandoffId = seen ? seen.handoffId : null;
-			// 案内の新着の印もこの時点で下ろす（FAB のバッジは openDrawer 側で下りる）
-			refreshDeckHandoffState();
-			const frame = document.getElementById('deck-drawer-frame');
-			if (!frame.getAttribute('src')) frame.setAttribute('src', DECK_PAGE_URL);
-		}
 
 		// 引き出しを1枚たたむ。閉じるアニメーションが終わってから hidden にする
 		// （transitionend が来ないことがあるので、保険のタイマーも置く）。
@@ -8525,9 +8521,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		}
 
 		let fabOpen = false;
-		// 3つとも「未読 ＝ その引き出しをまだ開いていない」。開いたら消える。
-		// deck だけは Deck 側で取り込んだ場合にも消える（refreshDeckHandoffState）。
-		let fabUnseen = { stitch: false, result: false, deck: false };
+		// 2つとも「未読 ＝ その引き出しをまだ開いていない」。開いたら消える。
+		let fabUnseen = { stitch: false, result: false };
 
 		// 結果の実体と、まだ無いときに出す案内。両者は排他で切り替える。
 		const RESULT_SECTIONS = {
@@ -8576,7 +8571,6 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		function updateFabBadges() {
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
-			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
 			updateFabUnseenDot();
 			updateResultTabs();
 		}
@@ -8587,7 +8581,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		function updateFabUnseenDot() {
 			const dot = document.getElementById('fab-unseen-dot');
 			if (!dot) return;
-			const any = fabUnseen.result || fabUnseen.stitch || fabUnseen.deck;
+			const any = fabUnseen.result || fabUnseen.stitch;
 			dot.hidden = fabOpen || !any;
 		}
 
@@ -8756,6 +8750,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			if (e.key !== 'Escape') return;
 			// 「結合画像の設定」のパネルは、引き出しより手前にあるので先に閉じる
 			if (stitchSettingsOpen) closeStitchSettings();
+			else if (deckAlphaSendPickerOpen) closeDeckAlphaSendPicker();
 			else if (factorListOpen) closeFactorList();
 			else if (geneListOpen) closeGeneList();
 			else if (effHelpOpen) closeEffHelp();
@@ -8784,13 +8779,6 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// ※ 同じキー名が js/uma-skill-deck.js の受け取り側（OCR_HANDOFF_SOURCES）にもある。
 		//    片方を変えるときは必ず両方を直すこと。
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
-		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
-		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-11-01a';
-		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
-		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
-		let deckSeenHandoffId = null;
-
 		// 対象の範囲を変えた人・除外／追加がある人は、対象が既定の133種と違うことが
 		// Deck 側でも分かるようにする（軸1・軸2もここに含める）。
 		function handoffScopeName() {
@@ -8849,72 +8837,257 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 				// 容量超過など。連携は諦めるが、画面上の結果表示は通常どおり続ける。
 				return;
 			}
-			refreshDeckHandoffState();
 		}
 
-		function readOcrHandoff() {
-			try {
-				const raw = localStorage.getItem(OCR_HANDOFF_STORAGE_KEY);
-				return raw ? JSON.parse(raw) : null;
-			} catch (e) { return null; }
+		/* ============================================================
+		 * Deck (αテスト) へ送る（T104・224。special の T92 と同じ形。C-295・C-296）
+		 *
+		 * 照合結果の「Deck (αテスト)に送る」で、親セット（親と祖2人、または親だけ）の結果を localStorage の umaDeck:send に書き、
+		 * 新しいタブで deck-alpha-register.html を開く（URL に ? も # も付けない＝恒久ルール32。形は js/deck-alpha-register.js の冒頭）。
+		 * 右下のボタン群の「Deck (αテスト)」も同じ開き方で deck-alpha.html を開く。
+		 * - 送るのは親セットの単位。親が読めているセットだけ。祖2人とも読めていれば3人、そうでなければ親だけ。
+		 *   親Aセット・親Bセットの両方で親が読めているときは、どちらを送るかを小窓で選ぶ。
+		 * - send は133種の id（EXAM_SKILL_LIST が正本。「対象スキルの範囲」を変えていても133種を全部送る）。race・style は null。
+		 * - 各人の skills／genes／sheet は、573行の辞書で照合した結果（personMelop）から作り、画面の判定（personResults）に
+		 *   id のあるものはそちらを優先する。id の無い50行は sheet に名前で入れる。133種の外の id も skills に入れる。★を測れなかったものは -1。
+		 * - 青・赤は readMelopTopRow が読んだもの（読めなければ [null, ★]）。緑は readGreenFactor が読んだもの。
+		 * - 新UI のあいだだけボタンと停止の1行を出す。旧UIは変えない。
+		 * ============================================================ */
+		const DECK_ALPHA_SEND_KEY = 'umaDeck:send';
+		const DECK_ALPHA_REGISTER_URL = 'deck-alpha-register.html';
+		const DECK_ALPHA_URL = 'deck-alpha.html';
+		// いちばん上の段の名前 → Deck α の鍵（js/deck-alpha-core.js の BLUE・RED と同じ）
+		const DECK_ALPHA_BLUE_KEY = { 'スピード': 'speed', 'スタミナ': 'stamina', 'パワー': 'power', '根性': 'guts', '賢さ': 'wit' };
+		const DECK_ALPHA_RED_KEY = { '芝': 'turf', 'ダート': 'dirt', '短距離': 'short', 'マイル': 'mile', '中距離': 'medium', '長距離': 'long', '逃げ': 'nige', '先行': 'senko', '差し': 'sashi', '追込': 'oikomi' };
+
+		/** Deck (αテスト) のページを新しいタブで開く（開けなければこのタブで） */
+		function openDeckAlphaPage(url) {
+			const w = window.open(url, '_blank');
+			if (w) { try { w.opener = null; } catch (e) { /* 開いたタブとつながっていなくてよい */ } }
+			else location.href = url;
+		}
+		/** 右下のボタン群の「Deck (αテスト)」 */
+		function fabOpenDeckAlpha() {
+			setFabOpen(false);
+			openDeckAlphaPage(DECK_ALPHA_URL);
 		}
 
-		/**
-		 * 受け渡しの状態を、結果引き出しの案内と FAB のバッジの両方へ反映する。
-		 * 取り込みが済んだかどうかは Deck 側が payload.imported を立てるので、
-		 * localStorage を読み直せば分かる（下の storage リスナで自動更新される）。
-		 */
-		function refreshDeckHandoffState() {
-			const note = document.getElementById('deck-handoff-note');
-			if (!note) return;
-			// 旧UIでは Deck の入口を出さない（F-29②。受け渡しの書き込み自体は旧UIでも続ける）
-			const payload = newUi ? readOcrHandoff() : null;
-			if (!payload || !payload.persons) {
-				note.classList.add('hidden');
-				fabUnseen.deck = false;
-				updateFabBadges();
-				return;
+		/* ------------------------------------------------------------
+		 * 緑因子（継承固有）の読み取り
+		 *
+		 * special.html の関数の写し（T98・T100 と special.html を触り合わないため。共有のファイルにはしない。js/common.js は変えない）。
+		 * 違いは名前の一覧の取り方だけ。exam は core を読まないので、data/training-umamusume.json を自分で読む（loadGreenNames）。
+		 * 読み方の説明と根拠は special.html の同じ関数の上。検査は tests/ocr/run-green-tests.mjs（special と exam の両方を回す）。
+		 * ------------------------------------------------------------ */
+		const GREEN_TEXT_LEVELS = [215, 180];
+		const GREEN_NAMES_PATH = 'data/training-umamusume.json';
+		let examGreenNames = null;  // 固有スキルの名前の一覧（読み込めたら持ち続ける）
+		let personGreen = PERSON_LABELS.map(() => null); // 人ごとの { name, stars, cands } か null（判定のときに読む）
+		async function loadGreenNames() {
+			if (examGreenNames) return examGreenNames;
+			const v = EXAM_DATA_JSON_VERSIONS[GREEN_NAMES_PATH];
+			const res = await fetch(GREEN_NAMES_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
+			if (!res.ok) throw new Error('HTTP ' + res.status);
+			const src = await res.json();
+			const names = [];
+			((src && src.entries) || []).forEach(u => (u.initialSkills || []).forEach(row => (row.skills || []).forEach(sk => {
+				if (sk && sk.name && names.indexOf(sk.name) === -1) names.push(sk.name);
+			})));
+			examGreenNames = names;
+			return names;
+		}
+		function greenUniqueNames() {
+			return examGreenNames || [];
+		}
+		function findGreenFactorLayout(base) {
+			const W = base.width, H = base.height;
+			const imageData = getPixels(base);
+			const green = greenMaskOf(imageData);
+			const gRows = rowCountsOf(green, W, H);
+			const thickGreen = findRuns(gRows, Math.round(W * 0.12), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const blue = blueMaskOf(imageData);
+			const bRows = rowCountsOf(blue, W, H);
+			const blueBands = findRuns(bRows, Math.round(W * 0.08), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const gapLimit = Math.round(H * 0.02);
+			function isWide(g) {
+				const c = colCountsOf(green, W, g.a, g.b);
+				let covered = 0;
+				for (let x = 0; x < W; x++) if (c[x] > 0) covered++;
+				return covered / W > 0.7;
 			}
-
-			const done = !!payload.imported;
-			// 未取り込みでも、一度 Deck を見に行った結果なら新着の印は出さない
-			const seen = done || payload.handoffId === deckSeenHandoffId;
-			const who = payload.persons.map(p => p.label).join('・');
-			// 未取り込み＝Deck の色（.deck-accent の中の .deck-note。css/shell.css）、取り込み済み＝緑
-			document.getElementById('deck-handoff-box').className =
-				done ? 'rounded-xl border p-4 border-green-200 bg-green-50' : 'deck-accent deck-note';
-			document.getElementById('deck-handoff-dot').hidden = seen;
-			const title = document.getElementById('deck-handoff-title');
-			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
-			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'deck-note-title');
-			const detail = document.getElementById('deck-handoff-detail');
-			// 渡す中身は従来どおり（スキル＋シナリオ因子＋遺伝子）。**数だけ**分けて書く。
-			// **合算しない**（画面のほかの数え方と同じ。段F）。
-			// 数えるのは payload の中身（古い版が書いた payload でも同じ結果になる
-			// ―― 遺伝子を知らない版が書いた payload には遺伝子の行が無いので 0 件になるだけ）。
-			const names = payload.skillNames || [];
-			const handoffFactors = names.filter(n => isScenarioFactor(n)).length;
-			const handoffGenes = names.filter(n => isAptitudeGene(n)).length;
-			const handoffSkills = names.length - handoffFactors - handoffGenes;
-			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + handoffSkills + '件'
-				+ (handoffFactors ? '・シナリオ因子' + handoffFactors + '件' : '')
-				+ (handoffGenes ? '・遺伝子' + handoffGenes + '件' : '') + 'を渡しました'
-				+ (payload.scope && payload.scope.name ? '（対象：' + payload.scope.name + '）' : '') + '。'
-				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
-			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'deck-note-text');
-			document.getElementById('deck-handoff-btn-label').textContent = done ? 'UmaSkill Deckを開く' : 'UmaSkill Deckを開いて取り込む';
-			note.classList.remove('hidden');
-			fabUnseen.deck = !seen;
-			updateFabBadges();
-			if (window.lucide) lucide.createIcons();
+			function widestRun(mask, y0, y1) {
+				const runs = findRuns(colCountsOf(mask, W, y0, y1), Math.max(1, Math.round((y1 - y0 + 1) * 0.5)), 3, 0, W);
+				let best = null;
+				runs.forEach(r => { if (!best || (r.b - r.a) > (best.b - best.a)) best = r; });
+				return best;
+			}
+			for (const bb of blueBands) {
+				const g = thickGreen.find(t => t.a - bb.b >= 0 && t.a - bb.b <= gapLimit && !isWide(t));
+				if (!g) continue;
+				const blueRun = widestRun(blue, bb.a, bb.b);
+				if (!blueRun) continue;
+				// 緑因子は青因子と同じ左の列・1段下（帯の高さ h が単位）
+				return { imageData: imageData, W: W, H: H, h: bb.b - bb.a + 1, top: g.a, x0: blueRun.a, x1: blueRun.b };
+			}
+			return null;
+		}
+		function greenFactorStars(L) {
+			const d = L.imageData.data, n = L.W * L.H;
+			const mask = new Uint8Array(n);
+			for (let i = 0, p = 0; i < n; i++, p += 4) {
+				if (d[p] > 200 && d[p + 1] > 140 && (d[p] - d[p + 2]) > 60 && d[p + 2] < 140) mask[i] = 1;
+			}
+			return countGoldBlobs(mask, L.W, Math.round(L.x0 + L.h * 1.0), L.x1 + 1,
+				Math.round(L.top + L.h * 0.7), Math.min(L.H, Math.round(L.top + L.h * 1.3)));
+		}
+		/** チップの白抜きの文字だけを黒に、それ以外を白にした切り出し（丸いアイコンの右から、チップの右端の少し手前まで） */
+		function greenFactorTextCanvas(base, L, level) {
+			const h = L.h;
+			const cx0 = Math.round(L.x0 + h * 0.76);
+			const cx1 = Math.max(cx0 + 1, Math.round(L.x1 - h * 0.15));
+			const cy0 = Math.round(L.top + h * 0.08);
+			const cy1 = Math.round(L.top + h * 0.76);
+			const w = cx1 - cx0 + 1, hh = cy1 - cy0 + 1;
+			const scale = Math.max(1, Math.min(4, 64 / hh));
+			const pad = 24;
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.round(w * scale) + pad * 2;
+			canvas.height = Math.round(hh * scale) + pad * 2;
+			const ctx = canvas.getContext('2d');
+			ctx.fillStyle = '#FFFFFF';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(base, cx0, cy0, w, hh, pad, pad, Math.round(w * scale), Math.round(hh * scale));
+			const img = ctx.getImageData(pad, pad, canvas.width - pad * 2, canvas.height - pad * 2);
+			const px = img.data;
+			for (let p = 0; p < px.length; p += 4) {
+				const v = Math.min(px[p], px[p + 1], px[p + 2]) > level ? 0 : 255;
+				px[p] = px[p + 1] = px[p + 2] = v;
+			}
+			ctx.putImageData(img, pad, pad);
+			return canvas;
+		}
+		/** OCR の文字列を固有スキルの名前に決める。{ name, cands }（決まらなければ name は null） */
+		function pickGreenFactorName(text, names) {
+			const norm = normalizeText(text);
+			if (norm.length < 2 || names.length === 0) return { name: null, cands: null };
+			const scored = names.map(n => {
+				const nn = normalizeText(n);
+				return { n: n, d: levenshtein(norm, nn), len: Math.max(nn.length, norm.length) };
+			}).sort((a, b) => a.d - b.d);
+			const best = scored[0], second = scored[1];
+			if (best.d / best.len <= 1 / 3 && (!second || second.d - best.d >= 2)) return { name: best.n, cands: null };
+			const close = scored.filter(s => s.d / s.len <= 1 / 3 && s.d - best.d <= 1).slice(0, 5).map(s => s.n);
+			return { name: null, cands: close.length >= 2 ? close : null };
+		}
+		/** 1人分の画像から緑因子を読む。いちばん上の段が見つからなければ null */
+		async function readGreenFactor(worker, files) {
+			const names = greenUniqueNames();
+			for (let i = 0; i < files.length; i++) {
+				let base;
+				try { base = toBaseCanvas(await loadImage(files[i])); } catch (e) { continue; }
+				if (!assessImageQuality(base).ok) continue;
+				const L = findGreenFactorLayout(base);
+				if (!L) continue;
+				const out = { name: null, stars: greenFactorStars(L), cands: null, texts: [] };
+				for (const level of GREEN_TEXT_LEVELS) {
+					const res = await worker.recognize(greenFactorTextCanvas(base, L, level));
+					const text = ((res.data && res.data.text) || '').replace(/\s+/g, '');
+					out.texts.push(text);
+					const pick = pickGreenFactorName(text, names);
+					if (pick.name) { out.name = pick.name; out.cands = null; break; }
+					if (pick.cands && !out.cands) out.cands = pick.cands;
+				}
+				return out;
+			}
+			return null;
 		}
 
-		// 引き出しの中の Deck（iframe）が取り込む（imported を書き戻す）と、このイベントが飛んでくる。
-		// storage イベントは書いた文書自身には飛ばず、同一オリジンの別の文書に飛ぶので、iframe側の
-		// 書き込みはこちらで受け取れる。ポーリングは不要。
-		window.addEventListener('storage', (e) => {
-			if (e.key === OCR_HANDOFF_STORAGE_KEY) refreshDeckHandoffState();
-		});
+		/** 親セット（0＝親A・1＝親B）の送る人の番号。親が読めていなければ空 */
+		function deckAlphaSendIndexes(setIdx) {
+			const p = setIdx * 3;
+			if (!personResults[p]) return [];
+			return personResults[p + 1] && personResults[p + 2] ? [p, p + 1, p + 2] : [p];
+		}
+		/** 送れる親セットの番号の一覧 */
+		function deckAlphaSendableSets() {
+			return PERSON_SETS.map((s, i) => i).filter(i => deckAlphaSendIndexes(i).length > 0);
+		}
+		function updateDeckAlphaSendButton() {
+			const note = document.getElementById('deck-alpha-send-note');
+			if (note) note.classList.toggle('hidden', !(newUi && deckAlphaSendableSets().length > 0));
+		}
+		/** 送る JSON（js/deck-alpha-register.js の冒頭の形） */
+		function buildDeckAlphaSend(setIdx) {
+			const starOf = (v) => (typeof v === 'number' && v > 0) ? v : -1;
+			const factorOf = (hit, keys) => hit ? [keys[hit.name] || null, starOf(hit.stars)] : [null, -1];
+			const persons = deckAlphaSendIndexes(setIdx).map(i => {
+				const skills = {}, genes = {}, sheet = {};
+				const m = personMelop[i];
+				if (m && melopSheet) {
+					m.res.detectedSkills.forEach(dictName => {
+						const row = melopSheet.rowByDictName[dictName];
+						if (!row) return;
+						const star = starOf(m.res.skillStars[dictName]);
+						if (!row.id) sheet[row.name] = star;
+						else if (row.id.indexOf('ap-') === 0) genes[row.id] = star;
+						else skills[row.id] = star;
+					});
+				}
+				// id のあるものは画面の判定を優先する（画面の判定に無い行を、上の照合が補う）
+				personResults[i].detectedSkills.forEach(name => {
+					const id = examSkillId(name);
+					if (id) skills[id] = starOf(personResults[i].skillStars[name]);
+				});
+				const top = m && m.top && m.top.found ? m.top : null;
+				const g = personGreen[i];
+				return {
+					uma: null,
+					green: g ? [g.name, starOf(g.stars)] : null,
+					greenCands: g && !g.name && g.cands ? g.cands.slice() : null,
+					blue: factorOf(top && top.blue, DECK_ALPHA_BLUE_KEY),
+					red: factorOf(top && top.red, DECK_ALPHA_RED_KEY),
+					skills: skills, genes: genes, sheet: sheet
+				};
+			});
+			return { format: 'uma-deck-send', v: 1, sentAt: new Date().toISOString(), from: 'exam', race: null, style: null, send: EXAM_SKILL_LIST.map(s => s.id), owner: 'self', persons: persons };
+		}
+		function sendSetToDeckAlpha(setIdx) {
+			try { localStorage.setItem(DECK_ALPHA_SEND_KEY, JSON.stringify(buildDeckAlphaSend(setIdx))); }
+			catch (e) { showToast('送れませんでした'); return; }
+			openDeckAlphaPage(DECK_ALPHA_REGISTER_URL);
+		}
+		/** 「Deck (αテスト)に送る」。送れる親セットが2つあれば小窓で選ぶ（ボタンの文はセットの呼び名。親だけのときは「親A」など） */
+		let deckAlphaSendPickerOpen = false;
+		function sendToDeckAlpha() {
+			const sets = deckAlphaSendableSets();
+			if (sets.length === 0) return;
+			if (sets.length === 1) { sendSetToDeckAlpha(sets[0]); return; }
+			const row = document.getElementById('deck-alpha-send-sets');
+			row.textContent = '';
+			sets.forEach(i => {
+				const b = document.createElement('button');
+				b.type = 'button';
+				b.className = 'uma-btn uma-btn--neutral flex-1';
+				b.dataset.deckAlphaSet = String(i);
+				b.textContent = deckAlphaSendIndexes(i).length === 3 ? PERSON_SETS[i].label : PERSON_LABELS[i * 3];
+				b.addEventListener('click', () => { closeDeckAlphaSendPicker(); sendSetToDeckAlpha(i); });
+				row.appendChild(b);
+			});
+			deckAlphaSendPickerOpen = true;
+			document.getElementById('deck-alpha-send-backdrop').hidden = false;
+			document.getElementById('deck-alpha-send-box').hidden = false;
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('deck-alpha-send-close').focus();
+		}
+		function closeDeckAlphaSendPicker() {
+			if (!deckAlphaSendPickerOpen) return;
+			deckAlphaSendPickerOpen = false;
+			document.getElementById('deck-alpha-send-backdrop').hidden = true;
+			document.getElementById('deck-alpha-send-box').hidden = true;
+			document.getElementById('deck-alpha-send-btn').focus({ preventScroll: true });
+		}
 	</script>
 </body>
 </html>

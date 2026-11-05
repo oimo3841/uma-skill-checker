@@ -56,7 +56,7 @@ export async function register99(env) {
 		// 入口は段4 の 4-2（T92）で UmaStar（special.html）に足し、T104（223）で旧 Deck のページの先頭にも足した。ほかの既存のページと JS は deck-alpha を指さない
 		const scan = ['index.html', 'special.html', 'exam.html', 'uma-skill-deck.html', 'card-event-input.html'].concat(fs.readdirSync(path.join(REPO_ROOT, 'js')).filter((f) => f.endsWith('.js') && !f.startsWith('deck-alpha')).map((f) => 'js/' + f));
 		const linked = scan.filter((p) => /deck-alpha/.test(read(p)));
-		assert(linked.join() === 'special.html,uma-skill-deck.html', '既存のページと JS で deck-alpha を指すのは UmaStar（special.html。T92 の入口）と旧 Deck のページ（uma-skill-deck.html。T104・223）だけ', linked);
+		assert(linked.join() === 'special.html,exam.html,uma-skill-deck.html', '既存のページと JS で deck-alpha を指すのは UmaStar（special.html。T92 の入口）・UmaExam（exam.html。T104・224）と旧 Deck のページ（uma-skill-deck.html。T104・223）だけ', linked);
 		// 画面に出る文字列（JS の文字列と HTML の本文）に「家系」が無い（コメントも含めて0）
 		const kakei = NEW_FILES.filter((p) => read(p).includes('家系'));
 		assert(kakei.length === 0, '新しいファイルに「家系」の語が無い（C-276）', kakei);

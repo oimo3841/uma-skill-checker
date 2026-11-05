@@ -59,7 +59,7 @@ export async function register114(env) {
 			personResults[1].skillStars[unk] = null;
 			writeOcrHandoff();
 			renderResults();
-			refreshDeckHandoffState();
+			updateDeckAlphaSendButton();
 			openDrawer('result');
 			return { unk };
 		}, sets);
@@ -128,7 +128,7 @@ export async function register114(env) {
 			tw, nw, colsPct: (tw - nw) / tw * 100, namePct: nw / tw * 100, heads, minVisible, colWidths: ths.slice(1).map((t) => r(t).width), lastHead: ths[ths.length - 1].textContent,
 			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth || table.parentElement.scrollWidth > table.parentElement.clientWidth + 1,
 			inlineMinW: table.style.minWidth, computedMinW: getComputedStyle(table).minWidth, layout: getComputedStyle(table).tableLayout,
-			parts: { deckBtn: h(q('#deck-handoff-btn')), hl: h(q('#exam-highlight')), ctrl: h(q('#result-ctrlbox')), stat: h(q('#stat-grid')), search: h(q('#table-search')), filter: h(q('#filter-all')), copy: h(q('#result-copy-btn')), thead: h(thead) },
+			parts: { deckBtn: h(q('#deck-alpha-send-btn')), hl: h(q('#exam-highlight')), ctrl: h(q('#result-ctrlbox')), stat: h(q('#stat-grid')), search: h(q('#table-search')), filter: h(q('#filter-all')), copy: h(q('#result-copy-btn')), thead: h(thead) },
 			fonts, cells: { h0: cell('hm0'), h1: cell('hm1'), h2: cell('hm2'), h3: cell('hm3'), hu: cell('hmu') },
 			total: tot && { bg: totCs.backgroundColor, color: totCs.color, fw: totCs.fontWeight, txt: tot.textContent, fs: totCs.fontSize },
 			bdLeft: bd ? getComputedStyle(bd).borderLeftColor : null, bdBg: bd ? getComputedStyle(bd).backgroundColor : null,

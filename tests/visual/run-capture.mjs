@@ -153,8 +153,6 @@ for (const width of [1280, 375]) {
 	await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; fabGoTo('stitch'); });
 	await shot(page, n('06-stitch-empty'), { fullPage: false, wait: 700 });
 	await page.evaluate(() => selectResultTab('result'));
-	await page.evaluate(() => openDrawer('deck'));
-	await shot(page, n('07-deck-drawer'), { fullPage: false, wait: 1500 });
 	await page.evaluate(() => closeDrawer());
 	await page.waitForTimeout(600);
 	if (await page.evaluate(() => typeof openHelp === 'function')) {
