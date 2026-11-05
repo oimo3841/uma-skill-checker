@@ -144,6 +144,7 @@ import { register113 } from './blocks-113.mjs';
 import { register115 } from './blocks-115.mjs';
 import { register116 } from './blocks-116.mjs';
 import { register117 } from './blocks-117.mjs';
+import { register118 } from './blocks-118.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15504,6 +15505,8 @@ await register115({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register116({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T106（2026-11-05）: UmaStar の動画モードの画面と結合画像の設定の見直し（見出しは「T106」。T107 が blocks-118）
 await register117({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T107（2026-11-05）: 緑因子（継承固有）の読み取りに緑の値の濃淡の段を足した（special.html・exam.html）
+await register118({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

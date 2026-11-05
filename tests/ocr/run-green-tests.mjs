@@ -10,7 +10,7 @@
 // 期待値は各ケースの test-images/<ケース>/expect.json の green（書き方は test-images/README.md の melopTop と同じ考え方）:
 //   "green": ["<固有スキルの名前>", ★]
 // 数えるもの: 名前を読めた人数（読めた割合）・誤った名前の件数（目標 0。誤った名前を入れるより null を優先する）・★の一致。
-// **誤りが1件でもあれば NG**。読めなかった（null）だけでは NG にしない。期待値と照合できたケースが0件なら NG。
+// **誤りが1件でもあれば NG**。読めなかった（null）だけでは NG にしない。ただし expect.json に "greenMustRead": true があるケースは、読めなければ NG（T107）。期待値と照合できたケースが0件なら NG。
 // ケース名・スキル名はこのファイルに書かない（test:stitch の expect.json と同じ考え方）。
 //
 // 育成ウマ娘のデータ（data/training-umamusume.json）を fetch するので、file:// ではなく http で開く。
@@ -54,9 +54,13 @@ async function discoverCases() {
 		const dir = path.join(TEST_IMAGES_DIR, e.name);
 		const files = await imagesOf(dir);
 		if (files.length === 0) continue;
-		let expect = null;
-		try { expect = JSON.parse(await fs.readFile(path.join(dir, 'expect.json'), 'utf-8')).green || null; } catch {}
-		out.push({ name: e.name, files, expect });
+		let expect = null, mustRead = false;
+		try {
+			const j = JSON.parse(await fs.readFile(path.join(dir, 'expect.json'), 'utf-8'));
+			expect = j.green || null;
+			mustRead = j.greenMustRead === true;
+		} catch {}
+		out.push({ name: e.name, files, expect, mustRead });
 	}
 	return out;
 }
@@ -108,7 +112,7 @@ if (pageFile === 'special.html') {
 
 console.log('\n' + pageFile + ' の緑因子（継承固有）の読み取り' + (TRUTH_FILE ? '（期待値: ' + TRUTH_FILE + '）' : '') + (DEGRADE ? '（画像を ' + DEGRADE + ' 倍に縮めて JPEG）' : '') + '\n');
 let compared = 0, named = 0, wrong = 0, starOk = 0, starN = 0;
-const wrongCases = [], noExpect = [];
+const wrongCases = [], noExpect = [], unreadMust = [];
 for (const c of cases) {
 	const inputs = [];
 	for (const f of c.files) {
@@ -128,15 +132,17 @@ for (const c of cases) {
 		if (got.name === wantName) mark = '[OK]'; else { wrong++; wrongCases.push(c.name); mark = '[誤り]'; }
 	} else if (got && got.cands && got.cands.includes(wantName)) mark = '[候補に正解]';
 	if (got && typeof got.stars === 'number' && got.stars > 0) { starN++; if (got.stars === wantStars) starOk++; else mark += '（★ 読み ' + got.stars + ' / 期待 ' + wantStars + '）'; }
+	if (c.mustRead && !(got && got.name === wantName)) unreadMust.push(c.name);
 	console.log(`${mark} ${c.name}\n${line}`);
 }
 await page.close();
 
 console.log(`\n名前を読めた ${named}/${compared}人・誤った名前 ${wrong}件・★の一致 ${starOk}/${starN}`);
 if (wrongCases.length) console.log('誤り: ' + wrongCases.join('・'));
+if (unreadMust.length) console.log('読めなければ NG のケースが読めない: ' + unreadMust.join('・'));
 if (noExpect.length) console.log(`!! 期待値の無いケース（数えていない）: ${noExpect.join('・')} !!`);
 if (compared === 0) console.log('照合できたケースが0件（期待値が1つも無い）');
-if (!(compared > 0 && wrong === 0 && starOk === starN)) ok = false;
+if (!(compared > 0 && wrong === 0 && starOk === starN && unreadMust.length === 0)) ok = false;
 }
 await browser.close();
 await srv.close();

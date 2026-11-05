@@ -8880,6 +8880,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		 * 読み方の説明と根拠は special.html の同じ関数の上。検査は tests/ocr/run-green-tests.mjs（special と exam の両方を回す）。
 		 * ------------------------------------------------------------ */
 		const GREEN_TEXT_LEVELS = [215, 180];
+		const GREEN_GRAY_HEIGHTS = [96, 128];
 		const GREEN_NAMES_PATH = 'data/training-umamusume.json';
 		let examGreenNames = null;  // 固有スキルの名前の一覧（読み込めたら持ち続ける）
 		let personGreen = PERSON_LABELS.map(() => null); // 人ごとの { name, stars, cands } か null（判定のときに読む）
@@ -8968,6 +8969,39 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			ctx.putImageData(img, pad, pad);
 			return canvas;
 		}
+		/** チップの文字を緑の値の濃淡のまま、地を白・文字を黒に伸ばした切り出し（T107）。切り出す範囲は greenFactorTextCanvas と同じ */
+		function greenFactorGrayCanvas(base, L, targetH) {
+			const h = L.h;
+			const cx0 = Math.round(L.x0 + h * 0.76);
+			const cx1 = Math.max(cx0 + 1, Math.round(L.x1 - h * 0.15));
+			const cy0 = Math.round(L.top + h * 0.08);
+			const cy1 = Math.round(L.top + h * 0.76);
+			const w = cx1 - cx0 + 1, hh = cy1 - cy0 + 1;
+			const scale = Math.max(1, Math.min(8, targetH / hh));
+			const pad = 24;
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.round(w * scale) + pad * 2;
+			canvas.height = Math.round(hh * scale) + pad * 2;
+			const ctx = canvas.getContext('2d');
+			ctx.fillStyle = '#FFFFFF';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(base, cx0, cy0, w, hh, pad, pad, Math.round(w * scale), Math.round(hh * scale));
+			const img = ctx.getImageData(pad, pad, canvas.width - pad * 2, canvas.height - pad * 2);
+			const px = img.data;
+			const sorted = [];
+			for (let p = 1; p < px.length; p += 4) sorted.push(px[p]);
+			sorted.sort((a, b) => a - b);
+			const lo = sorted[Math.floor(sorted.length * 0.5)];
+			const hi = sorted[Math.floor(sorted.length * 0.995)];
+			for (let p = 0; p < px.length; p += 4) {
+				const t = Math.max(0, Math.min(1, (px[p + 1] - lo) / Math.max(1, hi - lo)));
+				px[p] = px[p + 1] = px[p + 2] = Math.round(255 * (1 - t));
+			}
+			ctx.putImageData(img, pad, pad);
+			return canvas;
+		}
 		/** OCR の文字列を固有スキルの名前に決める。{ name, cands }（決まらなければ name は null） */
 		function pickGreenFactorName(text, names) {
 			const norm = normalizeText(text);
@@ -8991,8 +9025,11 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 				const L = findGreenFactorLayout(base);
 				if (!L) continue;
 				const out = { name: null, stars: greenFactorStars(L), cands: null, texts: [] };
-				for (const level of GREEN_TEXT_LEVELS) {
-					const res = await worker.recognize(greenFactorTextCanvas(base, L, level));
+				// 境の2段 → 緑の値の濃淡（T107）の順に試し、名前が決まった段で止まる
+				const tries = GREEN_TEXT_LEVELS.map(level => () => greenFactorTextCanvas(base, L, level))
+					.concat(GREEN_GRAY_HEIGHTS.map(height => () => greenFactorGrayCanvas(base, L, height)));
+				for (const makeCanvas of tries) {
+					const res = await worker.recognize(makeCanvas());
 					const text = ((res.data && res.data.text) || '').replace(/\s+/g, '');
 					out.texts.push(text);
 					const pick = pickGreenFactorName(text, names);
