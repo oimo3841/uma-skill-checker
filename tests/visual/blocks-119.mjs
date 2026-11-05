@@ -170,6 +170,7 @@ export async function register119(env) {
 		const v = await page.evaluate(() => ({ msg: document.getElementById('msg').textContent, stats: document.getElementById('stats').textContent, n: __pc.S.persons && __pc.S.persons.length, count: (__pc.S.persons || []).reduce((s, p) => s + __ptr.count(p.canvas), 0) }));
 		assert('3人の結合画像まで作れる', v.n === 3, v.msg);
 		assert('結合画像にカーソルの色の画素が無い', v.count === 0, v.count);
+		assert('数字に圧縮の設定が出る（目標 30Mbps・画質優先）', v.stats.includes('目標 30Mbps・画質優先'), v.stats.slice(0, 400));
 		assert('数字に「カーソル」の行が出る', /カーソル形 \d+×\d+・消した所 \d+/.test(v.stats), v.stats.slice(0, 400));
 		assert('T105(12) コンソールのエラー 0', errors.length === 0, errors.join('／'));
 		await ctx.close();

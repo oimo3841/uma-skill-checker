@@ -243,7 +243,7 @@
 		if (!out.ok) out.reason = 'unstable';
 		return out;
 	}
-	const LAB_VERSION = '2026-11-05c';
+	const LAB_VERSION = '2026-11-06a';
 	const AREA_MSG = {
 		blank: '画面が真っ黒か真っ白です。ウィンドウを最小化していないか確かめてください。',
 		aspect: 'ゲームの画面を見つけられませんでした。選んだウィンドウがウマ娘か確かめてください。',
@@ -658,6 +658,7 @@
 	 * sink = { begin(w, h) → Promise, frame(videoFrame, tsUs), end(endUs) → Promise<出どころ>, bytes(), blob() } */
 	const H264_CODECS = ['avc1.640033', 'avc1.4d0033', 'avc1.420033', 'avc1.640028', 'avc1.420028'];
 	function encodeSink(opts) {
+		const bitrate = opts.bitrate || 30e6;
 		let enc = null, samples = [], description = null, color = null, W = 0, H = 0, bytes = 0, lastKey = -Infinity, failed = null, out = null, codecName = '';
 		return {
 			kind: 'encode',
@@ -667,7 +668,8 @@
 				W = w & ~1; H = h & ~1;
 				let cfg = null;
 				for (const codec of H264_CODECS) {
-					const c = { codec, width: W, height: H, bitrate: opts.bitrate || 12e6, bitrateMode: 'variable', framerate: 30, latencyMode: 'realtime', avc: { format: 'avc' } };
+					// 画質を優先する（T105 の4回目・おいもさんの決定 303）。前は 12Mbps・realtime で、実際は約 2.4Mbps だった
+					const c = { codec, width: W, height: H, bitrate, bitrateMode: 'variable', framerate: 30, latencyMode: 'quality', avc: { format: 'avc' } };
 					try { const s = await VideoEncoder.isConfigSupported(c); if (s.supported) { cfg = c; break; } } catch (e) { /* 次へ */ }
 				}
 				if (!cfg) throw new Error('H.264 で圧縮できない: ' + W + '×' + H);
@@ -709,7 +711,7 @@
 			},
 			bytes: () => (out ? out.size : bytes),
 			blob: () => out,
-			info: () => codecName + (color ? '・' + (color.fullRange ? 'フルレンジ' : 'ふつうの範囲') : '')
+			info: () => codecName + '・目標 ' + Math.round(bitrate / 1e6) + 'Mbps・画質優先' + (color ? '・' + (color.fullRange ? 'フルレンジ' : 'ふつうの範囲') : '')
 		};
 	}
 	function recorderSink(stream, mime, opts) {
