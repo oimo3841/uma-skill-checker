@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（通信とフォームの送信をブラウザの側で禁止する）。動画の中身も読まない。見るのはファイルの名前・大きさ・種類だけ -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'" />
+	<title>動画の選び方の試し（作業用）</title>
+	<!--
+		T106-1（2026-11-05 おいもさんの回答 300）: iPhone の Safari で、ファイルの選択に multiple を付けないと
+		動画を押した瞬間に閉じて3タッチになるかを試すページ。**ツール本体には組み込まない**（どのページからもリンクしない）。
+		accept は製品（special.html の #video-file-input）と同じ video/*。
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --btn: #1d1d1f; --btn-fg: #fff; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --btn: #eee; --btn-fg: #161616; } }
+		body { margin: 0; padding: 12px 16px 40px; background: var(--bg); color: var(--fg); font: 15px/1.5 -apple-system, system-ui, sans-serif; }
+		main { max-width: 560px; margin: 0 auto; }
+		h1 { font-size: 17px; margin: 0 0 8px; }
+		ol { margin: 0 0 12px; padding-left: 1.4em; }
+		.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+		button { min-height: 56px; padding: 6px; border: 0; border-radius: 10px; background: var(--btn); color: var(--btn-fg); font: inherit; font-weight: 700; }
+		button small { display: block; font-weight: 400; font-size: 12px; }
+		h2 { font-size: 15px; margin: 12px 0 4px; }
+		.rec { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+		.rec b { display: block; }
+		.note { color: var(--sub); font-size: 13px; }
+		input[type=file] { display: none; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>動画の選び方の試し</h1>
+	<ol>
+		<li>下の「1本だけ」を押す（1回目）</li>
+		<li>「写真ライブラリ」を押す（2回目）</li>
+		<li>動画を1本押す（3回目）</li>
+		<li>画面が閉じなければ、右上のチェックを押す（4回目）</li>
+	</ol>
+	<p class="note">何回押したかを数えてください。同じことを「今と同じ」でも試し、どちらも何も選ばずに戻れるかも試してください。この画面を撮って送ってください。</p>
+	<div class="btns">
+		<button type="button" id="pick-single">1本だけ<small>multiple なし</small></button>
+		<button type="button" id="pick-multiple">今と同じ<small>multiple あり</small></button>
+	</div>
+	<input id="input-single" type="file" accept="video/*" />
+	<input id="input-multiple" type="file" accept="video/*" multiple />
+	<h2>結果（新しいものが上）</h2>
+	<div id="log" role="status" aria-live="polite"><p class="note" id="empty">まだありません。</p></div>
+	<p class="note">動画の中身は読みません。名前・大きさ・種類をこの画面に出すだけで、外へは送りません。</p>
+</main>
+<script>
+	const NAMES = { single: '1本だけ（multiple なし）', multiple: '今と同じ（multiple あり）' };
+	const logEl = document.getElementById('log');
+	let seq = 0;
+	const sec = (ms) => (ms / 1000).toFixed(1) + '秒';
+	const size = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+	function write(kind, title, lines) {
+		const empty = document.getElementById('empty');
+		if (empty) empty.remove();
+		const rec = document.createElement('div');
+		rec.className = 'rec';
+		rec.setAttribute('data-kind', kind);
+		const b = document.createElement('b');
+		b.textContent = title;
+		rec.appendChild(b);
+		lines.forEach((t) => { const d = document.createElement('div'); d.textContent = t; rec.appendChild(d); });
+		logEl.prepend(rec);
+	}
+	['single', 'multiple'].forEach((kind) => {
+		const input = document.getElementById('input-' + kind);
+		let openedAt = 0, no = 0;
+		// 製品と同じく、押した操作の中で値を空にしてファイルの選択を開く
+		document.getElementById('pick-' + kind).addEventListener('click', () => {
+			no = ++seq;
+			openedAt = performance.now();
+			input.value = '';
+			input.click();
+		});
+		const took = () => '押してから戻るまで: ' + sec(performance.now() - openedAt);
+		input.addEventListener('change', () => {
+			const files = [...input.files];
+			if (files.length === 0) { write(kind, no + '回目 ' + NAMES[kind] + ': 何も選ばずに戻った（change・0本）', [took()]); return; }
+			write(kind, no + '回目 ' + NAMES[kind] + ': ' + files.length + '本 返った', [took()].concat(files.map((f) => f.name + '／' + size(f.size) + '／' + (f.type || '種類なし'))));
+		});
+		input.addEventListener('cancel', () => {
+			write(kind, no + '回目 ' + NAMES[kind] + ': 何も選ばずに戻った（cancel）', [took()]);
+		});
+	});
+</script>
+</body>
+</html>

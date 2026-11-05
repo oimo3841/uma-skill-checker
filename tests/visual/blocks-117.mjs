@@ -223,4 +223,42 @@ export async function register117(env) {
 			await sp.ctx.close();
 		});
 	}
+
+	/* ── 試しのページ（T106-1・回答 300。製品からはリンクしない） ── */
+	await block('T106 lab/video-pick-test.html: 2つのボタン（multiple なし／あり。accept は製品と同じ）・本数・名前・大きさ・種類・時間・選ばずに戻ったときを出す', async () => {
+		const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const page = await ctx.newPage();
+		const errors = [];
+		page.on('pageerror', (e) => errors.push(String(e)));
+		page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+		await page.goto(base + '/lab/video-pick-test.html');
+		const productAccept = await (async () => { const sp = await openPage(browser, base, 'special.html', { width: 390, height: 844 }, EMPTY); const a = await sp.page.getAttribute('#video-file-input', 'accept'); await sp.ctx.close(); return a; })();
+		const attrs = await page.evaluate(() => ['single', 'multiple'].map((k) => { const i = document.getElementById('input-' + k); return { accept: i.accept, multiple: i.multiple }; }));
+		assert(attrs[0].accept === productAccept && attrs[1].accept === productAccept && !attrs[0].multiple && attrs[1].multiple, 'T106 lab: accept は製品と同じで、multiple は片方だけ', { attrs, productAccept });
+		const pick = async (id, files) => {
+			const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.click(id)]);
+			await ch.setFiles(files);
+			await page.waitForTimeout(100);
+			return page.evaluate(() => (document.querySelector('#log .rec') || {}).innerText);
+		};
+		const f = (name, n) => ({ name, mimeType: 'video/mp4', buffer: Buffer.alloc(n) });
+		const a = await pick('#pick-single', [f('a.mp4', 2048)]);
+		assert(/1本だけ/.test(a) && /1本 返った/.test(a) && /a\.mp4／2 KB／video\/mp4/.test(a) && /押してから戻るまで: \d+\.\d秒/.test(a), 'T106 lab: 1本だけ: 本数・名前・大きさ・種類・時間が出る', a);
+		const b = await pick('#pick-multiple', [f('b.mp4', 1024), f('c.mp4', 2097152)]);
+		assert(/今と同じ/.test(b) && /2本 返った/.test(b) && /b\.mp4／1 KB／video\/mp4/.test(b) && /c\.mp4／2\.0 MB／video\/mp4/.test(b), 'T106 lab: 今と同じ: 2本とも出る', b);
+		const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.click('#pick-multiple')]);
+		await ch.element().evaluate((i) => i.dispatchEvent(new Event('cancel')));
+		const none = await page.evaluate(() => document.querySelector('#log .rec').innerText);
+		assert(/何も選ばずに戻った/.test(none) && /押してから戻るまで/.test(none), 'T106 lab: 何も選ばずに戻ったことが分かる', none);
+		const [ch2] = await Promise.all([page.waitForEvent('filechooser'), page.click('#pick-single')]);
+		await ch2.element().evaluate((i) => { i.value = ''; i.dispatchEvent(new Event('change')); });
+		const zero = await page.evaluate(() => document.querySelector('#log .rec').innerText);
+		assert(/何も選ばずに戻った（change・0本）/.test(zero), 'T106 lab: 0本の change も選ばずに戻ったと出る', zero);
+		const m = await page.evaluate(() => ({ steps: document.querySelectorAll('ol li').length, sw: document.documentElement.scrollWidth, iw: innerWidth, top: document.querySelector('ol').getBoundingClientRect().top < document.getElementById('pick-single').getBoundingClientRect().top }));
+		assert(m.steps === 4 && m.top && m.sw <= m.iw, 'T106 lab: 手順はボタンの上・横スクロールなし', m);
+		const linked = ['special.html', 'exam.html', 'index.html'].some((n) => env.fs.readFileSync(env.path.join(env.REPO_ROOT, n), 'utf8').includes('video-pick-test'));
+		assert(!linked, 'T106 lab: 製品からリンクしない', linked);
+		assert(errors.length === 0, 'T106 lab: コンソールのエラー0', errors);
+		await ctx.close();
+	});
 }
