@@ -138,6 +138,7 @@ import { register108 } from './blocks-108.mjs';
 import { register109 } from './blocks-109.mjs';
 import { register110 } from './blocks-110.mjs';
 import { register111 } from './blocks-111.mjs';
+import { register112 } from './blocks-112.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15509,6 +15510,7 @@ await register108({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register109({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register110({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register111({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register112({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

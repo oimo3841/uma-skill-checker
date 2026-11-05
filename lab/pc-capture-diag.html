@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない（fetch・XHR・WebSocket・フォームの送信を、ブラウザの側で禁止する）。読むのは同じ場所の js だけ -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob: mediastream:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>PC の取り込みの診断（作業用）</title>
+	<!--
+		PC 版のウマ娘のウィンドウを、ブラウザの画面共有で取り込み、動画モードの流れ（js/video-frames.js → 結合画像）に渡す試しのページ（T105 段0）。
+		**ツール本体には組み込まない**（lab/capture-test.html・lab/video-diag.html と同じ扱い。どのページからもリンクしない）。
+
+		■ ゲームに干渉しない
+		- ゲームのウィンドウへの入力・操作、ゲームのプロセス・メモリ・ファイルには触れない。ブラウザの画面共有に写った絵を読むだけ。
+		- 画面共有の先を操作する API（Captured Surface Control）は使わない。スクロールは利用者の手で行う。
+
+		■ 外へ何も送らない
+		- 取り込んだ絵はこの PC のブラウザの中だけで処理する。上の Content-Security-Policy で通信を禁止している。
+		- 保存のボタンは、ブラウザのダウンロードで PC に置くだけ。
+
+		■ 方式（画面の「方式」で選べる。比べるため。結果は T105 の報告）
+		- encode: 届いたフレームをそのまま VideoEncoder（H.264）で圧縮し、メモリの上で断片化なしの MP4 にして UmaVideoFrames.openSource に渡す。
+		- recorder-webm／recorder-mp4: MediaRecorder で録って同じく openSource に渡す（断片化・WebM なので video 要素のシークに倒れる）。
+		- stills: 間引いたフレームを JPEG にしてメモリに持ち、時刻で引く出どころにする。
+		どの方式でも、ゲームの画面の領域（枠を除いた所）に切り取る出どころ（cropSource）をかぶせて selectFrames → composePerson に渡す。
+		js/video-frames.js・js/stitch.js・js/common.js は読むだけで変えない。
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #222; --sub: #666; --line: #ccc; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #1b1b1b; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #262626; } }
+		body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, sans-serif; }
+		main { max-width: 960px; margin: 0 auto; }
+		h1 { font-size: 20px; margin: 0 0 8px; }
+		h2 { font-size: 16px; margin: 20px 0 6px; }
+		ol { margin: 0; padding-left: 1.5em; }
+		.box { background: var(--box); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+		.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+		button, select, input { font: inherit; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+		input[type=number] { width: 5em; padding: 6px 8px; }
+		button { cursor: pointer; }
+		button.primary { background: #1565c0; border-color: #1565c0; color: #fff; }
+		button:disabled { opacity: .45; cursor: default; }
+		label { display: inline-flex; gap: 6px; align-items: center; }
+		#msg { min-height: 1.6em; font-weight: bold; }
+		#msg.ng { color: var(--ng); }
+		#msg.ok { color: var(--ok); }
+		[hidden] { display: none !important; }
+		#stage { position: relative; display: inline-block; max-width: 100%; overflow: hidden; line-height: 0; border: 1px solid var(--line); background: #000; }
+		#stage video { display: block; max-width: 100%; max-height: 60vh; }
+		#area { position: absolute; border: 2px solid #ff3d00; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55); box-sizing: border-box; pointer-events: none; }
+		table { border-collapse: collapse; width: 100%; }
+		th, td { border-top: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+		th { width: 13em; font-weight: normal; color: var(--sub); }
+		.sub { color: var(--sub); font-size: 13px; }
+		.ng { color: var(--ng); font-weight: bold; }
+		.warn { color: var(--warn); font-weight: bold; }
+		#persons { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+		#persons figure { margin: 0; }
+		#persons figcaption { font-size: 13px; }
+		#persons canvas { display: block; width: 220px; height: auto; border: 1px solid var(--line); }
+		#log { max-height: 220px; overflow: auto; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>PC の取り込みの診断</h1>
+	<div class="box">
+		<ol>
+			<li>ゲームで因子の画面を開いておきます。</li>
+			<li>「ウィンドウから取り込む」を押し、ウマ娘のウィンドウを選びます。</li>
+			<li>ゲームの因子の画面を、親から祖2 まで手でスクロールします。</li>
+			<li>このページに戻り「取り込みを止める」を押します。</li>
+		</ol>
+		<p class="sub" style="margin:6px 0 0">絵はこの PC の中だけで処理し、どこにも送りません。ゲームには触れません。</p>
+	</div>
+
+	<div class="buttons">
+		<button id="start" class="primary" type="button">ウィンドウから取り込む</button>
+		<button id="stop" type="button" disabled>取り込みを止める</button>
+		<label>方式
+			<select id="mode">
+				<option value="encode">encode（おすすめ）</option>
+				<option value="recorder-webm">recorder-webm</option>
+				<option value="recorder-mp4">recorder-mp4</option>
+				<option value="stills">stills</option>
+			</select>
+		</label>
+		<label>上限（秒）<input id="limit" type="number" min="5" max="600" step="5" value="180" /></label>
+	</div>
+	<div id="msg" role="status"></div>
+
+	<div id="stageWrap" hidden>
+		<h2>取り込みの映像（色の付いた枠が切り取る領域）</h2>
+		<div id="stage"><video id="preview" muted playsinline autoplay></video><div id="area" hidden></div></div>
+	</div>
+
+	<h2>数字</h2>
+	<table><tbody id="stats"></tbody></table>
+
+	<div id="resultWrap" hidden>
+		<h2>結合画像</h2>
+		<div id="persons"></div>
+	</div>
+
+	<div class="buttons">
+		<button id="saveText" type="button">結果を保存</button>
+		<button id="saveFrame" type="button" disabled>切り取りの1枚を保存</button>
+		<button id="saveImages" type="button" disabled>結合画像を保存</button>
+		<button id="saveVideo" type="button" disabled>取り込みを動画で保存</button>
+	</div>
+
+	<h2>記録</h2>
+	<div id="log" class="box"></div>
+</main>
+
+<script>var devGeometry = [];</script>
+<script src="../js/common.js?v=2026-09-26a"></script>
+<script src="../js/stitch.js?v=2026-11-01a"></script>
+<script src="../js/video-frames.js?v=2026-11-03b"></script>
+<script>
+(function () {
+	'use strict';
+	const $ = (id) => document.getElementById(id);
+
+	/* ── ゲームの画面の領域を見つける ─────────────────────────────
+	 * 窓の絵（{ data, width, height }）から、枠・タイトルバーを除いた領域を返す。ゲームの中身は読まない（画素の並びだけ）。
+	 *  1. 外周の枠: 外側から数 px の線のうち、線の中が揃っていて、内側の線と大きく違う所までを枠とする（Windows 11 は 1〜2px の暗い線）。
+	 *  2. 黒い帯: 枠の内側に真っ黒な線が続くなら帯として除く（ゲームが窓より小さく描かれたとき）。
+	 *  3. タイトルバー: 上から、同じ色が半分以上を占める行が続く所（文字やボタンがあっても半分は地の色）。
+	 *  4. 縦横比: ゲームは縦:横 = 16:9（実測 981×1744 = 1.778）。「タイトルバーあり」「なし」のうち 16:9 に合うほうを取る。
+	 *     どちらも合わないときは、スマホの形まで（1.55〜2.5）なら注意つきで通す。それ以外は見つからない。
+	 * 戻り値 { ok, reason, x, y, w, h, aspect, title, how, warns[] } */
+	const OPT = { aspect16: 16 / 9, aspectTol: 0.012, aspectMin: 1.55, aspectMax: 2.5, dmmMinW: 700, dmmMaxW: 1300 };
+	function grayLine(img, horizontal, idx, a, b) {
+		const { data, width } = img, out = [];
+		for (let k = a; k < b; k += 2) {
+			const p = (horizontal ? idx * width + k : k * width + idx) * 4;
+			out.push((data[p] * 77 + data[p + 1] * 150 + data[p + 2] * 29) >> 8);
+		}
+		return out;
+	}
+	const meanAbs = (u, v) => { let s = 0; for (let i = 0; i < u.length; i++) s += Math.abs(u[i] - v[i]); return s / u.length; };
+	const spread = (u) => { let m = 0; for (const x of u) m += x; m /= u.length; let s = 0; for (const x of u) s += Math.abs(x - m); return s / u.length; };
+	const meanOf = (u) => { let m = 0; for (const x of u) m += x; return m / u.length; };
+	function modeOf(u) {
+		const h = new Uint16Array(256); for (const x of u) h[x]++;
+		let best = 0; for (let i = 1; i < 256; i++) if (h[i] > h[best]) best = i;
+		let near = 0; for (let i = Math.max(0, best - 5); i <= Math.min(255, best + 5); i++) near += h[i];
+		return { value: best, frac: near / u.length };
+	}
+	// 外側から順に見て、枠の線の数を返す。at(k) は外から k 番目の線
+	function edgeInset(at, maxEdge) {
+		let inset = 0, bestDiff = 0;
+		for (let k = 0; k < maxEdge; k++) {
+			const u = at(k);
+			if (spread(u) > 14) break;         // 中身が揃っていない線 = もう枠ではない
+			const d = meanAbs(u, at(k + 1));
+			if (d >= 18 && d > bestDiff) { bestDiff = d; inset = k + 1; }
+		}
+		return inset;
+	}
+	// 枠の内側の真っ黒な帯
+	function blackRun(at, start, limit) {
+		let k = start;
+		while (k < limit) { const u = at(k); if (meanOf(u) > 12 || Math.max.apply(null, u) > 40) break; k++; }
+		return k;
+	}
+	function detectOne(img) {
+		const W = img.width, H = img.height, warns = [];
+		if (W < 64 || H < 64) return { ok: false, reason: 'too-small-image', warns };
+		{	// 真っ黒・真っ白（最小化・描けていない）
+			let tot = 0, ext = 0; const d = img.data;
+			for (let p = 0; p < d.length; p += 4 * 97) { const v = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8; tot++; if (v <= 5 || v >= 250) ext++; }
+			if (ext / tot >= 0.985) return { ok: false, reason: 'blank', warns };
+		}
+		const ax = Math.floor(W * 0.05), bx = Math.ceil(W * 0.95), ay = Math.floor(H * 0.1), by = Math.ceil(H * 0.95);
+		// 枠の線は細い（実測 1〜2px）。ゲーム自身の端の余白（幅の 1.4% ほど）まで枠と読まないように、4px までしか見ない
+		const maxX = 4, maxY = 4;
+		const atL = (k) => grayLine(img, false, k, ay, by), atR = (k) => grayLine(img, false, W - 1 - k, ay, by);
+		const atB = (k) => grayLine(img, true, H - 1 - k, ax, bx), atT = (k) => grayLine(img, true, k, ax, bx);
+		const left = blackRun(atL, edgeInset(atL, maxX), Math.floor(W * 0.45));
+		const right = blackRun(atR, edgeInset(atR, maxX), Math.floor(W * 0.45));
+		const bottom = blackRun(atB, edgeInset(atB, maxY), Math.floor(H * 0.3));
+		const top0 = blackRun(atT, edgeInset(atT, maxY), Math.floor(H * 0.3));
+		const w = W - left - right;
+		if (w < 32) return { ok: false, reason: 'aspect', warns };
+		// タイトルバー
+		const atRow = (y) => grayLine(img, true, y, left + Math.floor(w * 0.02), W - right - Math.floor(w * 0.02));
+		let titleEnd = top0;
+		{
+			const first = modeOf(atRow(top0));
+			if (first.frac >= 0.5) {
+				let y = top0; const lim = Math.min(H, top0 + Math.ceil(H * 0.08));
+				while (y < lim) { const m = modeOf(atRow(y)); if (m.frac < 0.5 || Math.abs(m.value - first.value) > 6) break; y++; }
+				if (y - top0 >= Math.max(12, W * 0.015)) {
+					// 境目は、すぐ近くでいちばん大きく変わる行の間（窓の拡大で境目の行が混ざる）
+					let best = y, bestD = -1;
+					for (let q = Math.max(top0, y - 2); q <= y + 1 && q + 1 < H; q++) { const d = meanAbs(atRow(q), atRow(q + 1)); if (d > bestD) { bestD = d; best = q + 1; } }
+					titleEnd = best;
+				}
+			}
+		}
+		const hasTitle = titleEnd > top0;
+		const rectOf = (y) => ({ x: left, y, w, h: H - bottom - y, aspect: (H - bottom - y) / w });
+		const near16 = (r) => Math.abs(r.aspect - OPT.aspect16) / OPT.aspect16 <= OPT.aspectTol;
+		const inRange = (r) => r.aspect >= OPT.aspectMin && r.aspect <= OPT.aspectMax;
+		const noTitle = rectOf(top0), withTitle = rectOf(titleEnd);
+		let r = null, how = '';
+		if (hasTitle && near16(withTitle)) { r = withTitle; how = 'title+16:9'; }
+		else if (near16(noTitle)) { r = noTitle; how = 'no-title+16:9'; }
+		else if (hasTitle && inRange(withTitle)) { r = withTitle; how = 'title'; warns.push('aspect'); }
+		else if (!hasTitle) {
+			// タイトルバーの色が読めなくても、下端と幅から 16:9 の上端を出し、そこに境目があれば採る
+			const yy = Math.round(H - bottom - w * OPT.aspect16);
+			if (yy > top0 && yy < H * 0.12) {
+				let best = yy, bestD = -1;
+				for (let q = yy - 4; q <= yy + 4; q++) { const d = meanAbs(atRow(q - 1), atRow(q)); if (d > bestD) { bestD = d; best = q; } }
+				if (bestD >= 18) { r = rectOf(best); how = 'edge+16:9'; }
+			}
+			if (!r && inRange(noTitle)) { r = noTitle; how = 'whole'; warns.push('aspect'); }
+		}
+		if (!r) return { ok: false, reason: 'aspect', warns, title: hasTitle ? titleEnd - top0 : 0, aspect: +withTitle.aspect.toFixed(3) };
+		if (r.w < OPT.dmmMinW && near16(r)) warns.push('small');
+		if (r.w > OPT.dmmMaxW && near16(r)) warns.push('large');
+		return { ok: true, reason: '', x: r.x, y: r.y, w: r.w, h: r.h, aspect: +r.aspect.toFixed(3), title: r.y - top0, how, warns };
+	}
+	/** 何枚かの結果をまとめる。±2px で揃う組がいちばん多いものの中央値。6割以上で揃わなければ unstable */
+	function consensus(list) {
+		const use = list.filter((r) => r.reason !== 'blank');
+		if (!use.length) return { ok: false, reason: list.length ? 'blank' : 'none', samples: 0, agree: 0 };
+		const oks = use.filter((r) => r.ok);
+		if (!oks.length) return { ok: false, reason: use[use.length - 1].reason, samples: use.length, agree: 0 };
+		let best = [];
+		for (const a of oks) {
+			const g = oks.filter((b) => Math.abs(a.x - b.x) <= 2 && Math.abs(a.y - b.y) <= 2 && Math.abs(a.w - b.w) <= 2 && Math.abs(a.h - b.h) <= 2);
+			if (g.length > best.length) best = g;
+		}
+		const med = (k) => best.map((r) => r[k]).sort((p, q) => p - q)[best.length >> 1];
+		const out = { ok: best.length / use.length >= 0.6, reason: '', x: med('x'), y: med('y'), w: med('w'), h: med('h'), samples: use.length, agree: best.length, how: best[0].how, warns: best[0].warns, title: med('title') };
+		out.aspect = +(out.h / out.w).toFixed(3);
+		if (!out.ok) out.reason = 'unstable';
+		return out;
+	}
+	const AREA_MSG = {
+		blank: '画面が真っ黒か真っ白です。ウィンドウを最小化していないか確かめてください。',
+		aspect: 'ゲームの画面を見つけられませんでした。選んだウィンドウがウマ娘か確かめてください。',
+		unstable: 'ゲームの画面の場所が定まりませんでした。ウィンドウの大きさを変えずに、もう一度取り込んでください。',
+		none: 'まだ絵が届いていません。',
+		small: 'ウィンドウが小さく、結合できない大きさです。ウィンドウを大きくして、もう一度取り込んでください。',
+		large: 'ウィンドウが大きく、結合できない大きさです。ウィンドウを小さくして、もう一度取り込んでください。'
+	};
+
+	/* ── 切り取りの出どころ ─────────────────────────────
+	 * どの出どころにもかぶせられるように、描く先の座標を動かす（source.drawAt は (0,0)-(dw,dh) に描くので、拡大して左上へずらし、はみ出しを切る）。 */
+	function cropSource(base, rect) {
+		const x = Math.max(0, rect.x), y = Math.max(0, rect.y);
+		const w = Math.min(rect.w, base.width - x), h = Math.min(rect.h, base.height - y);
+		return UmaVideoFrames.canvasSource({
+			kind: 'crop:' + base.kind, exact: !!base.exact, width: w, height: h, duration: base.duration,
+			async draw(t, ctx, dw, dh, how) {
+				const sx = dw / w, sy = dh / h;
+				ctx.save();
+				ctx.beginPath(); ctx.rect(0, 0, dw, dh); ctx.clip();
+				ctx.translate(-x * sx, -y * sy);
+				try { await base.drawAt(t, ctx, base.width * sx, base.height * sy, null, how); } finally { ctx.restore(); }
+			},
+			close() { base.close(); }
+		});
+	}
+
+	/* ── 断片化なしの MP4 にする（avc1。B フレームなし。時刻は届いたとおりの可変） ───────────────── */
+	const u32 = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+	const u16 = (n) => [(n >>> 8) & 255, n & 255];
+	const str = (s) => Array.from(s, (c) => c.charCodeAt(0));
+	const zeros = (n) => new Array(n).fill(0);
+	function box(type, ...parts) {
+		const bodies = parts.map((p) => (p instanceof Uint8Array ? p : Uint8Array.from(p)));
+		const len = 8 + bodies.reduce((s, b) => s + b.length, 0);
+		const out = new Uint8Array(len);
+		out.set(u32(len), 0); out.set(str(type), 4);
+		let o = 8; for (const b of bodies) { out.set(b, o); o += b.length; }
+		return out;
+	}
+	const full = (type, version, flags, ...parts) => box(type, [version, (flags >>> 16) & 255, (flags >>> 8) & 255, flags & 255], ...parts);
+	const MATRIX = [].concat(u32(0x10000), u32(0), u32(0), u32(0), u32(0x10000), u32(0), u32(0), u32(0), u32(0x40000000));
+	/** samples: [{ data: Uint8Array, key, us }]（us 昇順）。endUs は最後のフレームの終わりの時刻。color は圧縮器の知らせ（colr の箱に書く） */
+	function muxMp4(samples, description, W, H, endUs, color) {
+		const TS = 90000, n = samples.length;
+		const t0 = samples[0].us, dts = samples.map((s) => Math.round((s.us - t0) * TS / 1e6));
+		const durs = dts.map((d, i) => (i + 1 < n ? Math.max(1, dts[i + 1] - d) : Math.max(1, Math.round((endUs - samples[i].us) * TS / 1e6))));
+		const D = dts[n - 1] + durs[n - 1];
+		const runs = []; for (const d of durs) { const q = runs[runs.length - 1]; if (q && q[1] === d) q[0]++; else runs.push([1, d]); }
+		const keys = []; samples.forEach((s, i) => { if (s.key) keys.push(i + 1); });
+		const ftyp = box('ftyp', str('isom'), u32(512), str('isom'), str('iso2'), str('avc1'), str('mp41'));
+		const total = samples.reduce((s, x) => s + x.data.length, 0);
+		const avc1 = box('avc1', zeros(6), u16(1), u16(0), u16(0), zeros(12), u16(W), u16(H), u32(0x00480000), u32(0x00480000), u32(0), u16(1), zeros(32), u16(24), u16(0xFFFF), box('avcC', description), box('colr', str('nclx'), u16(1), u16(color && color.transfer === 'iec61966-2-1' ? 13 : 1), u16(1), [color && color.fullRange ? 0x80 : 0]));
+		const stbl = box('stbl',
+			full('stsd', 0, 0, u32(1), avc1),
+			full('stts', 0, 0, u32(runs.length), ...runs.map((q) => u32(q[0]).concat(u32(q[1])))),
+			full('stss', 0, 0, u32(keys.length), ...keys.map(u32)),
+			full('stsc', 0, 0, u32(1), u32(1), u32(n), u32(1)),
+			full('stsz', 0, 0, u32(0), u32(n), Uint8Array.from(samples.flatMap((s) => u32(s.data.length)))),
+			full('stco', 0, 0, u32(1), u32(ftyp.length + 8)));
+		const minf = box('minf', full('vmhd', 0, 1, u16(0), u16(0), u16(0), u16(0)), box('dinf', full('dref', 0, 0, u32(1), full('url ', 0, 1))), stbl);
+		const mdia = box('mdia', full('mdhd', 0, 0, u32(0), u32(0), u32(TS), u32(D), u16(0x55c4), u16(0)), full('hdlr', 0, 0, u32(0), str('vide'), zeros(12), str('VideoHandler'), [0]), minf);
+		const tkhd = full('tkhd', 0, 7, u32(0), u32(0), u32(1), u32(0), u32(D), zeros(8), u16(0), u16(0), u16(0), u16(0), MATRIX, u32(W << 16), u32(H << 16));
+		const moov = box('moov', full('mvhd', 0, 0, u32(0), u32(0), u32(TS), u32(D), u32(0x10000), u16(0x100), zeros(10), MATRIX, zeros(24), u32(2)), box('trak', tkhd, mdia));
+		return new Blob([ftyp, Uint8Array.from(u32(total + 8)), Uint8Array.from(str('mdat')), ...samples.map((s) => s.data), moov], { type: 'video/mp4' });
+	}
+
+	/* ── 色の範囲（T105 で実測） ─────────────────────────────
+	 * 製品の Chrome（Windows・ハードウェアの圧縮）は、BGRA のフレームをフルレンジで圧縮するのに、H.264 の中にその印を書かない。
+	 * すると復号器がふつうの範囲と読み、236 以上がすべて 255 に飛ぶ（灰色の欄が真っ白になる）。正しい範囲は圧縮器が decoderConfig.colorSpace で教える。
+	 * video-frames.js の mp4Source は復号器に colorSpace を渡さないので、このページの中だけ VideoDecoder.configure に足して渡す（製品は不変。直し方の案は T105 の報告）。 */
+	let decoderColor = null;
+	if (typeof VideoDecoder !== 'undefined') {
+		const configure0 = VideoDecoder.prototype.configure;
+		VideoDecoder.prototype.configure = function (c) { return configure0.call(this, (decoderColor && !c.colorSpace) ? Object.assign({}, c, { colorSpace: decoderColor }) : c); };
+	}
+
+	/* ── 届いたフレームの受け先（方式ごと） ─────────────────────────────
+	 * sink = { begin(w, h) → Promise, frame(videoFrame, tsUs), end(endUs) → Promise<出どころ>, bytes(), blob() } */
+	const H264_CODECS = ['avc1.640033', 'avc1.4d0033', 'avc1.420033', 'avc1.640028', 'avc1.420028'];
+	function encodeSink(opts) {
+		let enc = null, samples = [], description = null, color = null, W = 0, H = 0, bytes = 0, lastKey = -Infinity, failed = null, out = null, codecName = '';
+		return {
+			kind: 'encode',
+			async begin(w, h) {
+				if (enc) { try { enc.close(); } catch (e) { /* 閉じていても */ } }
+				samples = []; description = null; color = null; bytes = 0; lastKey = -Infinity; failed = null;
+				W = w & ~1; H = h & ~1;
+				let cfg = null;
+				for (const codec of H264_CODECS) {
+					const c = { codec, width: W, height: H, bitrate: opts.bitrate || 12e6, bitrateMode: 'variable', framerate: 30, latencyMode: 'realtime', avc: { format: 'avc' } };
+					try { const s = await VideoEncoder.isConfigSupported(c); if (s.supported) { cfg = c; break; } } catch (e) { /* 次へ */ }
+				}
+				if (!cfg) throw new Error('H.264 で圧縮できない: ' + W + '×' + H);
+				codecName = cfg.codec;
+				enc = new VideoEncoder({
+					output: (chunk, meta) => {
+						if (meta && meta.decoderConfig && meta.decoderConfig.description && !description) {
+							const dc = meta.decoderConfig.description;
+							description = dc instanceof ArrayBuffer ? new Uint8Array(dc.slice(0)) : new Uint8Array(dc.buffer.slice(dc.byteOffset, dc.byteOffset + dc.byteLength));
+						}
+						if (meta && meta.decoderConfig && meta.decoderConfig.colorSpace && !color) color = meta.decoderConfig.colorSpace;
+						const data = new Uint8Array(chunk.byteLength); chunk.copyTo(data);
+						samples.push({ data, key: chunk.type === 'key', us: chunk.timestamp }); bytes += data.length;
+					},
+					error: (e) => { failed = e; }
+				});
+				enc.configure(cfg);
+			},
+			frame(f, us) {
+				if (failed) throw failed;
+				if (enc.encodeQueueSize > 6) return false; // 追いつかないときは捨てる（時刻は可変なので、間の画が抜けるだけ）
+				const key = us - lastKey >= 2e6;
+				if (key) lastKey = us;
+				const vf = new VideoFrame(f, { timestamp: us, visibleRect: { x: 0, y: 0, width: W, height: H } });
+				enc.encode(vf, { keyFrame: key }); vf.close();
+				return true;
+			},
+			async end(endUs) {
+				if (!enc) throw new Error('フレームが届いていない');
+				await enc.flush(); enc.close(); enc = null;
+				if (failed) throw failed;
+				if (!samples.length || !description) throw new Error('圧縮の結果が無い');
+				samples.sort((p, q) => p.us - q.us);
+				for (let i = 1; i < samples.length; i++) if (samples[i].us <= samples[i - 1].us) samples[i].us = samples[i - 1].us + 1000;
+				out = muxMp4(samples, description, W, H, Math.max(endUs, samples[samples.length - 1].us + 33333), color);
+				samples = [];
+				decoderColor = color ? { primaries: color.primaries, transfer: color.transfer, matrix: color.matrix, fullRange: color.fullRange } : null;
+				return UmaVideoFrames.openSource(out);
+			},
+			bytes: () => (out ? out.size : bytes),
+			blob: () => out,
+			info: () => codecName + (color ? '・' + (color.fullRange ? 'フルレンジ' : 'ふつうの範囲') : '')
+		};
+	}
+	function recorderSink(stream, mime, opts) {
+		let rec = null, parts = [], bytes = 0, out = null;
+		return {
+			kind: 'recorder',
+			async begin() {
+				if (rec) { try { rec.ondataavailable = null; rec.stop(); } catch (e) { /* 止まっていても */ } }
+				parts = []; bytes = 0;
+				rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: opts.bitrate || 12e6 });
+				rec.ondataavailable = (e) => { if (e.data && e.data.size) { parts.push(e.data); bytes += e.data.size; } };
+				rec.start(1000);
+			},
+			frame() { return true; },
+			async end() {
+				const r = rec; rec = null;
+				if (!r) throw new Error('録画が始まっていない');
+				if (r.state !== 'inactive') await new Promise((res) => { r.onstop = res; r.stop(); });
+				out = new Blob(parts, { type: mime.split(';')[0] });
+				parts = [];
+				return UmaVideoFrames.openSource(out);
+			},
+			bytes: () => (out ? out.size : bytes),
+			blob: () => out,
+			info: () => mime
+		};
+	}
+	function stillsSink(opts) {
+		let shots = [], bytes = 0, W = 0, H = 0, c = null, x = null, last = -Infinity, busy = 0, endT = 0;
+		const gap = 1e6 / (opts.stillFps || 12);
+		return {
+			kind: 'stills',
+			async begin(w, h) { shots = []; bytes = 0; last = -Infinity; W = w; H = h; c = new OffscreenCanvas(w, h); x = c.getContext('2d'); },
+			frame(f, us) {
+				if (us - last < gap) return true;
+				if (busy >= 2) return false;
+				last = us; busy++;
+				x.drawImage(f, 0, 0);
+				const entry = { us, blob: null }; shots.push(entry);
+				c.convertToBlob({ type: 'image/jpeg', quality: 0.92 }).then((b) => { entry.blob = b; bytes += b.size; busy--; }, () => { busy--; });
+				return true;
+			},
+			async end(endUs) {
+				while (busy > 0) await new Promise((r) => setTimeout(r, 10));
+				const list = shots.filter((s) => s.blob);
+				if (!list.length) throw new Error('フレームが届いていない');
+				endT = (endUs - list[0].us) / 1e6;
+				let curI = -1, cur = null;
+				return UmaVideoFrames.canvasSource({
+					kind: 'stills', exact: true, width: W, height: H, duration: endT,
+					async draw(t, ctx, dw, dh) {
+						const us = list[0].us + t * 1e6; let lo = 0, hi = list.length - 1;
+						while (lo < hi) { const m = (lo + hi + 1) >> 1; if (list[m].us <= us) lo = m; else hi = m - 1; }
+						if (lo !== curI) { if (cur) cur.close(); cur = await createImageBitmap(list[lo].blob); curI = lo; }
+						ctx.drawImage(cur, 0, 0, dw, dh);
+					},
+					close() { if (cur) cur.close(); cur = null; }
+				});
+			},
+			bytes: () => bytes,
+			blob: () => null,
+			info: () => (opts.stillFps || 12) + '枚/秒・JPEG 0.92'
+		};
+	}
+
+	/* ── 取り込み ───────────────────────────────── */
+	const S = { logs: [], running: false };
+	const REC_MIME = { 'recorder-webm': ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'], 'recorder-mp4': ['video/mp4;codecs=avc1.640033', 'video/mp4;codecs=avc1', 'video/mp4'] };
+	const nowText = () => { const d = new Date(), p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); };
+	function note(t) { S.logs.push(nowText() + ' ' + t); $('log').textContent = S.logs.join('\n'); $('log').scrollTop = 1e9; }
+	function say(t, cls) { $('msg').textContent = t || ''; $('msg').className = cls || ''; }
+	const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
+	function supportText() {
+		const has = (v) => (v ? 'あり' : 'なし');
+		return 'getDisplayMedia ' + has(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) + '・MediaStreamTrackProcessor ' + has(typeof MediaStreamTrackProcessor !== 'undefined')
+			+ '・VideoEncoder ' + has(typeof VideoEncoder !== 'undefined') + '・VideoDecoder ' + has(typeof VideoDecoder !== 'undefined') + '・MediaRecorder ' + has(typeof MediaRecorder !== 'undefined')
+			+ '・CaptureController ' + has(typeof CaptureController !== 'undefined');
+	}
+	// ボタンを出す条件の案（T105 の報告 §4）。画面の表に結果だけ出す
+	function shouldOffer() {
+		const nav = navigator, md = nav.mediaDevices;
+		if (!(md && typeof md.getDisplayMedia === 'function')) return { offer: false, why: 'getDisplayMedia なし' };
+		if (typeof MediaStreamTrackProcessor === 'undefined' || typeof VideoEncoder === 'undefined' || typeof VideoDecoder === 'undefined') return { offer: false, why: '必要な API なし' };
+		const uad = nav.userAgentData;
+		if (uad && uad.mobile) return { offer: false, why: 'userAgentData.mobile' };
+		if (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches) return { offer: false, why: 'タッチだけの端末' };
+		return { offer: true, why: '' };
+	}
+	function renderStats() {
+		const t = S.track, c = S.cap || {}, a = S.area, R = S.result || {};
+		const rows = [];
+		const offer = shouldOffer();
+		rows.push(['使えるもの', supportText()]);
+		rows.push(['ボタンを出す条件の案', offer.offer ? '出す' : '出さない（' + offer.why + '）']);
+		if (S.settings) rows.push(['取り込んだもの', (S.settings.displaySurface || '不明') + '・カーソルの設定 ' + (S.settings.cursor || '不明') + '・devicePixelRatio ' + (S.settings.screenPixelRatio || devicePixelRatio)]);
+		if (c.w) rows.push(['窓の絵の大きさ', c.w + ' × ' + c.h]);
+		if (a) rows.push(['切り取る領域', a.ok ? 'x ' + a.x + '・y ' + a.y + '・' + a.w + ' × ' + a.h + '（縦横比 ' + a.aspect + '・タイトルバー ' + a.title + 'px・' + a.how + '・' + a.agree + '/' + a.samples + ' 枚で一致' + ((a.warns && a.warns.length) ? '・注意 ' + a.warns.join(',') : '') + '）' : '見つからない（' + a.reason + '）']);
+		if (c.started) {
+			const secs = (c.elapsed || 0);
+			rows.push(['受け取ったフレーム', c.recv + ' 枚（' + secs.toFixed(1) + ' 秒・平均 ' + (secs > 0 ? (c.recv / secs).toFixed(1) : '0') + ' 枚/秒・いちばん少ない秒 ' + (c.minPerSec == null ? '—' : c.minPerSec) + ' 枚）']);
+			rows.push(['捨てたフレーム', c.dropped + ' 枚（圧縮が追いつかなかった分）']);
+			rows.push(['ページが隠れていた間', (c.hiddenMs / 1000).toFixed(1) + ' 秒・その間に受け取った ' + c.recvHidden + ' 枚']);
+			rows.push(['持っている量', mb(S.sink ? S.sink.bytes() : 0) + '（' + (S.sink && S.sink.info ? S.sink.info() : '') + '）']);
+		}
+		if (performance.memory) rows.push(['メモリの目安（JS）', mb(performance.memory.usedJSHeapSize) + ' 使用／いちばん多いとき ' + mb(c.peakHeap || performance.memory.usedJSHeapSize)]);
+		if (R.src) rows.push(['出どころ', R.src]);
+		if (R.times) rows.push(['かかった時間', R.times]);
+		if (R.sel) rows.push(['選んだフレーム', R.sel]);
+		if (R.note) rows.push(['結果', R.note]);
+		const tb = $('stats'); tb.textContent = '';
+		for (const [k, v] of rows) { const tr = document.createElement('tr'), th = document.createElement('th'), td = document.createElement('td'); th.textContent = k; td.textContent = v; tr.append(th, td); tb.appendChild(tr); }
+	}
+	function showArea(a, w, h) {
+		const el = $('area');
+		if (!a || !a.ok || !w) { el.hidden = true; return; }
+		el.hidden = false;
+		el.style.left = (a.x / w * 100) + '%'; el.style.top = (a.y / h * 100) + '%';
+		el.style.width = (a.w / w * 100) + '%'; el.style.height = (a.h / h * 100) + '%';
+	}
+	function detectFrom(frame, w, h) {
+		if (!S.dc || S.dc.width !== w || S.dc.height !== h) { S.dc = new OffscreenCanvas(w, h); S.dx = S.dc.getContext('2d', { willReadFrequently: true }); }
+		S.dx.drawImage(frame, 0, 0, w, h);
+		const img = S.dx.getImageData(0, 0, w, h);
+		const r = detectOne(img);
+		S.areas.push(r);
+		if (S.areas.length > 300) S.areas.shift();
+		S.area = consensus(S.areas);
+		showArea(S.area, w, h);
+		return r;
+	}
+	function makeSink(mode, stream, opts) {
+		if (mode === 'stills') return stillsSink(opts);
+		if (mode === 'encode') { decoderColor = null; return encodeSink(opts); }
+		decoderColor = null;
+		const mime = (REC_MIME[mode] || []).find((m) => MediaRecorder.isTypeSupported(m));
+		if (!mime) throw new Error('この形式では録れない: ' + mode);
+		return recorderSink(stream, mime, opts);
+	}
+	async function readLoop(reader, stream) {
+		const c = S.cap; let lastDetect = -Infinity, baseUs = null;
+		while (S.running) {
+			const { value: f, done } = await reader.read();
+			if (done) break;
+			try {
+				const wall = performance.now();
+				const w = f.displayWidth, h = f.displayHeight;
+				if (!c.started) { c.started = wall; }
+				if (baseUs == null) baseUs = f.timestamp;
+				const us = Math.max(c.lastUs + 1, f.timestamp - baseUs); c.lastUs = us;
+				if (c.w !== w || c.h !== h) {
+					const early = wall - c.started < 2000;
+					note('窓の絵の大きさ: ' + w + '×' + h + (c.w ? '（途中で変わった）' : ''));
+					if (c.w && !early) { S.stopReason = 'resize'; requestStop(); break; }
+					c.w = w; c.h = h; S.areas = []; c.begun = false;
+					await S.sink.begin(w, h); c.begun = true;
+				}
+				c.recv++;
+				const sec = Math.floor((wall - c.started) / 1000);
+				c.perSec[sec] = (c.perSec[sec] || 0) + 1;
+				if (document.hidden) c.recvHidden++;
+				if (wall - lastDetect >= 700) { lastDetect = wall; detectFrom(f, w, h); }
+				if (!S.sink.frame(f, us)) c.dropped++;
+			} finally { f.close(); }
+		}
+	}
+	function requestStop() { if (S.running && S.stopFn) S.stopFn(); }
+	async function start() {
+		if (S.running) return;
+		say(''); $('resultWrap').hidden = true; $('persons').textContent = ''; S.result = null; S.area = null; S.areas = []; S.sink = null; S.stopReason = '';
+		['saveFrame', 'saveImages', 'saveVideo'].forEach((id) => { $(id).disabled = true; });
+		const opts = { video: { displaySurface: 'window', frameRate: { ideal: 30, max: 30 }, resizeMode: 'none', cursor: 'never' }, audio: false, selfBrowserSurface: 'exclude', monitorTypeSurfaces: 'exclude', surfaceSwitching: 'exclude', systemAudio: 'exclude' };
+		const md = navigator.mediaDevices;
+		if (!(md && md.getDisplayMedia)) { say('このブラウザはウィンドウを取り込めません。', 'ng'); return; }
+		let stream;
+		try { stream = await md.getDisplayMedia(opts); } catch (e) {
+			say(e && e.name === 'NotAllowedError' ? '取り込みをやめました。' : '取り込みを始められませんでした: ' + (e && e.name), 'ng');
+			note('getDisplayMedia の失敗: ' + (e && e.name) + ' ' + (e && e.message));
+			return;
+		}
+		const track = stream.getVideoTracks()[0];
+		S.stream = stream; S.track = track; S.settings = track.getSettings ? track.getSettings() : {};
+		note('取り込みを開始: ' + JSON.stringify(S.settings));
+		if (S.settings.displaySurface && S.settings.displaySurface !== 'window') say('ウィンドウではなく「' + S.settings.displaySurface + '」が選ばれました。', 'ng');
+		$('preview').srcObject = stream; $('stageWrap').hidden = false;
+		$('preview').play().catch(() => { /* 自動で流れなくても取り込みは続く */ });
+		const mode = $('mode').value, limitSec = Math.max(5, Math.min(600, +$('limit').value || 180));
+		S.mode = mode; S.limitSec = limitSec;
+		const tuning = S.tuning || {};
+		S.cap = { recv: 0, dropped: 0, recvHidden: 0, hiddenMs: 0, perSec: [], lastUs: -1, w: 0, h: 0, peakHeap: 0, begun: false };
+		S.running = true;
+		$('start').disabled = true; $('stop').disabled = false; $('mode').disabled = true; $('limit').disabled = true;
+		const c = S.cap;
+		const t0 = performance.now();
+		let hiddenAt = document.hidden ? t0 : 0;
+		const onVis = () => {
+			const n = performance.now();
+			if (document.hidden) { hiddenAt = n; note('ページが隠れた（' + ((n - t0) / 1000).toFixed(1) + ' 秒）'); }
+			else { if (hiddenAt) c.hiddenMs += n - hiddenAt; hiddenAt = 0; note('ページが見えた（' + ((n - t0) / 1000).toFixed(1) + ' 秒）'); }
+		};
+		document.addEventListener('visibilitychange', onVis);
+		S.sink = makeSink(mode, stream, tuning);
+		let reader = null, loopDone = Promise.resolve();
+		const tap = track.clone();
+		if (typeof MediaStreamTrackProcessor !== 'undefined') {
+			reader = new MediaStreamTrackProcessor({ track: tap }).readable.getReader();
+			loopDone = readLoop(reader, stream).catch((e) => { note('読み取りの失敗: ' + e.message); S.stopReason = S.stopReason || 'error'; requestStop(); });
+		} else {
+			say('MediaStreamTrackProcessor が無いブラウザです。この診断では試せません。', 'ng');
+		}
+		// 上限の時間と表示の更新は MessageChannel でなく setInterval（隠れると間引かれるが、上限は Date で比べるので遅れるだけ）
+		const tick = setInterval(() => {
+			const elapsed = (performance.now() - t0) / 1000;
+			c.elapsed = elapsed;
+			if (performance.memory) c.peakHeap = Math.max(c.peakHeap, performance.memory.usedJSHeapSize);
+			if (S.running && !$('msg').classList.contains('ng')) {
+				const rest = Math.max(0, limitSec - elapsed);
+				say(S.area && S.area.ok ? '取り込み中（残り ' + Math.ceil(rest) + ' 秒）。スクロールが終わったら「取り込みを止める」を押してください。' : '取り込み中（残り ' + Math.ceil(rest) + ' 秒）。ゲームの画面を探しています。');
+			}
+			renderStats();
+			if (elapsed >= limitSec) { S.stopReason = 'limit'; requestStop(); }
+		}, 500);
+		track.addEventListener('ended', () => { if (S.running) { S.stopReason = S.stopReason || 'ended'; requestStop(); } });
+		S.stopFn = async () => {
+			if (!S.running) return;
+			S.running = false; S.stopFn = null;
+			const endWall = performance.now();
+			clearInterval(tick);
+			document.removeEventListener('visibilitychange', onVis);
+			if (hiddenAt) { c.hiddenMs += endWall - hiddenAt; hiddenAt = 0; }
+			c.elapsed = (endWall - t0) / 1000;
+			const ps = c.perSec.slice(1, -1).map((x) => x || 0); c.minPerSec = ps.length ? Math.min.apply(null, ps) : null;
+			$('stop').disabled = true;
+			note('止めた（理由: ' + (S.stopReason || 'ボタン') + '・' + c.elapsed.toFixed(1) + ' 秒）');
+			try { if (reader) await reader.cancel(); } catch (e) { /* 読み終わっていても */ }
+			await loopDone;
+			tap.stop();
+			const endUs = c.lastUs + 33333;
+			const T = { stop: performance.now() };
+			let src = null;
+			try {
+				if (!c.begun) throw Object.assign(new Error('フレームが届かなかった'), { code: 'no-frames' });
+				const base = await S.sink.end(endUs);
+				stream.getTracks().forEach((t) => t.stop());
+				$('preview').srcObject = null;
+				T.opened = performance.now();
+				const area = S.area || consensus(S.areas);
+				S.area = area;
+				if (S.sink.blob && S.sink.blob()) $('saveVideo').disabled = false;
+				if (S.dc) $('saveFrame').disabled = false;
+				S.result = { src: base.kind + (base.fallback ? '（倒した理由 ' + base.fallback + '）' : '') + (base.codec ? '・' + base.codec : '') + '・長さ ' + base.duration.toFixed(1) + ' 秒' };
+				renderStats();
+				if (!area.ok) { base.close(); throw Object.assign(new Error(AREA_MSG[area.reason] || AREA_MSG.aspect), { code: 'area', friendly: true }); }
+				if (area.warns && (area.warns.includes('small') || area.warns.includes('large'))) say(AREA_MSG[area.warns.includes('small') ? 'small' : 'large'], 'ng');
+				src = cropSource(base, area);
+				const onProgress = (p) => { say('処理しています（' + Math.round(p.ratio * 100) + '%）'); };
+				const sel = await UmaVideoFrames.selectFrames(src, { labels: ['親', '祖1', '祖2'], onProgress });
+				T.selected = performance.now();
+				S.result.sel = sel.persons.map((p) => p.label + ' ' + p.files.length + '枚').join('・') + '（アンカー ' + sel.anchors.map((a) => a.t).join('／') + ' 秒）';
+				const persons = [];
+				for (const p of sel.persons) {
+					const canvas = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still });
+					persons.push({ label: p.label, canvas, h: canvas.height, w: canvas.width, frames: p.files.length, uncertain: p.uncertain.filter(Boolean).length });
+				}
+				T.composed = performance.now();
+				S.persons = persons;
+				S.result.times = '圧縮の仕上げ ' + ((T.opened - T.stop) / 1000).toFixed(1) + ' 秒・フレームを選ぶ ' + ((T.selected - T.opened) / 1000).toFixed(1) + ' 秒・組み立て ' + ((T.composed - T.selected) / 1000).toFixed(1) + ' 秒';
+				S.result.ms = { finish: Math.round(T.opened - T.stop), select: Math.round(T.selected - T.opened), compose: Math.round(T.composed - T.selected) };
+				S.result.stats = { sampled: sel.stats && sel.stats.sampled, picks: sel.picks && sel.picks.length };
+				S.result.note = persons.map((p) => p.label + ' ' + p.w + '×' + p.h + '（' + p.frames + '枚・確かでない継ぎ目 ' + p.uncertain + '）').join('／');
+				const box = $('persons');
+				for (const p of persons) { const f = document.createElement('figure'), cap = document.createElement('figcaption'); cap.textContent = p.label + '（' + p.w + '×' + p.h + '）'; f.append(cap, p.canvas); box.appendChild(f); }
+				$('resultWrap').hidden = false;
+				$('saveImages').disabled = false;
+				const stopWord = S.stopReason === 'limit' ? '上限の時間で止めました。' : '';
+				if (sel.persons.length !== 3) say(stopWord + '3人に分かれませんでした（' + sel.persons.length + '人）。親から祖2 までスクロールしたか確かめてください。', 'ng');
+				else if (!$('msg').classList.contains('ng') || !area.warns.length) say(stopWord + '結合画像を作れました。', 'ok');
+			} catch (e) {
+				note('流れの失敗: ' + (e.code || '') + ' ' + e.message);
+				const word = { band: 'ゲームの因子の画面を見つけられませんでした。因子の画面を開いてから取り込んでください。', 'too-few': '動きが読み取れませんでした。因子の画面をスクロールしてください。', 'no-frames': 'フレームが届きませんでした。ウィンドウを最小化していないか確かめてください。' }[e.code];
+				say(e.friendly ? e.message : (word || '結合画像を作れませんでした: ' + e.message), 'ng');
+				S.result = Object.assign(S.result || {}, { note: '失敗: ' + (e.code || '') + ' ' + e.message });
+			} finally {
+				if (src) src.close();
+				stream.getTracks().forEach((t) => t.stop());
+				$('stageWrap').hidden = true;
+				$('start').disabled = false; $('mode').disabled = false; $('limit').disabled = false;
+				S.done = true;
+				renderStats();
+			}
+		};
+		S.done = false;
+		renderStats();
+	}
+
+	/* ── 保存（ブラウザのダウンロードだけ） ─────────────────────────── */
+	const stamp = () => nowText().replace(/[-: ]/g, '').replace(/^(\d{8})/, '$1-');
+	function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); note('保存: ' + name); }
+	$('start').addEventListener('click', () => { start(); });
+	$('stop').addEventListener('click', () => { requestStop(); });
+	$('saveText').addEventListener('click', () => {
+		renderStats();
+		const lines = ['# PC の取り込みの診断 結果', '保存した日時: ' + nowText(), 'ブラウザ: ' + navigator.userAgent, '方式: ' + (S.mode || $('mode').value), '上限: ' + (S.limitSec || $('limit').value) + ' 秒', ''];
+		for (const tr of $('stats').children) lines.push('- ' + tr.children[0].textContent + ': ' + tr.children[1].textContent);
+		if (S.cap) lines.push('', '## 1秒ごとの受け取り', S.cap.perSec.map((x) => x || 0).join(' '));
+		lines.push('', '## 記録', ...S.logs);
+		download(new Blob([lines.join('\n')], { type: 'text/plain' }), 'pc-capture-result-' + stamp() + '.txt');
+	});
+	$('saveFrame').addEventListener('click', async () => {
+		if (!S.dc) return;
+		const c = new OffscreenCanvas(S.dc.width, S.dc.height), x = c.getContext('2d');
+		x.drawImage(S.dc, 0, 0);
+		if (S.area && S.area.ok) { x.strokeStyle = '#ff3d00'; x.lineWidth = 1; x.strokeRect(S.area.x - 0.5, S.area.y - 0.5, S.area.w + 1, S.area.h + 1); }
+		download(await c.convertToBlob({ type: 'image/png' }), 'pc-capture-frame-' + stamp() + '.png');
+	});
+	$('saveImages').addEventListener('click', () => {
+		(S.persons || []).forEach((p, i) => p.canvas.toBlob((b) => download(b, 'pc-capture-person' + (i + 1) + '-' + stamp() + '.png'), 'image/png'));
+	});
+	$('saveVideo').addEventListener('click', () => {
+		const b = S.sink && S.sink.blob && S.sink.blob();
+		if (b) download(b, 'pc-capture-' + stamp() + (b.type.includes('webm') ? '.webm' : '.mp4'));
+	});
+	window.addEventListener('beforeunload', () => { if (S.stream) S.stream.getTracks().forEach((t) => t.stop()); });
+	renderStats();
+
+	// 検査のための入口（画面からは使わない）
+	window.__pc = { S, detectOne, consensus, cropSource, muxMp4, shouldOffer, start, stop: requestStop };
+})();
+</script>
+</body>
+</html>
