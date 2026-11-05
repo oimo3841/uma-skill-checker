@@ -3054,7 +3054,9 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	await page.waitForTimeout(500);
 	t2 = await tabState2();
 	assert(t2.stitchSel === 'true' && await page.isVisible('#stitch-empty'), 'exam: 「結果画像」からは結果画像のタブで開き、案内が出る', t2);
-	assert(t2.width === wideWidth, 'exam: タブを切り替えても引き出しの幅は変わらない', { wide: wideWidth, now: t2.width });
+	// T100（決定 228・241）: 照合結果のタブは表の幅に合わせて狭くしたので、結合画像のタブ（今の幅のまま）との間で幅が変わる。
+	// 以前の「タブを切り替えても幅は変わらない」は外した（UmaStar は引き出しが2つで、もともと別の幅を持てる）。報告の T100-9 で確認中
+	assert(parseFloat(wideWidth) <= 750 && parseFloat(t2.width) === 1100, 'exam: 照合結果のタブは幅の上限まで・結合画像のタブは今の幅のまま', { wide: wideWidth, now: t2.width });
 	await page.click('#stitch-empty button');
 	await page.waitForTimeout(700);
 	assert(!(await page.isVisible('#result-drawer')), 'exam: 案内から入力画面に戻れる');
@@ -7575,8 +7577,9 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		const g = await readGroups(page);
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
 			'ハイライト: 1280px でも人の行に sp70緑・緑、その下にシナリオ因子', g.innerTops);
-		assert(g.tops[0] === g.tops[1] && g.tops[1] === g.tops[2],
-			'ハイライト: 1280px ではまとまりが同じ行に3つ並ぶ', g.tops);
+		// T100（決定 228）: 親Aセットだけのハイライトは、表の幅に合わせた引き出しの中で人を縦に積む
+		assert(g.tops[0] < g.tops[1] && g.tops[1] < g.tops[2],
+			'ハイライト: 1280px の親Aセットだけのときは人を縦に積む', g.tops);
 		// 広い幅では名前が全部出る。★の左端が揃うのは幅を問わない
 		const f = await readFactorRows(page);
 		assert(f.rows.every((r) => !r.clipped) && f.rows.some((r) => r.name === seeded1280.longest),

@@ -67,6 +67,7 @@ export async function register114(env) {
 		await page.mouse.move(0, 0);
 		return { ctx, page, errs, fix };
 	};
+	const note = (name, o) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); fs.appendFileSync(path.join(SHOTS, 'data.jsonl'), JSON.stringify({ name, ...o }) + '\n'); } };
 	const shot = async (page, name) => {
 		if (!SHOTS) return;
 		fs.mkdirSync(SHOTS, { recursive: true });
@@ -369,6 +370,7 @@ export async function register114(env) {
 				const { ctx, page, errs } = await open(1280, 900, theme, 'a');
 				const w = await widthProbe(page);
 				await shot(page, 'exam-1280-' + theme + '-a-width');
+				{ const pm = await probe(page); note('exam-1280-' + theme + '-a', { drawerW: w.drawerW, tableW: w.tableW, atTop: pm.atTop, parts: pm.parts, statTops: w.statTops.length, persons: w.personTops.length, clipped: w.clipped.length }); }
 				assert(w.drawerW === 530 && w.tableW === 480, theme + '/a 引き出し 530px・表 480px', w);
 				assert(w.statTops.length === 1 && w.statH === 26, theme + '/a 上の欄は1行', w);
 				assert(w.personTops.length === 3 && new Set(w.personTops).size === 3 && w.personHs.every((h) => h <= 22), theme + '/a ハイライトは3行', w);
@@ -381,6 +383,7 @@ export async function register114(env) {
 			const { ctx, page, errs } = await open(1280, 900, theme, 'ab');
 			const w = await widthProbe(page);
 			await shot(page, 'exam-1280-' + theme + '-ab-width');
+			{ const pm = await probe(page); note('exam-1280-' + theme + '-ab', { drawerW: w.drawerW, tableW: w.tableW, atTop: pm.atTop, parts: pm.parts, statTops: w.statTops.length, clipped: w.clipped.length }); }
 			assert(w.drawerW === 750 && w.tableW === 660, theme + '/ab 引き出し 750px・表 660px', w);
 			assert(w.statTops.length === 1 && w.statH === 26, theme + '/ab 上の欄は1行', w);
 			assert(w.setTops.length === 2 && w.setTops[0] === w.setTops[1], theme + '/ab 親Aと親Bが左右', w.setTops);
@@ -408,6 +411,7 @@ export async function register114(env) {
 					return { text: n.innerText, expanded: b.getAttribute('aria-expanded'), l: rc.left, r: rc.right, vw: innerWidth, fg: c.color, bg: c.backgroundColor, onTop: !!top && n.contains(top), h: Math.round(rc.height) };
 				});
 				await shot(page, 'exam-375-' + theme + '-' + sets + '-note');
+				note('exam-375-' + theme + '-' + sets + '-note', { same: o.text === NOTE, h: o.h, ratio: Math.round(ratio(o.fg, o.bg) * 100) / 100 });
 				assert(o.text === NOTE && o.expanded === 'true', theme + '/' + sets + ' 開いた文が元の注記と同じ', o);
 				assert(o.onTop && o.l >= 0 && o.r <= o.vw, theme + '/' + sets + ' 小窓が画面の中で一番上に出る', o);
 				assert(ratio(o.fg, o.bg) >= 4.5, theme + '/' + sets + ' 文字の比 4.5 以上', o);
@@ -514,6 +518,7 @@ export async function register114(env) {
 				const { ctx, page, errs } = await openStar(1280, 900, theme, sets);
 				const m = await starProbe(page);
 				await shot(page, 'star-1280-' + theme + '-' + sets);
+				note('star-1280-' + theme + '-' + sets, { drawerW: m.drawerW, tableW: m.tableW, atTop: m.atTop, rowH: m.rowH, statH: m.statH, ctrlH: m.ctrlH, deck: m.deckNote, clipped: m.clipped.length });
 				assert(m.drawerW === dw && m.tableW <= tw + 40, theme + '/' + sets + ' 引き出し ' + dw + 'px・表が基準の幅に近い', { d: m.drawerW, t: m.tableW });
 				assert(m.statTops.length === 1 && m.statH <= 42, theme + '/' + sets + ' 上の欄は1本の帯（因子を含めているときは箱の中が2段）', { t: m.statTops, h: m.statH });
 				const noFactorH = await page.evaluate(() => { const ps = [...document.querySelectorAll('#stat-grid p[id*="factor"]')]; ps.forEach((p) => { p.hidden = true; }); const h = Math.round(document.getElementById('stat-grid').getBoundingClientRect().height); ps.forEach((p) => { p.hidden = false; }); return h; });
@@ -536,6 +541,7 @@ export async function register114(env) {
 				const { ctx, page, errs } = await openStar(375, 812, theme, sets);
 				const m = await starProbe(page);
 				await shot(page, 'star-375-' + theme + '-' + sets);
+				note('star-375-' + theme + '-' + sets, { atTop: m.atTop, rowH: m.rowH, colsPct: Math.round(m.colsPct * 10) / 10, statH: m.statH, ctrlH: m.ctrlH, deck: m.deckNote, fonts: m.fonts, longW: m.longW, nameFs: m.nameFs });
 				const c = m.cells;
 				assert(c.h1.bg === P.s1 && c.h2.bg === P.s2 && c.h3.bg === P.s3 && c.h0.bg === P.empty && c.hu.bg === P.unk, theme + '/' + sets + ' マスの地', c);
 				assert(c.h1.txt === '1' && c.h2.txt === '2' && c.h3.txt === '3' && c.hu.txt === '?' && c.h1.numVisible && !c.h1.starVisible && /repeating-linear-gradient/.test(c.hu.img), theme + '/' + sets + ' 数字・★不明は斜線に「?」', c);
