@@ -1,4 +1,4 @@
-/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-05c（?v= と同じ）。
+/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-05d（?v= と同じ）。
  * T94（2026-11-04・C-282）: 方眼紙デザイン。モック版14（lab/deck-v14/deck-v14.css）の版A（今の字体）を製品に移し、おいもさんの回答（T94 への連絡）を入れた。
  * 見本（FiveThirtyEight「Science Isn't Broken」）から読み取った全体の決まり:
  *   1. 背景は方眼紙。データの点も文字も方眼の上に置く    2. 区切りは太い黒の横線だけ。カード・角丸の枠・影は使わない
@@ -460,4 +460,21 @@ details.fold[open] > summary::before { content: "▾"; }
 	.panes .plist { display: flex; }
 	.legend { gap: 6px; }
 }
-:root { --deck-alpha-css-version: "2026-11-05c"; }
+/* T104（2026-11-05・C-296）: UmaExam 用の表 */
+/* 表の角: UmaExam の表は「最大」「効率」の見出しを列の真上に置く（押すと大きい順。選択中は黒の塗り＝131） */
+.vp.vc .chd { display: flex; align-items: stretch; justify-content: flex-end; min-height: 20px; }
+.vp.vc .chd .chn { flex: 1; min-width: 0; font-size: 11px; color: var(--gp-sub); padding: 2px 6px; white-space: nowrap; overflow: hidden; }
+.vp.vc .chd button { flex: none; padding: 2px 0; text-align: center; font-size: 10px; border-left: 1px solid var(--gp-line); }
+.vp.vc .chd button.sorted { background: var(--gp-sel); color: var(--gp-sel-text); border-left-color: var(--gp-sel); }
+/* 効率の列: 塗らない（ヒートマップの濃淡と混ざらないように文字だけ） */
+.vl th.ef { text-align: center; padding: 0; font-family: var(--dk-mono); font-variant-numeric: tabular-nums; font-size: 10px; font-weight: 400; color: var(--gp-ink); border-left: 1px solid var(--gp-line); cursor: default; }
+/* 本育成設計の充足 N/133 */
+.plancov { margin-top: 4px; display: flex; align-items: baseline; gap: 6px; color: var(--gp-ink); }
+.plancov b { font-size: 20px; line-height: 1; }
+.plancov small { font-size: 10px; color: var(--gp-sub); letter-spacing: .12em; }
+/* 切り替え（セットの小窓の中。231） */
+.modeline { padding: 2px 0 8px; }
+.modeline .seg { display: flex; }
+.modeline .seg button { flex: 1; min-height: 40px; }
+
+:root { --deck-alpha-css-version: "2026-11-05d"; }

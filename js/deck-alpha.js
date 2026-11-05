@@ -7,18 +7,21 @@
  * スマホで引き出しの外を押すと閉じる（143）。
  * T103（2026-11-05）: 列の見出し・左上の欄・名前の列を、スクロールの知らせを待って JS で動かすのをやめ、position: sticky で固定した（1コマ遅れて見出しがずれ、すきまにマスが見えていた）。
  * T101（2026-11-05）: 方眼を表の画面の中央の領域の全体に敷く（表の入れ物 .vs の目の起点を本体の左上に置く）・スマホで引き出しが開いているときも、
- * 見出しの帯のボタンと「⋯」は1回で効く（193）。以下は版13 の説明。
+ * 見出しの帯のボタンと「⋯」は1回で効く（193）。
+ * T104（2026-11-05・C-296）: UmaExam 用の表（技能試験の133種）。セットの小窓の中の「UmaStar｜UmaExam」で切り替える（案A）。効率の列（最大の右。見出しを押すと大きい順）・
+ * 「表示」の「列」で最大・効率を出し入れ・充足は N/133（名前で絞っても分母は133）・本育成設計の充足。親の選択・絞り込み・並びは表ごとに覚える。
+ * UmaExam から登録した親は技能試験の表にだけ出し、UmaStar 用の表の「指定なし」に出さない（233）。レースのセットには親の小窓で選んだときだけ入る（245）。以下は版13 の説明。
  * Deck 本体（ヒートマップの表・親の小窓・2組・本育成設計・レース/周回セット・バックアップ）。版12（T86・C-273）:
  * マスの塗りと数字は親と祖の合計の5段・親本人の★は左上の小さな数字・PC は左の列に5つの欄を全部並べる・1つだけ選ぶ欄は帯・複数選べる欄は札。
  * 版13（T87・C-274）: 縮小と遺伝子の行にも左上の親本人の★・分類の「そのほか」の札を外す・親の小窓と祖の詳細に対象スキルの列挙（序盤／中盤／終盤／その他）・
  * 親Bだけのときは「親Aのおすすめ」・スマホの惰性のスクロール・スキルの小窓は対象スキル数の多い順・文の変更・「分類ごと」の色の帯と凡例。
  * 表は見える範囲だけ描く（T74 の (c)）。名前と最大の列・親の名前と数の行は、別の部品を重ねて固定する。
  * URL: ?theme=light|dark（見た目の固定）・?lv=0|1|2・?pane=parent|skill|view|sort|plan・?set=none|r:race-0002|arc:medium・?A=p3&B=p9・?six=1・
- *      ?sheet=data|card:p3|pair|set|tool（撮影用）
+ *      ?sheet=data|card:p3|pair|set|tool・?mode=star|exam（撮影用）
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-05b';
+	const DECK_ALPHA_JS_VERSION = '2026-11-05c';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -36,12 +39,14 @@
 		try { loaded = await K.store.load(); } catch (e) { stage.innerHTML = '<div class="empty">この端末では保存が使えません（' + K.esc(e.message) + '）</div>'; return; }
 		S.perf.load = loaded.ms;
 		S.settings = Object.assign({}, K.DEFAULT_SETTINGS, loaded.meta.settings || {});
+		if (Q.get('mode')) S.settings.mode = Q.get('mode');
+		S.mode = S.settings.mode === 'exam' ? 'exam' : 'star';
 		// 色は js/theme.js が <head> で付けてある（T92）。?theme= のときだけ上書きする（撮影用）
 		if (S.fixedTheme) K.applyTheme(S.fixedTheme);
 		S.doc = K.assemble(loaded);
 		await runArchive();
 		if (Q.has('set')) S.settings.cur = Q.get('set');
-		if (!K.findSet(S.doc, S.settings.cur)) S.settings.cur = 'none';
+		if (S.settings.cur === 'exam' || !K.findSet(S.doc, S.settings.cur)) S.settings.cur = 'none';
 		S.lv = Q.has('lv') ? +Q.get('lv') : 1;
 		if (Q.get('A')) S.A = Q.get('A'); if (Q.get('B')) S.B = Q.get('B'); if (Q.get('six') === '1') S.six = true;
 		applySetDefaults();
@@ -50,7 +55,7 @@
 		if (Q.get('pane')) { S.pane = Q.get('pane'); applyPanes(); renderStage(true); }
 		const sh = Q.get('sheet'); if (sh === 'data') openData(); else if (sh && sh.startsWith('card:')) { const p = S.M.byId.get(sh.slice(5)); if (p) nav(() => parentSheet(p)); } else if (sh === 'pair') openPairDetail(); else if (sh === 'set') openSetPicker(); else if (sh === 'tool') openTool();
 		// 検査から読む口（画面には出ない）
-		window.__deckAlpha = { version: DECK_ALPHA_JS_VERSION, S, K, measure, draw: () => renderStage(true), openData, inertia: () => inert !== 0 };
+		window.__deckAlpha = { version: DECK_ALPHA_JS_VERSION, S, K, measure, draw: () => renderStage(true), openData, switchMode, renderAll, covRows, planCover, inertia: () => inert !== 0 };
 	}
 	/** 終了したレースを終了レースのカテゴリへ（開いたときと、バックアップを読み込んだとき） */
 	async function runArchive() {
@@ -67,8 +72,9 @@
 	const saveParents = (list) => K.store.putParents(list).catch(() => toast('保存できませんでした'));
 
 	/* ---------- レース/周回セット ---------- */
-	const curSet = () => K.findSet(S.doc, S.settings.cur);
-	const curKey = () => (curSet() ? S.settings.cur : 'none');
+	const isExam = () => S.mode === 'exam';
+	const curSet = () => isExam() ? K.findSet(S.doc, 'exam') : K.findSet(S.doc, S.settings.cur);
+	const curKey = () => isExam() ? 'exam' : (curSet() ? S.settings.cur : 'none');
 	/** セットを選んだとき: 「一覧」の絞りだけ戻す。脚質の絞りは利用者が自分で選ぶ（①の脚質は入れない。C-272 の 1。選んだ脚質はセットを変えても残る） */
 	function applySetDefaults() { S.sf.list = 'all'; }
 	function pickSet(key) { S.settings.cur = key; saveSettings(); applySetDefaults(); renderAll(); }
@@ -77,6 +83,7 @@
 	/** 「指定なし」のときは 距離・脚質・バ場 の3行を出し、条件の無い行は無効（off: 行の名前もマスも薄く・マスは空。T97・141）。
 	 *  脚質は親(列)の脚質の絞りがあれば今までどおり数える行。行の keys が空なので★の数はどれも 0（2組を探す・おすすめの並べ方は変わらない） */
 	function grows() {
+		if (isExam()) return []; // 技能試験の表に遺伝子の行は無い（96・97）
 		const g = S.M.geneRowsOf(cond());
 		if (curSet()) return g;
 		const st = g.find((r) => r.key === 'style');
@@ -95,6 +102,7 @@
 		S.pm = new Map();
 		let ps = S.doc.parents.filter((p) => {
 			if (s && !(p.sets || []).includes(s.id)) return false;
+			if (!s && !K.inNoneList(p)) return false; // UmaExam から登録した親は「指定なし」に出さない（233）
 			if (f.style.size && !(p.tags.style || []).some((x) => f.style.has(x))) return false;
 			if (f.owner.size && !f.owner.has(p.owner)) return false;
 			if (pa) { const m = K.planMatch(M, p, pl); if (!m) return false; S.pm.set(p.id, m); }
@@ -126,8 +134,9 @@
 	function visRows(ps) {
 		const M = S.M; let rows = visRowsRaw();
 		if (S.onlyMiss && selected().length) { const cov = new Set(covered(rows).map((s) => s.id)); rows = rows.filter((s) => !cov.has(s.id)); }
-		if (S.rs === 'few') { const all = S.doc.parents; const c = (s) => all.reduce((n, p) => n + (M.famHas(p, s.id) ? 1 : 0), 0); const cc = new Map(rows.map((s) => [s.id, c(s)])); rows.sort((a, b) => cc.get(a.id) - cc.get(b.id) || a.order - b.order); }
+		if (S.rs === 'few') { const pool = isExam() ? S.doc.parents.filter((p) => (p.sets || []).includes('exam')) : S.doc.parents.filter((p) => K.inNoneList(p) || (p.sets || []).some((x) => x !== 'exam')); const c = (s) => pool.reduce((n, p) => n + (M.famHas(p, s.id) ? 1 : 0), 0); const cc = new Map(rows.map((s) => [s.id, c(s)])); rows.sort((a, b) => cc.get(a.id) - cc.get(b.id) || a.order - b.order); }
 		else if (S.rs === 'max') { const mx = new Map(rows.map((s) => [s.id, rowMaxOf(ps, s.id)])); rows.sort((a, b) => mx.get(b.id) - mx.get(a.id) || a.order - b.order); }
+		else if (S.rs === 'eff') { const ef = (s) => K.EFF[s.id] == null ? -1 : K.EFF[s.id]; rows.sort((a, b) => ef(b) - ef(a) || a.order - b.order); }
 		else if (S.rs === 'cat') { const o = { scenario: 0, outside: 1, factor: 2, other: 3 }; rows.sort((a, b) => o[a.cat] - o[b.cat] || a.order - b.order); }
 		return rows;
 	}
@@ -154,7 +163,22 @@
 	/** 1つだけ選ぶ欄: 1本につながった帯（選んだ所だけ塗る。C-273 の 13） */
 	function segOf(el, items, isOn, onTap, label) { el.innerHTML = ''; const g = document.createElement('span'); g.className = 'seg sm'; g.setAttribute('role', 'group'); g.setAttribute('aria-label', label); items.forEach(([v, t]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.setAttribute('aria-pressed', isOn(v) ? 'true' : 'false'); b.onclick = () => { onTap(v); renderAll(); }; g.appendChild(b); }); el.appendChild(g); }
 	const toggleSet = (set, v) => set.has(v) ? set.delete(v) : set.add(v);
+	/** 充足の分母（UmaExam は名前で絞っていても133種。98） */
+	function covRows() { return isExam() ? Object.keys(curSet().skills).map(K.skill).sort((a, b) => a.order - b.order) : visRowsRaw(); }
+	/** どちらの表かで出す項目を変える（data-for="star"＝UmaStar 用だけ・data-for="exam"＝UmaExam 用だけ） */
+	function syncModeUi() {
+		document.querySelectorAll('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== S.mode; });
+		const sel = $('#rs');
+		if (sel.dataset.mode !== S.mode) {
+			sel.dataset.mode = S.mode;
+			const rs = [['def', '既定（ゲーム内）'], ['few', '所持率の低いスキル順'], ['max', '★数の大きい順'], isExam() ? ['eff', '効率の高い順'] : ['cat', '分類ごと']];
+			sel.innerHTML = rs.map(([v, t]) => '<option value="' + v + '">' + t + '</option>').join('');
+		}
+		$('#colMax').setAttribute('aria-pressed', S.settings.colMax ? 'true' : 'false');
+		$('#colEff').setAttribute('aria-pressed', S.settings.colEff ? 'true' : 'false');
+	}
 	function renderFilters() {
+		syncModeUi();
 		chips($('#pf-style'), Object.entries(K.STYLE), (v) => S.pf.style.has(v), (v) => toggleSet(S.pf.style, v));
 		chips($('#pf-owner'), [['self', '自分'], ['friend', 'フレンド']], (v) => S.pf.owner.has(v), (v) => toggleSet(S.pf.owner, v));
 		const s = listSet(), two = K.sendsKind(s) && s.sends > 1;
@@ -178,7 +202,7 @@
 	function renderHeader() {
 		const s = curSet();
 		$('#setText').textContent = K.setShort(s);
-		$('#setBtn').setAttribute('aria-label', 'レース/周回セット：' + K.setName(s));
+		$('#setBtn').setAttribute('aria-label', (isExam() ? 'セット：' : 'レース/周回セット：') + K.setName(s));
 		$('#setBtn').title = K.setName(s);
 		// ライト／ダークのボタンのアイコンは、UmaStar と同じく利用者の選択（自動／ライト／ダーク）を示す（T94・追加4。svg は data-theme-state で出し分け）
 		const st = window.UmaTheme && window.UmaTheme.get ? window.UmaTheme.get() : (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
@@ -203,6 +227,15 @@
 		const left = s.filter((x) => !x).length;
 		if (act) { visParents(); let n1 = 0, n2 = 0; S.pm.forEach((m) => { if (m === 1) n1++; else n2++; }); $('#planSum').innerHTML = '◎ そのまま使える <b>' + n1 + '</b>人・○ 祖にできる <b>' + n2 + '</b>人'; }
 		else $('#planSum').textContent = left ? 'あと' + left + '人' : '';
+		if (isExam() && s.some(Boolean)) { const c = planCover(); $('#planSum').insertAdjacentHTML('beforeend', '<div class="plancov"><b class="mono">' + (c == null ? '—' : c) + '/' + covRows().length + '</b><small>充足</small></div>'); }
+	}
+	/** 本育成設計の6人の充足（238）: 片側の3人と衣装が全部合う親（◎そのまま使える）のうち、いちばん多く埋まる組み合わせの種数。片側に合う親がいなければその側は 0 種。どちらにもいなければ null */
+	function planCover() {
+		const M = S.M, s = plan().slots, rows = covRows();
+		const side = (k) => { const a = s[k * 3], g1 = s[k * 3 + 1], g2 = s[k * 3 + 2]; if (!a || !g1 || !g2) return []; return S.doc.parents.filter((p) => (p.sets || []).includes('exam')).filter((p) => { const f = M.fam(p).map((m) => m.uma); return f[0] === a && f[1] && f[2] && ((f[1] === g1 && f[2] === g2) || (f[1] === g2 && f[2] === g1)); }); };
+		const A = side(0), B = side(1); if (!A.length && !B.length) return null;
+		let best = 0; (A.length ? A : [null]).forEach((a) => (B.length ? B : [null]).forEach((b) => { const n = rows.filter((r) => (a && M.famHas(a, r.id)) || (b && M.famHas(b, r.id))).length; if (n > best) best = n; }));
+		return best;
 	}
 	function setSlot(i, uma) { const pl = plan(); pl.slots[i] = uma; if (!K.planFull(pl)) pl.applied = false; saveHead(); }
 	$('#planGo').onclick = () => { const pl = plan(); if (!K.planFull(pl)) return; pl.applied = true; saveHead(); renderAll(); };
@@ -234,8 +267,8 @@
 	let V = null; // 描いている表の状態
 	function dims() {
 		const n = isNarrow(), six = S.six && S.A && S.B;
-		if (S.lv === 1) return { cw: 18, rh: 18, nw: n ? 76 : 112, mw: 24, hh: six ? 92 : 76, fs: 10 };
-		return { cw: 30, rh: 30, nw: n ? 128 : 184, mw: 30, hh: six ? 150 : 136, fs: 12 };
+		if (S.lv === 1) return { cw: 18, rh: 18, nw: n ? 76 : 112, mw: 24, ew: 26, hh: six ? 92 : 76, fs: 10 };
+		return { cw: 30, rh: 30, nw: n ? 128 : 184, mw: 30, ew: 38, hh: six ? 150 : 136, fs: 12 };
 	}
 	/* マスの塗り（C-273 の 1〜3）: 親と祖の合計（親★＋祖1★＋祖2★、0〜9）の5段。1-2／3-4／5-6／7-8／9。0 は空のマス。
 	 * 合計に入れるのは基準（★1以上／★2以上）を満たす★だけ。★不明は「★1以上」なら★1として足し、「★2以上」なら足さない（どちらも印を付ける）。
@@ -273,7 +306,9 @@
 		const ps = visParents(), rows = visRows(ps), cols = columns(ps);
 		stage.classList.toggle('ov', S.lv === 0); stage.classList.toggle('lv2', S.lv === 2);
 		stage.onscroll = null;
-		if (!S.doc.parents.length) { V = null; stage.innerHTML = '<div class="empty"><span>まだ親がいません。UmaStar の OCR から送るか、バックアップを読み込んでください。</span><button class="btn" type="button" id="emptyData">バックアップ</button></div>'; $('#emptyData').onclick = openData; return; }
+		if (isExam() && !S.doc.parents.some((p) => (p.sets || []).includes('exam'))) { V = null; stage.innerHTML = '<div class="empty"><span>技能試験の親はまだいません。UmaExam の OCR から送ってください。</span></div>'; return; }
+		if (S.doc.parents.length && !isExam() && !curSet() && !S.doc.parents.some(K.inNoneList)) { V = null; stage.innerHTML = '<div class="empty"><span>UmaStar の親はまだいません。UmaStar の OCR から送ってください。</span></div>'; return; }
+		if (!S.doc.parents.length) { V = null; stage.innerHTML = '<div class="empty"><span>まだ親がいません。UmaStar か UmaExam の OCR から送るか、バックアップを読み込んでください。</span><button class="btn" type="button" id="emptyData">バックアップ</button></div>'; $('#emptyData').onclick = openData; return; }
 		const s = curSet();
 		if (s && !S.doc.parents.some((p) => (p.sets || []).includes(s.id))) { V = null; stage.innerHTML = '<div class="empty"><span>このセットにはまだ親がいません。</span><button class="btn" type="button" id="emptyNone">指定なしで見る</button></div>'; $('#emptyNone').onclick = () => pickSet('none'); return; }
 		if (!cols.length || !rows.length) { V = null; stage.innerHTML = '<div class="empty"><span>条件に合う親かスキルがありません。</span><button class="btn" type="button" id="emptyClear">絞り込みを外す</button></div>'; $('#emptyClear').onclick = () => { S.pf = { style: new Set(), owner: new Set() }; S.sf = { list: 'all', cat: new Set(), dist: new Set(), style: new Set(), q: '' }; $('#sf-q').value = ''; S.onlyMiss = false; const pl = S.doc.plans[curKey()]; if (pl) { pl.applied = false; saveHead(); } renderAll(); }; return; }
@@ -315,7 +350,7 @@
 		const par = six ? selected() : ps;
 		const rowMax = rows.map((s) => rowMaxOf(par, s.id));
 		const colN = cols.map((c) => rows.reduce((n, s) => n + ((c.kind === 'p' ? M.famHas(c.p, s.id) : M.ok(c.m.skills[s.id])) ? 1 : 0), 0));
-		const R = GR + rows.length, L = d.nw + d.mw, totalW = L + cols.length * d.cw, totalH = d.hh + R * d.rh;
+		const R = GR + rows.length, showM = !isExam() || S.settings.colMax, showE = isExam() && S.settings.colEff, mw = showM ? d.mw : 0, ew = showE ? d.ew : 0, L = d.nw + mw + ew, totalW = L + cols.length * d.cw, totalH = d.hh + R * d.rh;
 		const keep = V && !force && V.key === S.lv + ':' + six + ':' + cols.length + ':' + rows.length;
 		// 入れ物（.vs）の方眼の目の起点は本体の左上（名前の列の幅 L・見出しの高さ）。css で領域いっぱいに広がる（T101）
 		stage.innerHTML = '<div class="vs" style="width:' + totalW + 'px;height:' + totalH + 'px;background-position:' + L + 'px ' + d.hh + 'px"><div class="vhr" style="width:' + totalW + 'px;height:' + d.hh + 'px"><div class="vp vh" id="vh"></div><div class="vp vc" id="vc" style="width:' + L + 'px;height:' + d.hh + 'px"></div></div><div class="vp vb" id="vb"></div><div class="vlw" style="width:' + totalW + 'px;height:' + totalH + 'px"><div class="vp vl" id="vl" style="width:' + L + 'px"></div></div></div>';
@@ -323,8 +358,13 @@
 		if (!keep) { stage.scrollTop = 0; stage.scrollLeft = 0; }
 		V = { key: S.lv + ':' + six + ':' + cols.length + ':' + rows.length, ps, rows, cols, r: [-1, -1], c: [-1, -1] };
 		// 角: 親(列)の数・スキル(行)の数と「最大」（押すと大きい順）
-		vc.innerHTML = '<div class="cnt mono">' + (six ? '6人' : ps.length + '人') + '<br>' + rows.length + '種</div><button type="button" id="sortMax" class="' + (S.rs === 'max' ? 'sorted' : '') + '" title="先代を含む★の合計のうち最大。押すと大きい順">' + (S.lv === 2 ? 'スキル ＼ 親　' : '') + '最大' + (S.rs === 'max' ? '▼' : '') + '</button>';
-		$('#sortMax').onclick = () => { S.rs = S.rs === 'max' ? 'def' : 'max'; renderAll(); };
+		vc.innerHTML = '<div class="cnt mono">' + (six ? '6人' : ps.length + '人') + '<br>' + rows.length + '種</div>' + (isExam()
+			? '<div class="chd"><span class="chn"' + (S.lv === 2 ? '' : ' hidden') + '>スキル ＼ 親</span>' +
+				(showM ? '<button type="button" id="sortMax" class="' + (S.rs === 'max' ? 'sorted' : '') + '" style="width:' + mw + 'px" aria-pressed="' + (S.rs === 'max') + '" title="先代を含む★の合計のうち最大。押すと大きい順">最大</button>' : '') +
+				(showE ? '<button type="button" id="sortEff" class="' + (S.rs === 'eff' ? 'sorted' : '') + '" style="width:' + ew + 'px" aria-pressed="' + (S.rs === 'eff') + '" title="技能試験の効率。押すと大きい順">効率</button>' : '') + '</div>'
+			: '<button type="button" id="sortMax" class="' + (S.rs === 'max' ? 'sorted' : '') + '" title="先代を含む★の合計のうち最大。押すと大きい順">' + (S.lv === 2 ? 'スキル ＼ 親　' : '') + '最大' + (S.rs === 'max' ? '▼' : '') + '</button>');
+		if ($('#sortMax')) $('#sortMax').onclick = () => { S.rs = S.rs === 'max' ? 'def' : 'max'; renderAll(); };
+		if ($('#sortEff')) $('#sortEff').onclick = () => { S.rs = S.rs === 'eff' ? 'def' : 'eff'; renderAll(); };
 		const fz = (w) => 'width:' + w + 'px;min-width:' + w + 'px;max-width:' + w + 'px';
 		const OV = 4;
 		const glabel = (g) => (S.lv === 1 ? '遺·' : '遺伝子：') + g.label;
@@ -341,14 +381,14 @@
 				hh += '<th class="' + (fr ? 'fr' : '') + sel + (c.kind === 'm' ? ' role' : '') + (pm ? ' m' + pm : '') + '" data-c="' + x + '" style="' + fz(d.cw) + ';font-size:' + d.fs + 'px" title="' + K.esc(K.fullName(uma)) + '"><div class="vt">' + K.esc(pre + nm) + '</div><span class="cn">' + colN[x] + '</span></th>'; }
 			vh.innerHTML = hh + '</tr></thead></table>';
 			// 左の名前と最大（前回までの一覧にだけあるスキルは .old）
-			let lh = '<table style="width:' + L + 'px"><colgroup><col style="width:' + d.nw + 'px"><col style="width:' + d.mw + 'px"></colgroup><tbody>';
+			let lh = '<table style="width:' + L + 'px"><colgroup><col style="width:' + d.nw + 'px">' + (showM ? '<col style="width:' + mw + 'px">' : '') + (showE ? '<col style="width:' + ew + 'px">' : '') + '</colgroup><tbody>';
 			for (let y = r0; y < r1; y++) {
 				if (y < GR && G[y].off) { lh += '<tr style="height:' + d.rh + 'px"><th class="gl off' + (y === GR - 1 ? ' gsep' : '') + '" data-gr="' + y + '" aria-disabled="true" style="' + fz(d.nw) + ';font-size:' + d.fs + 'px">' + K.esc(glabel(G[y])) + '</th><th class="mx off' + (y === GR - 1 ? ' gsep' : '') + '" style="' + fz(d.mw) + '"></th></tr>'; continue; }
 				if (y < GR) { const g = G[y]; let mx = 0, lvm = 0; cols.forEach((c) => { const n = geneAt(c, g); if (n > mx) { mx = n; lvm = geneLv(c, n); } }); lh += '<tr style="height:' + d.rh + 'px"><th class="gl' + (y === GR - 1 ? ' gsep' : '') + '" data-gr="' + y + '" style="' + fz(d.nw) + ';font-size:' + d.fs + 'px" title="' + K.esc(g.label) + 'の遺伝子の★の数">' + K.esc(glabel(g)) + '</th><th class="mx c' + lvm + (y === GR - 1 ? ' gsep' : '') + '" style="' + fz(d.mw) + '">' + mx + '</th></tr>'; continue; }
 				const s = rows[y - GR], n = rowMax[y - GR], lv = lv5(n);
 				// 「分類ごと」のときは、スキル名の欄の左端に分類の色の帯（C-274 の 14）
 				const kc = (K.oldOnly(s0, s.id) ? 'old' : '') + (S.rs === 'cat' ? ' cb cb-' + s.cat : '');
-				lh += '<tr style="height:' + d.rh + 'px"><th data-r="' + (y - GR) + '"' + (kc ? ' class="' + kc.trim() + '"' : '') + ' style="' + fz(d.nw) + ';font-size:' + d.fs + 'px" title="' + K.esc(s.name) + '">' + K.esc(s.name) + '</th><th class="mx c' + lv + '" style="' + fz(d.mw) + '">' + n + '</th></tr>';
+				lh += '<tr style="height:' + d.rh + 'px"><th data-r="' + (y - GR) + '"' + (kc ? ' class="' + kc.trim() + '"' : '') + ' style="' + fz(d.nw) + ';font-size:' + d.fs + 'px" title="' + K.esc(s.name) + '">' + K.esc(s.name) + '</th>' + (showM ? '<th class="mx c' + lv + '" style="' + fz(mw) + '">' + n + '</th>' : '') + (showE ? '<th class="ef" style="' + fz(ew) + '">' + (K.EFF[s.id] == null ? '—' : K.EFF[s.id].toFixed(S.lv === 2 ? 3 : 2)) + '</th>' : '') + '</tr>';
 			}
 			vl.innerHTML = lh + '</tbody></table>';
 			// 本体
@@ -463,15 +503,15 @@
 			// 祖の親は、親ごとに改行する（C-271 の 20）
 			const gg = gpp ? '<div class="gg">祖' + k2 + 'の親</div><ul class="gpl">' + gpp.map((y) => '<li>' + K.esc(K.fullName(y.uma)) + ' <span class="fz r" title="赤因子">' + K.esc(K.redText(y.red)) + '</span></li>').join('') + '</ul>' : '<div class="gg">祖' + k2 + 'の親：分からない（紐づけなし）</div>';
 			return '<div class="gpb"><div class="gph"><span><b>祖' + k2 + '：' + K.esc(who) + '</b><br><span class="muted small">' + (m.linked ? (m.missing ? '紐づけ先なし' : '登録済み ' + M.code(M.byId.get(m.id))) : 'この親と一緒に登録') + '・対象スキル' + mm + '種</span></span>' + det + '</div>' +
-				'<div class="row">' + fzHtml(m) + '</div><div class="gg">遺伝子 ' + K.esc(M.geneText(m, G)) + '</div>' + gg + '</div>';
+				'<div class="row">' + fzHtml(m) + '</div><div class="gg">遺伝子 ' + K.esc(M.geneText(m, isExam() ? null : G)) + '</div>' + gg + '</div>';
 		}).join('');
 		const sets = K.orderedSets(S.doc);
 		openSheet('<h2 id="sheetTitle"><span class="' + (p.owner === 'friend' ? 'fr' : '') + '">' + K.esc(nameOf(p)) + '</span><span class="sub mono">' + M.codeFull(p) + '</span></h2>' +
 			'<div class="row">' + fzHtml(p) + '</div>' +
 			'<dl class="kv"><dt>セット</dt><dd class="row">' + (sets.map((s) => '<button class="tag" type="button" data-set="' + K.esc(s.id) + '" aria-pressed="' + ((p.sets || []).includes(s.id) ? 'true' : 'false') + '">' + K.esc(K.setName(s)) + '</button>').join('') || '<span class="muted">なし</span>') + '</dd>' +
-			'<dt>脚質</dt><dd class="row">' + Object.entries(K.STYLE).map(([v, tx]) => '<button class="tag" type="button" data-style="' + v + '" aria-pressed="' + ((p.tags.style || []).includes(v) ? 'true' : 'false') + '">' + tx + '</button>').join('') + '</dd>' +
+			(isExam() ? '' : '<dt>脚質</dt><dd class="row">' + Object.entries(K.STYLE).map(([v, tx]) => '<button class="tag" type="button" data-style="' + v + '" aria-pressed="' + ((p.tags.style || []).includes(v) ? 'true' : 'false') + '">' + tx + '</button>').join('') + '</dd>') +
 			'<dt>持ち主</dt><dd><span class="seg sm" role="group"><button type="button" data-owner="self" aria-pressed="' + (p.owner === 'self') + '">自分</button><button type="button" data-owner="friend" aria-pressed="' + (p.owner === 'friend') + '">フレンド</button></span></dd>' +
-			'<dt>遺伝子</dt><dd>' + K.esc(M.geneText(p, G)) + '</dd><dt>対象スキル</dt><dd>表示中の' + rows.length + '種のうち' + n + '種（本人・★' + M.th + '以上）' + targetHtml(p, rows) + '</dd></dl>' +
+			'<dt>遺伝子</dt><dd>' + K.esc(M.geneText(p, isExam() ? null : G)) + '</dd><dt>対象スキル</dt><dd>表示中の' + rows.length + '種のうち' + n + '種（本人・★' + M.th + '以上）' + targetHtml(p, rows) + '</dd></dl>' +
 			gpHtml +
 			'<div class="acts"><button class="btn pri" type="button" data-pick="A">親Aにする</button><button class="btn pri" type="button" data-pick="B">親Bにする</button><button class="btn danger" type="button" data-del style="flex:0 0 auto">消す</button><button class="btn" type="button" data-close style="flex:0 0 auto">閉じる</button></div>');
 		const inn = $('#sheetIn');
@@ -489,7 +529,7 @@
 		const M = S.M, m = M.fam(p)[k], rows = visRowsRaw();
 		if (!m) { toast('祖がいません'); back(); return; }
 		openSheet('<h2 id="sheetTitle">祖' + k + '：' + K.esc(m.missing ? '（消えた親）' : K.fullName(m.uma)) + '<span class="sub">' + K.esc(nameOf(p)) + ' の祖</span></h2><div class="row">' + fzHtml(m) + '</div>' +
-			'<dl class="kv"><dt>遺伝子</dt><dd>' + K.esc(M.geneText(m, grows())) + '</dd><dt>スキル</dt><dd>' + Object.keys(m.skills).length + '種</dd>' +
+			'<dl class="kv"><dt>遺伝子</dt><dd>' + K.esc(M.geneText(m, isExam() ? null : grows())) + '</dd><dt>スキル</dt><dd>' + Object.keys(m.skills).length + '種</dd>' +
 			'<dt>対象スキル</dt><dd>表示中の' + rows.length + '種のうち' + rows.filter((s) => M.ok(m.skills[s.id])).length + '種（★' + M.th + '以上）' + targetHtml(m, rows) + '</dd></dl>' +
 			'<div class="acts">' + (stack.length ? '' : '<button class="btn pri" type="button" data-open>親の詳細</button>') + '<button class="btn" type="button" data-close>閉じる</button></div>');
 		const o = $('#sheetIn [data-open]'); if (o) o.onclick = () => nav(() => parentSheet(p));
@@ -509,7 +549,7 @@
 		// 親ごとの対象スキル数（親の小窓の「対象スキル」と同じ数え方）の多い順。同じ数なら登録日の新しい順（C-274 の 9）
 		const list = ps.map((p) => { const f = M.fam(p); const v = f[0].skills[s.id]; const go = M.gpOnly(p, s.id); return { p, v: v == null ? 0 : v, go, t: rows.filter((x) => M.ok(p.skills[x.id])).length }; }).filter((x) => x.v !== 0 || x.go)
 			.sort((a, b) => b.t - a.t || b.p.date.localeCompare(a.p.date) || b.p.no - a.p.no);
-		const tags = [K.CAT[s.cat]].concat(s.dist.map((d) => K.DIST[d]), s.style.map((d) => K.STYLE[d]), s.surface.map((d) => K.SURF[d]));
+		const tags = isExam() ? (K.EFF[s.id] == null ? [] : ['効率 ' + K.EFF[s.id].toFixed(3)]) : [K.CAT[s.cat]].concat(s.dist.map((d) => K.DIST[d]), s.style.map((d) => K.STYLE[d]), s.surface.map((d) => K.SURF[d]));
 		const old = K.oldOnly(listSet(), s.id);
 		openSheet('<h2 id="sheetTitle">' + K.esc(s.name) + '<span class="sub">' + K.esc(tags.join('・')) + (old ? '・前回までの一覧にだけある' : '') + '／表示中の親' + ps.length + '人のうち' + list.length + '人</span></h2>' +
 			'<div class="list">' + (list.map((x) => '<button type="button" data-p="' + x.p.id + '"><span><span class="' + (x.p.owner === 'friend' ? 'fr' : '') + '">' + K.esc(K.charaName(x.p.uma)) + '</span> <span class="muted mono small">' + M.code(x.p) + '</span></span><span class="sc">対象スキル' + x.t + '種・' + (x.v > 0 ? '★' + x.v : x.v < 0 ? '★不明' : '祖が持つ') + '</span></button>').join('') || '<div><span class="muted">持っている親はいません</span></div>') + '</div>' +
@@ -525,8 +565,8 @@
 		nav(() => {
 			const M = S.M, P = M.byId.get(S[base]), ps = visParents(), rows = visRowsRaw();
 			const r = K.recommendB(M, P, ps, rows, grows(), 8);
-			openSheet('<h2 id="sheetTitle">親' + want + 'のおすすめ<span class="sub">親' + base + ' ' + K.esc(nameOf(P)) + ' と先代が持たない' + r.lack.length + '種を多く埋める順（同数なら★の合計、次に遺伝子の★）' + (planActive() ? '・本育成設計で絞った' + ps.length + '人から' : '') + '</span></h2>' +
-				'<div class="recs" style="display:flex;flex-direction:column;gap:6px">' + r.list.map((x) => '<div class="rec"><span class="' + (x.p.owner === 'friend' ? 'fr' : '') + '">' + K.esc(nameOf(x.p)) + ' <span class="muted mono small">' + M.code(x.p) + '</span></span><span class="sc">埋める ' + x.n + '/' + r.lack.length + '・★' + x.st + '・遺伝子★' + x.g + '</span><button class="btn pri" type="button" data-b="' + x.p.id + '">' + want + 'にする</button></div>').join('') + '</div>' +
+			openSheet('<h2 id="sheetTitle">親' + want + 'のおすすめ<span class="sub">親' + base + ' ' + K.esc(nameOf(P)) + ' と先代が持たない' + r.lack.length + '種を多く埋める順' + (isExam() ? '（同数なら★の合計）' : '（同数なら★の合計、次に遺伝子の★）') + (planActive() ? '・本育成設計で絞った' + ps.length + '人から' : '') + '</span></h2>' +
+				'<div class="recs" style="display:flex;flex-direction:column;gap:6px">' + r.list.map((x) => '<div class="rec"><span class="' + (x.p.owner === 'friend' ? 'fr' : '') + '">' + K.esc(nameOf(x.p)) + ' <span class="muted mono small">' + M.code(x.p) + '</span></span><span class="sc">埋める ' + x.n + '/' + r.lack.length + '・★' + x.st + (isExam() ? '' : '・遺伝子★' + x.g) + '</span><button class="btn pri" type="button" data-b="' + x.p.id + '">' + want + 'にする</button></div>').join('') + '</div>' +
 				'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>');
 			$('#sheetIn').querySelectorAll('[data-b]').forEach((b) => { b.onclick = () => { S[want] = b.dataset.b; closeSheet(); renderAll(); }; }); bindClose();
 		});
@@ -535,8 +575,8 @@
 	$('#recPair').onclick = () => nav(() => {
 		const M = S.M, ps = visParents(), rows = visRowsRaw();
 		const t0 = performance.now(); const r = K.findPairs(M, ps, rows, grows(), 8); S.perf.pairs = performance.now() - t0;
-		openSheet('<h2 id="sheetTitle">2組を探す<span class="sub">' + (planActive() ? '本育成設計で絞った' : '表示中の') + '親' + ps.length + '人から2組（6人）を選ぶ' + r.total.toLocaleString() + '通り。スキル' + rows.length + '種の充足が多い順（同数なら遺伝子の★）</span></h2>' +
-			'<div style="display:flex;flex-direction:column;gap:6px">' + (r.top.map((x, k) => '<div class="rec"><span>' + K.esc(K.charaName(x.a.uma)) + ' <span class="muted mono small">' + M.code(x.a) + '</span> ＋ ' + K.esc(K.charaName(x.b.uma)) + ' <span class="muted mono small">' + M.code(x.b) + '</span></span><span class="sc">' + x.n + '/' + rows.length + '・遺伝子★' + x.g + '</span><button class="btn pri" type="button" data-k="' + k + '">この2組</button></div>').join('') || '<p class="small muted">親が2人以上いません。</p>') + '</div>' +
+		openSheet('<h2 id="sheetTitle">2組を探す<span class="sub">' + (planActive() ? '本育成設計で絞った' : '表示中の') + '親' + ps.length + '人から2組（6人）を選ぶ' + r.total.toLocaleString() + '通り。スキル' + rows.length + '種の充足が多い順' + (isExam() ? '' : '（同数なら遺伝子の★）') + '</span></h2>' +
+			'<div style="display:flex;flex-direction:column;gap:6px">' + (r.top.map((x, k) => '<div class="rec"><span>' + K.esc(K.charaName(x.a.uma)) + ' <span class="muted mono small">' + M.code(x.a) + '</span> ＋ ' + K.esc(K.charaName(x.b.uma)) + ' <span class="muted mono small">' + M.code(x.b) + '</span></span><span class="sc">' + x.n + '/' + rows.length + (isExam() ? '' : '・遺伝子★' + x.g) + '</span><button class="btn pri" type="button" data-k="' + k + '">この2組</button></div>').join('') || '<p class="small muted">親が2人以上いません。</p>') + '</div>' +
 			'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>');
 		$('#sheetIn').querySelectorAll('[data-k]').forEach((b) => { b.onclick = () => { const x = r.top[+b.dataset.k]; S.A = x.a.id; S.B = x.b.id; closeSheet(); renderAll(); }; }); bindClose();
 	});
@@ -544,14 +584,14 @@
 	function openPairDetail() {
 		const M = S.M, sel = selected(); if (!sel.length) { toast('列の見出しを押して親A・親Bを選ぶと充足が出ます'); return; }
 		nav(() => {
-			const rows = visRowsRaw(), cov = covered(rows), miss = rows.filter((s) => !cov.includes(s)), G = grows();
+			const rows = covRows(), cov = covered(rows), miss = rows.filter((s) => !cov.includes(s)), G = grows();
 			const parts = []; [S.A, S.B].forEach((id, si) => { const p = id && M.byId.get(id); if (!p) return; M.fam(p).forEach((m, k) => parts.push('<div><span>' + K.POS[si * 3 + k] + '　' + K.esc(K.charaName(m.uma)) + ' <span class="muted small">' + K.esc(K.uniqName(m.uma)) + '</span></span><span class="sc">' + K.starText(m.green) + '</span></div>')); });
 			const gsum = G.filter((g) => !g.off).map((g) => g.label + ' ★' + sel.reduce((a, p) => a + M.fam(p).reduce((b, m) => b + M.geneStar(m, g), 0), 0)).join('・') || '条件の指定なし';
 			const reds = (list) => { const m = {}; list.forEach((r) => { if (!r) return; const k = K.RED[r[0]]; m[k] = (m[k] || 0) + Math.max(0, r[1]); }); return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + '★' + v).join('・') || 'なし'; };
 			const lv1 = [], lv2 = []; let unknown = 0; sel.forEach((p) => { M.fam(p).forEach((m, k) => { lv1.push(m.red); if (k) { const gp = M.gpParents(m); if (gp) gp.forEach((y) => lv2.push(y.red)); else unknown += 2; } }); });
 			openSheet('<h2 id="sheetTitle">2組の充足<span class="sub mono">' + cov.length + '/' + rows.length + '（' + (S.settings.gp ? '親＋祖' : '親だけ') + '・★' + M.th + '以上）</span></h2>' +
 				'<div class="list">' + parts.join('') + '</div>' +
-				'<dl class="kv"><dt>遺伝子</dt><dd>' + K.esc(gsum) + '（6人の合計）</dd><dt>赤因子</dt><dd>親と祖：' + K.esc(reds(lv1)) + '<br>祖の親：' + K.esc(reds(lv2)) + (unknown ? '（' + unknown + '人は分からない）' : '') + '</dd><dt>未所持スキル</dt><dd>' + miss.length + '種：' + K.esc(miss.map((s) => s.name).join('、') || 'なし') + '</dd></dl>' +
+				'<dl class="kv">' + (isExam() ? '' : '<dt>遺伝子</dt><dd>' + K.esc(gsum) + '（6人の合計）</dd>') + '<dt>赤因子</dt><dd>親と祖：' + K.esc(reds(lv1)) + '<br>祖の親：' + K.esc(reds(lv2)) + (unknown ? '（' + unknown + '人は分からない）' : '') + '</dd><dt>未所持スキル</dt><dd>' + miss.length + '種：' + K.esc(miss.map((s) => s.name).join('、') || 'なし') + '</dd></dl>' +
 				'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>');
 			bindClose();
 		});
@@ -566,7 +606,7 @@
 		$('#onlyMiss').setAttribute('aria-pressed', S.onlyMiss ? 'true' : 'false'); $('#sixCols').setAttribute('aria-pressed', S.six ? 'true' : 'false');
 		$('#recB').textContent = '親' + recFor() + 'のおすすめ';
 		if (!sel.length) { $('#cov').innerHTML = '—<small>充足</small>'; $('#miss').textContent = '列の見出しを押して親A・親Bを選ぶ'; return; }
-		const rows = visRowsRaw(), cov = covered(rows), miss = rows.filter((s) => !cov.includes(s));
+		const rows = covRows(), cov = covered(rows), miss = rows.filter((s) => !cov.includes(s));
 		$('#cov').innerHTML = cov.length + '/' + rows.length + '<small>充足</small>';
 		$('#miss').textContent = '未所持スキル' + miss.length + '種：' + (miss.map((s) => s.name).join('、') || 'なし');
 	}
@@ -577,12 +617,26 @@
 	$('#clearSel').onclick = () => { S.A = S.B = null; S.onlyMiss = false; S.six = false; renderAll(); };
 
 	/* ---------- 見出しの行（レース/周回セット・ツールの切り替え・ライト／ダーク。C-271 の 6） ---------- */
+	const PER_MODE = ['A', 'B', 'rs', 'cs', 'pf', 'sf', 'onlyMiss', 'six', 'pane'];
+	const FRESH = () => ({ A: null, B: null, rs: 'def', cs: 'def', pf: { style: new Set(), owner: new Set() }, sf: { list: 'all', cat: new Set(), dist: new Set(), style: new Set(), q: '' }, onlyMiss: false, six: false, pane: null });
+	const memo = {};
+	/** UmaStar 用と UmaExam 用を切り替える。親の選択・絞り込み・並びは表ごとに覚える（開き直すと消えるのは今までどおり） */
+	function switchMode(m) {
+		if (m === S.mode) return;
+		const keep = {}; PER_MODE.forEach((k) => { keep[k] = S[k]; }); memo[S.mode] = keep;
+		const o = memo[m] || FRESH(); PER_MODE.forEach((k) => { S[k] = o[k]; });
+		S.mode = m; S.settings.mode = m; saveSettings(); $('#sf-q').value = S.sf.q; renderAll();
+	}
+	function modeRowHtml() { return '<div class="modeline"><span class="seg sm" role="group" aria-label="表"><button type="button" data-mode="star" aria-pressed="' + !isExam() + '">UmaStar</button><button type="button" data-mode="exam" aria-pressed="' + isExam() + '">UmaExam</button></span></div>'; }
+	function examListHtml() { const n = S.doc.parents.filter((p) => (p.sets || []).includes('exam')).length; return '<div class="rlist" role="radiogroup" aria-label="セット"><label class="ropt on"><input type="radio" name="setpick" value="exam" checked><span class="rtx"><span class="l1">技能試験</span></span><span class="rn">親' + n + '人</span></label></div>'; }
 	function openSetPicker() {
 		nav(() => {
-			openSheet('<h2 id="sheetTitle">レース/周回セット</h2>' + K.setListHtml(S.doc, curKey(), { counts: true }) +
+			openSheet('<h2 id="sheetTitle">' + (isExam() ? 'セット' : 'レース/周回セット') + '</h2>' + modeRowHtml() + (isExam() ? examListHtml() : K.setListHtml(S.doc, curKey(), { counts: true })) +
 				'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>', '.rlist input:checked');
+			$('#sheetIn').querySelectorAll('.modeline [data-mode]').forEach((b) => { b.onclick = () => { const m = b.dataset.mode; if (m === S.mode) return; switchMode(m); closeSheet(); if (m === 'star') openSetPicker(); }; });
 			$('#sheetIn').querySelectorAll('input[name="setpick"]').forEach((el) => { el.onchange = () => {
 				const key = el.value; closeSheet();
+				if (key === 'exam') return;
 				if (key.startsWith('r:') && !S.doc.sets.some((s) => s.id === key)) { const r = K.RACES.get(key.slice(2)); S.doc.sets.push(K.newRaceSet(r)); saveHead(); }
 				pickSet(key);
 			}; });
@@ -648,7 +702,7 @@
 		nav(() => {
 			openSheet('<h2 id="sheetTitle">読み込む<span class="sub">' + K.esc(f.name) + '</span></h2><dl class="kv"><dt>親</dt><dd>' + doc.parents.length + '人（今は' + S.doc.parents.length + '人）</dd><dt>保存日時</dt><dd>' + K.esc(doc.savedAt || '不明') + '</dd><dt>版</dt><dd>' + r.fromSchema + (r.migrated ? '（今の形に直して読みます）' : '') + '</dd></dl>' +
 				'<div class="acts"><button class="btn pri" type="button" data-rep>置き換える</button><button class="btn" type="button" data-add>今のデータに足す</button><button class="btn" type="button" data-close>やめる</button></div>', '[data-close]');
-			$('#sheetIn [data-rep]').onclick = async () => { await K.store.replaceAll(doc); S.doc = K.assemble(await K.store.load()); await runArchive(); S.A = S.B = null; if (!K.findSet(S.doc, S.settings.cur)) S.settings.cur = 'none'; applySetDefaults(); rebuild(); closeSheet(); renderAll(); toast('置き換えました（親' + doc.parents.length + '人）'); };
+			$('#sheetIn [data-rep]').onclick = async () => { await K.store.replaceAll(doc); S.doc = K.assemble(await K.store.load()); await runArchive(); S.A = S.B = null; Object.keys(memo).forEach((k) => { delete memo[k]; }); if (!K.findSet(S.doc, S.settings.cur)) S.settings.cur = 'none'; applySetDefaults(); rebuild(); closeSheet(); renderAll(); toast('置き換えました（親' + doc.parents.length + '人）'); };
 			$('#sheetIn [data-add]').onclick = async () => {
 				const have = new Set(S.doc.parents.map((p) => p.id)); let next = S.doc.next; const map = {}; const add = [];
 				doc.parents.forEach((p) => { const q = JSON.parse(JSON.stringify(p)); if (have.has(q.id)) { map[p.id] = 'p' + next; q.id = 'p' + next; next++; } add.push(q); });
@@ -657,6 +711,7 @@
 				doc.sets.forEach((s) => { const t = S.doc.sets.find((x) => x.id === s.id); if (!t) S.doc.sets.push(s); else Object.keys(s.skills).forEach((id) => { if (!(id in t.skills)) t.skills[id] = Math.max(1, t.sends - 1); }); });
 				// 「指定なし」の一覧も同じ形で OR でまとめる（T97・140）
 				if (doc.none) { if (!S.doc.none) S.doc.none = doc.none; else Object.keys(doc.none.skills).forEach((id) => { if (!(id in S.doc.none.skills)) S.doc.none.skills[id] = Math.max(1, S.doc.none.sends - 1); }); }
+				if (doc.exam) { if (!S.doc.exam) S.doc.exam = doc.exam; else Object.keys(doc.exam.skills).forEach((id) => { if (!(id in S.doc.exam.skills)) S.doc.exam.skills[id] = S.doc.exam.sends; }); }
 				S.doc.next = Math.max(next, S.doc.next); S.doc.parents = S.doc.parents.concat(add);
 				await K.store.putParents(add); await saveHead(); await runArchive(); rebuild(); closeSheet(); renderAll(); toast('足しました（親' + add.length + '人）');
 			};
@@ -691,6 +746,8 @@
 	let qT; $('#sf-q').oninput = (e) => { S.sf.q = e.target.value; clearTimeout(qT); qT = setTimeout(() => { renderFilters(); renderStage(true); renderDock(); }, 150); };
 	document.querySelectorAll('[data-th]').forEach((b) => { b.onclick = () => { S.settings.th = +b.dataset.th; saveSettings(); rebuild(); renderAll(); }; });
 	$('#gpToggle').onclick = () => { S.settings.gp = !S.settings.gp; saveSettings(); rebuild(); renderAll(); };
+	$('#colMax').onclick = () => { S.settings.colMax = !S.settings.colMax; if (!S.settings.colMax && S.rs === 'max') S.rs = 'def'; saveSettings(); renderAll(); };
+	$('#colEff').onclick = () => { S.settings.colEff = !S.settings.colEff; if (!S.settings.colEff && S.rs === 'eff') S.rs = 'def'; saveSettings(); renderAll(); };
 	$('#geneToggle').onclick = () => { S.settings.geneRows = !S.settings.geneRows; saveSettings(); renderAll(); };
 	let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => renderStage(true), 150); });
 	// 色が変わったとき（☾☀ のボタン・ほかのタブでの切り替え・OS の設定の変化。どれも js/theme.js が <html data-theme> を付け替える）に描き直す。

@@ -435,6 +435,11 @@
 		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
 		.tab-btn { background: var(--uma-aux-bg); border-color: var(--uma-aux-border); color: var(--uma-text-heading); }
 		.tab-btn.tab-active { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }
+
+		/* 先頭の1行と Deck (αテスト) への入口（T104・223・239） */
+		.deck-stop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+		.deck-stop a { text-decoration: none; }
+		.deck-stop p { margin: 0; font-size: 11px; color: var(--uma-text-subtle); }
 	</style>
 </head>
 <body class="min-h-screen">
@@ -445,6 +450,7 @@
 				<p class="text-xs text-slate-400" id="js-version-note"></p>
 			</div>
 		</header>
+		<div class="deck-stop" id="deck-stop"><a class="uma-btn uma-btn--primary btn-deck-accent deck-accent" href="deck-alpha.html">Deck (αテスト)</a><p>UmaSkill Deck は開発を停止しました。</p></div>
 
 		<nav class="grid grid-cols-3 gap-2 mb-5">
 			<button id="tab-btn-template" class="tab-btn tab-active" onclick="switchTab('template')">スキルセット</button>

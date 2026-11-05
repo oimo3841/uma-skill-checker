@@ -6,13 +6,13 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_DATA_VERSION = '2026-11-04a';
+	const DECK_ALPHA_DATA_VERSION = '2026-11-05a';
 	const me = document.currentScript;
 	const next = ((me && me.dataset.next) || '').split(/\s+/).filter(Boolean);
 	const get = (p) => fetch(p, { cache: 'no-cache' }).then((r) => { if (!r.ok) throw new Error(p + ' ' + r.status); return r.json(); });
 
 	function build(j) {
-		const [master, ext, sf, genes, uma, nonSupport, rec, races, abbrev] = j;
+		const [master, ext, sf, genes, uma, nonSupport, rec, races, abbrev, eff] = j;
 		const extName = new Map();
 		for (const e of ext.entries || ext.skills || []) extName.set(e.id, e.name);
 		const skills = master.skills.map((s) => ({
@@ -46,6 +46,8 @@
 			races: races.races.map((r) => ({ id: r.id, name: r.name, date: r.date, dateLabel: r.dateLabel, venue: r.venue, surface: r.surface, distance: r.distance, distanceCategory: r.distanceCategory, selectable: r.selectable !== false })),
 			// 縮小の列の名前（衣装ごとの略称。C-275 の 7・8）
 			abbrev: (abbrev.entries || []).map((e) => ({ id: e.id, abbr: e.abbr })),
+			// 技能試験の効率（UmaExam 用の表の効率の列。T104・225。名前だけの行は使わない）
+			efficiency: Object.fromEntries((eff.entries || []).filter((e) => e.skillId && typeof e.efficiency === 'number').map((e) => [String(e.skillId), e.efficiency])),
 		};
 	}
 	function loadScript(src) {
@@ -58,7 +60,7 @@
 	}
 	Promise.all([
 		'uma-skill-deck-skills.json', 'data/extended-skills.json', 'data/scenario-inheritance-factors.json', 'data/aptitude-genes.json',
-		'data/training-umamusume.json', 'data/non-support-skills.json', 'data/recommended-skills.json', 'data/upcoming-races.json', 'data/deck-alpha/uma-abbrev.json',
+		'data/training-umamusume.json', 'data/non-support-skills.json', 'data/recommended-skills.json', 'data/upcoming-races.json', 'data/deck-alpha/uma-abbrev.json', 'data/skill-efficiency.json',
 	].map(get)).then((j) => {
 		window.DECK_ALPHA_DATA = build(j);
 		window.DECK_ALPHA_DATA.loaderVersion = DECK_ALPHA_DATA_VERSION;

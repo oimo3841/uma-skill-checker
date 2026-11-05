@@ -13,10 +13,14 @@
  *   targets（目標の6人・次善・必須）→ plans（セットごとの本育成設計の6人と絞り込みの状態）。
  * T97（2026-11-04・140）: 「指定なし」で送った②のスキルの一覧を doc.none = { id:'none', kind:'none', skills:{id:最後に入った送りの回}, sends } に持つ
  *   （レースのセットと同じ形・同じ数え方。一度も送っていなければ無い＝今までの保存データ・書き出しのファイルはそのまま読める）。
+ * T104（2026-11-05・UmaExam 用の表）: schema は 2 のまま次を足す（どれも無くてよい＝今までの保存データ・書き出しのファイルはそのまま読める。移行はしない）。
+ *   doc.exam = { id:'exam', kind:'exam', skills:{133種の id: 回}, sends }（技能試験の一覧。UmaExam から一度でも送ったときだけ）・
+ *   親の sets の 'exam'（技能試験の表に出す印）・親の from:'exam'（UmaExam から新しく登録した親。UmaStar 用の表の「指定なし」に出さない＝233）・
+ *   親と祖の sheet = { めろっぷの行で id の無い行の名前: ★ }・settings の mode（star|exam）・colMax・colEff。書き出しのファイルは1つのまま（tool:'star'。240）。
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_CORE_VERSION = '2026-11-04a';
+	const DECK_ALPHA_CORE_VERSION = '2026-11-05a';
 	const D = window.DECK_ALPHA_DATA;
 	const DB_NAME = 'uma-deck';
 	const DB_VER = 1;
@@ -82,14 +86,14 @@
 	function arcCatOf(r) { return r.surface === 'dirt' ? 'dirt' : (DIST[r.distanceCategory] ? r.distanceCategory : 'medium'); }
 	/** セットの条件（遺伝子の行に使う距離・バ場。C-271 の 23・25） */
 	function setCond(set) {
-		if (!set) return { dist: null, surface: null };
+		if (!set || set.kind === 'exam') return { dist: null, surface: null };
 		if (set.kind === 'race') return { dist: DIST[set.race.distanceCategory] ? set.race.distanceCategory : null, surface: set.race.surface || null };
 		if (set.cat === 'dirt') return { dist: null, surface: 'dirt' };
 		return { dist: set.cat, surface: 'turf' };
 	}
-	function setName(set) { if (!set) return '指定なし'; return set.kind === 'race' ? (raceDateText(set.race) ? raceDateText(set.race) + ' ' : '') + set.race.name : ARC[set.cat]; }
+	function setName(set) { if (!set) return '指定なし'; if (set.kind === 'exam') return '技能試験'; return set.kind === 'race' ? (raceDateText(set.race) ? raceDateText(set.race) + ' ' : '') + set.race.name : ARC[set.cat]; }
 	/** 見出しのボタンの短い表記（UmaStar の帯のレースのボタンと同じ「京都 芝3000m」の形。終了レースはカテゴリの名前） */
-	function setShort(set) { if (!set) return '指定なし'; return set.kind === 'race' ? (raceShortText(set.race) || set.race.name) : ARC[set.cat]; }
+	function setShort(set) { if (!set) return '指定なし'; if (set.kind === 'exam') return '技能試験'; return set.kind === 'race' ? (raceShortText(set.race) || set.race.name) : ARC[set.cat]; }
 	function newRaceSet(r) { return { id: 'r:' + r.id, kind: 'race', raceId: r.id, race: { id: r.id, name: r.name, date: r.date, dateLabel: r.dateLabel, venue: r.venue, surface: r.surface, distance: r.distance, distanceCategory: r.distanceCategory }, skills: {}, sends: 0 }; }
 	function newArcSet(cat) { return { id: 'arc:' + cat, kind: 'arc', cat, skills: {}, sends: 0 }; }
 	/** UmaStar の②から送られたスキルの一覧を足す（C-271 の 3）。前の一覧と OR。最新の送りに入っていたかは skills[id] === sends で分かる。①の脚質は記録しない（C-272 の 2） */
@@ -99,6 +103,11 @@
 	}
 	/** 「指定なし」の一覧（T97・140。一度も送っていなければ作る） */
 	function newNoneList() { return { id: 'none', kind: 'none', skills: {}, sends: 0 }; }
+	/** 技能試験の一覧（T104。UmaExam から一度も送っていなければ保存データに無い） */
+	function newExamList() { return { id: 'exam', kind: 'exam', skills: {}, sends: 0 }; }
+	function cleanExam(n) { return n && typeof n === 'object' && n.skills && typeof n.skills === 'object' && typeof n.sends === 'number' && n.sends > 0 ? { id: 'exam', kind: 'exam', skills: n.skills, sends: n.sends } : null; }
+	/** UmaStar 用の表の「指定なし」に出す親か（UmaExam から新しく登録した親は出さない。レースのセットに入るのは親の小窓で選んだときだけ。233・245） */
+	function inNoneList(p) { return p.from !== 'exam'; }
 	/** 送りの回を区別する一覧か（レースのセットと「指定なし」の一覧。終了レースのカテゴリでは区別しない） */
 	function sendsKind(set) { return !!set && (set.kind === 'race' || set.kind === 'none'); }
 	/** そのスキルが前回までの一覧にだけあるか */
@@ -166,22 +175,22 @@
 		if (!persistAsked) { persistAsked = true; try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* 使えない環境では何もしない */ } }
 		return r;
 	}
-	function docHead(doc) { const h = { schema: doc.schema, next: doc.next, sets: doc.sets, plans: doc.plans, data: doc.data }; if (doc.none) h.none = doc.none; return h; }
+	function docHead(doc) { const h = { schema: doc.schema, next: doc.next, sets: doc.sets, plans: doc.plans, data: doc.data }; if (doc.none) h.none = doc.none; if (doc.exam) h.exam = doc.exam; return h; }
 
 	/* ---------- 設定（表示の状態。データの文書とは別に meta の settings に持つ） ---------- */
-	const DEFAULT_SETTINGS = { theme: 'auto', gp: true, th: 1, geneRows: true, lastExport: null, cur: 'none' };
+	const DEFAULT_SETTINGS = { theme: 'auto', gp: true, th: 1, geneRows: true, lastExport: null, cur: 'none', mode: 'star', colMax: true, colEff: true };
 
 	/* ---------- 文書の組み立て ---------- */
 	function emptyDoc() { return { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: null, data: D.versions, next: 1, sets: [], parents: [], plans: {} }; }
 	function assemble(loaded) {
 		const head = loaded.meta.doc || null;
 		const doc = emptyDoc(); doc.parents = loaded.parents.slice();
-		if (head) { doc.schema = head.schema || SCHEMA; doc.next = head.next || 1; doc.sets = head.sets || []; doc.plans = head.plans || {}; doc.data = head.data || D.versions; const nn = cleanNone(head.none); if (nn) doc.none = nn; }
+		if (head) { doc.schema = head.schema || SCHEMA; doc.next = head.next || 1; doc.sets = head.sets || []; doc.plans = head.plans || {}; doc.data = head.data || D.versions; const nn = cleanNone(head.none); if (nn) doc.none = nn; const ne = cleanExam(head.exam); if (ne) doc.exam = ne; }
 		doc.parents.sort((a, b) => numId(a.id) - numId(b.id));
 		return doc;
 	}
 	function numId(id) { return +String(id).replace(/^p/, '') || 0; }
-	function findSet(doc, key) { return key && key !== 'none' ? doc.sets.find((s) => s.id === key) || null : null; }
+	function findSet(doc, key) { if (key === 'exam') return doc.exam || newExamList(); return key && key !== 'none' ? doc.sets.find((s) => s.id === key) || null : null; }
 	/** 選べるセットの並び（レースの一覧の順 → 終了レースのカテゴリ） */
 	function orderedSets(doc) {
 		const races = activeRaces().map((r) => doc.sets.find((s) => s.id === 'r:' + r.id)).filter(Boolean);
@@ -217,10 +226,10 @@
 		function geneFam(p, row) { const f = fam(p); return geneStar(f[0], row) + (gpOn ? geneStar(f[1], row) + geneStar(f[2], row) : 0); }
 		/** 親と祖の、合う遺伝子の★の合計（全行。2組を探す・親Bのおすすめの並べ方に使う） */
 		function geneTotal(p, grows) { return grows.reduce((a, row) => a + geneFam(p, row), 0); }
-		function geneText(m, grows) { const keys = grows.flatMap((g) => g.keys); const a = []; for (const k in (m.genes || {})) { const g = GENES.get(k); const nm = g ? g.name.replace('の遺伝子', '') : k; const inn = keys.includes(GENE_KEY[k]); a.push((inn ? '' : '（') + nm + '★' + m.genes[k] + (inn ? '' : '）')); } return a.join(' ') || 'なし'; }
+		function geneText(m, grows) { const keys = grows ? grows.flatMap((g) => g.keys) : []; const a = []; for (const k in (m.genes || {})) { const g = GENES.get(k); const nm = g ? g.name.replace('の遺伝子', '') : k; const inn = !grows || keys.includes(GENE_KEY[k]); a.push((inn ? '' : '（') + nm + '★' + m.genes[k] + (inn ? '' : '）')); } return a.join(' ') || 'なし'; }
 		// 行の母集団（「指定なし」のとき）: 登録されている全親（と祖）が持つスキル
 		const rowSet = new Set();
-		doc.parents.forEach((p) => { fam(p).forEach((m) => Object.keys(m.skills || {}).forEach((id) => rowSet.add(id))); });
+		doc.parents.forEach((p) => { if (!inNoneList(p)) return; fam(p).forEach((m) => Object.keys(m.skills || {}).forEach((id) => rowSet.add(id))); });
 		const rows = [...rowSet].map(skill).sort((a, b) => a.order - b.order);
 		// 管理番号
 		const dup = {}; doc.parents.forEach((p) => { dup[p.date] = (dup[p.date] || 0) + 1; });
@@ -298,6 +307,7 @@
 		const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 19) + sign + hh + ':' + mm;
 		const out = { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: local, data: doc.data, next: doc.next, sets: doc.sets, parents: doc.parents, plans: doc.plans };
 		if (doc.none) out.none = doc.none; // 「指定なし」の一覧（T97。送ったことがあるときだけ）
+		if (doc.exam) out.exam = doc.exam; // 技能試験の一覧（T104。送ったことがあるときだけ）
 		return out;
 	}
 	function exportFileName() { const d = new Date(); return 'uma-deck-star-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json'; }
@@ -324,6 +334,7 @@
 		const body = migrated ? migrate1to2(j) : { sets: j.sets || [], parents: j.parents, plans: j.plans || {} };
 		const doc = { format: 'uma-deck', schema: SCHEMA, tool: 'star', savedAt: j.savedAt || null, data: j.data || D.versions, next: j.next || (j.parents.length + 1), sets: body.sets, parents: body.parents, plans: body.plans };
 		const nn = cleanNone(j.none); if (nn) doc.none = nn;
+		const ne = cleanExam(j.exam); if (ne) doc.exam = ne;
 		return { doc, migrated, fromSchema: j.schema };
 	}
 	function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (!isFinite(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
@@ -334,7 +345,7 @@
 		const deps = dependents(doc, id);
 		const src = doc.parents.find((p) => p.id === id); if (!src) return { changed: [] };
 		const changed = [];
-		deps.forEach((p) => { p.gp = p.gp.map((g) => g.link === id ? { uma: src.uma, blue: src.blue, red: src.red, green: src.green, skills: src.skills, genes: src.genes } : g); changed.push(p); });
+		deps.forEach((p) => { p.gp = p.gp.map((g) => g.link === id ? Object.assign({ uma: src.uma, blue: src.blue, red: src.red, green: src.green, skills: src.skills, genes: src.genes }, src.sheet ? { sheet: src.sheet } : {}) : g); changed.push(p); });
 		doc.parents = doc.parents.filter((p) => p.id !== id);
 		return { changed };
 	}
@@ -348,8 +359,9 @@
 	function setListHtml(doc, cur, opts) {
 		const o = opts || {};
 		const cnt = (id) => doc.parents.reduce((n, p) => n + ((p.sets || []).includes(id) ? 1 : 0), 0);
+		const nNone = doc.parents.filter(inNoneList).length; // 「指定なし」に出る親の数（233）
 		const opt = (key, l1, l2, extra) => '<label class="ropt' + (key === cur ? ' on' : '') + '"><input type="radio" name="setpick" value="' + esc(key) + '"' + (key === cur ? ' checked' : '') + '><span class="rtx"><span class="l1">' + esc(l1) + '</span>' + (l2 ? '<span class="l2">' + esc(l2) + '</span>' : '') + '</span>' + (extra ? '<span class="rn">' + esc(extra) + '</span>' : '') + '</label>';
-		let h = '<div class="rlist" role="radiogroup" aria-label="レース/周回セット">' + opt('none', '指定なし', '', o.counts ? '親' + doc.parents.length + '人' : '');
+		let h = '<div class="rlist" role="radiogroup" aria-label="レース/周回セット">' + opt('none', '指定なし', '', o.counts ? '親' + nNone + '人' : '');
 		activeRaces().forEach((r) => { const id = 'r:' + r.id; const has = doc.sets.some((s) => s.id === id); h += opt(id, (raceDateText(r) ? raceDateText(r) + ' ' : '') + r.name, raceShortText(r), o.counts ? (has ? '親' + cnt(id) + '人' : '親0人') : ''); });
 		const arcs = ARC_ORDER.map((c) => doc.sets.find((s) => s.id === 'arc:' + c)).filter(Boolean);
 		if (arcs.length && !o.noArc) { h += '<div class="rgh">終了レース</div>'; arcs.forEach((s) => { h += opt(s.id, ARC[s.cat], '', o.counts ? '親' + cnt(s.id) + '人' : ''); }); }
@@ -357,6 +369,6 @@
 	}
 
 	window.DeckAlpha = { VERSION: DECK_ALPHA_CORE_VERSION, D, SK, GENES, COS, UNIQ, RACES, BLUE, RED, DIST, STYLE, SURF, CAT, PHASE, GENE_KEY, ARC, ARC_ORDER, POS, skill, costume, fullName, charaName, shortName, uniqName, starText, blueText, redText,
-		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
+		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, newExamList, inNoneList, EFF: D.efficiency, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
 		store, DEFAULT_SETTINGS, emptyDoc, assemble, makeModel, emptyPlan, planFull, planMatch, findPairs, recommendB, matchCandidates, buildExport, exportFileName, parseImport, migrate1to2, daysSince, dependents, removeParent, isDark, applyTheme, esc };
 })();

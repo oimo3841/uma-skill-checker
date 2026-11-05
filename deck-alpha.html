@@ -11,7 +11,8 @@
 	<!--
 		新しい UmaSkill Deck の α版（T88・2026-11-02・C-275）。モック版13（lab/deck-v13/。T87・C-274）の見た目と動きを製品に移した。
 		入口は UmaStar のツール切り替えと FAB の「Deck (αテスト)」（段4 の 4-2・T92。画面の呼び名は「Deck (αテスト)」にそろえる＝125）。
-		■ 画面: このページ（Deck 本体とバックアップ）と deck-alpha-register.html（UmaStar の OCR から送ったときの登録の画面）。
+		■ 画面: このページ（Deck 本体とバックアップ。T104 から UmaStar 用と UmaExam 用の表を切り替える）と deck-alpha-register.html（UmaStar・UmaExam の OCR から送ったときの登録の画面）。
+		■ data-for="star"＝UmaStar 用の表だけ・data-for="exam"＝UmaExam 用の表だけに出す項目（js/deck-alpha.js の syncModeUi）。
 		■ 保存: IndexedDB の uma-deck（親1人1件 ＋ meta）。今のツールの localStorage には触れない（ライト／ダークだけは、ほかのツールと同じ js/theme.js の設定を読み書きする。T92）。
 		■ 見え方の確認: ?theme=light|dark で見た目を固定できる（設定より優先。撮影用）。
 		■ 見た目（T94・2026-11-04・C-282）: 方眼紙デザイン（css/deck-alpha.css）。上段の帯は JRA の緑 #1b7756・下段の帯は濃い緑 #0e4b2f（ライト・ダークとも同じ。文字は白）。
@@ -19,7 +20,7 @@
 	<!-- 画面の色（ライト／ダーク）は、ほかのツールと同じ設定（T88 の決めてほしいこと4 → B）。body の解析より前に色を決めるので同期で読む -->
 	<script src="js/theme.js?v=2026-10-08b"></script>
 	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
-	<link rel="stylesheet" href="css/deck-alpha.css?v=2026-11-05c" />
+	<link rel="stylesheet" href="css/deck-alpha.css?v=2026-11-05d" />
 </head>
 <body>
 <div class="app" id="app">
@@ -47,15 +48,15 @@
 	<aside class="panes" id="panes" hidden>
 		<section class="pane" data-pane="parent" hidden>
 			<h3 class="ph">親(列)</h3>
-			<div class="it"><span class="lab">脚質</span><span class="opts" id="pf-style"></span></div>
+			<div class="it" data-for="star"><span class="lab">脚質</span><span class="opts" id="pf-style"></span></div>
 			<div class="it"><span class="lab">持ち主</span><span class="opts" id="pf-owner"></span></div>
 		</section>
 		<section class="pane" data-pane="skill" hidden>
 			<h3 class="ph">スキル(行)</h3>
 			<div class="it" id="sf-listRow"><span class="lab">一覧</span><span class="opts" id="sf-list"></span></div>
-			<div class="it"><span class="lab">分類</span><span class="opts" id="sf-cat"></span></div>
-			<div class="it"><span class="lab">距離</span><span class="opts" id="sf-dist"></span></div>
-			<div class="it"><span class="lab">脚質</span><span class="opts" id="sf-style"></span></div>
+			<div class="it" data-for="star"><span class="lab">分類</span><span class="opts" id="sf-cat"></span></div>
+			<div class="it" data-for="star"><span class="lab">距離</span><span class="opts" id="sf-dist"></span></div>
+			<div class="it" data-for="star"><span class="lab">脚質</span><span class="opts" id="sf-style"></span></div>
 			<div class="it"><span class="lab">名前</span><span class="opts"><input class="txt" id="sf-q" type="search" placeholder="スキル名で探す" aria-label="スキル名で探す" autocomplete="off" /></span></div>
 		</section>
 		<section class="pane" data-pane="view" hidden>
@@ -66,8 +67,9 @@
 				<button type="button" data-lv="2" aria-pressed="false">拡大</button>
 			</span></span></div>
 			<div class="it"><span class="lab">基準</span><span class="opts"><span class="seg sm" role="group" aria-label="充足の基準"><button type="button" data-th="1" aria-pressed="true">★1以上</button><button type="button" data-th="2" aria-pressed="false">★2以上</button></span></span></div>
-			<div class="it"><span class="lab">祖</span><span class="opts"><button class="tag" type="button" id="gpToggle" aria-pressed="true">祖2人も数える</button><button class="tag" type="button" id="geneToggle" aria-pressed="true">遺伝子の行</button></span></div>
-			<div class="it"><span class="lab">凡例</span><span class="opts legend" id="legend"><span><i class="sw" style="background:var(--dk-s1)"></i>1-2</span><span><i class="sw" style="background:var(--dk-s2)"></i>3-4</span><span><i class="sw" style="background:var(--dk-s3)"></i>5-6</span><span><i class="sw" style="background:var(--dk-s4)"></i>7-8</span><span><i class="sw" style="background:var(--dk-s5)"></i>9</span><span><i class="sw unk"></i>★不明</span><span class="fr">フレンド</span><span class="old">前回までの一覧</span></span></div>
+			<div class="it"><span class="lab">祖</span><span class="opts"><button class="tag" type="button" id="gpToggle" aria-pressed="true">祖2人も数える</button><button class="tag" type="button" id="geneToggle" aria-pressed="true" data-for="star">遺伝子の行</button></span></div>
+			<div class="it" data-for="exam" hidden><span class="lab">列</span><span class="opts"><button class="tag" type="button" id="colMax" aria-pressed="true">最大</button><button class="tag" type="button" id="colEff" aria-pressed="true">効率</button></span></div>
+			<div class="it"><span class="lab">凡例</span><span class="opts legend" id="legend"><span><i class="sw" style="background:var(--dk-s1)"></i>1-2</span><span><i class="sw" style="background:var(--dk-s2)"></i>3-4</span><span><i class="sw" style="background:var(--dk-s3)"></i>5-6</span><span><i class="sw" style="background:var(--dk-s4)"></i>7-8</span><span><i class="sw" style="background:var(--dk-s5)"></i>9</span><span><i class="sw unk"></i>★不明</span><span class="fr">フレンド</span><span class="old" data-for="star">前回までの一覧</span></span></div>
 		</section>
 		<section class="pane" data-pane="sort" hidden>
 			<h3 class="ph">ソート</h3>
@@ -104,6 +106,6 @@
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="in" id="sheetIn"></div></div>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden />
-<script src="js/deck-alpha-data.js?v=2026-11-04a" data-next="js/deck-alpha-core.js?v=2026-11-04a js/deck-alpha.js?v=2026-11-05b"></script>
+<script src="js/deck-alpha-data.js?v=2026-11-05a" data-next="js/deck-alpha-core.js?v=2026-11-05a js/deck-alpha.js?v=2026-11-05c"></script>
 </body>
 </html>

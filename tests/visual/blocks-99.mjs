@@ -53,10 +53,10 @@ export async function register99(env) {
 		abbrevDoc.entries.forEach((e) => { if (seen.has(e.abbr)) dup.push(e.abbr); seen.set(e.abbr, e.id); });
 		const stray = abbrevDoc.entries.filter((e) => !UMA.has(e.id)).map((e) => e.id);
 		assert(missing.length === 0 && long.length === 0 && dup.length === 0 && stray.length === 0, '略称のデータ（' + abbrevDoc.entries.length + '件）: 全衣装にあり・5文字以内・重なりなし・知らない衣装なし', { missing, long, dup, stray });
-		// 入口は段4 の 4-2（T92）で UmaStar（special.html）にだけ足した。ほかの既存のページと JS は deck-alpha を指さない
+		// 入口は段4 の 4-2（T92）で UmaStar（special.html）に足し、T104（223）で旧 Deck のページの先頭にも足した。ほかの既存のページと JS は deck-alpha を指さない
 		const scan = ['index.html', 'special.html', 'exam.html', 'uma-skill-deck.html', 'card-event-input.html'].concat(fs.readdirSync(path.join(REPO_ROOT, 'js')).filter((f) => f.endsWith('.js') && !f.startsWith('deck-alpha')).map((f) => 'js/' + f));
 		const linked = scan.filter((p) => /deck-alpha/.test(read(p)));
-		assert(linked.join() === 'special.html', '既存のページと JS で deck-alpha を指すのは UmaStar（special.html）だけ（T92 の入口）', linked);
+		assert(linked.join() === 'special.html,uma-skill-deck.html', '既存のページと JS で deck-alpha を指すのは UmaStar（special.html。T92 の入口）と旧 Deck のページ（uma-skill-deck.html。T104・223）だけ', linked);
 		// 画面に出る文字列（JS の文字列と HTML の本文）に「家系」が無い（コメントも含めて0）
 		const kakei = NEW_FILES.filter((p) => read(p).includes('家系'));
 		assert(kakei.length === 0, '新しいファイルに「家系」の語が無い（C-276）', kakei);
@@ -254,7 +254,7 @@ export async function register99(env) {
 			// 送られたものが無い（形が崩れている）とき
 			await ev(() => localStorage.setItem('umaDeck:send', '{"format":"other"}')); await openReg();
 			const rn = await ev(() => ({ t: document.getElementById('body').innerText, bar: document.getElementById('regbar').hidden }));
-			assert(/UmaStar から送られた親がありません/.test(rn.t) && rn.bar, tag + ' 受け取るものが無いときは「送られた親がありません」と Deck (αテスト)を開くボタンだけ', rn);
+			assert(/送られた親がありません。UmaStar か UmaExam の OCR の結果から送ってください/.test(rn.t) && rn.bar, tag + ' 受け取るものが無いときは「送られた親がありません」と Deck (αテスト)を開くボタンだけ', rn);
 
 			// (9) 一覧から消えたレース（UmaStar の欄に出なくなった）は、開いたときに終了レースのカテゴリへ付け替わる
 			await page.route('**/data/upcoming-races.json*', async (route) => { const r = await route.fetch(); const j = await r.json(); j.races.forEach((x) => { if (x.id === 'race-0002') x.selectable = false; }); await route.fulfill({ response: r, json: j }); });

@@ -140,6 +140,7 @@ import { register110 } from './blocks-110.mjs';
 import { register111 } from './blocks-111.mjs';
 import { register112 } from './blocks-112.mjs';
 import { register114 } from './blocks-114.mjs';
+import { register113 } from './blocks-113.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15515,6 +15516,7 @@ await register111({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register112({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T100（2026-11-05）: 照合結果のスマホのヒートマップ（C-290。exam.html。人のマスを★の数で塗る・列の幅・7列・合計の列・PC は今のまま）。詳細は blocks-114.mjs
 await register114({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register113({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
