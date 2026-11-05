@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-03b';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-05a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -1383,7 +1383,15 @@
 	 * shifts[i] は files[i] → files[i+1] のスクロール量（px）。uncertain[i] が真の継ぎ目は _stitchWarnings に入れる。
 	 * o.still[i] が真の画（止まっている区間の画。タッチのエフェクトが写っていない）は、本文の帯を全部描いて、重なる所では
 	 * 動いている画の画素を上書きする（T90）。動いている画の画素が残るのは、止まっている画どうしの間で見えていない所だけ。
+	 * o.anchorY（persons[j].anchorY）を渡すと、1枚目の区切りの頭が帯の上のほうに無くても、その位置の頭から描く（T105）。
 	 */
+	function findPanelNear(canvas, y, win = 12) {
+		const x = Math.floor(canvas.width * 0.3), y0 = Math.max(0, y - win), n = Math.min(canvas.height - y0, win * 2 + 1);
+		if (n <= 0) return null;
+		const d = canvas.getContext('2d', { willReadFrequently: true }).getImageData(x, y0, 1, n).data;
+		for (let i = 0; i < n; i++) if (isBlue(d[i * 4], d[i * 4 + 1], d[i * 4 + 2])) return y0 + i;
+		return null;
+	}
 	async function composePerson(files, shifts, uncertain, groupLabel, o) {
 		o = o || {};
 		const pause = makeYielder(o.signal || null, o.sliceMs || DEFAULTS.sliceMs);
@@ -1431,7 +1439,13 @@
 		});
 		let totalContentHeight = contentHeight;
 		for (const ov of overlaps) totalContentHeight += contentHeight - ov;
-		const firstPanelTop = stitchDetectFirstSkillPanelTop(canvases[0], headerEnd);
+		let firstPanelTop = stitchDetectFirstSkillPanelTop(canvases[0], headerEnd);
+		// 区切りの頭が stitch の探す範囲（帯の上から 0.25W）の下で初めて写った画（ホイールを大きく回したときの動いている1枚）: 選ぶ側で分かっている
+		// 位置（o.anchorY）に頭があることを確かめて、その上を除く。探さないと帯の上端から描き、末尾の切り方が自分の頭で切って、人の画が途中で切れる（T105）
+		if (firstPanelTop === headerEnd && o.anchorY > 0) {
+			const found = findPanelNear(canvases[0], headerEnd + o.anchorY);
+			if (found != null) firstPanelTop = found;
+		}
 		let skipFirst = Math.max(0, firstPanelTop - headerEnd);
 		const profile = stitchDetectProfileHeader(canvases[0], headerEnd);
 		let profileHeight = 0;
