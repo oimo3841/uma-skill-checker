@@ -1,4 +1,4 @@
-/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-05b（?v= と同じ）。
+/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-05c（?v= と同じ）。
  * T94（2026-11-04・C-282）: 方眼紙デザイン。モック版14（lab/deck-v14/deck-v14.css）の版A（今の字体）を製品に移し、おいもさんの回答（T94 への連絡）を入れた。
  * 見本（FiveThirtyEight「Science Isn't Broken」）から読み取った全体の決まり:
  *   1. 背景は方眼紙。データの点も文字も方眼の上に置く    2. 区切りは太い黒の横線だけ。カード・角丸の枠・影は使わない
@@ -13,8 +13,9 @@
  * T97（2026-11-04）: 表の上のピンチはブラウザ標準の拡大・縮小（142）・下段の帯を今の 2/3 程度に詰めた（4）・スマホだけ方眼の線を濃く（144）・「指定なし」の遺伝子の無効の行（141）。
  * T101（2026-11-05）: 方眼を表の画面の中央の領域（道具の行の下から下段の帯の上まで・左右いっぱい）の全体に敷く（表の外の空きにも出す）・
  *   スマホの方眼の線の色を T97 の前に戻す（194）。表のマスの目は T94 の形（マスの 2×2）のまま、表の入れ物（.vs）に1枚で持つ。
- * T102（2026-11-05・C-290）: 色の付いていない地の所すべてに方眼を見せる（列の見出し・左上の角・スキル名と「最大」の列・道具の行のボタン・引き出しの部品）。
+ * T102（2026-11-05・C-291）: 色の付いていない地の所すべてに方眼を見せる（列の見出し・左上の角・スキル名と「最大」の列・道具の行のボタン・引き出しの部品）。
  *   スクロールで表の上に重なる3つ（.vh・.vl・.vc）は不透明の地と方眼を1枚ずつ持つ。線の色は T101 よりわずかに薄く（文字の背景になるため）。
+ * T103（2026-11-05）: 列の見出し・左上の欄・名前の列を position: sticky で固定（スクロールと同じコマで動くので、見出しがずれない）。スマホの表は1本指の移動をブラウザに渡さない。
  * 構造（骨格・見える範囲だけ描く表・小窓の積み重ね）は版13 のまま。sticky の表で opacity は使わない（恒久ルール9）。
  * 青・赤・緑の因子の札（色で種類を示す。C-271 の 22）と「分類ごと」の分類の色（C-274 の 14）は、データの色なので製品のトークンの色のまま。
  */
@@ -108,6 +109,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
  * 表の無いとき（「全体」の図・親がいないときの文）は、ページの地と同じ 10px の目（中身と一緒に動く） */
 .stage { flex: 1; min-height: 0; overflow: auto; position: relative; background-color: var(--gp-paper); background-image: linear-gradient(var(--gp-grid) 1px, transparent 1px), linear-gradient(90deg, var(--gp-grid) 1px, transparent 1px); background-size: 10px 10px; background-attachment: local; touch-action: pan-x pan-y pinch-zoom; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .stage.ov { overflow-x: hidden; }
+/* スマホの表（T103）: 1本指の移動は js が動かすので、ブラウザに渡さない（端の引っ張りと、ブラウザ自身のスクロールが混じるのを防ぐ）。ピンチはブラウザ標準のまま。「全体」の図は js が動かさないのでそのまま */
+@media (max-width: 720px) { .stage:not(.ov) { touch-action: pinch-zoom; } }
 /* 下段の帯（追加2・133）: JRA の「ニュース」の帯の濃い緑。文字は白。帯の上の選択中は白の塗り（131 の例外の扱い） */
 .dock { background: var(--gp-band-bottom); color: var(--gp-band-text); padding: 3px max(10px, env(safe-area-inset-right)) calc(3px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 2px; }
 .dock .r1 { display: flex; align-items: center; gap: 8px; min-height: 36px; }
@@ -276,6 +279,12 @@ input.txt::placeholder { color: var(--gp-sub); }
 .vl { background-position: 100% 0; }
 .vc { background-position: 100% 100%; background-origin: border-box; } /* 下の太い線の分も含めて下の辺から数える */
 .vp { position: absolute; left: 0; top: 0; will-change: transform; }
+/* 固定（T103）: スクロールの知らせを待って動かすと、そのコマでは見出しが表と一緒に動いてずれ、すきまにマスが見える。position: sticky はスクロールと同じコマで効く。
+ * 見出しの行（.vhr）は縦に固定し、中の見出しは表と一緒に横に動く。左上の欄（.vc）は行の中で横にも固定。名前の列（.vl）は横に固定し、表と一緒に縦に動く（入れ物 .vlw はマスの押しを通す） */
+.vhr { position: sticky; top: 0; z-index: 3; }
+.vlw { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; }
+.vp.vc, .vp.vl { position: sticky; left: 0; top: auto; }
+.vp.vl { pointer-events: auto; }
 .vp table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 11px; }
 .vp td, .vp th { padding: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* マス: 方眼の上に置く。方眼は表の入れ物（.vs）に1枚で持つ（T94 では本体の .vb に持たせていた。T101 で中央の領域の全体に出すため .vs へ移した。
@@ -451,4 +460,4 @@ details.fold[open] > summary::before { content: "▾"; }
 	.panes .plist { display: flex; }
 	.legend { gap: 6px; }
 }
-:root { --deck-alpha-css-version: "2026-11-05b"; }
+:root { --deck-alpha-css-version: "2026-11-05c"; }

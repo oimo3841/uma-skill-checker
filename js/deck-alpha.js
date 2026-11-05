@@ -5,6 +5,7 @@
  * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。
  * T97（2026-11-04）: 「指定なし」で送った一覧を「指定なし」の行に（140）・「指定なし」の遺伝子の3行を無効の形で出す（141）・表の上の2本指で段階を変えない（142）・
  * スマホで引き出しの外を押すと閉じる（143）。
+ * T103（2026-11-05）: 列の見出し・左上の欄・名前の列を、スクロールの知らせを待って JS で動かすのをやめ、position: sticky で固定した（1コマ遅れて見出しがずれ、すきまにマスが見えていた）。
  * T101（2026-11-05）: 方眼を表の画面の中央の領域の全体に敷く（表の入れ物 .vs の目の起点を本体の左上に置く）・スマホで引き出しが開いているときも、
  * 見出しの帯のボタンと「⋯」は1回で効く（193）。以下は版13 の説明。
  * Deck 本体（ヒートマップの表・親の小窓・2組・本育成設計・レース/周回セット・バックアップ）。版12（T86・C-273）:
@@ -17,7 +18,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-05a';
+	const DECK_ALPHA_JS_VERSION = '2026-11-05b';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -317,7 +318,7 @@
 		const R = GR + rows.length, L = d.nw + d.mw, totalW = L + cols.length * d.cw, totalH = d.hh + R * d.rh;
 		const keep = V && !force && V.key === S.lv + ':' + six + ':' + cols.length + ':' + rows.length;
 		// 入れ物（.vs）の方眼の目の起点は本体の左上（名前の列の幅 L・見出しの高さ）。css で領域いっぱいに広がる（T101）
-		stage.innerHTML = '<div class="vs" style="width:' + totalW + 'px;height:' + totalH + 'px;background-position:' + L + 'px ' + d.hh + 'px"><div class="vp vb" id="vb"></div><div class="vp vh" id="vh"></div><div class="vp vl" id="vl"></div><div class="vp vc" id="vc" style="width:' + L + 'px;height:' + d.hh + 'px"></div></div>';
+		stage.innerHTML = '<div class="vs" style="width:' + totalW + 'px;height:' + totalH + 'px;background-position:' + L + 'px ' + d.hh + 'px"><div class="vhr" style="width:' + totalW + 'px;height:' + d.hh + 'px"><div class="vp vh" id="vh"></div><div class="vp vc" id="vc" style="width:' + L + 'px;height:' + d.hh + 'px"></div></div><div class="vp vb" id="vb"></div><div class="vlw" style="width:' + totalW + 'px;height:' + totalH + 'px"><div class="vp vl" id="vl" style="width:' + L + 'px"></div></div></div>';
 		const vb = $('#vb'), vh = $('#vh'), vl = $('#vl'), vc = $('#vc');
 		if (!keep) { stage.scrollTop = 0; stage.scrollLeft = 0; }
 		V = { key: S.lv + ':' + six + ':' + cols.length + ':' + rows.length, ps, rows, cols, r: [-1, -1], c: [-1, -1] };
@@ -363,22 +364,18 @@
 			}
 			vb.innerHTML = bh + '</tbody></table>';
 			vb.style.transform = 'translate(' + (L + c0 * d.cw) + 'px,' + (d.hh + r0 * d.rh) + 'px)';
-		}
-		function place() {
-			const st = stage.scrollTop, sl = stage.scrollLeft;
-			vc.style.transform = 'translate(' + sl + 'px,' + st + 'px)';
-			vh.style.transform = 'translate(' + (L + V.c[0] * d.cw) + 'px,' + st + 'px)';
-			vl.style.transform = 'translate(' + sl + 'px,' + (d.hh + V.r[0] * d.rh) + 'px)';
+			// 見出しと名前の列は css の sticky が固定する（T103）。ここで決めるのは、描いた範囲の始まりの位置だけ
+			vh.style.transform = 'translateX(' + (L + c0 * d.cw) + 'px)';
+			vl.style.transform = 'translateY(' + (d.hh + r0 * d.rh) + 'px)';
 		}
 		function update() {
 			const st = stage.scrollTop, sl = stage.scrollLeft, vhh = stage.clientHeight, vww = stage.clientWidth;
 			const r0 = Math.max(0, Math.floor((st - d.hh) / d.rh)), r1 = Math.min(R, Math.ceil((st + vhh - d.hh) / d.rh) + 1);
 			const c0 = Math.max(0, Math.floor((sl - L) / d.cw)), c1 = Math.min(cols.length, Math.ceil((sl + vww - L) / d.cw) + 1);
 			if (r0 < V.r[0] || r1 > V.r[1] || c0 < V.c[0] || c1 > V.c[1]) render(Math.max(0, r0 - OV), Math.min(R, r1 + OV), Math.max(0, c0 - OV), Math.min(cols.length, c1 + OV));
-			place();
 		}
 		update();
-		let raf = 0; stage.onscroll = () => { place(); if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); };
+		let raf = 0; stage.onscroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); };
 		// 押したとき（部品ごとに1つ）
 		vh.onclick = (e) => { const th = e.target.closest('th[data-c]'); if (!th) return; const c = cols[+th.dataset.c]; if (c.kind === 'm' && c.k) nav(() => memberOrLinked(c.p, c.k)); else nav(() => parentSheet(c.p)); };
 		vl.onclick = (e) => { const th = e.target.closest('th[data-r]'); if (th) { nav(() => skillSheet(rows[+th.dataset.r])); return; } const gl = e.target.closest('th[data-gr]'); if (gl && !G[+gl.dataset.gr].off) toast(G[+gl.dataset.gr].label + 'の遺伝子の★の数' + (six ? '（1人ずつ）' : S.M.gpOn ? '（親＋祖2人）' : '（親だけ）')); };

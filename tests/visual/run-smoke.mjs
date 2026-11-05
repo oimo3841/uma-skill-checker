@@ -136,6 +136,7 @@ import { register106 } from './blocks-106.mjs';
 import { register107 } from './blocks-107.mjs';
 import { register109 } from './blocks-109.mjs';
 import { register110 } from './blocks-110.mjs';
+import { register111 } from './blocks-111.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15503,6 +15504,7 @@ await register107({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 // T101（2026-11-05）: Deck α の方眼を中央の領域の全体に敷く・目が表のマスにそろう・線の色を T97 の前に・スマホで引き出しを開いていても見出しのボタンが1回で効く（見出しは「T101 Deck α 方眼の範囲」）
 await register109({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register110({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register111({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -217,7 +217,7 @@ export async function register107(env) {
 				const two = pz.tm.filter((x) => x[0] === 2);
 				assert(lv0 === 1 && pz.lv === 1, tag + ' 表の上で2本指を広げても段階が変わらない（142）', { lv0, lv: pz.lv });
 				assert(two.length > 0 && two.every((x) => !x[1]), tag + ' 2本指の touchmove を止めない（ブラウザの拡大に任せる）', two.slice(0, 4));
-				assert(/^(manipulation|pan-x pan-y pinch-zoom)$/.test(pz.stage) && pz.ta.every((t) => t === 'auto' || t === 'manipulation' || /pinch-zoom/.test(t)), tag + ' 表のマスから html までの touch-action がピンチを許す', pz.ta);
+				assert(/^(manipulation|pan-x pan-y pinch-zoom|pinch-zoom)$/.test(pz.stage) && pz.ta.every((t) => t === 'auto' || t === 'manipulation' || /pinch-zoom/.test(t)), tag + ' 表のマスから html までの touch-action がピンチを許す', pz.ta);
 			} else {
 				// PC: 外のタップの処理は効かない（左の列は常に出ている）。表のマスを押すと今までどおり知らせが出る。ctrl+ホイールで段階は変わらない
 				await page.click('.vb td[data-r]'); await page.waitForTimeout(100);
