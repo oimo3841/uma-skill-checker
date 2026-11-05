@@ -637,8 +637,8 @@ export async function register19(env) {
 			// メニュー: 押すと開く・画面の内側に収まる・外を押すと閉じる・メニュー内を押しても閉じない
 			await page.click('#tool-dropdown-btn');
 			const m1 = await page.evaluate(() => { const m = document.getElementById('tool-dropdown-menu'); const q = m.getBoundingClientRect(); return { open: !m.classList.contains('hidden'), l: q.left, r: q.right, t: q.top, vw: document.documentElement.clientWidth, links: [...m.querySelectorAll('a')].map((a) => a.getAttribute('href')), text: m.innerText.replace(/\s+/g, ' ') }; });
-			assert(m1.open && m1.l >= 0 && m1.r <= m1.vw && m1.links.join() === 'special.html' && m1.text.includes('UmaExam OCR') && m1.text.includes('選択中'),
-				'微調整1C2(' + w + 'px): 押すとメニューが開き、画面の内側に収まる（UmaStar OCR への行き先と「選択中」の現在のツール）', m1);
+			assert(m1.open && m1.l >= 0 && m1.r <= m1.vw && m1.links.join() === 'special.html,deck-alpha.html' && m1.text.includes('UmaExam OCR') && m1.text.includes('選択中'),
+				'微調整1C2(' + w + 'px): 押すとメニューが開き、画面の内側に収まる（UmaStar OCR と Deck (αテスト)〔T104〕への行き先と「選択中」の現在のツール）', m1);
 			await page.click('#tool-dropdown-menu >> text=選択中');
 			assert(await page.evaluate(() => !document.getElementById('tool-dropdown-menu').classList.contains('hidden')), '微調整1C2(' + w + 'px): メニューの中を押しても閉じない', null);
 			await page.click('header h1');

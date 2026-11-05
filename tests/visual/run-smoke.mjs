@@ -2377,6 +2377,7 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		personResults[3] = mk(skillList.slice(0, 20), 1);
 		renderResults();
 		writeOcrHandoff();
+		updateDeckAlphaSendButton();
 	}, extraNames || []);
 	await seedExam();
 	await page.waitForTimeout(400);
@@ -10910,7 +10911,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			runEff: !!lastOcrRun.eff, payload: JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam')) };
 		setTargetScopeMode('default');
 		await processImages({ keepClosed: true });
-		const def = { snap: snap(), payload: JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam')), melop: personMelop.every((m) => m === null) };
+		const def = { snap: snap(), payload: JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam')), melopBtn: !document.getElementById('melop-copy-btn-A').hidden };
 		setTargetScopeMode('efficiency');
 		readMelopTopRow = orig.top; matchMelopLines = orig.match; processPersonImages = orig.ppi; window.Tesseract = orig.tess;
 		const idNames = new Set(effData.targets.filter((t) => t.id).map((t) => t.name));
@@ -10922,8 +10923,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	});
 	assert(flow.eff.calls.match === 1 && flow.eff.calls.dictRows.every((n) => n === flow.eff.dictFull) && flow.eff.runEff,
 		'効率(8): 効率で選ぶで判定すると、拡張モードの辞書の全部（範囲で絞らない）で照合する', flow.eff.calls);
-	assert(JSON.stringify(flow.eff.snap) === JSON.stringify(flow.def.snap) && flow.eff.snap.copy.length > 0 && !flow.eff.melopBtn && flow.def.melop,
-		'効率(8): 判定結果の表と「★の数をコピー」は既定の133種と同じ（めろっぷ用のボタンは出ない。既定では拡張の照合を通らない）', { eff: flow.eff.snap, def: flow.def.snap });
+	assert(JSON.stringify(flow.eff.snap) === JSON.stringify(flow.def.snap) && flow.eff.snap.copy.length > 0 && !flow.eff.melopBtn && !flow.def.melopBtn,
+		'効率(8): 判定結果の表と「★の数をコピー」は既定の133種と同じ（めろっぷ用のボタンは出ない。T104・232 で、既定でも Deck へ送るために拡張の照合は通す）', { eff: flow.eff.snap, def: flow.def.snap });
 	assert(flow.namesOk && flow.starsHasPick && flow.starsNoUnique && flow.def.payload.skillNames.length === 133,
 		'効率(8): Deck へは効率の対象のうち独自IDのあるものを渡し、継承固有は除く（既定では従来どおり133種）', flow);
 
