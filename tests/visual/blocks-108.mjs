@@ -14,7 +14,7 @@
 // スキル名は検査の側に書かない（恒久ルール1）。
 import { reloadReady } from './lib/page-ready.mjs';
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
-import { openVideoSheet } from './lib/video-entry.mjs';
+import { pickVideo } from './lib/video-entry.mjs';
 import { SYNTH } from './blocks-80.mjs';
 
 export async function register108(env) {
@@ -245,21 +245,22 @@ export async function register108(env) {
 			await page.evaluate(() => { [0, 1, 2].forEach((r) => addPersonFiles(r, [new File([new Uint8Array([137, 80, 78, 71, r])], 's' + r + '.png', { type: 'image/png' })])); });
 			const st = () => page.evaluate(() => {
 				const vis = (el) => !!el && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
-				const btn = document.getElementById('video-import-btn');
+				const shotB = document.querySelector('[data-upload-mode-btn="shot"]');
+				const videoB = document.querySelector('[data-upload-mode-btn="video"]');
 				const pick = document.querySelector('#personset-A-wrap .video-pick-btn');
 				const bar = [...document.querySelectorAll('#upload-bar .uma-btn')].filter(vis).map((b) => b.textContent.trim());
-				return { mode: document.body.getAttribute('data-upload-mode'), aria: btn.getAttribute('aria-label'), title: btn.title, alpha: !!btn.querySelector('.video-alpha'), pressed: btn.getAttribute('aria-pressed'),
+				return { mode: document.body.getAttribute('data-upload-mode'), labels: [shotB.textContent, videoB.textContent], alpha: !!videoB.querySelector('.video-alpha'), pressed: [shotB.getAttribute('aria-pressed'), videoB.getAttribute('aria-pressed')].join(),
 					pick: vis(pick), pickText: pick && pick.textContent.trim(), pickW: pick && Math.round(pick.getBoundingClientRect().width), colsW: Math.round(document.querySelector('#personset-A-wrap .upload-cols').getBoundingClientRect().width),
 					pickH: pick && Math.round(pick.getBoundingClientRect().height), adds: [...document.querySelectorAll('#personset-A-wrap .upload-add')].filter(vis).length, bar,
 					files: persons.map((p) => p.files.length).join(','), saved: localStorage.getItem('uma-special-upload-mode'), sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 			});
 			const a = await st();
-			assert(a.mode === 'shot' && a.aria === '動画モードにする（αテスト）' && a.title === a.aria && a.alpha && !a.pick && a.adds === 3 && JSON.stringify(a.bar) === '["OCR処理＋画像結合を開始する","画像を結合する（OCRしない）"]',
-				`T98(5) ${w}px スクショのモード（初期値）は今のまま（入口は動画のアイコン＋α・人ごとの「追加」・下は2つのボタン）`, a);
-			await page.click('#video-import-btn');
+			assert(a.mode === 'shot' && a.labels.join() === '静止画,動画α' && a.alpha && a.pressed === 'true,false' && !a.pick && a.adds === 3 && JSON.stringify(a.bar) === '["OCR処理＋画像結合を開始する","画像を結合する（OCRしない）"]',
+				`T98(5) ${w}px 静止画（初期値）: 切り替えは「静止画｜動画α」で静止画が ON・人ごとの「追加」・下は2つのボタン`, a);
+			await page.click('[data-upload-mode-btn="video"]');
 			const b = await st();
-			assert(b.mode === 'video' && b.aria === 'スクショのモードに戻す' && b.title === b.aria && !b.alpha && b.pressed === 'true' && b.pick && b.pickText.replace(/α$/, '') === '動画を選ぶ' && b.adds === 0 && b.pickW === b.colsW && b.pickH === 76,
-				`T98(5) ${w}px 動画モード: 入口はスクショのアイコン（「スクショのモードに戻す」）・「追加」の代わりにセットの幅いっぱいの「動画を選ぶ」1つ（76px）`, b);
+			assert(b.mode === 'video' && b.pressed === 'false,true' && b.pick && b.pickText.replace(/α$/, '') === '動画を選ぶ' && b.adds === 0 && b.pickW === b.colsW && b.pickH === 76,
+				`T98(5) ${w}px 動画モード: 切り替えは動画が ON・「追加」の代わりにセットの幅いっぱいの「動画を選ぶ」1つ（76px）`, b);
 			assert(JSON.stringify(b.bar) === '["OCR処理を開始する"]' && b.files === a.files && b.saved === 'video', `T98(5) ${w}px 下は「OCR処理を開始する」だけ・入っている画像はそのまま・保存する`, b);
 			assert(b.sw <= b.iw, `T98(5) ${w}px 横スクロールなし`, b);
 			await reloadReady(page);
@@ -268,56 +269,44 @@ export async function register108(env) {
 			await page.evaluate(() => { [0, 1, 2].forEach((r) => addPersonFiles(r, [new File([new Uint8Array([137, 80, 78, 71, r])], 't' + r + '.png', { type: 'image/png' })])); });
 			const c = await st();
 			assert(c.mode === 'video' && c.pick && JSON.stringify(c.bar) === '["OCR処理を開始する"]', `T98(5) ${w}px 次に開いたときも動画モード`, c);
-			// 「動画を選ぶ」→ 今の小窓。親Bセットのタブでも同じ
-			await page.addScriptTag({ content: SYNTH });
-			await openVideoSheet(page);
-			const sheetA = await page.evaluate(() => ({ open: !!document.getElementById('video-sheet'), target: (document.querySelector('#video-sheet .video-target') || {}).textContent, note: !!document.querySelector('#video-sheet .video-note') }));
-			await page.keyboard.press('Escape');
-			const focusBack = await page.evaluate(() => document.activeElement && document.activeElement.classList.contains('video-pick-btn'));
+			// 「動画を選ぶ」→ すぐファイルの選択（T106）。親Bセットのタブでも同じ
+			const chA = await pickVideo(page);
+			const pendA = await page.evaluate(() => videoPending && videoPending.setIdx);
 			await page.evaluate(() => selectPersonSet(1));
 			const pickB = await page.evaluate(() => { const p = document.querySelector('#personset-B-wrap .video-pick-btn'); return !!p && p.getClientRects().length > 0; });
-			await openVideoSheet(page);
-			const sheetB = await page.evaluate(() => (document.querySelector('#video-sheet .video-target') || {}).textContent);
-			await page.keyboard.press('Escape');
-			assert(sheetA.open && /親Aセット/.test(sheetA.target) && sheetA.note && focusBack && pickB && /親Bセット/.test(sheetB), `T98(5) ${w}px 「動画を選ぶ」で今の小窓（入れる先・注意書き）・閉じると焦点は「動画を選ぶ」へ・親Bセットのタブでも同じ`, { sheetA, focusBack, pickB, sheetB });
+			const chB = await pickVideo(page);
+			const pendB = await page.evaluate(() => videoPending && videoPending.setIdx);
+			assert(!!chA && pendA === 0 && pickB && !!chB && pendB === 1, `T98(5) ${w}px 「動画を選ぶ」ですぐファイルの選択が開く・親Bセットのタブでも同じ`, { chA: !!chA, pendA, pickB, chB: !!chB, pendB });
 			// スクショのモードに戻す: 画像はそのまま・2つのボタン
 			await page.evaluate(() => selectPersonSet(0));
-			await page.click('#video-import-btn');
+			await page.click('[data-upload-mode-btn="shot"]');
 			const d = await st();
-			assert(d.mode === 'shot' && d.adds === 3 && !d.pick && d.bar.length === 2 && d.files === c.files && d.saved === 'shot', `T98(5) ${w}px 入口でスクショのモードに戻る（画像はそのまま）`, d);
+			assert(d.mode === 'shot' && d.adds === 3 && !d.pick && d.bar.length === 2 && d.files === c.files && d.saved === 'shot', `T98(5) ${w}px 静止画に戻る（画像はそのまま）`, d);
 			assert(jsErrors(errors).length === 0, `T98(5) ${w}px コンソールエラー0`, jsErrors(errors).slice(0, 3));
 			await ctx.close();
 		});
 	}
 
 	/* ── (6) 動画モードの OCR と③の「画像を更新」 ── */
-	await block('T98(6) 動画モード: 取り込み後の知らせ・「OCR処理を開始する」の結合（枠つき）は③にも出る・③の結合画像は設定を変えてもその場では描き直さず「画像を更新」で作り直す', async () => {
+	await block('T98(6) 動画モード: 取り込み後の知らせは無し（T106）・③に「画像を更新」は無し（T106 の (9)）・設定を変えても③はその場では描き直さない・「OCR処理を開始する」の結合（枠つき）は③にも出る', async () => {
 		const { ctx, page, errors } = await openSp({ w: 1280, roster: R1S, ids: IDS });
 		await page.addScriptTag({ content: SYNTH });
-		await openVideoSheet(page);
-		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="pick"]')]);
+		await pickVideo(page);
 		const res = await page.evaluate(() => Promise.race([onVideoChosen(__synth.make({}).source), new Promise((r) => setTimeout(() => r('timeout'), 60000))]));
 		const v0 = await page.evaluate(() => {
 			const box = document.querySelector('#personset-A-wrap .video-result');
-			const rb = box && box.querySelector('[data-video-refresh]');
-			return { ok: true, sum: (document.getElementById('video-summary') || {}).textContent, img: box && box.querySelector('img') ? box.querySelector('img').src.length : 0,
-				rb: !!rb, rbText: rb && rb.textContent.trim(), rbDis: rb && rb.disabled, state: rb && rb.getAttribute('data-state'), shown: videoShown[0] && videoShown[0].withMarks };
+			return { sum: !!document.getElementById('video-summary'), img: box && box.querySelector('img') ? box.querySelector('img').src.length : 0, rb: !!(box && box.querySelector('[data-video-refresh]')), shown: videoShown[0] };
 		});
-		assert(res && res.ok && /OCRするときは「OCR処理を開始する」を押してください。/.test(v0.sum), 'T98(6): 取り込み後の知らせの2行目は「…「OCR処理を開始する」を押してください。」', { res, sum: v0.sum });
-		assert(v0.img > 0 && v0.rb && v0.rbText === '画像を更新' && v0.rbDis && v0.state === 'same' && v0.shown === false, 'T98(6): ③の結合画像に「画像を更新」（設定が同じ間は押せない）', v0);
-		// 設定を変える → その場では描き直さず、押せるようになる → 押すと作り直す
+		assert(res && res.ok && !v0.sum, 'T98(6): 取り込み後の知らせは出ない', { res, v0 });
+		assert(v0.img > 0 && !v0.rb && v0.shown === true, 'T98(6): ③の結合画像に「画像を更新」は無い', v0);
 		const before = await page.evaluate(() => document.querySelector('#personset-A-wrap .video-result img').src);
 		await page.click('#stitch-parts-panel [data-stitch-cols="2"]');
-		const v1 = await page.evaluate(() => ({ same: document.querySelector('#personset-A-wrap .video-result img').src, dis: document.querySelector('[data-video-refresh="0"]').disabled, state: document.querySelector('[data-video-refresh="0"]').getAttribute('data-state') }));
-		assert(v1.same === before && !v1.dis && v1.state === 'ready', 'T98(6): 形を変えてもその場では描き直さず、「画像を更新」が押せるようになる', { dis: v1.dis, state: v1.state, same: v1.same === before });
-		await page.click('[data-video-refresh="0"]');
-		await page.waitForFunction(() => videoRefreshBusy < 0 && document.querySelector('[data-video-refresh="0"]') && document.querySelector('[data-video-refresh="0"]').getAttribute('data-state') === 'same', null, { timeout: 30000 });
-		const v2 = await page.evaluate(() => ({ src: document.querySelector('#personset-A-wrap .video-result img').src, cols: videoShown[0].parts.cols }));
-		assert(v2.src !== before && v2.cols === 2, 'T98(6): 「画像を更新」で設定どおり（2列）に作り直す', { cols: v2.cols });
+		const same = await page.evaluate(() => document.querySelector('#personset-A-wrap .video-result img').src);
+		assert(same === before, 'T98(6): 形を変えてもその場では描き直さない', null);
 		// 動画モードの「OCR処理を開始する」と同じ結合（OCR の写しで枠つき）: 引き出しと③の両方に出る
 		await page.evaluate(async () => { stitchSnapshot = captureStitchSnapshot(); stitchSnapshot.results = [null, null, null, null, null, null]; await runImageStitching({ keepClosed: true, quiet: true, withMarks: true }); });
-		const v3 = await page.evaluate(() => ({ drawer: !!document.querySelector('#stitch-result-content img'), step3: !!document.querySelector('#personset-A-wrap .video-result img'), wm: videoShown[0] && videoShown[0].withMarks, label: document.querySelector('#process-stitch-btn span').textContent }));
-		assert(v3.drawer && v3.step3 && v3.wm === true && v3.label === 'OCR処理を開始する', 'T98(6): 動画モードで OCR の写しを使う結合は、引き出しと③の両方に出る（③は枠つきに作り直される）', v3);
+		const v3 = await page.evaluate((before) => ({ drawer: !!document.querySelector('#stitch-result-content img'), step3: !!document.querySelector('#personset-A-wrap .video-result img'), cols: document.querySelector('#personset-A-wrap .video-result img').src !== before, label: document.querySelector('#process-stitch-btn span').textContent }), before);
+		assert(v3.drawer && v3.step3 && v3.cols && v3.label === 'OCR処理を開始する', 'T98(6): 動画モードで OCR の写しを使う結合は、引き出しと③の両方に出る（③は今の設定で作り直される）', v3);
 		assert(jsErrors(errors).length === 0, 'T98(6): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
@@ -360,48 +349,36 @@ export async function register108(env) {
 						clipped: [...p.querySelectorAll('.stitch-show-item, .stitch-cols-btn, .stitch-wire-sheet:not([hidden])')].filter((e) => e.scrollWidth > e.clientWidth).length, lines,
 						sw: document.documentElement.scrollWidth - innerWidth, vh: innerHeight };
 				});
-				assert(m.wire.l >= m.list.r && m.wire.r <= m.show.r && m.wire.t < m.list.b && m.list.t < m.wire.b, `T98(9) ${w}px ${cols}列: 模式図はチェックの一覧の右に並ぶ`, m);
+				assert(m.wire.l >= m.list.r && m.wire.r <= m.show.r && m.wire.t >= m.show.t && m.wire.b <= m.show.b, `T98(9) ${w}px ${cols}列: 模式図はチェックの一覧の右に並ぶ`, m);
 				assert(m.show.t >= -1 && m.list.b <= m.vh && m.wire.b <= m.vh, `T98(9) ${w}px ${cols}列: パネルの最初の位置で一覧と模式図が両方見える`, m);
 				assert(m.clipped === 0 && m.sw <= 0, `T98(9) ${w}px ${cols}列: 文字が切れない・横スクロールなし`, m);
 				assert(m.lines.every((n) => n === 1), `T98(9) ${w}px ${cols}列: チェックの文字は1行に収まる`, m.lines);
-				assert(m.wire.w === 150, `T98(9) ${w}px ${cols}列: 模式図の幅は 150px のまま`, m.wire);
+				// T106: スマホでは2列3行のチェックの残りの幅（PC は 150px のまま）
+				const wireW = { 320: 62, 360: 102, 375: 117, 390: 132 }[w] || 150;
+				assert(m.wire.w === wireW, `T98(9) ${w}px ${cols}列: 模式図の幅は ${wireW}px`, m.wire);
 			}
 			const others = await page.evaluate(() => ({ drawer: !!document.querySelector('#stitch-parts-panel-drawer .stitch-wire'), fab: !!document.querySelector('#stitch-parts-panel-fab .stitch-wire') }));
-			assert(!others.drawer && !others.fab, `T98(9) ${w}px: 引き出し・右下のパネルに模式図は無いまま`, others);
+			assert(others.drawer && !others.fab, `T98(9) ${w}px: 模式図は引き出しにはある（T106 の (11)）・右下のパネルには無いまま`, others);
 			assert(jsErrors(errors).length === 0, `T98(9) ${w}px コンソールエラー0`, jsErrors(errors).slice(0, 3));
 			await ctx.close();
 		});
 	}
 
 	/* ── (10) 動画モードのときだけ変わる文（決定 196・197） ── */
-	await block('T98(10) 動画モードのときだけ「OCR処理を開始する」の文: 自動の結合ができなかったときの知らせ・引き出しの「画像を更新」の案内の文', async () => {
+	await block('T98(10) 動画モードのときだけ「OCR処理を開始する」の文: 引き出しの「画像を更新」の案内の文', async () => {
 		const { ctx, page, errors } = await openSp();
-		const read = () => page.evaluate(() => {
-			showVideoSummary(0, [1, 0, 0], false);
-			const sum = document.getElementById('video-summary').textContent;
-			document.getElementById('video-summary').remove();
-			showVideoSummary(0, [1, 0, 0], true);
-			const ok = document.getElementById('video-summary').textContent;
-			document.getElementById('video-summary').remove();
-			return { mode: uploadMode, sum, ok, note: document.getElementById('stitch-refresh-note').textContent };
-		});
-		const SHOT_NEXT = 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。';
-		const VIDEO_NEXT = 'このあと「OCR処理を開始する」を押してください。';
-		const a = await read();
-		assert(a.mode === 'shot' && a.sum.endsWith(SHOT_NEXT), 'T98(10): スクショのモードの知らせは今のまま', a);
-		assert(a.note === '画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。', 'T98(10): スクショのモードの案内の文は今のまま', a.note);
-		await page.click('#video-import-btn');
-		const b = await read();
-		assert(b.mode === 'video' && b.sum.endsWith(VIDEO_NEXT), 'T98(10): 動画モードの知らせは「このあと「OCR処理を開始する」を押してください。」', b);
-		assert(b.note === '画像や集計の設定が変わったため、「OCR処理を開始する」からやり直してください。', 'T98(10): 動画モードの案内の文は「」の中が「OCR処理を開始する」', b.note);
-		assert(b.ok === a.ok, 'T98(10): 結合画像ができたときの知らせはモードで変わらない', { a: a.ok, b: b.ok });
+		const read = () => page.evaluate(() => document.getElementById('stitch-refresh-note').textContent);
+		const SHOT = '画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。';
+		const VIDEO = '画像や集計の設定が変わったため、「OCR処理を開始する」からやり直してください。';
+		assert(await read() === SHOT, 'T98(10): 静止画の案内の文は今のまま', await read());
+		await page.click('[data-upload-mode-btn="video"]');
+		assert(await read() === VIDEO, 'T98(10): 動画モードの案内の文は「」の中が「OCR処理を開始する」', await read());
 		await reloadReady(page);
 		for (let i = 0; i < 2; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('[data-act="notice-ok"]');
-		const c = await page.evaluate(() => document.getElementById('stitch-refresh-note').textContent);
-		assert(c === b.note, 'T98(10): 動画モードのまま開き直しても案内の文は動画モードの形', c);
-		await page.click('#video-import-btn');
-		const d = await page.evaluate(() => document.getElementById('stitch-refresh-note').textContent);
-		assert(d === a.note, 'T98(10): スクショのモードに戻すと案内の文も戻る', d);
+		assert(await read() === VIDEO, 'T98(10): 動画モードのまま開き直しても案内の文は動画モードの形', await read());
+		await page.evaluate(() => selectStepTab(2));
+		await page.click('[data-upload-mode-btn="shot"]');
+		assert(await read() === SHOT, 'T98(10): 静止画に戻すと案内の文も戻る', await read());
 		assert(jsErrors(errors).length === 0, 'T98(10): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
@@ -412,12 +389,13 @@ export async function register108(env) {
 			const { ctx, page, errors } = await openSp({ w, h: w < 600 ? 812 : 900, roster: R1S, ids: IDS, pre: { 'uma-tools-theme': th, 'uma-special-upload-mode': 'video' } });
 			const theme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
 			const c1 = await page.evaluate(scanTextContrastInPage, '#stitch-parts-panel .stitch-cols');
+			const c0 = await page.evaluate(scanTextContrastInPage, '#upload-mode');
 			const c2 = await page.evaluate(scanTextContrastInPage, '#personset-A-wrap .video-pick-btn');
 			await page.click('#fab-toggle'); await page.waitForTimeout(250); await page.click('#fab-item-settings');
 			const c3 = await page.evaluate(scanTextContrastInPage, '#stitch-settings-pop');
 			const sw = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-			const bad = [].concat(c1.bad, c2.bad, c3.bad);
-			assert(theme === th && bad.length === 0 && c1.checked > 0 && c2.checked > 0 && c3.checked > 0, `T98(7) ${w}px ${th} で新しい部品の文字のコントラスト 4.5 以上（${c1.checked + c2.checked + c3.checked}件）`, formatContrast(bad));
+			const bad = [].concat(c0.bad, c1.bad, c2.bad, c3.bad);
+			assert(theme === th && bad.length === 0 && c0.checked > 0 && c1.checked > 0 && c2.checked > 0 && c3.checked > 0, `T98(7) ${w}px ${th} で新しい部品の文字のコントラスト 4.5 以上（${c0.checked + c1.checked + c2.checked + c3.checked}件）`, formatContrast(bad));
 			assert(sw <= 0, `T98(7) ${w}px 横スクロールなし`, sw);
 			assert(jsErrors(errors).length === 0, `T98(7) ${w}px コンソールエラー0`, jsErrors(errors).slice(0, 3));
 			await ctx.close();

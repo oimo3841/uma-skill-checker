@@ -483,6 +483,8 @@ const INTENTIONALLY_REMOVED = {
 	// → T92 の commit（555d950）で HEAD から消えたので、免除は空に戻した。
 	// 2026-11-05（T104・224）: exam の旧 UmaSkill Deck の案内の箱（#deck-handoff-*）・FAB の項目とバッジ（#deck-drawer-trigger・#fab-dot-deck。項目は #fab-item-deck に替えた）・
 	// 中で開く引き出し（#deck-drawer 一式）を消した。commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
+	// 2026-11-05（T106）: special の入口のボタン（#video-import-btn。「静止画｜動画」の #upload-mode に替えた）・動画の小窓（#video-sheet・#video-sheet-h）・
+	// 読み取り後の知らせ（#video-summary）・③の「画像を更新」（data-video-refresh）を、おいもさんの指摘 (3)(4)(8)(9) で消した。commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

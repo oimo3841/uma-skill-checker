@@ -10,7 +10,7 @@
 //  10 1280px でもサムネイルの高さは 56px。11 × の押せる範囲は今のまま（20×20）。12 UmaExam も同じ（動画の入口は無い）。
 //  動画の入口は今の場所（タブの行の右端・UmaStar だけ）。
 import { reloadReady } from './lib/page-ready.mjs';
-import { openVideoSheet } from './lib/video-entry.mjs';
+import { pickVideo } from './lib/video-entry.mjs';
 
 export async function register96(env) {
 	const { block, assert, browser, base, openPage } = env;
@@ -103,7 +103,7 @@ export async function register96(env) {
 			fab: fab && fab.getClientRects().length ? r(fab) : null,
 			undo: undo && undo.getClientRects().length ? r(undo) : null,
 			edge: edgeProbe,
-			video: (() => { const v = document.getElementById('video-import-btn'); const t = document.getElementById('personset-tabs'); return v ? { rect: r(v), row: v.parentElement === (t && t.parentElement), last: v.parentElement && v.parentElement.lastElementChild === v } : null; })(),
+			video: (() => { const v = document.getElementById('upload-mode'); const t = document.getElementById('personset-tabs'); return v ? { rect: r(v), row: v.parentElement === (t && t.parentElement), last: v.parentElement && v.parentElement.lastElementChild === v } : null; })(),
 			zoneHit: (() => { const z = document.querySelector('#personset-A-wrap .person-drop-zone'); if (!z) return null; z.scrollIntoView({ block: 'center' }); const h = hit(z); window.scrollTo(0, 0); return h; })(),
 			xHit: (() => { const x = document.querySelector('#personset-A-wrap .person-image-remove'); if (!x) return null; x.scrollIntoView({ block: 'center' }); const h = hit(x); window.scrollTo(0, 0); return h; })(),
 			hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -227,12 +227,11 @@ export async function register96(env) {
 			const kept = await page.evaluate(() => persons[1].files.length);
 			assert(kept === 1, tag + ': 親Aセットの画像は保持', kept);
 			if (tool === 'special') {
-				assert(m.video && m.video.row && m.video.last && Math.abs(m.video.rect.w - 44) < 0.6 && Math.abs(m.video.rect.h - 44) < 0.6, tag + ': 動画の入口はタブの行の右端（44×44）', m.video);
-				await openVideoSheet(page);
-				const open = await page.waitForSelector('#video-sheet .video-sheet', { timeout: 3000 }).then(() => true).catch(() => false);
-				const target = await page.evaluate(() => (document.querySelector('#video-sheet .video-target') || {}).textContent);
-				assert(open && /親Bセット/.test(target || ''), tag + ': 動画の入口を押すと小窓が開く（入れる先は今見ている親Bセット）', { open, target });
-				await page.click('#video-sheet [data-video-act="cancel"]').catch(() => {});
+				assert(m.video && m.video.row && m.video.last && m.video.rect.h === 32, tag + ': 入れ方の切り替え（静止画｜動画）はタブの行の右端（T106）', m.video);
+				const chooser = await pickVideo(page);
+				const pend = await page.evaluate(() => videoPending && videoPending.setIdx);
+				assert(!!chooser && pend === 1, tag + ': 「動画を選ぶ」ですぐファイルの選択が開く（入れる先は今見ている親Bセット。T106）', { chooser: !!chooser, pend });
+				await page.evaluate(() => setUploadMode('shot'));
 			} else {
 				assert(m.video === null, tag + ': 動画の入口は無い', m.video);
 			}

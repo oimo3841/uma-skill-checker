@@ -11,7 +11,7 @@
 // 「継承の画面が見つからない」で終わる。止まらないことと、失敗が読み込み〔decode〕でないことを見る）。
 // 変更前（T77 の前）の製品では (1)(2) とも読み込みの段で止まり、NG になる（T77 の報告に結果）。
 import { reloadReady } from './lib/page-ready.mjs';
-import { openVideoSheet } from './lib/video-entry.mjs';
+import { pickVideo } from './lib/video-entry.mjs';
 
 const HOST = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>video-frames test</title>'
 	+ '<script>var devGeometry = [];</script><script src="/js/common.js"></script><script src="/js/stitch.js"></script>'
@@ -134,9 +134,7 @@ export async function register95(env) {
 		await page.evaluate(() => selectStepTab(2));
 		await page.addScriptTag({ content: TOOLS });
 		await page.evaluate(async () => { window.__blob = await __makeWebm(); __iosMimic(); });
-		await openVideoSheet(page);
-		await page.waitForSelector('#video-sheet [data-video-act="pick"]');
-		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="pick"]')]);
+		await pickVideo(page);
 		const t0 = Date.now();
 		const r = await page.evaluate(() => {
 			const run = onVideoChosen(new File([__blob], 'rec.webm', { type: 'video/webm' }));

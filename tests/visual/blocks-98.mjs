@@ -12,7 +12,7 @@
 // 変更前の製品（b8f1a89）では、結果が③に出ず・知らせの文が前のままで、読み込みは止まったまま終わらないので、この塊は NG になる（T82 の報告に結果）。
 import { reloadReady } from './lib/page-ready.mjs';
 import { SYNTH } from './blocks-80.mjs';
-import { openVideoSheet } from './lib/video-entry.mjs';
+import { pickVideo } from './lib/video-entry.mjs';
 
 const TEXT = {
 	stitched: '結合画像を作りました。OCRするときは「OCR処理を開始する」を押してください。',   // T98（決定 176）
@@ -73,9 +73,7 @@ export async function register98(env) {
 	};
 	// 入口 → 小窓のボタン → ファイルの選択（開かせて閉じる）→ 作り物の画を渡す。warnWho … 自動の結合の前に、その人の最初の継ぎ目を「確かでない」にする
 	const runSynth = async (page, act, warnWho) => {
-		await openVideoSheet(page);
-		await page.waitForSelector('#video-sheet [data-video-act="' + act + '"]');
-		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="' + act + '"]')]);
+		await pickVideo(page);
 		return page.evaluate(async (warnWho) => {
 			if (warnWho != null) {
 				const orig = window.buildStitchedSetImage;
@@ -96,9 +94,9 @@ export async function register98(env) {
 		const clear = panel && panel.querySelector('.upload-set-clear');
 		return {
 			sum: sum ? sum.textContent.trim() : null,
-			box: !!box, afterClear: !!(box && clear && box.previousElementSibling === clear),
+			box: !!box, afterClear: !!(box && clear && box.previousElementSibling === panel.querySelector('.video-howto-box') && panel.querySelector('.video-howto-box').previousElementSibling === clear),
 			head: blk ? (blk.querySelector('p.text-xs.font-bold') || {}).textContent : null,
-			png: blk ? (blk.querySelector('a') || {}).textContent : null, img: !!(blk && blk.querySelector('img') && blk.querySelector('img').src.startsWith('data:image/png')),
+			png: blk ? (blk.querySelector('a') || { getAttribute() { return null; } }).getAttribute('aria-label') : null, dlSvg: !!(blk && blk.querySelector('a svg')), refresh: !!(blk && blk.querySelector('[data-video-refresh]')), img: !!(blk && blk.querySelector('img') && blk.querySelector('img').src.startsWith('data:image/png')),
 			warn: blk && blk.querySelector('.video-warn') ? blk.querySelector('.video-warn').textContent.trim() : null,
 			panelBorder: panel ? getComputedStyle(panel).borderTopColor : null, hasClass: !!(panel && panel.classList.contains('video-has-result')),
 			colsShown: !!(cols && cols.offsetParent !== null),
@@ -109,7 +107,7 @@ export async function register98(env) {
 			boxR: rr(box), clearR: rr(clear && clear.querySelector('button')), panelR: rr(panel),
 			drawerOpen: !!(drawer && drawer.classList.contains('open')), drawerImg: !!document.querySelector('#stitch-result-content img'),
 			prog: !!document.getElementById('video-progress'), busy: !!document.querySelector('.video-busy'),
-			stitchDis: document.getElementById('stitch-btn').disabled, entryDis: document.getElementById('video-import-btn').disabled,
+			stitchDis: document.getElementById('stitch-btn').disabled, entryDis: document.querySelector('[data-upload-mode-btn="video"]').disabled,
 			sw: document.documentElement.scrollWidth, iw: window.innerWidth
 		};
 	});
@@ -123,8 +121,8 @@ export async function register98(env) {
 			const m = await state(sp.page);
 			const total = m.n.reduce((a, b) => a + b, 0);
 			assert(res && res.ok === true && res.stitched === true, `T82(1) ${w}px 取り込みが成功し、自動の結合で結合画像ができた`, res);
-			assert(m.sum === '動画から ' + total + '枚 を入れました（親A ' + m.n[0] + '枚・祖A1 ' + m.n[1] + '枚・祖A2 ' + m.n[2] + '枚）。' + TEXT.stitched, `T82(1) ${w}px 知らせの2行目は「${TEXT.stitched}」`, m.sum);
-			assert(m.box && m.afterClear && m.head === '親Aセット' && m.png === 'PNGをダウンロード' && m.img && m.warn === null, `T82(1) ${w}px セットの枠の中（「セットをクリア」のすぐ後）に結合の結果の箱（見出し「親Aセット」・PNGをダウンロード・結合画像）`, m);
+			assert(m.sum === null && total > 0, `T82(1) ${w}px 読み取り後の知らせは出さない（T106 の (8)）`, m.sum);
+			assert(m.box && m.afterClear && !m.head && m.png === 'PNGをダウンロード' && m.dlSvg && !m.refresh && m.img && m.warn === null, `T82(1) ${w}px セットの枠の中（「セットをクリア」の行のすぐ後）に結合の結果の箱（見出しと「画像を更新」は無し・ダウンロードはアイコン・結合画像。T106 の (9)(10)）`, m);
 			assert(!m.colsShown, `T82(1) ${w}px 親ごとの画像（3列）は見せない`, m.colsShown);
 			assert(m.hasClass && m.panelBorder === 'rgba(0, 0, 0, 0)' && lineBefore !== m.panelBorder, `T82(1) ${w}px セットの枠の線を外す（前は ${lineBefore}）`, { before: lineBefore, after: m.panelBorder });
 			assert(m.boxR && m.clearR && m.boxR.y >= m.clearR.bottom && m.boxR.x >= m.panelR.x && m.boxR.right <= m.panelR.right, `T82(1) ${w}px 結果の箱は「セットをクリア」の下から始まり、セットの枠の中に収まる`, { box: m.boxR, clear: m.clearR, panel: m.panelR });
@@ -152,7 +150,7 @@ export async function register98(env) {
 		assert(m.box && m.warn === TEXT.warn('祖A1') && m.img, 'T82(2) 結果の箱の中に「祖A1 の結合の一部が…」の警告', m.warn);
 		assert(m.colsShown && !m.btn, 'T82(2) 3列も出す（「親ごとの画像を見る」は出さない）', m);
 		assert(m.tiles[0] && !m.tiles[1] && m.tiles[2] && m.thumbs[1] === m.n[1] && m.thumbs[0] === 0 && m.thumbs[2] === 0, 'T82(2) 警告の人（祖A1）だけサムネイルを全部、親A・祖A2 は「動画から N枚」のまま', m);
-		assert(m.sum && m.sum.endsWith(TEXT.stitched) && m.hasClass, 'T82(2) 知らせの2行目は同じ文・セットの枠の線は外す', m);
+		assert(m.sum === null && m.hasClass, 'T82(2) 知らせは出さない（T106）・セットの枠の線は外す', m);
 		assert(jsErrors(sp.errors).length === 0, 'T82(2) コンソールのエラー0', sp.errors);
 		await sp.ctx.close();
 	});
@@ -163,7 +161,7 @@ export async function register98(env) {
 		await runSynth(sp.page, 'pick');
 		await sp.page.evaluate(() => removePersonImage(2, persons[2].files.length - 1));
 		const a = await state(sp.page);
-		assert(!a.box && !a.hasClass && a.colsShown && a.sum === null, 'T82(3) 枠の画像を消すと、③の中の結合画像と知らせは外れ、3列が出る', a);
+		assert(!a.box && !a.hasClass && a.colsShown && a.sum === null, 'T82(3) 枠の画像を消すと、③の中の結合画像は外れ、3列が出る', a);
 		await runSynth(sp.page, 'replace');
 		await sp.page.evaluate(() => clearPersonSet(0));
 		const b = await state(sp.page);
@@ -193,9 +191,7 @@ export async function register98(env) {
 		assert(unit.code === 'load-timeout' && unit.ms >= 550 && unit.ms < 3000 && unit.videos === 0, 'T82(4) 上限を超えると code=load-timeout で返り、video はページに残らない', unit);
 		// 画像を入れたセットに「置き換えて…」で、止まる動画を入れる → 20秒で打ち切り
 		await page.evaluate(() => { [0, 1, 2].forEach((r) => addPersonFiles(r, [new File([new Uint8Array([137, 80, 78, 71, r])], 'k' + r + '.png', { type: 'image/png' })])); window.__before = persons.map((p) => p.files.slice()); });
-		await openVideoSheet(page);
-		await page.waitForSelector('#video-sheet [data-video-act="replace"]');
-		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="replace"]')]);
+		await pickVideo(page);
 		const r = await page.evaluate(async () => {
 			const t0 = performance.now();
 			const res = await Promise.race([onVideoChosen(new File([__blob], 'rec.webm', { type: 'video/webm' })), new Promise((rs) => setTimeout(() => rs('timeout'), 40000))]);
@@ -207,9 +203,7 @@ export async function register98(env) {
 		assert(r.res !== 'timeout' && r.res.ok === false && r.res.error === 'load-timeout' && r.ms >= 19500 && r.ms < 26000, 'T82(4) 20秒で打ち切る（code=load-timeout・かかった時間 19.5〜26秒）', r);
 		assert(r.err === TEXT.unreadable + TEXT.keep && !r.prog && r.same && r.videos === 0, 'T82(4) 今の「動画を読み込めませんでした…」＋「入っていた画像はそのままです。」・進捗の箱は消え、枠は元のまま', r);
 		// 上限の前に「取り消す」を押すと、今までどおり取り消せる
-		await openVideoSheet(page);
-		await page.waitForSelector('#video-sheet [data-video-act="replace"]');
-		await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="replace"]')]);
+		await pickVideo(page);
 		await page.evaluate(() => { window.__run = onVideoChosen(new File([__blob], 'rec.webm', { type: 'video/webm' })); });
 		await page.waitForSelector('#video-progress [data-video-act="abort"]');
 		await page.waitForTimeout(1000);

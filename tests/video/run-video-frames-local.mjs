@@ -18,7 +18,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { REPO_ROOT, assetsRoot } from '../skillset/lib/assets.mjs';
 import { startServer } from '../skillset/lib/serve.mjs';
-import { openVideoSheet } from '../visual/lib/video-entry.mjs';
+import { pickVideo } from '../visual/lib/video-entry.mjs';
 
 const arg = (n, d) => { const h = process.argv.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
 const cpu = Number(arg('cpu', '1'));
@@ -75,14 +75,13 @@ async function runSpecial(v) {
 	await page.evaluate(() => selectStepTab(2));
 	const cdp = await ctx.newCDPSession(page);
 	if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
-	await openVideoSheet(page);
-	const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#video-sheet [data-video-act="pick"]')]);
+	const chooser = await pickVideo(page);
 	const t0 = Date.now();
 	await chooser.setFiles(path.join(root, v.name));
-	await page.waitForSelector('#video-summary, #video-error', { timeout: 600000 });
+	await page.waitForSelector('#personset-A-wrap .video-result, #video-error', { timeout: 600000 });
 	const importS = (Date.now() - t0) / 1000;
 	const imp = await page.evaluate(() => ({ n: persons.slice(0, 3).map((p) => p.files.length), err: (document.getElementById('video-error') || {}).textContent || null,
-		sum: (document.getElementById('video-summary') || {}).textContent || null, unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1) }));
+		sum: persons.slice(0, 3).map((p) => p.files.length).join('／'), unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1) }));
 	check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／') + '（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
 	const t1 = Date.now();
 	const st = await page.evaluate(async () => {

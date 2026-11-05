@@ -8,7 +8,7 @@
 //  (3) UmaVideoFrames.canvasSource の draw が返ってこない
 // 変更前（T68 の前）の製品では (1)〜(3) とも取り消しても処理が終わらず、この塊は NG になる（T68 の報告に結果）。
 import { reloadReady } from './lib/page-ready.mjs';
-import { openVideoSheet } from './lib/video-entry.mjs';
+import { pickVideo } from './lib/video-entry.mjs';
 
 const CANCEL = '取り消しました。入っていた画像はそのままです';
 
@@ -51,9 +51,7 @@ export async function register92(env) {
 					window.__restoreSrc = () => Object.defineProperty(HTMLMediaElement.prototype, 'src', d);
 				});
 			}
-			await openVideoSheet(page);
-			await page.waitForSelector('#video-sheet [data-video-act="replace"]');
-			await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }).catch(() => null), page.click('#video-sheet [data-video-act="replace"]')]);
+			await pickVideo(page);
 			await page.evaluate((kind) => {
 				window.__draws = 0;
 				let input;
@@ -65,7 +63,7 @@ export async function register92(env) {
 			}, kind);
 			await page.waitForSelector('#video-progress [data-video-act="abort"]');
 			await page.waitForTimeout(600);   // 止まったまま（返ってこない待ちの中）にする
-			const mid = await page.evaluate(() => ({ done: window.__runDone, draws: window.__draws, srcSet: window.__srcSet || 0, label: document.querySelector('#video-progress .video-prog-label').textContent, busy: document.getElementById('video-import-btn').disabled }));
+			const mid = await page.evaluate(() => ({ done: window.__runDone, draws: window.__draws, srcSet: window.__srcSet || 0, label: document.querySelector('#video-progress .video-prog-label').textContent, busy: document.querySelector('[data-upload-mode-btn="video"]').disabled }));
 			assert(!mid.done && mid.busy && (kind === 'file' ? mid.srcSet >= 1 : mid.draws >= 1), `T68${no} 取り消す前は処理が止まったまま（空振りでない）`, mid);
 			const t0 = Date.now();
 			await page.click('#video-progress [data-video-act="abort"]');
@@ -77,7 +75,7 @@ export async function register92(env) {
 					same: persons.every((p, i) => p.files.length === window.__before[i].length && p.files.every((f, k) => f === window.__before[i][k])),
 					prog: !!document.getElementById('video-progress'), err: !!document.getElementById('video-error'), sum: !!document.getElementById('video-summary'),
 					toast: document.getElementById('toast-message').textContent, shown: !t.classList.contains('opacity-0'),
-					btnDis: document.getElementById('video-import-btn').disabled, op: getComputedStyle(document.getElementById('personset-A-wrap')).opacity,
+					btnDis: document.querySelector('[data-upload-mode-btn="video"]').disabled, op: getComputedStyle(document.getElementById('personset-A-wrap')).opacity,
 					video: persons.some((p) => p.video)
 				};
 			});

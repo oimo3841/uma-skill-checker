@@ -107,7 +107,7 @@ export async function register106(env) {
 		const broken = await read({ 'uma-special-stitch-parts': '{oops' });
 		assert(fresh.deckMode && fresh.panelShown && !fresh.rowShown, 'T96(1): 新UI では③に「結合画像の設定」を出し、「種類の枠」のチェックは出さない', fresh);
 		assert(fresh.title === '結合画像の設定' && JSON.stringify(fresh.labels) === JSON.stringify(LABELS6), 'T96(1): 見出し「結合画像の設定」・チェックは 分類マーカー／本育成編成／因子周回編成／理論値SP／星取表／タイトルのバー（T98）の順（括弧の補足なし）', { title: fresh.title, labels: fresh.labels });
-		assert(fresh.wire && !fresh.drawerWire && !fresh.drawerTitle && fresh.drawerIds.join(',') === KEYS6.map((k) => 'drawer-opt-stitch-' + k).join(','), 'T96(1): ③は模式図つき・引き出しの中は模式図と見出しなし（id は drawer-）', { wire: fresh.wire, drawerWire: fresh.drawerWire, ids: fresh.drawerIds });
+		assert(fresh.wire && fresh.drawerWire && !fresh.drawerTitle && fresh.drawerIds.join(',') === KEYS6.map((k) => 'drawer-opt-stitch-' + k).join(','), 'T96(1): ③は模式図つき・引き出しの中も模式図つきで見出しなし（T106 の (11)。id は drawer-）', { wire: fresh.wire, drawerWire: fresh.drawerWire, ids: fresh.drawerIds });
 		[fresh, oldOn, broken].forEach((x, i) => {
 			assert(x.checked.slice(0, 5).every((c) => !c) && x.drawerChecked.slice(0, 5).every((c) => !c) && x.checked[5] === true && x.drawerChecked[5] === true && KEYS.every((k) => x.now[k] === false) && x.now.title === true && x.now.cols === 3, 'T96(1): 全部 OFF・タイトルのバーは ON・3列（T98）（' + ['保存値なし', '「種類の枠」ON の保存値あり', '壊れた保存値'][i] + '）', { checked: x.checked, now: x.now });
 		});

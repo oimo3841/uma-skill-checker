@@ -224,12 +224,17 @@
 		/* 動画の入口と流れ（動画V1-2・T59。C-258 の (3)。モック T43 の lab/upload-mock.html の動画の場面と同じ値。色は今のトークンだけ）
 		   入口: タブの行の右端のアイコン（lucide の video 22px・右上に小さな「α」・押せる範囲 44px）。タブの行は折り返さない */
 		.uma-subtabs-row.video-tabrow { flex-wrap: nowrap; gap: var(--uma-sp-1); }
-		.video-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; position: relative; width: 44px; height: 44px; margin: -6px -6px -6px 0; padding: 0;
-			border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-muted); cursor: pointer; }
-		.video-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
-		.video-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
-		.video-btn svg { width: 22px; height: 22px; }
-		.video-btn .video-alpha { position: absolute; right: 6px; top: 10px; font-size: 9px; line-height: 1; font-weight: 800; color: var(--uma-text-subtle); }
+		/* 入れ方の切り替え「静止画｜動画」（T106・決定 273）。見た目の作りは「3列｜2列」（.stitch-cols）と同じ: 2つ並べたボタン・選んだほうを反転の塗り。
+		   タブの行の高さを変えないよう枠は 32px にし、押せる高さは ::after で 44px まで広げる（枠を丸めるために overflow は使わない） */
+		.upload-mode { flex: none; display: flex; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); }
+		.upload-mode-btn { position: relative; height: 30px; padding: 0 10px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer; white-space: nowrap;
+			display: inline-flex; align-items: center; justify-content: center; }
+		.upload-mode-btn::after { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
+		.upload-mode-btn:first-child { border-radius: calc(var(--uma-r-lg) - 1px) 0 0 calc(var(--uma-r-lg) - 1px); }
+		.upload-mode-btn:last-child { border-radius: 0 calc(var(--uma-r-lg) - 1px) calc(var(--uma-r-lg) - 1px) 0; border-left: 1px solid var(--uma-border-strong); }
+		.upload-mode-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
+		.upload-mode-btn[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+		.upload-mode-btn .video-alpha { font-size: 10px; font-weight: 800; margin-left: 1px; align-self: flex-start; margin-top: 6px; }
 		/* 動画モード（T98・C-285）: body の data-upload-mode="video" のあいだ、人ごとの「追加」の代わりにセットに1つの「動画を選ぶ」
 		   （同じ点線の枠・高さ 76px・セットの幅いっぱい）。下の欄は「OCR処理を開始する」だけ（「画像を結合する（OCRしない）」は出さない） */
 		.video-pick-btn { display: none; width: 100%; min-height: 76px; margin: 0 0 8px; padding: 10px 4px; align-items: center; justify-content: center; gap: 8px;
@@ -242,24 +247,12 @@
 		body[data-upload-mode="video"] .video-pick-btn { display: flex; }
 		body[data-upload-mode="video"] .upload-add { display: none; }
 		body[data-upload-mode="video"] #stitch-btn { display: none; }
-		/* ③の中の結合画像の「画像を更新」と「PNGをダウンロード」（T98） */
-		.video-result-btns { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
-		/* 押した直後の小窓（スマホは下から出る） */
-		.video-sheet-bg { position: fixed; inset: 0; z-index: 90; background: rgba(15, 23, 42, .4); display: flex; align-items: flex-end; justify-content: center; }
-		@media (min-width: 641px) { .video-sheet-bg { align-items: center; } }
-		.video-sheet { width: 100%; max-width: 30rem; max-height: 92dvh; overflow: auto; background: var(--uma-surface); color: var(--uma-text); border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; padding: 16px; box-shadow: 0 -4px 24px rgba(0,0,0,.18); }
-		@media (min-width: 641px) { .video-sheet { border-radius: var(--uma-r-xl); } }
-		.video-sheet h2 { margin: 0 0 4px; font-size: 15px; font-weight: 800; color: var(--uma-text-heading); display: flex; align-items: center; gap: 6px; }
-		.video-sheet .video-target { margin: 0 0 10px; font-size: 12px; color: var(--uma-text-muted); }
-		.video-tag { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: var(--uma-r-full); font-size: 10px; font-weight: 800; border: 1px solid var(--uma-border-strong); color: var(--uma-text-subtle); }
-		.video-note { margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-muted); font-size: 12px; line-height: 1.55; color: var(--uma-text-muted); }
-		.video-howto { margin: 0 0 12px; font-size: 12px; line-height: 1.6; color: var(--uma-text); }
-		.video-howto ol { margin: 4px 0 0; padding-left: 1.4em; }
-		.video-howto strong { font-weight: 800; color: var(--uma-text-heading); }
-		.video-exist { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-lg); background: var(--uma-warn-bg); color: var(--uma-warn-text); font-size: 12px; line-height: 1.5; }
-		.video-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-		.video-btns .uma-btn { min-height: 44px; }
-		.video-btns--stack { flex-direction: column; align-items: stretch; }
+		/* T106: 動画モードでは「セットをクリア」と「？」を「動画を選ぶ」の上の行に置く（(1) 枠に重ねない・(6)）。「親A」などの字は結合画像を出す前は無し（(5)。枠が3人とも空のときは列そのものが高さ0） */
+		.video-howto-btn, .video-howto-box { display: none; }
+		body[data-upload-mode="video"] .upload-set-clear { position: static; justify-content: flex-end; gap: 8px; margin: 0 0 8px !important; }
+		body[data-upload-mode="video"] .video-howto-btn { display: inline-flex; }
+		body[data-upload-mode="video"] .video-howto-box:not([hidden]) { display: block; margin: 0 0 8px; }
+		body[data-upload-mode="video"] .upload-set-panel:not(.video-has-result) .upload-col > p { display: none; }
 		/* 進捗（割合のバー・段の一覧・取り消す）。処理中は枠を薄くして触れない */
 		.video-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; font-size: 11px; }
 		.video-steps li { display: flex; align-items: center; gap: 6px; color: var(--uma-text-faint); }
@@ -270,16 +263,21 @@
 		.video-prog-foot small { font-size: 11px; color: var(--uma-text-subtle); }
 		.video-busy { opacity: .55; pointer-events: none; }
 		/* 終わった後: 知らせの箱と、人の欄の「動画から N枚」の1行 */
-		.video-summary { margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); font-size: 12px; line-height: 1.5; color: var(--uma-text); display: flex; gap: 8px; align-items: flex-start; }
-		.video-summary svg { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--uma-text-subtle); }
 		.video-tile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface); font-size: 12px; font-weight: 700; color: var(--uma-text-heading); grid-column: 1 / -1; text-align: left; cursor: pointer; }
 		.video-tile:hover { background: var(--uma-surface-sunken); }
 		.video-tile img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--uma-border); }
 		.video-tile small { margin-left: auto; font-weight: 600; color: var(--uma-text-subtle); font-size: 11px; }
 		/* 取り込みが成功したあと自動で結合した画像を③の中に出す（T82。C-258 の T69 への回答 7〜9・モック T69 の vdone／vwarn）。
-		   結果の箱がセットの枠の中で枠が2重にならないよう、出ている間はセットの枠の線を外す。上の余白は右上の「セットをクリア」の下から始めるため */
+		   結果の箱がセットの枠の中で枠が2重にならないよう、出ている間はセットの枠の線を外す */
 		.upload-set-panel.video-has-result { border-color: transparent; }
 		.video-result { margin: 16px 0 12px; }
+		body[data-upload-mode="video"] .video-result { margin-top: 0; }
+		/* ③の結合画像の上の行（T106 の (9)(10)）: 右に控えめなダウンロードのアイコンだけ。見出しと「画像を更新」は無し */
+		.video-result-head { justify-content: flex-end !important; margin-bottom: 4px !important; }
+		.video-dl-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--uma-r-full); color: var(--uma-text-subtle); background: transparent; }
+		.video-dl-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+		.video-dl-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
+		.video-dl-btn svg { width: 18px; height: 18px; }
 		/* 3列を出す／隠す字のボタン（文は VIDEO_TEXTS の video.result.show／hide。今の「セットをクリア」と同じ字の作り・押せる高さ 44px） */
 		.video-showcols { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-size: 12px; color: var(--uma-text-subtle); text-decoration: underline; text-underline-offset: 2px; background: none; border: 0; padding: 0; cursor: pointer; }
 		.video-showcols:hover { color: var(--uma-text-heading); }
@@ -577,41 +575,47 @@
 			cursor: pointer; transition: background-color var(--uma-transition); }
 		.stitch-show-item:hover { background: var(--uma-surface); }
 		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-control-mark); cursor: pointer; }
-		/* 模式図: 結合画像の並び（帯 → 上段〔理論値SP｜本育成編成｜因子周回編成〕 → 星取表＋3人の列 → 枠の見かた）。大きさは px で決め打ち */
-		.stitch-wire { flex: 0 0 auto; width: 150px; }
-		.stitch-wire-sheet { display: flex; flex-direction: column; gap: 3px; padding: 5px; background: #fff;
-			border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }
+		/* 模式図: 結合画像の並び。大きさは --u（模式図の幅の 1/100。既定 1.5px＝幅 150px）の倍数で決め、置き場所ごとに --u だけ変える。
+		   3列: 帯 → 上段〔理論値SP｜本育成編成｜因子周回編成〕 → 星取表＋3人の列 → 枠の見かた。
+		   2列（T106）: 実際の結合画像（T98-final-shots-3 の static-2col-on・2661×3961）の比率を測った値。幅を 100 として 親 43.4・祖 36・3列目 17、親の高さ 133（上の欄 44＋因子 89） */
+		.stitch-wire { --u: 1.5px; flex: 0 0 auto; width: calc(100 * var(--u)); }
+		.stitch-wire-sheet { display: flex; flex-direction: column; gap: calc(2 * var(--u)); padding: calc(3.4 * var(--u)); background: #fff;
+			border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); box-sizing: border-box; width: 100%; }
 		.stitch-wire [hidden] { display: none; }
-		.stitch-wire-bar { height: 6px; border-radius: 3px; background: linear-gradient(#94D709, #6BC20C); }
-		.stitch-wire-top { display: flex; gap: 2px; height: 20px; }
-		.stitch-wire-top > span { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; padding: 1px 2px 1px 3px; border-left: 1px solid var(--uma-border); }
+		.stitch-wire-bar { height: calc(4 * var(--u)); border-radius: calc(2 * var(--u)); background: linear-gradient(#94D709, #6BC20C); }
+		.stitch-wire-top { display: flex; gap: calc(1.33 * var(--u)); height: calc(13.33 * var(--u)); }
+		.stitch-wire-top > span { flex: 0 0 auto; display: flex; flex-direction: column; gap: calc(1.33 * var(--u)); padding: calc(.67 * var(--u)) calc(1.33 * var(--u)) calc(.67 * var(--u)) calc(2 * var(--u)); border-left: 1px solid var(--uma-border); box-sizing: border-box; }
 		.stitch-wire-top > span:first-child { border-left: 0; padding-left: 0; }
-		.stitch-wire-top b { display: block; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
-		.stitch-wire-sp { width: 30px; }
-		.stitch-wire-sp b:first-child { height: 6px; width: 80%; background: var(--uma-text-subtle); }
-		.stitch-wire-cards { width: 44px; display: grid !important; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 7px; gap: 2px; }
+		.stitch-wire-top b { display: block; height: calc(2 * var(--u)); border-radius: var(--u); background: var(--uma-border-strong); }
+		.stitch-wire-sp { width: calc(20 * var(--u)); }
+		.stitch-wire-sp b:first-child { height: calc(4 * var(--u)); width: 80%; background: var(--uma-text-subtle); }
+		.stitch-wire-cards { width: calc(29.33 * var(--u)); display: grid !important; grid-template-columns: repeat(3, 1fr); grid-auto-rows: calc(4.67 * var(--u)); gap: calc(1.33 * var(--u)); }
 		.stitch-wire-cards i { display: block; border: 1px solid var(--uma-border-strong); border-radius: 1px; }
-		.stitch-wire-mid { display: flex; gap: 3px; }
-		.stitch-wire-table { flex: 0 0 26px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; grid-auto-rows: 5px; gap: 1px; align-content: start; }
+		.stitch-wire-mid { display: flex; gap: calc(2 * var(--u)); }
+		.stitch-wire-table { flex: 0 0 calc(17.33 * var(--u)); display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; grid-auto-rows: calc(3.33 * var(--u)); gap: calc(.67 * var(--u)); align-content: start; }
 		.stitch-wire-table i { display: block; background: #C9DCEE; }
 		.stitch-wire-table i:nth-child(4n+1) { background: var(--uma-border); }
 		.stitch-wire-table i:nth-child(5n+3) { background: #6F9FD0; }
-		.stitch-wire-people { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
-		.stitch-wire-person { display: flex; flex-direction: column; gap: 2px; }
-		.stitch-wire-head { display: flex; align-items: center; gap: 2px; height: 6px; }
-		.stitch-wire-head i { width: 6px; height: 6px; border-radius: 50%; background: var(--uma-border-strong); }
-		.stitch-wire-head b { display: block; width: 50%; height: 3px; border-radius: 2px; background: var(--uma-text-subtle); }
-		.stitch-wire-panels { display: flex; flex-direction: column; gap: 2px; padding: 2px; background: var(--uma-surface-sunken); }
-		.stitch-wire-row { display: block; height: 5px; border-radius: 1px; background: #e2e2e2; border: 1px solid transparent; }
-		/* 枠。分類マーカーが OFF（シンプル）なら②のスキルは全部同じ緑、ON なら種類の色。遺伝子はいつも遺伝子の色（結合画像と同じ値） */
+		.stitch-wire-people { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(2 * var(--u)); }
+		.stitch-wire-person { display: flex; flex-direction: column; gap: calc(1.33 * var(--u)); min-width: 0; }
+		.stitch-wire-head { display: flex; align-items: center; gap: calc(1.33 * var(--u)); height: calc(4 * var(--u)); }
+		.stitch-wire-head i { width: calc(4 * var(--u)); height: calc(4 * var(--u)); border-radius: 50%; background: var(--uma-border-strong); }
+		.stitch-wire-head b { display: block; width: 50%; height: calc(2 * var(--u)); border-radius: var(--u); background: var(--uma-text-subtle); }
+		/* 人の因子は2列（T106 の (2)(A)。実際の画面と同じ。3列の模式図にも当てはめる） */
+		.stitch-wire-panels { display: grid; grid-template-columns: 1fr 1fr; gap: calc(1.33 * var(--u)) calc(.8 * var(--u)); padding: calc(1 * var(--u)); background: var(--uma-surface-sunken); align-content: start; }
+		.stitch-wire-row { display: block; min-width: 0; height: calc(3.33 * var(--u)); border-radius: 1px; background: #e2e2e2; border: 1px solid transparent; box-sizing: border-box; }
+		/* 人の列の行の枠: 分類マーカー OFF は全部シンプルの緑（STITCH_SIMPLE_COLOR と同じ）。ON は種類の色（.is-marker）。遺伝子の行はいつも遺伝子の色 */
 		.stitch-wire-row[data-kind="card"], .stitch-wire-row[data-kind="star"], .stitch-wire-row[data-kind="other"] { border-color: #2F9E1F; background: #E6F5DA; }
 		.stitch-wire-sheet.is-marker .stitch-wire-row[data-kind="card"] { border-color: #008070; background: #E2F6F0; }
 		.stitch-wire-sheet.is-marker .stitch-wire-row[data-kind="star"] { border-color: #9C6A00; background: #FFF6CD; }
 		.stitch-wire-sheet.is-marker .stitch-wire-row[data-kind="other"] { border-color: #7A3FB0; background: #F0E6FA; }
 		.stitch-wire-row[data-kind="gene"] { border-color: #BE185D; background: #FCE7F0; }
-		.stitch-wire-legend { display: flex; align-items: center; gap: 3px; padding-left: 29px; }
-		.stitch-wire-legend i { display: block; width: 6px; height: 4px; border: 1px solid; }
-		.stitch-wire-legend b { display: block; flex: 1 1 auto; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
+		.stitch-wire-row[data-kind="sp"] { background: #5BBDF5; }
+		.stitch-wire-row[data-kind="ap"] { background: #FF7DB8; }
+		.stitch-wire-row[data-kind="uq"] { background: #94D709; }
+		.stitch-wire-legend { display: flex; align-items: center; gap: calc(2 * var(--u)); padding-left: calc(19.33 * var(--u)); }
+		.stitch-wire-legend i { display: block; width: calc(4 * var(--u)); height: calc(2.67 * var(--u)); border: 1px solid; }
+		.stitch-wire-legend b { display: block; flex: 1 1 auto; height: calc(2 * var(--u)); border-radius: var(--u); background: var(--uma-border-strong); }
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-focus-ring); }
 		:root[data-theme="dark"] .stitch-wire-sheet { background: var(--uma-surface-muted); }
 		/* 形の2択（T98・C-285。決定 156・157・179。モック lab/stitch-2col-video-mock.html の .seg）: 2つ並べたボタン・選んだほうを反転の塗り（今のトークン） */
@@ -624,17 +628,48 @@
 		.stitch-cols-btn i { display: inline-flex; gap: 2px; }
 		.stitch-cols-btn i b { display: block; width: 5px; height: 12px; border-radius: 1px; background: currentColor; }
 		.stitch-cols-btn i b.is-wide { width: 8px; }
-		/* 2列の模式図（T98） */
-		.stitch-wire-2 { display: flex; gap: 3px; align-items: stretch; }
-		.stitch-wire-2l { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-		.stitch-wire-2r { flex: 0 0 30px; display: flex; flex-direction: column; gap: 3px; }
-		.stitch-wire-2r .stitch-wire-table { flex: 1 1 auto; }
-		.stitch-wire-2 .stitch-wire-top .stitch-wire-cards { width: 40px; }
-		.stitch-wire-2p { display: grid; grid-template-columns: 3fr 2fr; gap: 3px; align-items: start; }
-		.stitch-wire-grands { display: flex; flex-direction: column; gap: 0; }
-		.stitch-wire-status { display: block; height: 14px; border-radius: 1px; background: linear-gradient(#94D709 0 18%, var(--uma-border) 18%); }
-		.stitch-wire-2p .stitch-wire-person { gap: 0; }
-		.stitch-wire-2p .stitch-wire-panels { padding-left: 4px; }
+		/* 2列の模式図（T98。T106 で実際の比率に。下の .w2-* の値は幅を 100 とした実測） */
+		.stitch-wire-sheet--2 { gap: calc(1.5 * var(--u)); padding: calc(1.2 * var(--u)); width: fit-content; max-width: 100%; }
+		.stitch-wire-2 { display: flex; gap: calc(1 * var(--u)); align-items: stretch; }
+		.stitch-wire-2l { flex: none; width: calc(80 * var(--u)); display: flex; flex-direction: column; gap: calc(1.5 * var(--u)); }
+		.stitch-wire-2r { flex: none; width: calc(15.8 * var(--u)); display: flex; flex-direction: column; gap: calc(1.5 * var(--u)); }
+		.stitch-wire-sheet--2 .stitch-wire-top { height: calc(6.4 * var(--u)); gap: calc(1 * var(--u)); }
+		.stitch-wire-sheet--2 .stitch-wire-top > span { padding: 0 calc(1 * var(--u)) 0 0; border: 0; }
+		.stitch-wire-sheet--2 .stitch-wire-cards { width: calc(39 * var(--u)); grid-auto-rows: calc(2.8 * var(--u)); gap: calc(.8 * var(--u)); }
+		.stitch-wire-sheet--2 .stitch-wire-sp { display: flex; flex-direction: column; gap: calc(1.2 * var(--u)); width: auto; height: calc(8.4 * var(--u)); flex: none; }
+		.stitch-wire-sheet--2 .stitch-wire-sp b { display: block; height: calc(1 * var(--u)); border-radius: 1px; background: var(--uma-border-strong); }
+		.stitch-wire-sheet--2 .stitch-wire-sp b:first-child { height: calc(2.6 * var(--u)); width: 75%; background: var(--uma-text-subtle); }
+		.stitch-wire-sheet--2 .stitch-wire-table { flex: none; grid-auto-rows: calc(1.5 * var(--u)); gap: calc(.4 * var(--u)); }
+		.stitch-wire-2p { display: flex; gap: calc(.6 * var(--u)); align-items: stretch; }
+		.w2-parent { flex: none; width: calc(43.4 * var(--u)); display: flex; flex-direction: column; }
+		.w2-grands { flex: none; width: calc(36 * var(--u)); display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
+		/* 親の上の欄（因子の画面の上半分）: 緑の帯 → 肖像 → ステータス → 適性 → ボタン → タブ。高さの合計 44 */
+		.w2-status { display: flex; flex-direction: column; height: calc(44 * var(--u)); flex: none; border: 1px solid var(--uma-border); border-bottom: 0; box-sizing: border-box; overflow: hidden; background: var(--uma-surface); }
+		.w2-status > * { display: block; flex: none; }
+		.w2-band { height: calc(4 * var(--u)); background: linear-gradient(#94D709, #6BC20C); }
+		.w2-hero { height: calc(12 * var(--u)); background: #AEBFD6; position: relative; }
+		.w2-hero::before { content: ''; position: absolute; left: 12%; top: 12%; width: calc(9 * var(--u)); height: calc(9 * var(--u)); border-radius: 50%; background: #F4DFC4; border: 1px solid #C9A34B; box-sizing: border-box; }
+		.w2-stats { height: calc(5 * var(--u)); margin: calc(1 * var(--u)) calc(2 * var(--u)) 0; border: 1px solid #6BC20C; border-top-width: calc(1.6 * var(--u)); border-radius: 1px; box-sizing: border-box; background: var(--uma-surface-sunken); }
+		.w2-apt { height: calc(10 * var(--u)); margin: calc(1.4 * var(--u)) calc(3 * var(--u)) 0 calc(9 * var(--u));
+			background: repeating-linear-gradient(to bottom, var(--uma-border) 0 calc(2.2 * var(--u)), transparent calc(2.2 * var(--u)) calc(3.6 * var(--u))); }
+		.w2-btn { width: 40%; height: calc(5 * var(--u)); margin: calc(1.2 * var(--u)) auto 0; border-radius: var(--u); background: linear-gradient(#94D709, #6BC20C); }
+		.w2-tabs { height: calc(2 * var(--u)); margin: calc(1 * var(--u)) calc(1.5 * var(--u)) 0; border-radius: var(--u); background: linear-gradient(to right, var(--uma-border) 33%, #94D709 33% 66%, var(--uma-border) 66%); }
+		/* 因子の画面1人分: 左に顔の丸（と続く縦の線）、右にスキルの枠が2列 */
+		.w2-fac { display: flex; gap: calc(.8 * var(--u)); flex: 1 1 auto; position: relative; }
+		.w2-face { flex: none; width: 17%; position: relative; }
+		.w2-face::before { content: ''; position: absolute; left: 12%; top: 0; width: 76%; aspect-ratio: 1; border-radius: 50%; background: #F4DFC4; border: 1px solid #C9A34B; box-sizing: border-box; }
+		.w2-face::after { content: ''; position: absolute; left: 40%; top: calc(7 * var(--u)); bottom: 0; width: 1px; background: var(--uma-border-strong); }
+		.w2-fac .stitch-wire-panels { flex: 1 1 auto; min-width: 0; background: transparent; padding: 0; }
+		.w2-parent .stitch-wire-panels { grid-auto-rows: calc(3 * var(--u)); row-gap: calc(1 * var(--u)); }
+		.w2-grands .stitch-wire-panels { grid-auto-rows: calc(2.5 * var(--u)); row-gap: calc(.9 * var(--u)); }
+		.stitch-wire-sheet--2 .stitch-wire-row { height: auto; }
+		.w2-parent .w2-fac { padding-top: calc(1 * var(--u)); }
+		.stitch-wire-sheet--2 .stitch-wire-legend { padding-left: 0; }
+		.stitch-wire-sheet--2 .stitch-wire-legend b { flex: 0 0 40%; }
+		.stitch-wire-sheet--2 .stitch-wire-legend i { width: calc(2.6 * var(--u)); height: calc(1.8 * var(--u)); }
+		/* ③の6つのチェックは2列3行（T106 の (7)）。引き出し・右下のパネルは1列6行のまま */
+		#stitch-parts-panel .stitch-show-list { display: grid; grid-template-columns: max-content max-content; gap: var(--uma-sp-0-5) var(--uma-sp-1); }
+		#stitch-parts-panel .stitch-show-text { white-space: nowrap; }
 		/* 引き出しの中の「結合画像の設定」の「画像を更新」の段（exam.html と同じ）。骨格は css/shell.css の .uma-popover--drawer */
 		#stitch-drawer-pop, #stitch-settings-pop { --uma-popover-icon: var(--uma-stitch-accent); }
 		/* 右下のボタン群から開く「結合画像の設定」（T98）。下に固定した欄が出ている間は、右下のボタン群と同じだけ上げる（640px 以下の下からのシートは除く） */
@@ -642,13 +677,29 @@
 			body.has-upload-bar #stitch-settings-pop { bottom: calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-fab-gap) + var(--upload-bar-h, 0px) + env(safe-area-inset-bottom, 0px)); }
 		}
 		.uma-popover-body .stitch-show { margin-top: 0; }
+		/* 引き出しの中の「結合画像の設定」（T106 の (11)）: 縦に大きく（下の段に上限）・余白を減らす・1列6行の右に模式図 */
+		#stitch-drawer-pop .uma-popover-head { padding-top: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); }
+		#stitch-drawer-pop .uma-popover-body { padding: var(--uma-sp-2); }
+		#stitch-drawer-pop .stitch-show { padding: var(--uma-sp-2); gap: var(--uma-sp-2); }
+		#stitch-drawer-pop .stitch-wire { --u: 1.3px; }
+		#stitch-drawer-pop .stitch-refresh { padding-top: var(--uma-sp-2); }
 		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
 		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
 		.stitch-refresh-note[hidden] { display: none; }
 		@media (max-width: 640px) {
-			/* 狭い画面でも③のパネルはチェックの一覧の右に模式図を置く（開いた最初の位置で両方見える。T98）。引き出し・右下のパネルに模式図は無い */
+			/* 狭い画面でも③のパネルはチェックの一覧の右に模式図を置く（開いた最初の位置で両方見える。T98）。
+			   模式図の幅は、2列3行のチェック（約 204px）と余白を除いた残り（T106。--u が幅の 1/100）。
+			   スクロールせずに6つとも見えるよう、見出しと「3列｜2列」を同じ行に置き、行の余白を詰める（T106 の (7)。390×600 の静止画モードで下の欄より上） */
 			#stitch-parts-panel .stitch-show { gap: var(--uma-sp-2); padding: var(--uma-sp-2); }
-			#stitch-parts-panel .stitch-wire { align-self: flex-start; }
+			#stitch-parts-panel .stitch-show-body { flex: none; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--uma-sp-1); }
+			#stitch-parts-panel .stitch-show-title { margin: 0; gap: var(--uma-sp-1); }
+			#stitch-parts-panel .stitch-cols { margin: 0 0 var(--uma-sp-1); }
+			#stitch-parts-panel .stitch-cols-btn { min-height: 36px; font-size: 12px; gap: 3px; }
+			#stitch-parts-panel .stitch-show-list { grid-column: 1 / -1; }
+			#stitch-parts-panel .stitch-show-item { padding-top: 3px; padding-bottom: 3px; }
+			#stitch-parts-panel .stitch-wire { align-self: flex-start; --u: min(1.5px, calc((100vw - 258px) / 100)); }
+			/* 下からのシートの上限（shell.css は引き出しの半分）を、このパネルだけ広げる。「画像を更新」まで見えるように */
+			#stitch-drawer-pop { max-height: 82%; }
 			#stitch-parts-panel .stitch-show-item { padding-left: var(--uma-sp-1); padding-right: 0; }
 		}
 		/* ===== 照合結果のスマホのヒートマップ（T100・C-290。exam.html と同じ形）=====
@@ -1179,10 +1230,13 @@
 			     T56（C-258 の (2)-1）: この行は画面に出さない（いつも hidden）。遺伝子はいつも OCR の対象・シナリオ因子は対象外（FACTOR_SCOPE_OCR）。
 			     置き場は core が節のチェックを②へ戻さないために残す（保存の形〔template.scopes〕は変えない） -->
 			<div id="deck-scopes-bar" class="deck-scopes-bar" hidden></div>
-			<!-- 右端は動画の入口（動画V1-2・T59。C-258 の (3)。αテスト・UmaStar だけ）。中身・title・読み上げ名は initVideoEntry() が文面の表（VIDEO_TEXTS）から入れる -->
+			<!-- 右端は入れ方の切り替え「静止画｜動画」（T106・決定 273。「3列｜2列」と同じ見た目の作り。動画はαテスト・UmaStar だけ）。押された状態は applyUploadMode() が入れる -->
 			<div class="uma-subtabs-row video-tabrow mb-3">
 				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
-				<button id="video-import-btn" type="button" class="video-btn" onclick="toggleUploadMode()"></button>
+				<div id="upload-mode" class="upload-mode" role="group" aria-label="画像の入れ方">
+					<button type="button" class="upload-mode-btn" data-upload-mode-btn="shot" aria-pressed="true" onclick="setUploadMode('shot')"></button>
+					<button type="button" class="upload-mode-btn" data-upload-mode-btn="video" aria-pressed="false" onclick="setUploadMode('video')"></button>
+				</div>
 			</div>
 			<!-- multiple: iPhone の写真の一覧の画面を複数選択にする。1本も選ばずに完了（右上のチェック）すると 0本で戻り、何も読まずに③のまま（T90）。使うのは1本目だけ -->
 			<input id="video-file-input" type="file" accept="video/*" multiple class="hidden" onchange="onVideoFileInput(this)" />
@@ -1477,9 +1531,9 @@
 			restoreOcrDictionary();
 			initStitchSaveName();
 			loadTierMarksChoice();
-			// 結合画像の設定（T96）: ③（模式図つき）と結合画像の引き出しの中（模式図・見出しなし）の2か所に置き、保存値を読む
+			// 結合画像の設定（T96）: ③（模式図つき）と結合画像の引き出しの中（模式図つき・見出しなし。模式図は T106 の (11)）の2か所に置き、保存値を読む
 			renderStitchPartsPanel(document.getElementById('stitch-parts-panel'), { idPrefix: '' });
-			renderStitchPartsPanel(document.getElementById('stitch-parts-panel-drawer'), { idPrefix: 'drawer-', wire: false, title: false });
+			renderStitchPartsPanel(document.getElementById('stitch-parts-panel-drawer'), { idPrefix: 'drawer-', title: false });
 			renderStitchPartsPanel(document.getElementById('stitch-parts-panel-fab'), { idPrefix: 'fab-', wire: false, title: false });
 			loadStitchParts();
 			// 引き出しの中のタブ（C-62 の (9)）を初期状態（どちらも「（なし）」で押せない）にする
@@ -1659,7 +1713,9 @@
 				<div class="upload-set-panel ${HUE_CLASS[set.hue]} rounded-2xl border p-4">
 					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
+						<button type="button" class="uma-help-btn video-howto-btn" aria-expanded="false" aria-label="${escapeHtml(videoText('video.howto.btn'))}" title="${escapeHtml(videoText('video.howto.btn'))}" onclick="toggleVideoHowto(this)">?</button>
 					</div>
+					<div class="uma-help-box video-howto-box" hidden><strong>${escapeHtml(videoText('video.howto.title'))}</strong><br>${escapeHtml(videoText('video.howto.step1'))}<br>${escapeHtml(videoText('video.howto.step2'))}</div>
 					<button type="button" class="video-pick-btn upload-add-video" onclick="openVideoImport()">${VIDEO_SVG}<span>${escapeHtml(videoText('video.btn.pick'))}</span><span class="video-alpha" aria-hidden="true">${escapeHtml(videoText('video.entry.alpha'))}</span></button>
 					<div class="upload-cols">${cards}</div>
 				</div>`;
@@ -1731,6 +1787,8 @@
 		   見えていないセットも画像は保持され、OCR と画像結合の対象になる（タブは「どちらを見せるか」だけ）。
 		   タブには画像の枚数を出す（隠れている側の状況が分かるように。ステップのタブと同じ考え方）。 */
 		let activePersonSet = 0;
+		// その人の枠の枚数のうち、画面に数を出してよい分（動画から取った画を除く）
+		const personShownCount = (p) => p.video ? p.files.filter(f => !p.video.files.includes(f)).length : p.files.length;
 		function renderPersonSetTabs() {
 			const slot = document.getElementById('personset-tabs');
 			if (!slot || !window.UmaSkillDeckCore) return;
@@ -1738,7 +1796,9 @@
 				const n = [0, 1, 2].reduce((s, r) => s + persons[i * 3 + r].files.length, 0);
 				// T56（C-258 の (2)-6）: 親Bセットは画像が1枚も無いあいだ「＋親Bセット」（入れると「親Bセット」）
 				const label = i > 0 && n === 0 ? '＋' + set.label : set.label;
-				return { id: String(i), label: label, count: n > 0 ? n + '枚' : null, selected: i === activePersonSet,
+				// 枚数は動画から取った分を数えない（T106 の (8)）
+				const shown = [0, 1, 2].reduce((c, r) => c + personShownCount(persons[i * 3 + r]), 0);
+				return { id: String(i), label: label, count: shown > 0 ? shown + '枚' : null, selected: i === activePersonSet,
 					className: 'uma-subtab--tinted ' + HUE_CLASS[set.hue], title: set.label };
 			});
 			slot.innerHTML = UmaSkillDeckCore.tabStrip.html(items, { act: 'personset-tab', ariaLabel: '因子元のセット' });
@@ -1762,103 +1822,76 @@
 		/* ============================================================
 		 * 動画の入口と流れ（動画V1-2・T59。C-258 の (3)・C-259。αテスト・UmaStar だけ。UmaExam には置かない）
 		 *
-		 * 形はモック lab/upload-mock.html（T43）の動画の場面のとおり: 入口＝タブの行の右端のアイコン（?scene=new）・
-		 * 押した直後＝小窓（vopen の v=1・撮り方は g=2）・すでに画像があるセット＝3つのボタン（vexist の v=1）・
-		 * 進捗＝割合のバーと段の一覧（vprog の v=1。目安の時間は出さない）・終わった後＝人ごとの1行（vdone の v=2）と知らせ・
+		 * 入口＝タブの行の右端の「静止画｜動画」（T106）・「動画を選ぶ」＝すぐファイルの選択（小窓は T106 で無くした）。画像が入っているセットは確かめずに置き換える（決定 272）・
+		 * 進捗＝割合のバーと段の一覧（モック T43 の vprog の v=1。目安の時間は出さない）・終わった後＝③の中に結合画像（知らせの文は T106 で無くした）・
 		 * 人の単位の警告（vwarn）・失敗＝タブのすぐ下の赤の箱（verr。長さの上限は設けない）・取り消した後＝トースト（vcancel）。
 		 * 動画そのものは保存しない（保存データの形は変えない）。処理の部品は js/video-frames.js（V1-1・T42）。
 		 * ============================================================ */
 		// 画面に出す文はすべてここから使う（キーは Handoff の文面の一覧 text-list/T59-video-texts.csv の ID と同じ）。
-		// {セット}・{人}・{N}・{内訳} はその時の値を差し込む（videoText／videoHtml）
+		// {人}・{N} はその時の値を差し込む（videoText）
 		const VIDEO_TEXTS = {
-			// T98（C-285・決定 174）: 入口のボタンはモードの切り替え。スクショのモードでは「動画モードにする（αテスト）」、動画モードでは「スクショのモードに戻す」
-			'video.entry.label': '動画モードにする（αテスト）',
-			'video.entry.toShot': 'スクショのモードに戻す',
+			// T106（決定 273）: 入口は「静止画｜動画」の2つ並びの切り替え。動画の側に小さく「α」
+			'video.entry.shot': '静止画',
+			'video.entry.video': '動画',
 			'video.entry.alpha': 'α',
-			'video.sheet.title': '動画から取り込む',
-			'video.sheet.tag': 'αテスト',
-			'video.sheet.target': '入れる先: {セット}（{人}）',
-			'video.sheet.note': 'αテスト中の動画によるOCR/結合機能です。質の改善・処理時間の改善をテスト中です',
+			// T106（決定 274）: 「セットをクリア」の右の「？」の中の文
 			'video.howto.title': '撮り方',
-			'video.howto.step1': '因子の一覧のいちばん上（親）から撮り始める',
-			'video.howto.step2': '上から下へ、ゆっくり一定の速さでスクロールする',
-			'video.howto.step2.strong': '上から下へ、ゆっくり一定の速さで',
-			'video.howto.step3': '祖2 のいちばん下まで来たら止める',
-			'video.exist.text': '{セット}には画像が {N}枚入っています。',
+			'video.howto.step1': '・親から祖2の一番下までゆっくりスクロール。',
+			'video.howto.step2': '・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。',
+			'video.howto.btn': '撮り方を見る',
 			'video.btn.pick': '動画を選ぶ',
-			'video.btn.replace': '置き換えて動画を選ぶ',
-			'video.btn.append': '後ろに足して動画を選ぶ',
-			'video.btn.cancel': 'やめる',
 			'video.prog.read': '動画を読み込み中',
 			'video.prog.person': '{人} のフレームを選んでいます',
 			'video.prog.done': '完了',
 			'video.prog.foot': '処理中もほかの画面は見られます',
 			'video.btn.abort': '取り消す',
-			'video.done.text': '動画から {N}枚 を入れました（{内訳}）。',
-			'video.done.item': '{人} {N}枚',
-			'video.done.next': 'このあと「OCR処理＋画像結合を開始する」か「画像を結合する（OCRしない）」を押してください。',
-			'video.done.next.video': 'このあと「OCR処理を開始する」を押してください。',   // 動画モードのとき（T98・決定 196）
-			'video.done.stitched': '結合画像を作りました。OCRするときは「OCR処理を開始する」を押してください。',   // T98（決定 176）
 			'video.result.show': '親ごとの画像を見る',
 			'video.result.hide': '親ごとの画像を隠す',
-			'video.tile.text': '動画から {N}枚',
+			'video.tile.text': '動画の画像',
 			'video.tile.hint': '押すと全部を表示',
 			'video.warn.person': '{人} の結合の一部がずれているかもしれません。結果の画像を見て、ずれていたら動画を撮り直すか、スクショで入れ直してください。',
 			'video.err.unreadable': '動画を読み込めませんでした。このブラウザでは再生できない形式かもしれません（例: iPhone で撮った動画を Android で開いたとき）。撮った端末で開き直すか、スクショで入れてください。',
 			'video.err.noscreen': '動画の中に継承の画面（因子の一覧）が見つかりませんでした。因子の一覧を開いてから撮り直してください。',
-			'video.err.split': '親・祖1・祖2 の区切りが見つからず、人ごとに分けられませんでした（見つかったのは {N}人）。3人ぶんを上から下まで、1本に続けて撮ってください。',
-			'video.err.fast': 'スクロールが速すぎて、画面をつなげられない所がありました。上から下へ、ゆっくり一定の速さで撮り直してください。',
+			'video.err.split': '親・祖1・祖2 の区切りが見つからず、人ごとに分けられませんでした（見つかったのは {N}人）。',
+			'video.err.fast': 'スクロールが速すぎて、画面をつなげられない所がありました。スクロールの一時停止の前後で、スキルの行が1〜2行重なるように撮り直してください。',
 			'video.err.keep': '入っていた画像はそのままです。',
 			'video.toast.cancel': '取り消しました。入っていた画像はそのままです'
 		};
 		function videoText(key, vars) {
 			return VIDEO_TEXTS[key].replace(/\{([^}]+)\}/g, (m, k) => (vars && k in vars) ? String(vars[k]) : m);
 		}
-		// bold … 太字にする部分（表の文の中の字句。差し込む前の形で書く。例 '{N}枚'）
-		function videoHtml(key, vars, bold) {
-			let s = escapeHtml(VIDEO_TEXTS[key]);
-			(bold || []).forEach(b => { s = s.split(escapeHtml(b)).join('\u0001' + escapeHtml(b) + '\u0002'); });
-			s = s.replace(/\{([^}]+)\}/g, (m, k) => (vars && k in vars) ? escapeHtml(String(vars[k])) : m);
-			return s.replace(/\u0001/g, '<b>').replace(/\u0002/g, '</b>');
-		}
-		// アイコン（lucide の video・info・loader-2・triangle-alert をモックと同じく線画で直書き）
+		// アイコン（lucide の video・loader-2・triangle-alert をモックと同じく線画で直書き）
 		const VIDEO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg>';
-		const VIDEO_SVG_INFO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>';
-		const VIDEO_SVG_SPIN = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="w-4 h-4 animate-spin text-green-600"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>';
+		const VIDEO_SVG_DOWNLOAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg>';
+		const VIDEO_SVG_SPIN ='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="w-4 h-4 animate-spin text-green-600"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>';
 		const videoSvgTri = (cls) => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="w-4 h-4 shrink-0 mt-0.5 ' + cls + '"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>';
 
 		// 取り込み中の状態（{ ctrl, setIdx, step }）。var にするのは、読み込みの途中で updateProcessBtn が先に呼ばれても困らないように
 		var videoBusy = null;
-		// 小窓で選んだ入れ先と入れ方（{ setIdx, mode: 'pick'|'replace'|'append' }）。ファイルを選んだら onVideoChosen が使う
+		// 入れ先（{ setIdx }）。「動画を選ぶ」で控え、ファイルを選んだら onVideoChosen が使う
 		var videoPending = null;
 
 		const videoSetMembers = (si) => [0, 1, 2].map(r => PERSON_LABELS[si * 3 + r]);
-		const videoSetCount = (si) => [0, 1, 2].reduce((s, r) => s + persons[si * 3 + r].files.length, 0);
 
 		/* 動画モード（T98・C-285。決定 158・159・174〜177）
-		 * 入口のボタン（#video-import-btn）はモードの切り替え。動画モードでは、人ごとの「追加」の代わりにセットに1つの「動画を選ぶ」
-		 * （押すと今の小窓→ファイルの選択）、下の欄のボタンは「OCR処理を開始する」だけ。入口のボタンはスクショのアイコン（押すとスクショのモードに戻る）。
+		 * 入口は「静止画｜動画」の2つ並びの切り替え（#upload-mode。T106・決定 273。「3列｜2列」と同じ見た目の作り）。動画モードでは、人ごとの「追加」の代わりにセットに1つの「動画を選ぶ」
+		 * （押すとすぐファイルの選択）、下の欄のボタンは「OCR処理を開始する」だけ。
 		 * 切り替えても入っている画像はそのまま（入れ方と下のボタンだけが変わる）。モードは保存して次に開いたときもそのまま。
 		 * 見た目の出し分けは body の data-upload-mode（CSS）。下の一体のボタンの名前だけ JS で入れ替える */
 		const UPLOAD_MODE_STORAGE_KEY = 'uma-special-upload-mode';
 		let uploadMode = 'shot';
-		const VIDEO_SVG_SHOT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>';
 		const PROCESS_BTN_LABEL = { shot: 'OCR処理＋画像結合を開始する', video: 'OCR処理を開始する' };
 		function initVideoEntry() {
 			uploadMode = readStored(UPLOAD_MODE_STORAGE_KEY) === 'video' ? 'video' : 'shot';
+			const shotBtn = document.querySelector('[data-upload-mode-btn="shot"]');
+			const videoBtn = document.querySelector('[data-upload-mode-btn="video"]');
+			if (shotBtn) shotBtn.textContent = videoText('video.entry.shot');
+			if (videoBtn) videoBtn.innerHTML = escapeHtml(videoText('video.entry.video')) + '<span class="video-alpha" aria-hidden="true">' + escapeHtml(videoText('video.entry.alpha')) + '</span>';
 			applyUploadMode();
 		}
 		function applyUploadMode() {
-			const video = uploadMode === 'video';
 			document.body.setAttribute('data-upload-mode', uploadMode);
-			const btn = document.getElementById('video-import-btn');
-			if (btn) {
-				const label = videoText(video ? 'video.entry.toShot' : 'video.entry.label');
-				btn.title = label;
-				btn.setAttribute('aria-label', label);
-				btn.setAttribute('aria-pressed', String(video));
-				btn.innerHTML = video ? VIDEO_SVG_SHOT : VIDEO_SVG + '<span class="video-alpha" aria-hidden="true">' + escapeHtml(videoText('video.entry.alpha')) + '</span>';
-			}
+			document.querySelectorAll('[data-upload-mode-btn]').forEach(b => { b.setAttribute('aria-pressed', String(b.getAttribute('data-upload-mode-btn') === uploadMode)); });
 			const label = document.querySelector('#process-stitch-btn span');
 			if (label) label.textContent = PROCESS_BTN_LABEL[uploadMode];
 			// 引き出しの「画像を更新」の案内の文の「」の中も、下のボタンの名前に合わせる（T98・決定 197）
@@ -1866,72 +1899,28 @@
 			if (note) note.textContent = '画像や集計の設定が変わったため、「' + PROCESS_BTN_LABEL[uploadMode] + '」からやり直してください。';
 			if (typeof syncUploadBar === 'function') syncUploadBar();
 		}
-		function toggleUploadMode() {
-			if (videoBusy) return;
-			closeVideoSheet(false);
-			uploadMode = uploadMode === 'video' ? 'shot' : 'video';
+		function setUploadMode(mode) {
+			if (videoBusy || mode === uploadMode) return;
+			uploadMode = mode === 'video' ? 'video' : 'shot';
 			writeStored(UPLOAD_MODE_STORAGE_KEY, uploadMode);
 			applyUploadMode();
 		}
 		document.addEventListener('DOMContentLoaded', initVideoEntry);
 
-		function closeVideoSheet(refocus) {
-			const layer = document.getElementById('video-sheet');
-			if (layer) layer.remove();
-			// 焦点は小窓を開いたボタン（動画モードの「動画を選ぶ」。T98）へ返す。見えていなければ入口へ
-			if (refocus) {
-				const set = PERSON_SETS[activePersonSet];
-				const p = set ? document.querySelector('#personset-' + set.id + '-wrap .video-pick-btn') : null;
-				const b = (p && p.offsetParent) ? p : document.getElementById('video-import-btn');
-				if (b) b.focus();
-			}
-		}
-
-		// 入口を押した直後の小窓。そのセットにすでに画像があれば「置き換えて…」「後ろに足して…」「やめる」の3つのボタン
+		// 「動画を選ぶ」: すぐファイルの選択を開く（小窓は T106 で無くした）。ファイルの選択は、押した操作の中で開く（iPhone の Safari は操作の外からは開かない）。
+		// 画像が入っているセットでは確かめずに置き換える（決定 272）。置き換えるのは取り込みが成功したときだけ
 		function openVideoImport() {
 			if (videoBusy || stitchInProgress || combinedInProgress || !window.UmaVideoFrames) return;
-			closeVideoSheet(false);
-			const si = activePersonSet;
-			const set = PERSON_SETS[si];
-			const n = videoSetCount(si);
-			const svg16 = VIDEO_SVG.replace('<svg ', '<svg width="16" height="16" ');
-			const btn = (act, cls, key, icon) => '<button type="button" class="uma-btn ' + cls + '" data-video-act="' + act + '">' + (icon || '') + escapeHtml(videoText(key)) + '</button>';
-			let html = '<h2 id="video-sheet-h">' + VIDEO_SVG.replace('<svg ', '<svg width="18" height="18" ') + escapeHtml(videoText('video.sheet.title'))
-				+ ' <span class="video-tag">' + escapeHtml(videoText('video.sheet.tag')) + '</span></h2>'
-				+ '<p class="video-target">' + videoHtml('video.sheet.target', { セット: set.label, 人: videoSetMembers(si).join('・') }, ['{セット}']) + '</p>'
-				+ '<p class="video-note">' + escapeHtml(videoText('video.sheet.note')) + '</p>'
-				+ '<div class="video-howto"><strong>' + escapeHtml(videoText('video.howto.title')) + '</strong><ol>'
-				+ '<li>' + escapeHtml(videoText('video.howto.step1')) + '</li>'
-				+ '<li>' + videoHtml('video.howto.step2', null, [VIDEO_TEXTS['video.howto.step2.strong']]).replace(/<b>/g, '<strong>').replace(/<\/b>/g, '</strong>') + '</li>'
-				+ '<li>' + escapeHtml(videoText('video.howto.step3')) + '</li></ol></div>';
-			if (n === 0) {
-				html += '<div class="video-btns">' + btn('cancel', 'uma-btn--secondary', 'video.btn.cancel') + btn('pick', 'uma-btn--primary', 'video.btn.pick', svg16) + '</div>';
-			} else {
-				html += '<p class="video-exist">' + escapeHtml(videoText('video.exist.text', { セット: set.label, N: n })) + '</p>'
-					+ '<div class="video-btns video-btns--stack">' + btn('replace', 'uma-btn--primary', 'video.btn.replace')
-					+ btn('append', 'uma-btn--secondary', 'video.btn.append') + btn('cancel', 'uma-btn--secondary', 'video.btn.cancel') + '</div>';
-			}
-			const layer = document.createElement('div');
-			layer.id = 'video-sheet';
-			layer.className = 'video-sheet-bg';
-			layer.innerHTML = '<div class="video-sheet" role="dialog" aria-modal="true" aria-labelledby="video-sheet-h">' + html + '</div>';
-			document.body.appendChild(layer);
-			layer.addEventListener('click', (e) => {
-				if (e.target === layer) { closeVideoSheet(true); return; }
-				const b = e.target.closest('[data-video-act]');
-				if (!b) return;
-				const act = b.getAttribute('data-video-act');
-				if (act === 'cancel') { closeVideoSheet(true); return; }
-				// ファイルの選択は、押した操作の中で開く（iPhone の Safari は操作の外からは開かない）
-				videoPending = { setIdx: si, mode: act };
-				closeVideoSheet(false);
-				const input = document.getElementById('video-file-input');
-				input.value = '';
-				input.click();
-			});
-			layer.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeVideoSheet(true); } });
-			const first = layer.querySelector('[data-video-act="pick"], [data-video-act="replace"]');
-			if (first) first.focus();
+			videoPending = { setIdx: activePersonSet };
+			const input = document.getElementById('video-file-input');
+			input.value = '';
+			input.click();
+		}
+		// 「セットをクリア」の右の「？」（共通部品 .uma-help-btn ＋ .uma-help-box。押すとその下に文を出す）
+		function toggleVideoHowto(btn) {
+			const box = btn.closest('.upload-set-panel').querySelector('.video-howto-box');
+			box.hidden = !box.hidden;
+			btn.setAttribute('aria-expanded', String(!box.hidden));
 		}
 
 		function onVideoFileInput(input) {
@@ -1942,17 +1931,16 @@
 
 		// 前の取り込みの箱（進捗・知らせ・失敗）を消す
 		function clearVideoBoxes() {
-			['video-progress', 'video-summary', 'video-error'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+			['video-progress', 'video-error'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
 		}
 		// タブの行のすぐ下に箱を入れる（新しいものが上）
 		function insertVideoBox(el) {
-			const row = document.getElementById('video-import-btn').parentElement;
+			const row = document.getElementById('upload-mode').parentElement;
 			row.parentElement.insertBefore(el, row.nextSibling);
 		}
 		function setVideoBusyUi(on) {
 			PERSON_SETS.forEach(set => { const w = document.getElementById('personset-' + set.id + '-wrap'); if (w) w.classList.toggle('video-busy', on); });
-			const b = document.getElementById('video-import-btn');
-			if (b) b.disabled = on;
+			document.querySelectorAll('[data-upload-mode-btn]').forEach(x => { x.disabled = on; });
 			document.querySelectorAll('.video-pick-btn').forEach(x => { x.disabled = on; });
 			updateProcessBtn();
 		}
@@ -2013,29 +2001,17 @@
 				+ '<br>' + escapeHtml(videoText('video.err.keep')) + '</div>';
 			insertVideoBox(el);
 		}
-		// stitched … 自動の結合で結合画像ができたか（T82）。できたら2行目は「結合画像を作りました。…」、できなければ今までの「このあと…を押してください。」
-		function showVideoSummary(setIdx, counts, stitched) {
-			const names = videoSetMembers(setIdx);
-			const total = counts.reduce((a, b) => a + b, 0);
-			const el = document.createElement('div');
-			el.id = 'video-summary';
-			el.className = 'video-summary';
-			el.setAttribute('role', 'status');
-			el.innerHTML = VIDEO_SVG_INFO + '<span>' + videoHtml('video.done.text', { N: total, 内訳: names.map((n, i) => videoText('video.done.item', { 人: n, N: counts[i] })).join('・') }, ['{N}枚'])
-				+ '<br>' + escapeHtml(videoText(stitched ? 'video.done.stitched' : (uploadMode === 'video' ? 'video.done.next.video' : 'video.done.next'))) + '</span>';
-			insertVideoBox(el);
-		}
 		/* 取り込みが成功したら、自動で「画像を結合する（OCRしない）」と同じ処理（buildStitchedSetImage の withMarks なし）をそのセットだけに行い、
 		 * 結合画像を③のセットの枠の中に出す（T82。C-258 の T69 への回答 7〜9・モック lab/upload-layout-mock.html の vdone／vwarn・res=inline）。
 		 *  - ずれの警告が無いとき: 3列（親ごとの画像）は隠し、結果の下の字のボタン（video.result.show／hide）で出す／隠す
 		 *  - ずれの警告があるとき: 3列も出し、警告の人の列だけサムネイルを全部見せる（ほかの人は「動画から N枚」のまま）
-		 * 結合画像の引き出しは開かない・中身も変えない（OCR は帯の「OCR処理＋画像結合を開始する」で行う） */
+		 * 結合画像の引き出しは開かない・中身も変えない（OCR は下の「OCR処理を開始する」で行う） */
 		function videoSetPanel(setIdx) {
 			const w = document.getElementById('personset-' + PERSON_SETS[setIdx].id + '-wrap');
 			return w ? w.querySelector('.upload-set-panel') : null;
 		}
 		function clearVideoResult(setIdx) {
-			videoShown[setIdx] = null;
+			videoShown[setIdx] = false;
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
 			const box = panel.querySelector('.video-result');
@@ -2044,77 +2020,32 @@
 			const cols = panel.querySelector('.upload-cols');
 			if (cols) cols.hidden = false;
 		}
-		/* ③の中の結合画像の「画像を更新」（T98・決定 181。引き出しの refreshStitchedImages と同じ動き）。
-		 * ③の結合画像を作ったときの { parts, withMarks, files, snap } をセットごとに控え、設定（形・チェック）を変えても
-		 * その場では描き直さず、このボタンで作り直す。押せるのは、画像も OCR の写しも同じで設定だけが違うとき */
-		const videoShown = [null, null];
-		let videoRefreshBusy = -1;
-		function videoShownState(setIdx, parts, withMarks) {
-			return { parts: parts, withMarks: !!withMarks, files: [0, 1, 2].map(r => persons[setIdx * 3 + r].files.slice()), snap: stitchSnapshot };
-		}
-		function videoRefreshState(setIdx) {
-			const s = videoShown[setIdx];
-			if (!s) return 'none';
-			if (s.withMarks && s.snap !== stitchSnapshot) return 'stale';
-			if (!sameStitchFileLists([0, 1, 2].map(r => persons[setIdx * 3 + r].files), s.files)) return 'stale';
-			return sameStitchParts(stitchPartsNow(), s.parts) ? 'same' : 'ready';
-		}
-		function updateVideoRefreshUi() {
-			document.querySelectorAll('[data-video-refresh]').forEach(btn => {
-				const si = Number(btn.getAttribute('data-video-refresh'));
-				const state = videoRefreshState(si);
-				btn.disabled = stitchInProgress || combinedInProgress || videoRefreshBusy >= 0 || state !== 'ready';
-				btn.setAttribute('data-state', state);
-				const label = btn.querySelector('span');
-				if (label) label.textContent = videoRefreshBusy === si ? STITCH_REFRESH_BUSY_LABEL : STITCH_REFRESH_LABEL;
-			});
-		}
-		async function refreshVideoResult(setIdx) {
-			if (stitchInProgress || combinedInProgress || videoRefreshBusy >= 0) return;
-			if (videoRefreshState(setIdx) !== 'ready') { updateVideoRefreshUi(); return; }
-			const parts = stitchPartsNow();
-			const state = videoShownState(setIdx, parts, videoShown[setIdx].withMarks);
-			videoRefreshBusy = setIdx;
-			stitchInProgress = true;
-			updateVideoRefreshUi();
-			try {
-				const canvas = await buildStitchedSetImage(setIdx, null, state.withMarks, parts);
-				if (canvas) { showVideoResult(setIdx, canvas, state); showToast('結合画像を更新しました'); }
-			} catch (e) {
-				console.error(e);
-			} finally {
-				videoRefreshBusy = -1;
-				stitchInProgress = false;
-				updateProcessBtn();
-				updateVideoRefreshUi();
-			}
-		}
-		function showVideoResult(setIdx, canvas, state) {
+		/* ③に結合画像を出しているセットの印（T98）。OCR のあとの結合（runImageStitching）が③も作り直すかを見る。
+		 * ③の「画像を更新」は T106 で無くした（OCR を行わないと有効に機能しない設定が多いため。決定の (9)） */
+		const videoShown = [false, false];
+		function showVideoResult(setIdx, canvas) {
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
 			clearVideoResult(setIdx);
-			videoShown[setIdx] = state || null;
+			videoShown[setIdx] = true;
 			const box = document.createElement('div');
 			box.className = 'video-result';
 			appendStitchResultBlock(box, PERSON_SETS[setIdx], canvas);
-			// 「画像を更新」を「PNGをダウンロード」の左に置く（T98）
+			// ③では見出し「親Aセット」を出さず（T106 の (9)）、「PNGをダウンロード」は控えめなアイコンのボタンにする（T106 の (10)。引き出しの中は今のまま）
 			const dl = box.querySelector('a.uma-btn');
-			if (dl && state) {
-				const wrap = document.createElement('span');
-				wrap.className = 'video-result-btns';
-				const rb = document.createElement('button');
-				rb.type = 'button';
-				rb.className = 'uma-btn uma-btn--secondary';
-				rb.setAttribute('data-video-refresh', String(setIdx));
-				rb.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>' + STITCH_REFRESH_LABEL + '</span>';
-				rb.addEventListener('click', () => refreshVideoResult(setIdx));
-				dl.replaceWith(wrap);
-				wrap.append(rb, dl);
-				if (window.lucide) lucide.createIcons();
+			if (dl) {
+				const head = dl.parentElement;
+				const label = head.querySelector('p');
+				if (label) label.remove();
+				head.classList.add('video-result-head');
+				dl.className = 'video-dl-btn';
+				dl.textContent = '';
+				dl.title = 'PNGをダウンロード';
+				dl.setAttribute('aria-label', 'PNGをダウンロード');
+				dl.innerHTML = VIDEO_SVG_DOWNLOAD;
 			}
-			panel.querySelector('.upload-set-clear').after(box);
+			panel.querySelector('.video-howto-box').after(box);
 			panel.classList.add('video-has-result');
-			updateVideoRefreshUi();
 			const cols = panel.querySelector('.upload-cols');
 			const warned = canvas._videoWarnLabels || [];
 			if (warned.length) {
@@ -2141,19 +2072,17 @@
 		function videoTileHtml(personIdx, files) {
 			if (!files.length) return '';
 			return '<button type="button" class="video-tile" onclick="expandVideoTile(' + personIdx + ')"><img src="' + URL.createObjectURL(files[0]) + '" alt="" />'
-				+ escapeHtml(videoText('video.tile.text', { N: files.length })) + '<small>' + escapeHtml(videoText('video.tile.hint')) + '</small></button>';
+				+ escapeHtml(videoText('video.tile.text')) + '<small>' + escapeHtml(videoText('video.tile.hint')) + '</small></button>';
 		}
 		function expandVideoTile(personIdx) {
 			const v = persons[personIdx].video;
 			if (v) v.expanded = true;
 			renderPersonImageList(personIdx);
 		}
-		// 利用者がその人の枠の画像を消す・足すをした。動画から来た印を外す（結合は stitchOnePerson に戻る）。終わった知らせの枚数も古くなるので消す
+		// 利用者がその人の枠の画像を消す・足すをした。動画から来た印を外す（結合は stitchOnePerson に戻る）
 		function videoTouched(personIdx) {
 			if (!persons[personIdx].video) return;
 			persons[personIdx].video = null;
-			const sum = document.getElementById('video-summary');
-			if (sum) sum.remove();
 			// ③の中の結合画像も古くなるので外し、3列を出す（T82）
 			clearVideoResult(Math.floor(personIdx / 3));
 		}
@@ -2180,15 +2109,13 @@
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
 				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress }), ctrl.signal);
 				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
-				const counts = [];
 				sel.persons.forEach((p, r) => {
 					const idx = setIdx * 3 + r;
 					const frames = p.files.slice();
-					persons[idx].files = (pend.mode === 'append') ? persons[idx].files.concat(frames) : frames;
+					persons[idx].files = frames;
 					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), expanded: false };
-					counts.push(frames.length);
 				});
-				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + ': ' + counts.join('／') + '枚を入れました（' + (pend.mode === 'append' ? '後ろに足す' : '置き換え') + '・'
+				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + ': ' + sel.persons.map(p => p.files.length).join('／') + '枚を入れました（置き換え・'
 					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）');
 				renderVideoProgress(setIdx, 4, 1);
 				clearVideoResult(setIdx);
@@ -2198,7 +2125,6 @@
 				if (abortBtn) abortBtn.disabled = true;
 				const stitched = await autoStitchVideoSet(setIdx);
 				document.getElementById('video-progress').remove();
-				showVideoSummary(setIdx, counts, stitched);
 				return { ok: true, stitched };
 			} catch (e) {
 				const el = document.getElementById('video-progress');
@@ -2225,11 +2151,9 @@
 			const set = PERSON_SETS[setIdx];
 			stitchInProgress = true;
 			try {
-				const parts = stitchPartsNow();
-				const state = videoShownState(setIdx, parts, false);
-				const canvas = await buildStitchedSetImage(setIdx, null, false, parts);
+				const canvas = await buildStitchedSetImage(setIdx, null, false, stitchPartsNow());
 				if (!canvas) return false;
-				showVideoResult(setIdx, canvas, state);
+				showVideoResult(setIdx, canvas);
 				return true;
 			} catch (e) {
 				// 失敗は③の中の帯で知らせる（コンソールには出さない）
@@ -2239,7 +2163,7 @@
 					const box = document.createElement('div');
 					box.className = 'video-result';
 					appendStitchErrorBlock(box, set, e && e.message);
-					panel.querySelector('.upload-set-clear').after(box);
+					panel.querySelector('.video-howto-box').after(box);
 				}
 				return false;
 			} finally {
@@ -2318,9 +2242,8 @@
 			// 結合ボタンの下の状態表示（段0）。UIの切り替え・対象スキルセットの選択・画像の増減は
 			// すべてここを通るので、状態表示の更新もここへ乗せる（呼び忘れが起きない）。
 			updateTierMarksStatus();
-			// 画像が増減したら、結合画像の「画像を更新」が押せるかも見直す（T96。③の動画の結合画像のぶんも T98）
+			// 画像が増減したら、結合画像の「画像を更新」が押せるかも見直す（T96）
 			updateStitchRefreshUi();
-			updateVideoRefreshUi();
 		}
 
 		/* ============================================================
@@ -2449,7 +2372,8 @@
 		function updateImageCountBadge() {
 			const badge = document.getElementById('image-count-badge');
 			if (!badge) return;
-			const total = persons.reduce((n, p) => n + p.files.length, 0);
+			// 動画から取った枚数は見せない（T106 の (8)）。動画の画像はここの数に入れない
+			const total = persons.reduce((n, p) => n + personShownCount(p), 0);
 			badge.hidden = total === 0;
 			badge.textContent = total + '枚';
 			// 親A／親Bセットのタブの枚数も同じ機会に更新する
@@ -4958,7 +4882,7 @@
 							// ③の中にも出す（T98）: 動画モードの「OCR処理を開始する」（決定 177）と、③にすでに結合画像があるセット（古い画を残さない）
 							if ((withMarks && uploadMode === 'video') || videoShown[target.setIdx]) {
 								const b = target.setIdx * 3;
-								showVideoResult(target.setIdx, canvas, { parts: parts, withMarks: withMarks, files: [0, 1, 2].map(r => filesAtStart[b + r]), snap: snapAtStart });
+								showVideoResult(target.setIdx, canvas);
 							}
 						}
 					} catch (e) {
@@ -4991,7 +4915,6 @@
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
 				updateStitchRefreshUi();
-				updateVideoRefreshUi();
 			}
 		}
 
@@ -5318,7 +5241,7 @@
 		}
 
 		// opts.idPrefix … チェックの id の接頭辞（③は ''、引き出しは 'drawer-'）
-		// opts.wire     … false なら模式図を出さない（引き出しでは実物の画像が見本になる。exam と同じ）
+		// opts.wire     … false なら模式図を出さない（右下のボタン群のパネル）
 		// opts.title    … false なら見出し「結合画像の設定」を出さない（見出しを持つパネルの中に置くとき）
 		function renderStitchPartsPanel(container, opts) {
 			if (!container) return;
@@ -5339,30 +5262,37 @@
 			// 模式図: 帯 → 上段（理論値SP｜本育成編成｜因子周回編成。OFF の欄は消して左へ詰める）→ 星取表＋3人の列 → 枠の見かた。
 			// 人の列の行の枠は、分類マーカーが OFF なら全部緑・ON なら種類の色（.is-marker）。遺伝子の行はいつも遺伝子の色
 			const cards = '<i></i><i></i><i></i><i></i><i></i>';
+			const rows = (kinds) => kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('');
+			// 3列の1人分: 見出し＋因子の枠（1人の因子は2列。T106）
 			const person = (kinds) => '<span class="stitch-wire-person"><span class="stitch-wire-head"><i></i><b></b></span>' +
-				'<span class="stitch-wire-panels">' + kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span></span>';
-			const panels = (kinds) => '<span class="stitch-wire-panels">' + kinds.map(k => '<span class="stitch-wire-row"' + (k ? ' data-kind="' + k + '"' : '') + '></span>').join('') + '</span>';
-			// 2列の模式図（T98・決定 182〜184）: 帯 → 左に［上段（本育成編成｜因子周回編成）→ 親A（上の欄＋因子）｜祖A1・祖A2（見出しなし・つなぐ）→ 枠の見かた］、右に［理論値SP → 星取表］
+				'<span class="stitch-wire-panels">' + rows(kinds) + '</span></span>';
+			// 2列の因子の画面1人分: 1段目は青とピンクの枠、2段目の左は固有の緑、続けてスキルの枠が2列（T106。行の数は実際の画面に近い数）
+			const fac = (kinds) => '<span class="w2-fac"><span class="w2-face"></span><span class="stitch-wire-panels">' + rows(['sp', 'ap', 'uq', null].concat(kinds)) + '</span></span>';
+			const blanks = (n) => Array(n).fill(null);
+			const P2 = [null, null, null, null, null, null, 'card', 'other', 'other', 'other', 'other', null, null, 'card', null, null, null, 'other', 'other', null, null, null, null, 'other', null, null, null, null, null, null, null, null, 'gene', null].concat(blanks(6));
+			const G1 = [null, null, 'other', 'other', 'card', 'other', 'other', 'other', null, null, null, null, null, 'other', 'card', null, null, null, null, null, null, null, null, null, 'gene', null].concat(blanks(4));
+			const G2 = [null, null, null, null, null, null, null, 'card', 'other', 'other', 'star', 'other', 'other', 'other', null, null, 'other', 'other', null, null, null, null, null, null, null, null, null, null, null, null, null, null, 'gene', null, null, null, null, null, null, null];
+			// 2列の模式図（T98・決定 182〜184。T106 で作り直し）: 帯 → 左に［上段（本育成編成｜因子周回編成）→ 親A（上の欄＋因子）｜祖A1 の下に祖A2 → 枠の見かた］、右に［理論値SP → 星取表］
 			const wire2 =
 				'<div class="stitch-wire-sheet stitch-wire-sheet--2" data-stitch-wire-cols="2">' +
 					'<div class="stitch-wire-bar" data-stitch-part="title"></div>' +
 					'<div class="stitch-wire-2">' +
 						'<div class="stitch-wire-2l">' +
 							'<div class="stitch-wire-top" data-stitch-wire-top2>' +
-								'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards + '</span>' +
+								'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards + '<i></i></span>' +
 								'<span class="stitch-wire-cards" data-stitch-part="factor">' + cards + '</span>' +
 							'</div>' +
 							'<div class="stitch-wire-2p" data-stitch-part="people">' +
-								'<span class="stitch-wire-person"><span class="stitch-wire-status"></span>' + panels(['card', null, 'star', 'other', null, 'gene', 'card', null]) + '</span>' +
-								'<span class="stitch-wire-grands">' + panels([null, 'star', 'card', 'other']) + panels(['other', null, 'gene']) + '</span>' +
+								'<span class="w2-parent" data-wire-person="parent"><span class="w2-status"><span class="w2-band"></span><span class="w2-hero"></span><span class="w2-stats"></span><span class="w2-apt"></span><span class="w2-btn"></span><span class="w2-tabs"></span></span>' + fac(P2) + '</span>' +
+								'<span class="w2-grands"><span class="w2-grand" data-wire-person="grand1">' + fac(G1) + '</span><span class="w2-grand" data-wire-person="grand2">' + fac(G2) + '</span></span>' +
 							'</div>' +
 							'<div class="stitch-wire-legend" data-stitch-part="marker">' +
 								'<i style="border-color:#008070"></i><i style="border-color:#9C6A00"></i><i style="border-color:#7A3FB0"></i><i style="border-color:#BE185D"></i><b></b>' +
 							'</div>' +
 						'</div>' +
 						'<div class="stitch-wire-2r" data-stitch-wire-col3>' +
-							'<span class="stitch-wire-sp" data-stitch-part="sp"><b></b><b></b><b></b></span>' +
-							'<div class="stitch-wire-table" data-stitch-part="table">' + '<i></i>'.repeat(48) + '</div>' +
+							'<span class="stitch-wire-sp" data-stitch-part="sp"><b></b><b></b><b></b><b></b></span>' +
+							'<div class="stitch-wire-table" data-stitch-part="table">' + '<i></i>'.repeat(72) + '</div>' +
 						'</div>' +
 					'</div>' +
 				'</div>';
@@ -5377,9 +5307,9 @@
 					'<div class="stitch-wire-mid">' +
 						'<div class="stitch-wire-table" data-stitch-part="table">' + '<i></i>'.repeat(32) + '</div>' +
 						'<div class="stitch-wire-people" data-stitch-part="people">' +
-							person(['card', null, 'star', 'other', null, 'gene', 'card']) +
-							person([null, 'star', null, 'card', 'other', null]) +
-							person(['other', null, 'card', null, 'gene']) +
+							person(['card', null, null, 'other', 'star', null, 'other', null, null, 'other', 'gene', null, 'card', null]) +
+							person([null, 'star', null, null, 'card', 'other', null, null, 'other', null, null, null]) +
+							person(['other', null, null, 'card', null, null, 'other', 'other', 'gene', null]) +
 						'</div>' +
 					'</div>' +
 					'<div class="stitch-wire-legend" data-stitch-part="marker">' +
@@ -5418,9 +5348,8 @@
 				panel.querySelectorAll('.stitch-wire-sheet').forEach(el => el.classList.toggle('is-marker', !!stitchParts.marker));
 			});
 			updateTierMarksStatus();
-			// 設定が変わったので、「画像を更新」が押せるかも見直す（③の動画の結合画像のぶんも。T98）
+			// 設定が変わったので、「画像を更新」が押せるかも見直す
 			updateStitchRefreshUi();
-			updateVideoRefreshUi();
 		}
 
 		// チェックに触れている間（hover / focus）、模式図の対応する部分を強調する（exam と同じ）
@@ -7379,7 +7308,7 @@
 		<!-- ===== 引き出しの中の「結合画像の設定」（T96・C-284。exam.html の #stitch-drawer-fab / #stitch-drawer-pop と同じ作り） =====
 		     新UI で結合画像があるときだけ、引き出しの内側の右下に丸ボタンを出す（updateDrawerStitchFab）。
 		     押すと丸ボタンの真上に設定パネル（.uma-popover--drawer。640px 以下は引き出しの下辺からのシート）を開く。
-		     中身は③と同じ renderStitchPartsPanel（模式図なし・id は drawer-）と「画像を更新」。
+		     中身は③と同じ renderStitchPartsPanel（模式図つき〔T106〕・id は drawer-）と「画像を更新」。
 		     チェックを変えただけでは作り直さず、「画像を更新」で OCR を回さずに作り直す（updateStitchRefreshUi / refreshStitchedImages）。
 		     閉じ方は ✕・パネルの外（引き出しの本文）のクリック・Esc（Esc は引き出しより先にこちらを閉じる）。 -->
 		<button type="button" id="stitch-drawer-fab" class="uma-fab-toggle uma-drawer-fab" onclick="toggleDrawerStitchSettings()"
