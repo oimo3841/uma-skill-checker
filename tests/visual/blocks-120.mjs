@@ -173,6 +173,26 @@ export async function register120(env) {
 		}
 	});
 
+	// 画像だけ（T108_SHOTS のとき）: デフォルト・レース・新しいモードの③の設定・①・条件で検索
+	if (SHOTS) await block('T108 画像: 3通りの③の設定・①・条件で検索（390・1280px）', async () => {
+		for (const [w, h] of [[390, 844], [1280, 800]]) for (const mode of ['default', 'race', 'noplan']) {
+			const sp = await open({ w, h });
+			await setMode(sp.page, mode);
+			await sp.page.evaluate(() => selectStepTab(2));
+			await sp.page.waitForTimeout(200);
+			await shot(sp, mode + '-stitch-settings', w);
+			await sp.page.evaluate(() => selectStepTab(0));
+			await sp.page.waitForTimeout(250);
+			await shot(sp, mode + '-tab1-roster', w);
+			await sp.page.evaluate(() => selectStepTab(1));
+			await sp.page.waitForTimeout(150);
+			await pickEntry(sp.page, 'editor-pick');
+			await sp.page.waitForTimeout(400);
+			await shot(sp, mode + '-search', w);
+			await sp.ctx.close();
+		}
+	});
+
 	await block('T108 上段: 入らない幅では短い形（文字を詰めて入れる）・FAB は短い形', async () => {
 		const sp = await open({ w: 320, h: 568 });
 		await setMode(sp.page, 'noplan');
@@ -243,8 +263,9 @@ export async function register120(env) {
 			await closeStyle();
 
 			// 開催場の一致するスキルがあるレース: 緑スキルの項目に今までどおり出る
-			const raceV = races.find((r) => r.venue && venueIds.some((id) => (TAGS.get(id).trackVenue || []).includes(r.venue)));
-			if (raceV) {
+			// 今の一覧に合うレースが無くても確かめられるよう、無ければ条件のレース場だけ差し替えた行を使う（一覧の外のレースも同じ条件で読む）
+			const raceV = races.find((r) => r.venue && venueIds.some((id) => (TAGS.get(id).trackVenue || []).includes(r.venue))) || Object.assign({}, RACE, { id: 'race-t108', venue: TAGS.get(venueIds[0]).trackVenue[0] });
+			{
 				await sp.page.evaluate((r) => UmaSkillDeckCore.outside.setRace(r), raceV);
 				await sp.page.waitForTimeout(250);
 				await openStyle();
