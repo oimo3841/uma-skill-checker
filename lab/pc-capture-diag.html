@@ -70,7 +70,7 @@
 		<ol>
 			<li>ゲームで因子の画面を開いておきます。</li>
 			<li>「ウィンドウから取り込む」を押し、ウマ娘のウィンドウを選びます。</li>
-			<li>ゲームの因子の画面を、親から祖2 まで手でスクロールします。</li>
+			<li>マウスのカーソルを左の余白（顔の下あたり）に置いたまま、親から祖2 まで、ホイールで少しずつスクロールします。</li>
 			<li>このページに戻り「取り込みを止める」を押します。</li>
 		</ol>
 		<p class="sub" style="margin:6px 0 0">絵はこの PC の中だけで処理し、どこにも送りません。ゲームには触れません。</p>
@@ -243,6 +243,7 @@
 		if (!out.ok) out.reason = 'unstable';
 		return out;
 	}
+	const LAB_VERSION = '2026-11-05b';
 	const AREA_MSG = {
 		blank: '画面が真っ黒か真っ白です。ウィンドウを最小化していないか確かめてください。',
 		aspect: 'ゲームの画面を見つけられませんでした。選んだウィンドウがウマ娘か確かめてください。',
@@ -268,6 +269,71 @@
 			},
 			close() { base.close(); }
 		});
+	}
+
+	/*
+	 * 動かない部分を1枚の画にそろえる出どころ（T105 の2回目。おいもさんの試しで5回とも selectFrames の「本文の帯」で止まった原因への対処）。
+	 * selectFrames は上端と下端を「2枚の差が 5 を超える最初の行・途切れる行」で決める。iPhone の画面収録では動かない行の差がほぼ 0 だが、
+	 * ここの圧縮（2秒ごとのキーフレーム・最初の1枚の粗さ）では、動かない部分のくっきりした行で差が 5 を超え、最初の1枚は全面で超える。写り込んだカーソルも同じ働きをする。
+	 * そこで、ここで多数の組を数えて本文の帯を決め、帯の外を1枚の画で塗り直してから渡す（selectFrames・composePerson は変えない）。
+	 * 画面が変わったフレーム（上の部分が基準の画と違う）は塗り直さない。selectFrames の「同じ画面か」の判定をそのまま働かせるため。
+	 */
+	const BAND = { samples: 48, xs: 6, moved: 12, share: 0.5, minCount: 3, gap: 12, minShare: 0.25, topY: 0.02, topH: 0.36, sameMax: 12 };
+	function findMovingBand(counts) {
+		let peak = 0; for (const n of counts) if (n > peak) peak = n;
+		if (peak < BAND.minCount) return null;
+		const need = Math.max(BAND.minCount, peak * BAND.share);
+		let best = null, s = -1, e = -1;
+		const close = () => { if (s >= 0 && (!best || e - s > best.bottom - best.top)) best = { top: s, bottom: e }; };
+		for (let y = 0; y < counts.length; y++) {
+			if (counts[y] < need) continue;
+			if (s >= 0 && y - e > BAND.gap) { close(); s = -1; }
+			if (s < 0) s = y;
+			e = y + 1;
+		}
+		close();
+		if (!best || best.bottom - best.top < counts.length * BAND.minShare) return null;
+		best.peak = peak; best.need = need;
+		return best;
+	}
+	async function steadySource(src) {
+		const W = src.width, H = src.height, sw = Math.max(16, Math.round(W / BAND.xs)), N = BAND.samples;
+		const prev = document.createElement('canvas'), cur = document.createElement('canvas');
+		prev.width = cur.width = sw; prev.height = cur.height = H;
+		const counts = new Uint16Array(H);
+		const a = prev.getContext('2d', { willReadFrequently: true }), b = cur.getContext('2d', { willReadFrequently: true });
+		for (let k = 0; k < N; k++) {
+			await src.drawAt(src.duration * (k + 0.5) / N, b, sw, H, null);
+			if (k > 0) { const d = stitchRowDiffSignal(prev, cur); for (let y = 0; y < H; y++) if (d[y] > BAND.moved) counts[y]++; }
+			a.drawImage(cur, 0, 0);
+		}
+		const band = findMovingBand(counts);
+		if (!band) return { src, band: null };
+		// 基準の画: 真ん中の時刻の1枚（最初の粗い1枚を避ける）
+		const ref = document.createElement('canvas'); ref.width = W; ref.height = H;
+		await src.drawAt(src.duration / 2, ref.getContext('2d', { willReadFrequently: true }), W, H, null);
+		// 同じ画面かを見る小さな画（圧縮の揺れとカーソルは縮めると消える）
+		const SW = 32, SH = 32, topY = Math.round(H * BAND.topY), topH = Math.round(H * BAND.topH);
+		const tiny = document.createElement('canvas'); tiny.width = SW; tiny.height = SH;
+		const tx = tiny.getContext('2d', { willReadFrequently: true });
+		tx.drawImage(ref, 0, topY, W, topH, 0, 0, SW, SH);
+		const refTop = tx.getImageData(0, 0, SW, SH).data.slice();
+		const { top, bottom } = band;
+		const steady = UmaVideoFrames.canvasSource({
+			kind: 'steady:' + src.kind, exact: !!src.exact, width: W, height: H, duration: src.duration,
+			async draw(t, ctx, dw, dh, how) {
+				await src.drawAt(t, ctx, dw, dh, null, how);
+				const q = dh / H;
+				tx.drawImage(ctx.canvas, 0, topY * q, dw, topH * q, 0, 0, SW, SH);
+				const d = tx.getImageData(0, 0, SW, SH).data;
+				let sum = 0; for (let i = 0; i < d.length; i += 4) sum += (Math.abs(d[i] - refTop[i]) + Math.abs(d[i + 1] - refTop[i + 1]) + Math.abs(d[i + 2] - refTop[i + 2])) / 3;
+				if (sum / (SW * SH) > BAND.sameMax) return; // 別の画面
+				ctx.drawImage(ref, 0, 0, W, top, 0, 0, dw, top * q);
+				ctx.drawImage(ref, 0, bottom, W, H - bottom, 0, bottom * q, dw, (H - bottom) * q);
+			},
+			close() { src.close(); }
+		});
+		return { src: steady, band };
 	}
 
 	/* ── 断片化なしの MP4 にする（avc1。B フレームなし。時刻は届いたとおりの可変） ───────────────── */
@@ -468,6 +534,7 @@
 		const t = S.track, c = S.cap || {}, a = S.area, R = S.result || {};
 		const rows = [];
 		const offer = shouldOffer();
+		rows.push(['このページの版', LAB_VERSION]);
 		rows.push(['使えるもの', supportText()]);
 		rows.push(['ボタンを出す条件の案', offer.offer ? '出す' : '出さない（' + offer.why + '）']);
 		if (S.settings) rows.push(['取り込んだもの', (S.settings.displaySurface || '不明') + '・カーソルの設定 ' + (S.settings.cursor || '不明') + '・devicePixelRatio ' + (S.settings.screenPixelRatio || devicePixelRatio)]);
@@ -482,6 +549,7 @@
 		}
 		if (performance.memory) rows.push(['メモリの目安（JS）', mb(performance.memory.usedJSHeapSize) + ' 使用／いちばん多いとき ' + mb(c.peakHeap || performance.memory.usedJSHeapSize)]);
 		if (R.src) rows.push(['出どころ', R.src]);
+		if (R.band) rows.push(['本文の帯', R.band]);
 		if (R.times) rows.push(['かかった時間', R.times]);
 		if (R.sel) rows.push(['選んだフレーム', R.sel]);
 		if (R.note) rows.push(['結果', R.note]);
@@ -630,6 +698,11 @@
 				if (!area.ok) { base.close(); throw Object.assign(new Error(AREA_MSG[area.reason] || AREA_MSG.aspect), { code: 'area', friendly: true }); }
 				if (area.warns && (area.warns.includes('small') || area.warns.includes('large'))) say(AREA_MSG[area.warns.includes('small') ? 'small' : 'large'], 'ng');
 				src = cropSource(base, area);
+				say('処理しています（本文の帯を調べています）');
+				const steady = await steadySource(src);
+				src = steady.src;
+				S.result.band = steady.band ? steady.band.top + '〜' + steady.band.bottom + ' 行目（よく動いた組 ' + steady.band.peak + '／' + (BAND.samples - 1) + '）' : '見つからない（スクロールが足りない）';
+				note('本文の帯: ' + S.result.band);
 				const onProgress = (p) => { say('処理しています（' + Math.round(p.ratio * 100) + '%）'); };
 				const sel = await UmaVideoFrames.selectFrames(src, { labels: ['親', '祖1', '祖2'], onProgress });
 				T.selected = performance.now();
@@ -650,7 +723,10 @@
 				$('resultWrap').hidden = false;
 				$('saveImages').disabled = false;
 				const stopWord = S.stopReason === 'limit' ? '上限の時間で止めました。' : '';
+				// 区画の頭が帯の下のほうで初めて写ると、その人の画が頭の手前で切れる（stitch.js の頭の探し方。T105-study-2）。ホイールを大きく回したときに起きる
+				const cut = persons.filter((p) => p.h < sel.header.contentH).map((p) => p.label);
 				if (sel.persons.length !== 3) say(stopWord + '3人に分かれませんでした（' + sel.persons.length + '人）。親から祖2 までスクロールしたか確かめてください。', 'ng');
+				else if (cut.length) say(stopWord + cut.join('・') + ' の画が途中で切れました。ホイールをもっと少しずつ回して、もう一度取り込んでください。', 'ng');
 				else if (!$('msg').classList.contains('ng') || !area.warns.length) say(stopWord + '結合画像を作れました。', 'ok');
 			} catch (e) {
 				note('流れの失敗: ' + (e.code || '') + ' ' + e.message);
@@ -701,7 +777,7 @@
 	renderStats();
 
 	// 検査のための入口（画面からは使わない）
-	window.__pc = { S, detectOne, consensus, cropSource, muxMp4, shouldOffer, start, stop: requestStop };
+	window.__pc = { VERSION: LAB_VERSION, S, detectOne, consensus, cropSource, steadySource, findMovingBand, muxMp4, shouldOffer, start, stop: requestStop };
 })();
 </script>
 </body>
