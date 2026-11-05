@@ -7488,7 +7488,7 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 			// 文字の色は区分ごとに違う（因子＝--uma-catalog-text／遺伝子＝--uma-gene-text）
 			color: getComputedStyle(card).color,
 			moreColor: moreEl ? getComputedStyle(moreEl).color : null,
-			// 「他」は格子の外（T100・C-292: 右下から一覧の右へ移した。★の列と重ならないことを見る）
+			// 「他」は格子の外（T100・C-293: 右下から一覧の右へ移した。★の列と重ならないことを見る）
 			moreText: moreEl ? moreEl.textContent : null,
 			moreBelowGrid: moreEl ? (() => { const m = moreEl.getBoundingClientRect(), c = card.getBoundingClientRect(); return m.top >= c.bottom - 1 || m.left >= c.right - 1; })() : null
 		};
@@ -7559,7 +7559,7 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		await seedHighlight(page, true);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
-		// T100（C-292）: 引き出しの中は人の行に sp70緑・緑、その下に一覧
+		// T100（C-293）: 引き出しの中は人の行に sp70緑・緑、その下に一覧
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
 			'ハイライト: 768px では人の行に sp70緑・緑、その下にシナリオ因子', g.innerTops);
 		assert(g.tops[0] <= g.tops[1] && g.tops[1] <= g.tops[2],
@@ -7613,7 +7613,7 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		assert(g.cardCounts.every((n) => n === 4), tag + 'まとまりの中は4枚（sp70緑・緑・シナリオ因子・遺伝子）', g.cardCounts);
 		assert(g.cardHeads.every((x) => x[2] === 'シナリオ因子' && x[3] === '遺伝子'),
 			tag + '4枚目の見出しは「遺伝子」', g.cardHeads[0]);
-		// T100（C-290・C-292）: 引き出しの中は sp70緑・緑を人の行に詰め、シナリオ因子・遺伝子はその下に順に置く（全部の幅で同じ）
+		// T100（C-290・C-293）: 引き出しの中は sp70緑・緑を人の行に詰め、シナリオ因子・遺伝子はその下に順に置く（全部の幅で同じ）
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1] && t[3] > t[2]),
 			tag + '人の行（sp70緑・緑）の下にシナリオ因子、その下に遺伝子', g.innerTops[0]);
 		assert(g.innerWidths.every((x) => x[2] === x[3] && x[2] > x[0]),
@@ -7661,7 +7661,7 @@ await block('ハイライトの人物ごとのまとまり（2026-09-16・45セ�
 		const g = await readGroups(page);
 		assert(g.cardCounts.every((n) => n === 3) && g.cardHeads.every((x) => x[2] === '遺伝子'),
 			'段H: 遺伝子だけなら3枚目が遺伝子', g.cardHeads[0]);
-		// T100（C-292）: 人の行に sp70緑・緑、その下に遺伝子
+		// T100（C-293）: 人の行に sp70緑・緑、その下に遺伝子
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
 			'段H: 遺伝子だけのときは人の行の下に遺伝子（1280px）', g.innerTops[0]);
 		const gr = await readFactorRows(page, 'gene');
