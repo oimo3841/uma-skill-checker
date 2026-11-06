@@ -74,7 +74,7 @@ export async function register104(env) {
 			// (1) 仮のデータ（版13 と同じ種の親30人）に、拡張スキル ex-0990 を持つ親を足して開く
 			await page.goto(base + '/deck-alpha.html'); await ready();
 			await page.addScriptTag({ url: base + '/tests/visual/deck-alpha-mock.js' });
-			await ev(async (ex) => { const m = window.__deckAlphaMock.makeMock(30, 11); m.parents[0].skills[ex] = 2; m.parents[1].skills[ex] = 3; m.parents[0].sets = []; m.parents[1].sets = []; await window.DeckAlpha.store.replaceAll(m); }, EX.id);
+			await ev(async (ex) => { const m = window.__deckAlphaMock.makeMock(30, 11); m.parents[0].skills[ex] = 2; m.parents[1].skills[ex] = 3; m.parents[0].sets = []; m.parents[1].sets = []; m.sets.forEach((s) => { s.skills = {}; }); /* T115（358）: 一覧があると「デフォルト」の行はその合計。ここは親が持つスキルの行を見る */ await window.DeckAlpha.store.replaceAll(m); }, EX.id);
 			await page.reload(); await ready();
 			await page.waitForTimeout(2400); // 付け替えのトーストが消えるまで
 			assert(errs.length === 0, tag + ' 開いてコンソールのエラーが無い', errs);

@@ -12,7 +12,9 @@
  *   第1版からの差分: bundles → sets（レースの一覧の行と結ぶ）・親の bundles → sets・tags は style だけ（距離・バ場はセットの条件）・
  *   targets（目標の6人・次善・必須）→ plans（セットごとの本育成設計の6人と絞り込みの状態）。
  * T108（2026-11-05）: UmaStar 用の「指定なし」を「デフォルト」に改名（鍵 'none'・保存の形は同じ）。独立したまとまり「レース指定なし／本育成編成なし」を足す:
- *   doc.norace = { id:'norace', kind:'norace', skills:{id:回}, sends }（送ったときだけ）・親の sets の 'norace'・親の from:'norace'（デフォルトの表に出さない）。既存の親は今のまま。読み込み時に補わない。
+ *   doc.norace = { id:'norace', kind:'norace', skills:{id:回}, sends }（送ったときだけ）・親の sets の 'norace'・親の from:'norace'（新しいモードから登録した印）。既存の親は今のまま。読み込み時に補わない。
+ * T115（2026-11-06・357・358）: T108 で新しいモードの親を「デフォルト」から外した作りは取り消した（from:'norace' の親も「デフォルト」に出る。外すのは from:'exam' だけ）。
+ *   「デフォルト」の行は defaultList（doc.none・doc.sets の全部・doc.norace を合わせたもの。技能試験は入れない。保存はしない）。
  * T97（2026-11-04・140）: 「指定なし」で送った②のスキルの一覧を doc.none = { id:'none', kind:'none', skills:{id:最後に入った送りの回}, sends } に持つ
  *   （レースのセットと同じ形・同じ数え方。一度も送っていなければ無い＝今までの保存データ・書き出しのファイルはそのまま読める）。
  * T104（2026-11-05・UmaExam 用の表）: schema は 2 のまま次を足す（どれも無くてよい＝今までの保存データ・書き出しのファイルはそのまま読める。移行はしない）。
@@ -22,7 +24,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_CORE_VERSION = '2026-11-06a';
+	const DECK_ALPHA_CORE_VERSION = '2026-11-06b';
 	const D = window.DECK_ALPHA_DATA;
 	const DB_NAME = 'uma-deck';
 	const DB_VER = 1;
@@ -112,8 +114,15 @@
 	function newNoRaceList() { return { id: 'norace', kind: 'norace', skills: {}, sends: 0 }; }
 	function cleanNoRace(n) { return n && typeof n === 'object' && n.skills && typeof n.skills === 'object' && typeof n.sends === 'number' && n.sends > 0 ? { id: 'norace', kind: 'norace', skills: n.skills, sends: n.sends } : null; }
 	function cleanExam(n) { return n && typeof n === 'object' && n.skills && typeof n.skills === 'object' && typeof n.sends === 'number' && n.sends > 0 ? { id: 'exam', kind: 'exam', skills: n.skills, sends: n.sends } : null; }
-	/** UmaStar 用の表の「デフォルト」に出す親か（UmaExam から新しく登録した親は出さない。レースのセットに入るのは親の小窓で選んだときだけ。233・245。T108: 新しいモードの親も出さない） */
-	function inNoneList(p) { return p.from !== 'exam' && p.from !== 'norace'; }
+	/** UmaStar 用の表の「デフォルト」に出す親か（UmaExam から新しく登録した親は出さない。レースのセットに入るのは親の小窓で選んだときだけ。233・245。T115・357: 新しいモードの親は出す） */
+	function inNoneList(p) { return p.from !== 'exam'; }
+	/** 「デフォルト」の行の一覧（T115・358）: デフォルト・保存されているすべてのレースのセット（終了したレースのセットも含む）・新しいモードで送った一覧を合わせる。
+	 *  技能試験の一覧は入れない。一度も送っていなければ null（出ている親が持っているスキルになる）。kind が sendsKind に当たらないので「前回」の区別は付かない。保存しない */
+	function defaultList(doc) {
+		const skills = {};
+		[doc.none, doc.norace].concat(doc.sets).forEach((s) => { if (s && s.skills) Object.keys(s.skills).forEach((id) => { skills[id] = 1; }); });
+		return Object.keys(skills).length ? { id: 'none', kind: 'default', skills, sends: 1 } : null;
+	}
 	/** 送りの回を区別する一覧か（レースのセットと「指定なし」の一覧。終了レースのカテゴリでは区別しない） */
 	function sendsKind(set) { return !!set && (set.kind === 'race' || set.kind === 'none' || set.kind === 'norace'); }
 	/** そのスキルが前回までの一覧にだけあるか */
@@ -290,9 +299,11 @@
 
 	/* ---------- 登録の画面: 祖が同一かを判断させる候補（C-272 の 13〜15）。
 	 * 衣装が同じ登録済みの親を候補にし（衣装が未定なら白スキルの一致が半分以上の親）、exact（衣装・白スキル・★が全部同じ）→ 白スキルの一致の多い順に5人まで。
-	 * 「同一」を選んだ状態で出すのは exact が1人だけのとき（C-271 の 28）。一致率は画面に出さない（並べる順にだけ使う） ---------- */
+	 * 「同一」を選んだ状態で出すのは exact がいるとき（T115・359: 2人以上なら先頭＝いちばん新しく登録した親）。一致率は画面に出さない（並べる順にだけ使う）。
+	 * 緑の★は、登録の画面の人は greenStar・登録済みの人は green に持つ（T115・360）。どちらも分かっていて違うときは exact にしない ---------- */
 	function matchCandidates(doc, person) {
 		const out = [];
+		const green = person.greenStar !== undefined ? person.greenStar : person.green;
 		doc.parents.forEach((p) => {
 			if (person.uma && p.uma !== person.uma) return;
 			const a = person.skills || {}, b = p.skills || {}; const ka = Object.keys(a), kb = Object.keys(b);
@@ -300,7 +311,7 @@
 			ka.forEach((id) => { if (id in b) { same++; if (a[id] >= 0 && b[id] >= 0) { starCmp++; if (a[id] === b[id]) starSame++; } } });
 			const j = union.size ? same / union.size : 0;
 			const score = Math.round(j * 100);
-			const exact = person.uma === p.uma && same === union.size && starSame === starCmp && (person.green == null || p.green == null || person.green < 0 || p.green < 0 || person.green === p.green);
+			const exact = person.uma === p.uma && same === union.size && starSame === starCmp && (green == null || p.green == null || green < 0 || p.green < 0 || green === p.green);
 			if (person.uma || j >= .5 || exact) out.push({ p, score, exact });
 		});
 		return out.sort((x, y) => (y.exact - x.exact) || (y.score - x.score) || numId(y.p.id) - numId(x.p.id)).slice(0, 5);
@@ -377,6 +388,6 @@
 	}
 
 	window.DeckAlpha = { VERSION: DECK_ALPHA_CORE_VERSION, D, SK, GENES, COS, UNIQ, RACES, BLUE, RED, DIST, STYLE, SURF, CAT, PHASE, GENE_KEY, ARC, ARC_ORDER, POS, skill, costume, fullName, charaName, shortName, uniqName, starText, blueText, redText,
-		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, newNoRaceList, newExamList, inNoneList, EFF: D.efficiency, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
+		raceDateText, raceShortText, activeRaces, setCond, setName, setShort, newRaceSet, newArcSet, newNoneList, newNoRaceList, newExamList, inNoneList, defaultList, EFF: D.efficiency, sendsKind, addSend, oldOnly, archiveEnded, findSet, orderedSets, setListHtml,
 		store, DEFAULT_SETTINGS, emptyDoc, assemble, makeModel, emptyPlan, planFull, planMatch, findPairs, recommendB, matchCandidates, buildExport, exportFileName, parseImport, migrate1to2, daysSince, dependents, removeParent, isDark, applyTheme, esc };
 })();

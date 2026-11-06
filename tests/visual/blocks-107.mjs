@@ -77,7 +77,7 @@ export async function register107(env) {
 			// (1) 仮のデータ（親30人・「指定なし」の一覧は無い＝今の保存データの形）。「指定なし」の行は親が持つスキル全部（今までどおり）
 			await page.goto(base + '/deck-alpha.html'); await ready();
 			await page.addScriptTag({ url: base + '/tests/visual/deck-alpha-mock.js' });
-			await ev(async () => { const m = window.__deckAlphaMock.makeMock(30, 11); delete m.none; await window.DeckAlpha.store.replaceAll(m); await window.DeckAlpha.store.putMeta('settings', Object.assign({}, window.DeckAlpha.DEFAULT_SETTINGS)); });
+			await ev(async () => { const m = window.__deckAlphaMock.makeMock(30, 11); delete m.none; m.sets.forEach((s) => { s.skills = {}; }); /* T115（358）: レースのセットの一覧も「デフォルト」の行に入るので、一度も送っていない形にする */ await window.DeckAlpha.store.replaceAll(m); await window.DeckAlpha.store.putMeta('settings', Object.assign({}, window.DeckAlpha.DEFAULT_SETTINGS)); });
 			await page.reload(); await ready(); await page.waitForTimeout(2400);
 			const c0 = await ev(() => ({ none: window.__deckAlpha.S.doc.none || null, all: window.__deckAlpha.S.M.rows.map((s) => s.id), cur: window.__deckAlpha.S.settings.cur }));
 			const n0 = await cnt();
@@ -116,13 +116,7 @@ export async function register107(env) {
 			assert(/②の6種/.test(regText2) && /前の一覧 5種に足す/.test(regText2), tag + ' 2回目の登録の画面で「前の一覧 5種に足す」', regText2.slice(0, 200));
 			await page.goto(base + '/deck-alpha.html'); await ready(); await page.waitForTimeout(200);
 			const s2 = await ev(() => { const S = window.__deckAlpha.S; return { sends: S.doc.none.sends, n: Object.keys(S.doc.none.skills).length, old: [...document.querySelectorAll('.vl th.old')].length, listRow: document.getElementById('sf-listRow').hidden }; });
-			assert(s2.sends === 2 && s2.n === 9 && (await cnt()) === 9 && s2.old === 3 && !s2.listRow, tag + ' 2回目は前の一覧と OR（9種）・前回までにだけある3種に印・「一覧」の絞り込みが出る', s2);
-			await ev(() => [...document.querySelectorAll('#sf-list button')].find((b) => b.textContent === '最新の一覧').click()); await page.waitForTimeout(100);
-			const nNew = await cnt();
-			await ev(() => [...document.querySelectorAll('#sf-list button')].find((b) => b.textContent === '前回までだけ').click()); await page.waitForTimeout(100);
-			const nOld = await cnt();
-			await ev(() => [...document.querySelectorAll('#sf-list button')].find((b) => b.textContent === '全部').click()); await page.waitForTimeout(100);
-			assert(nNew === 6 && nOld === 3, tag + ' 「一覧」の絞り込み（最新の一覧 6種・前回までだけ 3種）', { nNew, nOld });
+			assert(s2.sends === 2 && s2.n === 9 && (await cnt()) === 9 && s2.old === 0 && s2.listRow, tag + ' 2回目は前の一覧と OR（9種）。T115（358）: 「デフォルト」では「前回」の区別を付けず、切り替えも出さない', s2);
 			await look('03-none-list-2');
 
 			// (5) 書き出し・読み込み: 「指定なし」の一覧も戻る。今の形（一覧なし）のファイルも読める
@@ -137,9 +131,11 @@ export async function register107(env) {
 			assert(io.has && io.same && io.old && (await cnt()) === 9, tag + ' 書き出し・読み込みで「指定なし」の一覧が戻る・一覧の無いファイルも読める', io);
 
 			// (6) レースのセットを選んだときの遺伝子の行は今までどおり（無効の行が無い）
+			await ev(() => { const S = window.__deckAlpha.S; S.doc.sets.find((x) => x.id === 'r:race-0002').skills = { [S.M.rows[0].id]: 1 }; }); // 一覧を空にして始めたので、この確かめの間だけ1行入れる（保存しない）
 			await page.click('#setBtn'); await page.check('input[value="r:race-0002"]'); await page.waitForTimeout(150);
 			const rg = await ev(() => ({ gl: [...document.querySelectorAll('.vl th.gl')].map((t) => t.textContent), off: document.querySelectorAll('.vl th.gl.off, .vb td.off').length, nums: [...document.querySelectorAll('.vb td[data-g]')].some((t) => t.textContent.trim()) }));
 			assert(rg.gl.length >= 2 && rg.off === 0 && rg.nums, tag + ' レースのセットの遺伝子の行は今までどおり（無効の行は無く、★が出る）', rg);
+			await ev(() => { window.__deckAlpha.S.doc.sets.find((x) => x.id === 'r:race-0002').skills = {}; });
 			await page.click('#setBtn'); await page.check('input[value="none"]'); await page.waitForTimeout(150);
 
 			// (7) 下段の帯（依頼4）: 今の 2/3 程度（0.75 倍以下）。親A・親Bのボタンは押せる大きさで、文字が切れない

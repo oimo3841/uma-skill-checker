@@ -3,6 +3,7 @@
  * ツール切り替えの行をほかのツールのページへのリンクにしたこと。T92（段4 の 4-2）で「ホーム画面に追加」の案内を外し、ライト／ダークを js/theme.js の設定にそろえた。
  * T94（方眼紙デザイン・C-282）: 見出しのボタン（ツール切り替え・ライト／ダーク）を UmaStar と同じ形の svg にし、ライト／ダークのアイコンは利用者の選択（自動／ライト／ダーク）を示す。
  * ?theme= で開いた直後に色の見張り（MutationObserver）が表のモデルを作る前に描き直して出ていたエラーを直した（T94-4）。
+ * T115（2026-11-06・357・358）: 「デフォルト」に新しいモードの親も出す（T108 で外した作りの取り消し）。「デフォルト」の行は、デフォルト・すべてのレースのセット・新しいモードで送った一覧を合わせたもの（「前回」の区別なし）。
  * T108（2026-11-05）: 「指定なし」を「デフォルト」に改名。独立したまとまり「レース指定なし／本育成編成なし」（鍵 'norace'。遺伝子の行と一覧の扱いは「デフォルト」と同じ）。
  * T97（2026-11-04）: 「指定なし」で送った一覧を「指定なし」の行に（140）・「指定なし」の遺伝子の3行を無効の形で出す（141）・表の上の2本指で段階を変えない（142）・
  * スマホで引き出しの外を押すと閉じる（143）。
@@ -22,7 +23,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_JS_VERSION = '2026-11-06a';
+	const DECK_ALPHA_JS_VERSION = '2026-11-06b';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -90,8 +91,8 @@
 		const st = g.find((r) => r.key === 'style');
 		return [{ key: 'dist', keys: [], label: '距離', off: true }, st || { key: 'style', keys: [], label: '脚質', off: true }, { key: 'surface', keys: [], label: 'バ場', off: true }];
 	}
-	/** 行の一覧を持つもの: セットを選んでいればそのセット、「指定なし」なら送った一覧（一度も送っていなければ無い。T97・140） */
-	const listSet = () => { const c = curSet(); if (c && c.kind === 'norace') return c.sends ? c : null; return c || (S.doc.none && S.doc.none.sends ? S.doc.none : null); };
+	/** 行の一覧を持つもの: セットを選んでいればそのセット、「デフォルト」なら送った一覧を全部合わせたもの（一度も送っていなければ無い。T115・358） */
+	const listSet = () => { const c = curSet(); if (c && c.kind === 'norace') return c.sends ? c : null; return c || K.defaultList(S.doc); };
 
 	/* ---------- 本育成設計（セットごとに1つ保存。C-271 の 16） ---------- */
 	function plan() { const k = curKey(); return S.doc.plans[k] || (S.doc.plans[k] = K.emptyPlan()); }
@@ -122,7 +123,7 @@
 		S.doc.parents.forEach((p) => { if ((p.sets || []).includes('norace')) S.M.fam(p).forEach((m) => Object.keys(m.skills || {}).forEach((id) => set.add(id))); });
 		return [...set].map(K.skill).sort((a, b) => a.order - b.order);
 	}
-	/** 行の母集団: セットを選んでいればそのセットのスキルの一覧、「デフォルト」なら送った一覧（T97・140）。一度も送っていなければ親が持っているスキル全部（C-271 の 4） */
+	/** 行の母集団: セットを選んでいればそのセットのスキルの一覧、「デフォルト」なら送った一覧を全部合わせたもの（T115・358）。一度も送っていなければ親が持っているスキル全部（C-271 の 4） */
 	function visRowsRaw() {
 		const f = S.sf, q = f.q.trim(), s = listSet();
 		const base = s ? Object.keys(s.skills).map(K.skill).sort((a, b) => a.order - b.order) : (curSet() && curSet().kind === 'norace') ? noRaceRows() : S.M.rows;

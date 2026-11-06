@@ -151,6 +151,7 @@ import { register121 } from './blocks-121.mjs';
 import { register124 } from './blocks-124.mjs';
 import { register123 } from './blocks-123.mjs';
 import { register125 } from './blocks-125.mjs';
+import { register126 } from './blocks-126.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15521,6 +15522,8 @@ await register124({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 // T109（2026-11-06）: iPhone の動画の取り込みの精度（数行先に合わない・育成完了後の画面の帯・動いている1枚の次の止まり）
 await register123({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register125({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T115（2026-11-06）: Deck α の軽微な直し（登録の画面の右上のボタン・デフォルトの親と行・同一の親・登録の左の文）。
+await register126({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -72,14 +72,14 @@ export async function register113(env) {
 					const a = window.__deckAlpha, S = a.S, cols = [...document.querySelectorAll('.vl colgroup col')].map((c) => parseInt(c.style.width, 10));
 					const own = new Set(); S.doc.parents.forEach((p) => S.M.fam(p).forEach((m) => Object.keys(m.skills || {}).forEach((id) => own.add(id))));
 					return { mode: S.mode, setText: document.getElementById('setText').textContent, aria: document.getElementById('setBtn').getAttribute('aria-label'), cols, corner: document.querySelector('.vc button').textContent, chd: !!document.querySelector('.vc .chd'), ef: document.querySelectorAll('.vl th.ef').length, eff: !!document.getElementById('sortEff'),
-						rs: [...document.getElementById('rs').options].map((o) => o.value).join(), rows: S.M.rows.length, own: own.size, parents: S.doc.parents.length, cnt: document.querySelector('.vc .cnt').textContent, gl: document.querySelectorAll('.vl th.gl').length,
+						rs: [...document.getElementById('rs').options].map((o) => o.value).join(), rows: S.M.rows.length, own: own.size, listN: Object.keys(a.K.defaultList(S.doc).skills).length, parents: S.doc.parents.length, cnt: document.querySelector('.vc .cnt').textContent, gl: document.querySelectorAll('.vl th.gl').length,
 						exam: 'exam' in S.doc, exp: JSON.stringify(a.K.buildExport(S.doc)), hasFrom: S.doc.parents.some((p) => 'from' in p || 'sheet' in p), gene: !document.getElementById('geneToggle').hidden, col: !document.getElementById('colMax').closest('.it').hidden, cat: !document.getElementById('sf-cat').closest('.it').hidden, style: !document.getElementById('pf-style').closest('.it').hidden };
 				});
 				const nw = w === 375 ? 76 : 112;
 				assert(r.mode === 'star' && r.setText === 'デフォルト' && r.aria === 'レース/周回セット：デフォルト', tag + ' 開くと UmaStar 用の表・「デフォルト」', r);
 				assert(r.cols.join() === nw + ',24' && r.corner === '最大' && !r.chd && r.ef === 0 && !r.eff, tag + ' 名前と最大の2列だけ・効率の列は無い・角は今の「最大」', r.cols);
 				assert(r.rs === 'def,few,max,cat', tag + ' スキル(行)の並びは今の4つ', r.rs);
-				assert(r.rows === r.own && r.cnt.includes(r.parents + '人') && r.cnt.includes(r.rows + '種') && r.gl === 3, tag + ' 親14人・行は親が持つスキル全部・遺伝子の3行', r.cnt);
+				assert(r.rows === r.own && r.cnt.includes(r.parents + '人') && r.cnt.includes(r.listN + '種') && r.gl === 3, tag + ' 親14人・行はレースのセットの一覧の合計（T115・358）・遺伝子の3行', r.cnt);
 				assert(!r.exam && !/"exam"|"sheet"|"from"/.test(r.exp) && !r.hasFrom, tag + ' 保存データと書き出しに doc.exam・sheet・from が増えない', r.exam);
 				assert(r.gene && !r.col && r.cat && r.style, tag + ' 欄は UmaStar 用のまま（遺伝子の行あり・「列」は無い）', r);
 				// 技能試験の表へ切り替えても親はいない
@@ -241,8 +241,8 @@ export async function register113(env) {
 		});
 	}
 
-	/* ---------- (C) 245: レースのセットは親の小窓で選んだときだけ／234: 親Aの「同一」／UmaStar から送るときは今のまま／書き出しと読み込み ---------- */
-	await block('T104 Deck α UmaExam ―― レースのセットは親の小窓で選んだときだけ（245）・親Aの「登録済みの〇〇と同一」（234）・UmaStar から送るときは今のまま', async () => {
+	/* ---------- (C) 245: レースのセットは親の小窓で選んだときだけ／234: 親Aの「同一」／UmaStar から送るときも親Aに候補（T115・363）／書き出しと読み込み ---------- */
+	await block('T104 Deck α UmaExam ―― レースのセットは親の小窓で選んだときだけ（245）・親Aの「登録済みの〇〇と同一」（234）・UmaStar から送るときの登録の画面', async () => {
 		const T = await open(1280, 'light'); const { page, ev } = T;
 		try {
 			await T.seed(10);
@@ -289,11 +289,11 @@ export async function register113(env) {
 			await T.ev(() => { const a = window.__deckAlpha; a.S.settings.cur = 'none'; a.switchMode('star'); }); await page.waitForTimeout(100);
 			const none2 = await ev(() => document.querySelector('.vc .cnt').textContent);
 			assert(none2.includes(init.starN + '人'), '「同一」にした UmaStar の親は「指定なし」に出たまま', none2);
-			// UmaStar から送るときは今のまま（親Aに候補を出さない・送り先のセットで開く・UmaStar 用の表で開く）
+			// UmaStar から送るときも親Aに候補を出す（T115・363）。送り先のセットで開く・UmaStar 用の表で開く
 			await T.send({ from: 'star', send: [], persons: [{ uma: init.starUma, green: null, greenCands: null, blue: null, red: null, skills: { [IDS[0]]: 1 }, genes: {} }] });
 			await T.openReg();
 			const r2 = await ev(() => ({ link: document.querySelectorAll('#body [data-link]').length, set: !!document.getElementById('setPick'), top: document.querySelector('.topline').innerText, style: document.querySelectorAll('[data-style]').length }));
-			assert(r2.link === 0 && r2.set && /UmaStar から/.test(r2.top) && r2.style === 4, 'UmaStar から送るときの登録の画面は今のまま（親Aに同一は出ない・セットを選べる・脚質の札）', r2);
+			assert(r2.link >= 1 && r2.set && /UmaStar から/.test(r2.top) && r2.style === 4, 'UmaStar から送るときの登録の画面（親Aに同一が出る・セットを選べる・脚質の札）', r2);
 			await T.doReg();
 			await T.openDeck();
 			const s1 = await ev(() => { const S = window.__deckAlpha.S; const p = S.doc.parents[S.doc.parents.length - 1]; return { mode: S.mode, keys: Object.keys(p).sort().join(), n: S.doc.parents.filter((x) => x.from === 'exam').length, doc: document.getElementById('setText').textContent }; });

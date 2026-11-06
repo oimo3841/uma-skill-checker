@@ -475,16 +475,16 @@ export async function register120(env) {
 			assert(!hd.cut && hd.h <= 37 && hd.sw <= hd.iw + 1, tag + '見出しは切れない・高さは今のまま（スマホは2行）', hd);
 			await T.pic('norace-table');
 
-			// デフォルトに出ない
+			// T115（357）: 新しいモードの親も「デフォルト」に出る（T108 の取り消し）。行は送った一覧の合計（358）
 			await T.page.click('#setBtn');
 			await T.page.waitForSelector('.rlist');
 			const list2 = await T.ev(() => [...document.querySelectorAll('.rlist .ropt')].slice(0, 2).map((o) => (o.querySelector('.rn') || {}).textContent));
-			assert(list2[0] === '親' + s0.parents + '人' && list2[1] === '親1人', tag + '数: デフォルトは変わらず・新しいまとまりは1人', list2);
+			assert(list2[0] === '親' + (s0.parents + 1) + '人' && list2[1] === '親1人', tag + '数: デフォルトは1人増える・新しいまとまりは1人', list2);
 			await T.pic('set-list-after');
 			await T.page.click('.rlist input[value="none"]', { force: true });
 			await T.page.waitForTimeout(250);
 			const s2 = await T.ev(() => ({ text: document.getElementById('setText').textContent, cnt: document.querySelector('.vc .cnt').textContent, none: window.__deckAlpha.S.doc.none }));
-			assert(s2.text === 'デフォルト' && s2.cnt.indexOf(s0.parents + '人') === 0 && s2.cnt === s0.cnt && s2.none === undefined, tag + 'デフォルトの表は今のまま（親も行も増えない・一覧も作らない）', [s0.cnt, s2.cnt]);
+			assert(s2.text === 'デフォルト' && s2.cnt.indexOf((s0.parents + 1) + '人') === 0 && s2.none === undefined, tag + 'デフォルトの表に新しいモードの親が出る（「デフォルト」の一覧は作らない）', [s0.cnt, s2.cnt]);
 			await T.pic('default-table');
 
 			// 書き出しと読み込み
@@ -496,6 +496,7 @@ export async function register120(env) {
 			await T.reg();
 			const r1 = await T.ev(() => ({ key: window.__deckAlphaRegister.S.setKey, text: document.querySelector('#setPick .t').textContent }));
 			assert(r1.key === 'none' && r1.text === 'デフォルト', tag + 'デフォルトから送ると「デフォルト」', r1);
+			await T.page.click('#body [data-nolink="0"]'); await T.page.waitForTimeout(100); // T115（363）: 同じ親を送ると「同一」を選んだ状態で出る。ここは新しい親の形を見る
 			await T.doReg();
 			await T.deck();
 			const s3 = await T.ev(() => { const S = window.__deckAlpha.S; const p = S.doc.parents[S.doc.parents.length - 1]; return { from: p.from, sets: p.sets, cur: S.settings.cur, none: S.doc.none && Object.keys(S.doc.none.skills).length, nr: Object.keys(S.doc.norace.skills).length }; });

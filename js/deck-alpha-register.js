@@ -19,6 +19,8 @@
  *   読もうとして決まらなかったものは [null, ★] で送れば、今までどおり開いて「読めなかった」を出す。
  *   T104（2026-11-05・C-296）: UmaExam からは from: 'exam'・send: 133種の id・race と style は null・blue と red は読めた値（読めなければ [null, ★]）・
  *   persons[].sheet: { めろっぷの行で id の無い行の名前: ★ } を足して送る。セットは「技能試験（133種）」で固定・親Aにも「登録済みの〇〇と同一」を出す（234）。
+ *   T115（2026-11-06・356〜363）: 右上にツール切り替えとライト／ダーク（Deck の本体と同じ。登録の前も後も）。UmaStar から送ったときも親Aに「同一」の候補を出す（UmaExam の 234 と同じ）。
+ *   全部同じ親がいれば先頭（いちばん新しく登録した親）を「同一」に選んだ状態で出す。親Aを「同一」にして登録すると新しい親を作らず、読み取りの値を足し、送り先のセットに入れる。
  *
  * 以下は版13 の説明。
  * 考え方: 確かめる所を最小にする。読めて決まったものは1行にたたみ（青・赤・緑の因子は1行の3つのボタン。C-272 の 8）、押すと直す形に入る（9）。
@@ -28,11 +30,11 @@
  * レースのセットへ送るときは、UmaStar の②のスキルの一覧を一緒に入れる（前の一覧と OR。C-271 の 3）。T97（140）から「デフォルト」へ送るときも「デフォルト」の一覧へ入れる。①の脚質はセットに記録しない（C-272 の 1・2）。
  * 「脚質」の欄は親の脚質の札（その親を何の脚質で育てたか。C-272 の 2）。初期値は UmaStar の①の脚質（版10 のまま）。
  * 祖の紐づけ（C-272 の 13〜15）: 同じ衣装の登録済みの親を候補にし、候補ごとに「登録済みの〇〇と同一」の行。「同一」か「新規登録」を選ぶ。
- * 衣装・白スキル・★が全部同じ親が1人だけなら「同一」を選んだ状態で出す（押し直せる）。
+ * 衣装・白スキル・★が全部同じ親がいれば、先頭（いちばん新しく登録した親）を「同一」に選んだ状態で出す（押し直せる。T115・359）。
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-06a';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-06b';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);
@@ -85,20 +87,20 @@
 		// 読んでいない青赤（null）は閉じたまま（T92-1）
 		['blue', 'red'].forEach((k) => { if (p[k] && (!p[k][0] || p[k][1] < 0)) p.open[k] = true; });
 		if (p.uma && p.greenStar != null && p.greenStar < 0) p.open.green = true;
-		if (i > 0 || S.exam) refreshCands(p); // UmaExam から送るときは親Aにも「登録済みの〇〇と同一」を出す（234）
+		refreshCands(p); // 親Aにも「登録済みの〇〇と同一」を出す（UmaExam は 234・UmaStar は T115・363）
 		return p;
 	}
-	/** 祖の候補（同じ衣装の登録済みの親）を引き直す。全部同じ親が1人だけなら「同一」を選んだ状態にする（まだ選んでいないときだけ） */
+	/** 親と祖の候補（同じ衣装の登録済みの親）を引き直す。全部同じ親がいれば先頭（いちばん新しく登録した親）を「同一」を選んだ状態にする（まだ選んでいないときだけ。T115・359） */
 	function refreshCands(p) {
 		p.cands = K.matchCandidates(S.doc, p);
 		if (p.link && !p.cands.some((c) => c.p.id === p.link)) { p.link = null; p.linkMode = null; }
-		if (!p.linkMode) { const ex = p.cands.filter((c) => c.exact); if (ex.length === 1) { p.link = ex[0].p.id; p.linkMode = 'auto'; } }
+		if (!p.linkMode) { const ex = p.cands.find((c) => c.exact); if (ex) { p.link = ex.p.id; p.linkMode = 'auto'; } }
 	}
 
 	/* ---------- 要確認の数 ---------- */
 	function issues(p) {
 		const a = [];
-		if (p.link) return a; // 登録済みの親と同一にしたときは確かめる所が無い（祖は読み取りの値を保存しない。UmaExam の親Aは読み取りの値を足す）
+		if (p.link) return a; // 登録済みの親と同一にしたときは確かめる所が無い（祖は読み取りの値を保存しない。親Aは読み取りの値を足す）
 		if (!p.uma) a.push('衣装');
 		// 読んでいない青赤（null）は数えない（T92-1）
 		if (p.blue && !p.blue[0]) a.push('青'); else if (p.blue && p.blue[1] < 0) a.push('青の★');
@@ -153,7 +155,7 @@
 		const genes = '<div class="line"><span class="k">遺伝子</span><span>' + (Object.keys(p.genes).map((g) => K.esc((K.GENES.get(g) || { name: g }).name.replace('の遺伝子', '')) + '★' + p.genes[g]).join('　') || 'なし') + '</span></div>';
 		// 祖の紐づけ（候補ごとに「登録済みの〇〇と同一」の行。「同一」か「新規登録」。C-272 の 13〜15）
 		let link = '';
-		if ((i > 0 || S.exam) && on && p.cands.length) {
+		if (on && p.cands.length) {
 			link = '<div class="links">' + p.cands.map((c) => '<div class="lrow"><span class="lt">登録済みの <button class="namebtn" type="button" data-view="' + c.p.id + '" aria-label="登録済みの ' + K.esc(K.fullName(c.p.uma)) + ' のデータを見る">' + K.esc(K.fullName(c.p.uma)) + '</button> <span class="muted small mono">' + K.esc(codeOf(c.p)) + '</span>' + (c.p.owner === 'friend' ? '<span class="muted small">・フレンド</span>' : '') + ' と同一</span><button class="btn" type="button" data-link="' + c.p.id + '" data-i="' + i + '" aria-pressed="' + (p.link === c.p.id) + '">同一</button></div>').join('') +
 				'<div class="lrow"><span class="lt"></span><button class="btn" type="button" data-nolink="' + i + '" aria-pressed="' + (p.linkMode === 'none') + '">新規登録</button></div></div>';
 		}
@@ -183,8 +185,12 @@
 		$('#body').querySelectorAll('[data-style]').forEach((b) => b.setAttribute('aria-pressed', S.styles.includes(b.dataset.style)));
 		const all = activePersons().flatMap(issues); const n = all.length;
 		$('#needTop').hidden = !n; $('#needTop').textContent = '要確認 ' + n;
-		const can = !!S.persons[0].uma;
-		$('#regBtn').disabled = !can; $('#regSum').textContent = can ? (S.scope === 'fam' ? '親A＋祖2人' : '親Aだけ') + (n ? '・★不明などは「?」のまま登録' : '') : '親Aの衣装を決めると登録できます';
+		// 親Aの衣装が決まっていなくても、登録済みの親と「同一」を選べば登録できる（新しい親を作らない）
+		const can = !!(S.persons[0].uma || S.persons[0].link);
+		// 「?」のまま残るものがあるときだけ後ろの文を付ける（紐づけの選び残しは「?」にならない。T115・361）
+		const unknown = all.some((t) => t !== '紐づけ');
+		// 狭い画面では「・★不明…」の前で折り返す（span は inline-block。css/deck-alpha.css の .regbar .sum）
+		$('#regBtn').disabled = !can; $('#regSum').innerHTML = can ? '<span>' + (S.scope === 'fam' ? '親Aセット（3人）を登録' : '親Aだけ（1人）を登録') + '</span>' + (unknown ? '<span>・★不明などは「?」のまま</span>' : '') : '親Aの衣装を決めると登録できます';
 		bind();
 	}
 	function personIndex(el) { const cards = [...$('#body').querySelectorAll('section.card')]; return cards.indexOf(el.closest('section.card')) - 1; }
@@ -194,7 +200,7 @@
 		if ($('#setPick')) $('#setPick').onclick = openSetPicker;
 		body.querySelectorAll('[data-style]').forEach((b) => { b.onclick = () => { const v = b.dataset.style; const i = S.styles.indexOf(v); if (i >= 0) S.styles.splice(i, 1); else S.styles.push(v); render(); }; });
 		body.querySelectorAll('[data-owner]').forEach((b) => { b.onclick = () => { S.owner = b.dataset.owner; render(); }; });
-		const umaChanged = (i, p) => { if (i > 0 || S.exam) refreshCands(p); };
+		const umaChanged = (i, p) => { refreshCands(p); };
 		body.querySelectorAll('[data-cand]').forEach((b) => { b.onclick = () => { const i = +b.dataset.i, p = S.persons[i]; p.uma = K.UNIQ.get(b.dataset.cand) || null; umaChanged(i, p); render(); }; });
 		body.querySelectorAll('[data-umasel]').forEach((el) => { el.onchange = () => { const i = +el.dataset.umasel, p = S.persons[i]; p.uma = el.value || null; umaChanged(i, p); render(); }; });
 		body.querySelectorAll('[data-act]').forEach((b) => { b.onclick = () => { const p = S.persons[+b.dataset.i], a = b.dataset.act;
@@ -242,10 +248,26 @@
 	function closeSheet() { $('#sheet').hidden = true; $('#scrim').hidden = true; }
 	$('#scrim').onclick = closeSheet; document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
+	/* ---------- 右上のツール切り替えとライト／ダーク（T115・356。Deck の本体と同じ形。この画面は Deck の本体ではないので「Deck (αテスト)」も押して移れる行にする） ---------- */
+	$('#toolBtn').onclick = () => {
+		$('#sheetIn').innerHTML = '<h2 id="sheetTitle">ツール切り替え</h2><div class="list"><a href="special.html" data-tool><span>UmaStar OCR</span></a><a href="exam.html" data-tool><span>UmaExam</span></a><a href="deck-alpha.html" data-tool><span>Deck (αテスト)</span></a></div>' +
+			'<div class="acts"><button class="btn" type="button" data-close>閉じる</button></div>';
+		$('#sheet').hidden = false; $('#scrim').hidden = false; $('#sheet').scrollTop = 0;
+		$('#sheetIn [data-close]').onclick = closeSheet; $('#sheetIn [data-close]').focus({ preventScroll: true });
+	};
+	// ライト／ダークは、ほかのツールと同じ設定（js/theme.js）。アイコンは利用者の選択（自動／ライト／ダーク）を示す
+	function syncThemeBtn() {
+		const st = window.UmaTheme && window.UmaTheme.get ? window.UmaTheme.get() : document.documentElement.getAttribute('data-theme');
+		$('#themeBtn').setAttribute('data-theme-state', st === 'light' || st === 'dark' ? st : 'auto');
+	}
+	$('#themeBtn').onclick = () => { window.UmaTheme.set(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); syncThemeBtn(); };
+	new MutationObserver(syncThemeBtn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); // ほかのタブでの切り替え・OS の設定の変化
+	syncThemeBtn();
+
 	/* ---------- 登録 ---------- */
 	$('#regBtn').onclick = async () => {
 		const doc = S.doc; const ps = activePersons(); const main = ps[0];
-		if (!main.uma) return;
+		if (!main.uma && !main.link) return;
 		// レースのセット（無ければ作る）へ、②のスキルの一覧（前の一覧と OR）を入れる。脚質はセットに記録しない（C-272 の 2）
 		let set = null;
 		if (S.exam) { if (!doc.exam) doc.exam = K.newExamList(); K.addSend(doc.exam, S.ocr.send); set = doc.exam; }
@@ -258,13 +280,20 @@
 		const no = doc.parents.filter((p) => p.date === date).length + 1;
 		const member = (p) => Object.assign({ uma: p.uma, blue: p.blue && p.blue[0] ? p.blue : null, red: p.red && p.red[0] ? p.red : null, green: p.greenStar, skills: p.skills, genes: p.genes }, S.exam ? { sheet: p.sheet } : {});
 		const gp = S.scope === 'fam' ? ps.slice(1).map((p) => p.link ? { link: p.link } : member(p)) : [];
-		// UmaExam から: 親Aを登録済みの親と「同一」にしたときは、新しい親を作らず、その親に足す（読み取りの値で上書き・技能試験の表に入る。234）
-		if (S.exam && main.link) {
+		// 親Aを登録済みの親と「同一」にしたときは、新しい親を作らず、その親に足す（読み取りの値で上書き・送り先のセットに入る。UmaExam は 234・UmaStar は T115・363）
+		if (main.link) {
 			const q = doc.parents.find((x) => x.id === main.link);
 			mergeMember(q, member(main));
 			if (gp.length) q.gp = gp.map((g) => { if (g.link) return g; const e = (q.gp || []).find((o) => !o.link && o.uma && o.uma === g.uma); if (!e) return g; const c = JSON.parse(JSON.stringify(e)); mergeMember(c, g); return c; });
-			const qs = q.sets || (q.sets = []); if (!qs.includes('exam')) qs.push('exam');
-			S.settings.mode = 'exam';
+			const qs = q.sets || (q.sets = []); if (set && !qs.includes(set.id)) qs.push(set.id);
+			if (S.exam) S.settings.mode = 'exam';
+			else {
+				// UmaStar から送ったので、技能試験だけの親だったなら「デフォルト」にも出す（357。技能試験の表には sets の 'exam' で残る）
+				if (q.from === 'exam') delete q.from;
+				// 画面で選んだ脚質の札は親の札に足す（前の札は消さない）
+				q.tags = { style: [...new Set(((q.tags && q.tags.style) || []).concat(S.styles))] };
+				S.settings.cur = set ? set.id : 'none'; S.settings.mode = 'star';
+			}
 			try { await K.store.putParents([q]); await K.store.putHead(doc); await K.store.putMeta('settings', S.settings); } catch (e) { toast('保存できませんでした'); return; }
 			try { localStorage.removeItem(INBOX); } catch (e) { /* 消せなくても登録は済んでいる */ }
 			S.done = { parent: q, no: q.no, date: q.date, gp: gp.length, set, merged: true };
@@ -275,7 +304,7 @@
 		const parent = Object.assign({ id, date, no, owner: S.owner, sets: set ? [set.id] : [], tags: { style: S.styles.slice() }, gp }, member(main));
 		// Deck を開いたときに、送り先のセットを選んだ状態にする
 		if (S.exam) { parent.from = 'exam'; S.settings.mode = 'exam'; } // UmaExam から登録した親は「デフォルト」に出さない（233）。開いたときは UmaExam 用の表
-		else { if (S.setKey === 'norace') parent.from = 'norace'; /* T108: デフォルトの表に出さない */ S.settings.cur = set ? set.id : 'none'; S.settings.mode = 'star'; }
+		else { if (S.setKey === 'norace') parent.from = 'norace'; /* T108: 新しいモードから登録した印（T115・357 から「デフォルト」にも出す） */ S.settings.cur = set ? set.id : 'none'; S.settings.mode = 'star'; }
 		try { await K.store.putParents([parent]); await K.store.putHead(doc); await K.store.putMeta('settings', S.settings); }
 		catch (e) { toast('保存できませんでした'); return; }
 		try { localStorage.removeItem(INBOX); } catch (e) { /* 消せなくても登録は済んでいる */ }
@@ -285,7 +314,7 @@
 	/** 読み取りの値を登録済みの人に足す（★不明で、分かっている★を消さない。読めなかった因子は今の値のまま） */
 	function mergeMember(q, m) {
 		const up = (cur, add) => { const r = Object.assign({}, cur); Object.keys(add || {}).forEach((k) => { if (!(add[k] < 0 && r[k] > 0)) r[k] = add[k]; }); return r; };
-		q.skills = up(q.skills, m.skills); q.genes = up(q.genes, m.genes); q.sheet = Object.assign({}, q.sheet, m.sheet);
+		q.skills = up(q.skills, m.skills); q.genes = up(q.genes, m.genes); if (m.sheet) q.sheet = Object.assign({}, q.sheet, m.sheet); // UmaStar からは sheet が無い（空を足さない）
 		if (m.blue) q.blue = m.blue; if (m.red) q.red = m.red;
 		if (m.green != null && (m.green >= 0 || q.green == null)) q.green = m.green;
 	}

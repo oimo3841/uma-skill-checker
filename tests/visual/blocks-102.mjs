@@ -197,6 +197,7 @@ export async function register102(env) {
 				tag + ' 登録の画面（3人）: 祖1 は候補から選ぶ・祖2 は衣装が未定', g3);
 			await look('d3-toroku-3nin', { fullPage: true });
 			await page.click('.cand[data-cand="' + C1.name + '"]'); await page.waitForTimeout(150);
+			await page.click('#body [data-nolink="0"]'); await page.waitForTimeout(100); // T115（363）: 親Aは1人目と全部同じなので「同一」を選んだ状態で出る。ここは新しい親の形を見る
 			await page.click('#regBtn'); await page.waitForTimeout(200);
 			await page.click('a:has-text("Deck (αテスト)を開く")');
 			await page.waitForFunction(() => window.__deckAlpha && window.__deckAlpha.S.doc, null, { timeout: 15000 }); await page.waitForTimeout(300);
