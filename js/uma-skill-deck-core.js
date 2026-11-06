@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06c';
 
 	/* ============================================================
 	 * 定数
@@ -2844,6 +2844,32 @@
 	function outsideFilterAxes() {
 		return pickableAxes().filter(a => ROSTER_FILTER_AXIS_KEYS.indexOf(a.key) === -1);
 	}
+	/*
+	 * 新しいモード（roster.noPlan === true）のときの②のカード（T110・回答 326〜328）。
+	 * 別に持つのは roster.noPlanFactor の、②のカードと一緒に動く3つ（cards・pinned・count。形は outsideOptions の同じ項目のまま。パネルで選ぶ・外すと3つが一緒に書かれる）。
+	 * typeMin・exclude・skillPins はオススメサポの小窓の設定で、新しいモードでは開けないので outsideOptions のまま（共通）。②のスキルも共通。
+	 * 書くのは、初めて新しいモードにしたとき（そのときの②のカードの写し。空でも {} を書く）と、新しいモードで②のカードに触ったときだけ。戻っても消さない。
+	 * T108 のあと写しを持たずに新しいモードのままのセットは、写しが無い間は今の outsideOptions を読む（読み込み時に補わない。ルール28）。
+	 */
+	const NO_PLAN_FACTOR_KEYS = ['cards', 'pinned', 'count'];
+	function noPlanFactorPick(o) {
+		const out = {};
+		NO_PLAN_FACTOR_KEYS.forEach(k => { if (o && o[k] !== undefined) out[k] = o[k]; });
+		return out;
+	}
+	function noPlanFactorStoreOf(roster) {
+		const s = roster && roster.noPlanFactor;
+		return (s && typeof s === 'object' && !Array.isArray(s)) ? s : null;
+	}
+	/** いまのモードで読む outsideOptions（保存のままの形）。新しいモードで写しがあれば、3つの項目だけ写しのものにする。それ以外は roster.outsideOptions そのもの */
+	function outsideOptionsRawOf(roster) {
+		const o = (roster && roster.outsideOptions && typeof roster.outsideOptions === 'object') ? roster.outsideOptions : {};
+		const store = isNoPlanRoster(roster) ? noPlanFactorStoreOf(roster) : null;
+		if (!store) return o;
+		const out = Object.assign({}, o);
+		NO_PLAN_FACTOR_KEYS.forEach(k => { delete out[k]; });
+		return Object.assign(out, noPlanFactorPick(store));
+	}
 	/**
 	 * セットの「種類」「除外」「枚数」と残りの枠の指定（④・段10。段13 で「絞り込み」を「除外」に置き換え、pinned を足した。roster.outsideOptions）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
 	 *   count … 1〜6（無い・知らない値は5。T53 で 1〜3 を足した）
@@ -2852,7 +2878,7 @@
 	 *   pinned … [カードID…]（残りの枠に指定したカード。outsidePinnedOf）
 	 */
 	function outsideOptionsOf(roster) {
-		const o = (roster && roster.outsideOptions && typeof roster.outsideOptions === 'object') ? roster.outsideOptions : {};
+		const o = outsideOptionsRawOf(roster);
 		const count = OUTSIDE_COUNT_CHOICES.indexOf(o.count) !== -1 ? o.count : OUTSIDE_COUNT_DEFAULT;
 		const typeMin = {};
 		if (o.typeMin && typeof o.typeMin === 'object') {
@@ -5191,7 +5217,7 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'acquirePicks', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'noPlan', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'acquirePicks', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'noPlan', 'outsideOptions', 'noPlanFactor'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -13684,7 +13710,8 @@
 				// オススメサポの残りの枠（段13・C1）: ①の編成には書かず、選んだIDを返すだけ
 				if (picking && picking.external) {
 					// C-168: 育成ウマ娘と同じキャラクターのカードは、残りの枠にも指定できない（追加せず、窓を開いたまま理由を知らせる）
-					const umaWhy = umaCharaNoticeOf(id);
+					// T110（328）: 新しいモードでは①（育成ウマ娘を含む）を使わないので、この制限を外す
+					const umaWhy = isNoPlanRoster(roster) ? '' : umaCharaNoticeOf(id);
 					if (umaWhy) { pickNotice = umaWhy; render(); renderHits(); return; }
 					const cb = picking.external.onPick;
 					picking = null;
@@ -13921,6 +13948,8 @@
 		rosterOutsideSink.setNoPlan = function () {
 			if (roster.noPlan === true && roster.race === undefined) return true;
 			delete roster.race;
+			// T110（327）: 初めて新しいモードにしたとき、そのときの②のカードを写して始める
+			if (!noPlanFactorStoreOf(roster)) roster.noPlanFactor = snapshot(noPlanFactorPick(roster.outsideOptions));
 			roster.noPlan = true;
 			persistNow();
 			render();
@@ -13973,7 +14002,7 @@
 		 */
 		rosterOutsideSink.setOptions = function (patch) {
 			if (!patch || typeof patch !== 'object') return false;
-			const next = (roster.outsideOptions && typeof roster.outsideOptions === 'object') ? Object.assign({}, roster.outsideOptions) : {};
+			const next = Object.assign({}, outsideOptionsRawOf(roster));   // T110: 新しいモードでは、②のカードの3項目は写しのものから始める
 			if ('count' in patch) {
 				if (OUTSIDE_COUNT_CHOICES.indexOf(patch.count) === -1) return false;
 				if (patch.count === OUTSIDE_COUNT_DEFAULT) delete next.count; else next.count = patch.count;
@@ -14014,6 +14043,22 @@
 			if ('skillPins' in patch) {
 				const s = outsideSkillPinsOf(patch.skillPins);
 				if (s.length === 0) delete next.skillPins; else next.skillPins = s;
+			}
+			// T110（326）: 新しいモードでは、②のカードの3項目は写し（roster.noPlanFactor）へ、それ以外は今までどおり outsideOptions へ。元の②のカードには触らない
+			if (isNoPlanRoster(roster)) {
+				const omit = (src) => { const x = Object.assign({}, src); NO_PLAN_FACTOR_KEYS.forEach(k => { delete x[k]; }); return x; };
+				const cur = (roster.outsideOptions && typeof roster.outsideOptions === 'object') ? roster.outsideOptions : {};
+				const nextFactor = noPlanFactorPick(next);
+				const factorChanged = JSON.stringify(nextFactor) !== JSON.stringify(noPlanFactorPick(outsideOptionsRawOf(roster)));
+				const restChanged = JSON.stringify(omit(next)) !== JSON.stringify(omit(cur));
+				if (!factorChanged && !restChanged) return true;
+				if (factorChanged) roster.noPlanFactor = nextFactor;
+				if (restChanged) {
+					const rest = Object.assign(noPlanFactorPick(cur), omit(next));
+					if (Object.keys(rest).length === 0) delete roster.outsideOptions; else roster.outsideOptions = rest;
+				}
+				persistNow();
+				return true;
 			}
 			const before = roster.outsideOptions === undefined ? undefined : JSON.stringify(roster.outsideOptions);
 			const empty = Object.keys(next).length === 0;
@@ -15809,6 +15854,7 @@
 		 * ②のパネルのカードを直接選ぶ（T53）。①のカード選択の小窓（rosterOutsideSink.pickCard。オススメサポの残りの枠と同じ一覧＝SSR・SR）を開く。
 		 * 選べないもの: ①と同じカード・②のほかの枠のカードと同じキャラクター（グループのカードはメンバー全員で見る）・育成ウマ娘と同じキャラクター（選ぶ小窓が知らせる）。
 		 * ①と同じキャラクターの別のカードは選べる（オススメサポの候補と同じ決まり）
+		 * T110（新しいモード）: ①のカードと育成ウマ娘は判定に使わない。②のほかの枠のカードと同じキャラクターは選べないまま
 		 */
 		function pickFactorCard(index) {
 			if (!rosterOutsideSink || typeof rosterOutsideSink.pickCard !== 'function') return;
@@ -15817,7 +15863,7 @@
 			const others = cards.filter((id, k) => k !== index);
 			const charas = [];
 			others.forEach(id => outsideCharasOfCard(findCard(id)).forEach(n => { if (charas.indexOf(n) === -1) charas.push(n); }));
-			rosterOutsideSink.pickCard({ used: ((r && r.cardIds) || []).filter(Boolean).concat(others), charas: charas, members: true, onPick: (id) => setFactorCard(index, id) });
+			rosterOutsideSink.pickCard({ used: (isNoPlanRoster(r) ? [] : ((r && r.cardIds) || []).filter(Boolean)).concat(others), charas: charas, members: true, onPick: (id) => setFactorCard(index, id) });
 		}
 		/**
 		 * ②のパネルの枠 index にカード id を入れる（T53・C-262 の (3)）。直接選んだカードは残りの枠の指定（outsideOptions.pinned）にまとめ、
@@ -15828,7 +15874,7 @@
 			const r = rosterOutsideSink.getRoster();
 			const opt = outsideOptionsOf(r);
 			// T67: index はパネルの枠（種別の順に並べた位置）。書くのは保存の順（outsideCardIdsOf）の中の、そのカードの位置（空きなら後ろ）
-			const cards = outsideCardIdsOf(r && r.outsideOptions && r.outsideOptions.cards);
+			const cards = outsideCardIdsOf(outsideOptionsRawOf(r).cards);
 			const old = opt.cards[index] || '';
 			if (old !== id) {
 				const at = old ? cards.indexOf(old) : -1;
@@ -15853,7 +15899,7 @@
 			const old = opt.cards[index];
 			if (!old) return;
 			// T67: 外すのは保存の順のまま（並べるのは読むとき）
-			rosterOutsideSink.setOptions({ cards: outsideCardIdsOf(r && r.outsideOptions && r.outsideOptions.cards).filter(x => x !== old), pinned: opt.pinned.filter(x => x !== old) });
+			rosterOutsideSink.setOptions({ cards: outsideCardIdsOf(outsideOptionsRawOf(r).cards).filter(x => x !== old), pinned: opt.pinned.filter(x => x !== old) });
 			afterFactorCardsChange();
 			focusNoScroll(container.querySelector('[data-usd-el="factor-card-pick"][data-index="' + index + '"]'));
 		}
@@ -17454,7 +17500,7 @@
 				const order = (r.kindOrder || r.cards.map(c => c.cardId)).filter(id => by.has(id) && !by.get(id).pinned);
 				// T67: optNow.cards は並べたもの。戻すのは保存の順のまま
 				const rNow = rosterOutsideSink.getRoster();
-				cardsBefore = outsideCardIdsOf(rNow && rNow.outsideOptions && rNow.outsideOptions.cards);
+				cardsBefore = outsideCardIdsOf(outsideOptionsRawOf(rNow).cards);
 				rosterOutsideSink.setOptions({ cards: order.concat(pinnedNow.filter(id => by.has(id))) });
 				cardsWritten = outsideOptionsOf(rosterOutsideSink.getRoster()).cards;
 			}
@@ -17472,7 +17518,7 @@
 					probe: () => sink.probe(),
 					apply: () => {
 						// T53: カード（outsideOptions.cards）も「追加」の前に戻す。追加のあとにパネルでカードを変えていたら、カードは今のまま（スキルだけ戻す）
-						if (rosterOutsideSink && cardsBefore && JSON.stringify(outsideOptionsOf(rosterOutsideSink.getRoster()).cards) === JSON.stringify(cardsWritten)) {
+						if (rosterOutsideSink && cardsBefore && !isNoPlanRoster(rosterOutsideSink.getRoster()) && JSON.stringify(outsideOptionsOf(rosterOutsideSink.getRoster()).cards) === JSON.stringify(cardsWritten)) {
 							rosterOutsideSink.setOptions({ cards: cardsBefore });
 							renderFactorCards();
 						}
@@ -19250,7 +19296,7 @@
 			isNoPlan: isNoPlanRoster, NO_PLAN_LABEL: RACE_NO_PLAN_LABEL, NO_PLAN_SHORT: RACE_NO_PLAN_SHORT,
 			raceOf: raceOfRoster, lockedFilterOf: function (r) { return raceLockedFilterOf(raceOfRoster(r)); }, resolvedFilterOf: resolvedFilterOf,
 			// ④（段10〜）・段13: 「種類」「除外」「枚数」と残りの枠の指定（roster.outsideOptions）。setOptions は項目ごとの置き換え（{ count } / { typeMin } / { exclude } / { pinned }）
-			optionsOf: outsideOptionsOf,
+			optionsOf: outsideOptionsOf, rawOptionsOf: outsideOptionsRawOf,
 			getOptions: function () { return outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setOptions: function (patch) { return rosterOutsideSink ? rosterOutsideSink.setOptions(patch) : false; },
 			filterAxes: function () { return outsideFilterAxes().map(a => a.key); }, EXCLUDE_DEFAULT: JSON.parse(JSON.stringify(OUTSIDE_EXCLUDE_DEFAULT)), excludesSkill: outsideExcludesSkill,
