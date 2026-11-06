@@ -1,9 +1,9 @@
-// js/video-frames.js（動画V1-1）を、素材フォルダの本物の画面収録2本で回す手元だけの検査（T42・2026-10-31）。
+// js/video-frames.js（動画V1-1）を、素材フォルダの本物の画面収録5本で回す手元だけの検査（T42・2026-10-31）。
 // tests/skillset と同じ扱い: 素材は Git の管理外。素材フォルダが無い・動画が無いときは「飛ばした」と出して 0 で終わる。
 //
-//   npm run test:video-local                 … 2本 × ふつう
+//   npm run test:video-local                 … 5本 × ふつう
 //   npm run test:video-local -- --cpu=4      … CPU を4倍遅くする（スマホ相当の目安。CDP の Emulation.setCPUThrottlingRate）
-//   npm run test:video-local -- --only=1     … 動画1 だけ（1 か 2）
+//   npm run test:video-local -- --only=1     … 動画1 だけ（1〜5）
 //   npm run test:video-local -- --compare    … 同じフレームで stitchOnePerson も呼び、高さと継ぎ目の確かさを並べる（時間に入れない）
 //   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存
 //   npm run test:video-local -- --special    … special.html の③の流れを通す（T59・動画V1-2）: 入口 → 小窓の「動画を選ぶ」→ ファイルの選択に動画を渡す →
@@ -35,8 +35,13 @@ const VIDEOS = [
 	// 結合画像の中身は前と同じ（行ごとに比べて重複・欠けなし。高さの差 1〜2px は継ぎ目の画が変わったため）
 	// T96（2026-11-04・T95-1 の回答 147）: --special 無しの「人ごとの高さ」と「選ぶ枚数」も今の値に直した
 	// （前 1998／1707／1648・12枚、2578／2480／2352・34枚。T90 で止まっている画から写すようになってからの値。--special の高さの ±2 の期待値もこの値を中心に見る）
-	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 7.5, 14], heights: [1999, 1708, 1648], picks: 10, counts: [4, 5, 3] },
-	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10, 20.25], heights: [2578, 2482, 2351], picks: 29, counts: [11, 15, 5] }
+	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 7.5, 14], heights: [1999, 1708, 1648], picks: 9, counts: [4, 4, 3] },
+	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10, 20.25], heights: [2578, 2480, 2351], picks: 25, counts: [13, 9, 5] },
+	// T109（2026-11-06）: おいもさんの iPhone の3本（同じ親）。3本目は「連綿」を含む領域が2回写っていた・2本目は祖2 の結合の失敗・1本目は育成完了後の画面（紙吹雪）で取り込めなかった。
+	// 同じ親なので高さはほぼ同じ（正解は PC の取り込みの結合画像を幅をそろえた 2002／1906／1651）。動画1・2 の枚数も T109 で変わった（軌跡が正しくなり、誤って足していた動いている画が減った。結合画像の行は同じ。報告 T109-check-1.md）
+	{ no: 3, name: 'ScreenRecording_11-06-2026 16-57-05_1.MP4', anchors: [0, 7, 12.25], heights: [1997, 1901, 1648], picks: 11, counts: [6, 4, 3] },
+	{ no: 4, name: 'ScreenRecording_11-06-2026 16-58-38_1.MP4', anchors: [0, 5.625, 10.25], heights: [1997, 1901, 1647], picks: 10, counts: [4, 5, 3] },
+	{ no: 5, name: 'ScreenRecording_11-06-2026 16-59-47_1.MP4', anchors: [0, 5.5, 11], heights: [1998, 1902, 1649], picks: 10, counts: [5, 4, 3] }
 ];
 const LABELS = ['親', '祖1', '祖2'];
 

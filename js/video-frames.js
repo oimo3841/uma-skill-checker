@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-05a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-06a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -77,6 +77,8 @@
 		grabMatch: 0.03,     // 取り直した等倍の画を縮めて、選ぶときの縮小画と比べる不一致率の上限（badNear0）
 		remeasureWin: 48,    // 取り直した画どうしで、選ぶときのずれの ±この範囲を測り直す
 		nearWin: 12,         // 測れない組の、ほぼ止まっている見込みで探す範囲（±px）
+		microBad: 0.12,      // 1/60 秒ごとに足していくときの不一致率の上限（T109。範囲が狭いので、タッチのエフェクトが大きく写っていても認める）
+		maxSpeed: 8,         // となりのフレームのずれとして認める速さの上限（W/秒。T109。おいもさんの動画の速いスワイプで 3W/秒ほど）
 		grabRetryDt: [0, 1 / 60, -1 / 60, 1 / 30, -1 / 30], // 取り直した画が縮小画と合わないとき、次の画を待って取り直す時刻（選んだ時刻からの差・秒）
 		deltaWin: 240,       // 取り直した画と縮小画のずれを探す範囲（±px）
 		maxPicks: 120,
@@ -521,6 +523,19 @@
 		}
 		return best;
 	}
+	// 行ごとの差（d）で、差が threshold を超える行が続く区間（quiet 行以上の途切れで分ける）のうち、いちばん長いもの { start, end（次の行） }（T109）
+	function longestDiffRun(d, threshold, quiet) {
+		let best = null, start = -1, last = -1;
+		const close = () => { if (start >= 0 && (!best || last + 1 - start > best.end - best.start)) best = { start, end: last + 1 }; };
+		for (let y = 0; y < d.length; y++) {
+			if (d[y] <= threshold) continue;
+			if (start >= 0 && y - last > quiet) { close(); start = -1; }
+			if (start < 0) start = y;
+			last = y;
+		}
+		close();
+		return best;
+	}
 	const isBlue = (r, g, b) => b > 200 && g > 140 && g < 220 && r < 120;
 	// 列の色から、青が20行以上続く区間の上端（帯の中の y）を返す
 	function blueStarts(col, y0, y1) {
@@ -658,16 +673,18 @@
 		const probes = same.filter((f) => f.probe).map((f) => f.probe);
 		if (probes.length < 2) throw framesError('too-few', '使えるフレームが少なすぎる');
 		const hf = stitchDetectHeaderFooter(probes, '動画の解析');
-		// 組ごとの「最初に差が出る行」。stitch は最小を取るので、演出が1組で上の方に出ると上端が上がる。解析側は中央値を使う
+		// 組ごとの「差が続く中でいちばん長い区間」（T109）。育成完了後の画面は、窓の上と下に背景と紙吹雪が動いていて、
+		// 「最初に差が出る行」が画面のいちばん上のほうになる。窓の中の固定部分は動かないので、差の途切れ（100行以上。stitch と同じ長さ）で区間に分けると、
+		// スクロールする本文がいちばん長い区間になる。stitch は最小を取るので、演出が1組で上の方に出ると上端が上がる。解析側は中央値を使う
 		const firsts = [];
+		let runEnd = -1;
 		for (let k = 0; k < probes.length - 1; k++) {
 			const d = stitchRowDiffSignal(probes[k], probes[k + 1]);
-			let first = -1;
-			for (let y = 0; y < d.length; y++) if (d[y] > 5) { first = y; break; }
-			if (first >= 0) firsts.push(first);
+			const r = longestDiffRun(d, 5, 100);
+			if (r) { firsts.push(r.start); runEnd = Math.max(runEnd, r.end); }
 		}
 		const sorted = firsts.slice().sort((p, q) => p - q);
-		if (sorted.length) hf.headerEnd = sorted[Math.floor(sorted.length / 2)];
+		if (sorted.length) { hf.headerEnd = sorted[Math.floor(sorted.length / 2)]; hf.footerStart = runEnd; }
 		const footer = stitchTrimFixedFooterChrome(probes, hf.headerEnd, hf.footerStart, '動画の解析');
 		const hE = hf.headerEnd, cH = footer - hE;
 		if (hE < bandY0 || footer > bandY1 || cH < 200) throw framesError('band', '本文の帯が想定の範囲の外: ' + hE + '〜' + footer);
@@ -741,7 +758,7 @@
 				weak: !!weak, uncertain: uncertainOf(r), anchor: anchorSet.has(to)
 			});
 		};
-		let stills = 0, backs = 0, local = 0, localFallback = 0, coarse = 0, verifies = 0, nears = 0, headHints = 0, predVerifies = 0, loose = 0;
+		let stills = 0, backs = 0, local = 0, localFallback = 0, coarse = 0, verifies = 0, nears = 0, headHints = 0, predVerifies = 0, loose = 0, micros = 0;
 		// となりどうしのずれ（正＝下へスクロール・0＝止まっている・負＝上へ戻った・null＝測れない）
 		function stepShift(a, b, prev) {
 			b.strictStill = false;
@@ -754,18 +771,20 @@
 				localFallback++;
 			}
 			// 粗い全範囲 → 当たりの近くだけ細かく
+			// 時間の割に遠すぎる当たりは、一覧の同じ形の行に合っただけ（T109。1/16 秒で 633px 戻った、など）。全範囲の当たりには使わない
+			const plausible = (s) => s <= Math.max(opts.predWin, W * opts.maxSpeed * (b.t - a.t));
 			const c = coarseScan(a.plane, b.plane, opts.coarseYs, opts.coarseXs); coarse++;
-			if (c.confident) {
+			if (c.confident && plausible(c.shift)) {
 				const r = scanRange(a.plane, b.plane, c.shift - opts.coarseYs * 2, c.shift + opts.coarseYs * 2, opts.seamYs, opts.seamXs); local++;
 				if (r.shift > 0 && r.badRate < opts.okBad) return r.shift;
 			}
 			// 当たりが1つに決まる（次点との比 3 以上）なら、不一致が多くても（タッチのエフェクトが両方に写っている）軌跡のずれにする（T85）
-			if (c.shift > 0 && c.badRate < opts.okBad * 3 && coarseRatio(c) >= 3) {
+			if (c.shift > 0 && plausible(c.shift) && c.badRate < opts.okBad * 3 && coarseRatio(c) >= 3) {
 				const r = scanRange(a.plane, b.plane, c.shift - opts.coarseYs * 2, c.shift + opts.coarseYs * 2, opts.seamYs, opts.seamXs); local++;
 				if (r.shift > 0 && r.badRate < opts.okBad * 3) { loose++; return r.shift; }
 			}
 			const cb = coarseScan(b.plane, a.plane, opts.coarseYs, opts.coarseXs); coarse++;
-			if (cb.confident) { backs++; return -cb.shift; }
+			if (cb.confident && plausible(cb.shift)) { backs++; return -cb.shift; }
 			// ほぼ止まっている（1〜数px ずつ動く・タッチのエフェクトが出ている）。近くだけ少しゆるく（T85。粗い全範囲では次点と比べて決め手が無い）
 			const sm = nearShift(a.plane, b.plane, opts.nearWin);
 			if (sm.rate < opts.okBad * 2) { nears++; return sm.dy; }
@@ -794,6 +813,39 @@
 			// 次点との比は粗い全範囲の値（同じ間引きどうしで比べる）
 			return { shift: r.shift, overlap: cH - r.shift, badRate: r.badRate, ratio: coarseRatio(c), confident: r.shift > 0 && r.badRate < 0.03 };
 		}
+		// 1/16 秒でもつながらない組（T109）。一覧は同じ高さの行が並ぶので、全範囲で探すと「数行先の位置」も同じくらい合って決め手が無い
+		// （実例: 正しいずれ 131 の不一致 2.0%・7行先の 807 が 3.6%）。間の画を 1/60 秒ごとに取り、ごく近くだけを探して足していく。
+		// 探す範囲を行の高さの半分（0.04W）までにすれば、となりの行には合わない。途中で測れなければ null
+		async function microStep(a, b) {
+			const win = Math.max(8, Math.round(W * 0.04));
+			const one = (p, q, pred) => {
+				// 止まっているかは「ずれ 0 の不一致がいちばん小さいか」で見る（badNear0 は ±3px を止まりに入れるので、札の形だけの一覧は 15px 動いても基準を下回る）
+				let bad0 = 0, tot0 = 0;
+				for (let i = 0; i < p.gray.length; i += p.w) for (let x = 0; x < p.w; x += opts.seamXs) { if (Math.abs(p.gray[i + x] - q.gray[i + x]) > 24) bad0++; tot0++; }
+				bad0 /= tot0;
+				const f = scanRange(p, q, Math.max(1, pred - win), pred + win, opts.seamYs, opts.seamXs);
+				const r = pred <= win ? scanRange(q, p, 1, win, opts.seamYs, opts.seamXs) : { shift: -1, badRate: Infinity };
+				const back = r.badRate < f.badRate;
+				const best = back ? r : f;
+				if (bad0 <= best.badRate) return 0;
+				return best.shift > 0 && best.badRate < opts.microBad ? (back ? -best.shift : best.shift) : null;
+			};
+			let prev = a.plane, total = 0, pred = 0;
+			const add = (q) => {
+				const s = one(prev, q, pred);
+				if (s == null) return false;
+				if (s !== 0) pred = Math.max(0, s);
+				total += s; prev = q;
+				return true;
+			};
+			for (let t = a.t + 1 / 60; t < b.t - 1 / 120; t += 1 / 60) {
+				const e = await sampleEntry(t);
+				if (!e || !add(e.plane)) return null;
+			}
+			if (!add(b.plane)) return null;
+			micros++;
+			return total;
+		}
 		// 軌跡を作る。測れない組（速すぎる）は間を細かく取り直してから測り直す
 		const pos = new Map();
 		pos.set(same[0], 0);
@@ -803,10 +855,13 @@
 			await pause();
 			progress('select', Math.min(n, same.length), same.length * 2);
 			const a = same[n - 1], b = same[n];
-			const s = stepShift(a, b, prevShift);
+			let s = stepShift(a, b, prevShift);
 			if (s == null) {
 				if (await densify(a, b)) { n--; continue; } // a の次から測り直す
-				pos.set(b, pos.get(a) + cH); // 1/16 秒でもつながらない。重なりなしとして進む（確かめで弱い継ぎ目になる）
+				s = await microStep(a, b);
+			}
+			if (s == null) {
+				pos.set(b, pos.get(a) + cH); // 1/60 秒でもつながらない。重なりなしとして進む（確かめで弱い継ぎ目になる）
 				prevShift = null;
 				continue;
 			}
@@ -959,6 +1014,9 @@
 				// 止まっている候補（位置が minShift〜maxGap 先）を遠いほうから
 				const st = [];
 				for (let j = end; j > k; j--) if (same[j].stillRep && gapOf(j) >= opts.minShift && gapOf(j) <= maxGap) st.push(j);
+				// 今の1枚が動いている画（タッチのエフェクトが写る。区切りの頭が動いている間に写った1枚など）なら、近いほうから（T109。遠い止まりを選ぶと、
+				// 動いている画の画素がそのまま結合画像に残る。近い止まりなら組み立てで重なる所をその画素で上書きできる）
+				if (!key.still) st.reverse();
 				if (await tryList(st, okStill)) continue;
 				// 次の止まり（かアンカー）が maxGap より遠い: 間の動いているフレームを足す。次の止まりに届く範囲で、真ん中に近いものから
 				let goal = -1;
@@ -997,7 +1055,8 @@
 					const pe = same[j - 1], pp = same[j - 2];
 					// 予測は1つ前の組のずれを時間の比で縮める（細かく取り直したフレームは間隔が短い）
 					const pred = pe.stepPrev > 0 && pp && pe.t > pp.t ? Math.round(pe.stepPrev * (e.t - pe.t) / (pe.t - pp.t)) : null;
-					const st = stepShift(pe, e, pred > 0 ? pred : null);
+					let st = stepShift(pe, e, pred > 0 ? pred : null);
+					if (st == null) st = await microStep(pe, e);
 					if (st != null) { pos.set(e, pos.get(pe) + st); e.stepPrev = st; continue; }
 					const r = verifySeam(key.plane, e.plane);
 					pos.set(e, ok(r) ? pk + r.shift : pk + cH);
@@ -1367,7 +1426,7 @@
 			anchors: anchorEntries.map((a) => ({ t: a.t, y: a.anchorY })),
 			picks: picks.map((p) => p.t), seams, files, persons,
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
-				nears, headHints, predVerifies, loose, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
+				nears, headHints, predVerifies, loose, micros, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
 				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows },
 			tm
 		};
