@@ -7,7 +7,7 @@
 //  - 脚質オススメと条件で検索の「サポカ外」からレース場の印を持つスキルを外す（292・294）。条件で検索の表示名は「サポカ外（レース場を除く）」。
 //  - 条件で検索の「シナリオスキル」を選ぶとパッシブでも出す（293。「＋」の進化スキルは出さない）。
 //  - Deck α: 「デフォルト」と、独立したまとまり「レース指定なし／本育成編成なし」（298）。
-//  - ◎のモード（307）: 新しいモードでは押せない。戻すと押せる。保存の値は残る。
+//  - ◎のモード（T112・回答 370・371。307 を置き換え）: 新しいモードでは出さない。戻すと出る。保存の値は残る。
 // スキル名・レース名は検査の側に書かない（恒久ルール1。データから引く）。T108_SHOTS=<フォルダ> で画像を残す。
 import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
@@ -194,7 +194,7 @@ export async function register120(env) {
 		}
 	});
 
-	await block('T108 ◎のモード（307）: 新しいモードでは押せない・戻すと押せる・保存の値は残る', async () => {
+	await block('T108 ◎のモード（T112・370・371）: 新しいモードでは出さない・戻すと押せる・保存の値は残る', async () => {
 		for (const w of [390, 1280]) {
 			const tag = 'T108 ◎ ' + w + 'px ';
 			const sp = await open({ w, h: 844 });
@@ -221,19 +221,15 @@ export async function register120(env) {
 			// モードに入ったまま新しいモードへ
 			await setMode(sp.page, 'noplan');
 			const c = await state();
-			assert(c.has && c.disabled && c.opacity < 1 && c.cursor === 'not-allowed' && c.pressed === 'false' && c.toggles === 0 && !c.cls, tag + '新しいモード: 薄く押せない・入っていたモードは切れる', c);
+			assert(!c.has && c.toggles === 0 && !c.cls, tag + '新しいモード: 出さない・入っていたモードは切れる', c);
 			assert(c.keep === saved.keep, tag + '新しいモード: 保存の値は消えない', [saved.keep, c.keep]);
-			await sp.page.evaluate((BTN) => document.querySelector(BTN).click(), BTN);
-			await sp.page.waitForTimeout(150);
-			const d = await state();
-			assert(d.pressed === 'false' && d.toggles === 0, tag + '新しいモード: 押しても入らない', d);
 			// 表の並べ替えの小窓からも入れない
 			await sp.page.click(P + '[data-usd-el="factor-view"]');
 			await sp.page.waitForTimeout(250);
 			await sp.page.click(P + '[data-usd-el="tone-sort-entry"][data-usd-where="factor"]');
-			await sp.page.waitForSelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]');
-			const pick = await sp.page.evaluate(() => document.querySelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]').disabled);
-			assert(pick, tag + '新しいモード: 表の並べ替えの◎も選べない', pick);
+			await sp.page.waitForSelector('[data-usd-el="tone-sort-pick"][data-tone="heal"]');
+			const pick = await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="tone-sort-pick"][data-tone="circle"]'));
+			assert(!pick, tag + '新しいモード: 表の並べ替えの◎も出さない', pick);
 			await sp.page.keyboard.press('Escape');
 			await sp.page.waitForTimeout(150);
 			await setMode(sp.page, 'default');

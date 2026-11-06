@@ -3,7 +3,8 @@
 //
 //  - 並び: デフォルト・レース＝オススメサポ → 脚質オススメ／新しいモード＝脚質オススメ → 条件で検索 → テキストで検索。
 //  - 2つのボタンは虫眼鏡の小窓の中の同じボタンと同じものを開く。小窓の中身はどのモードでも同じ。
-//  - 幅: 390・360px は1行に収まる／320px は横に送る（続きの見せ方は今の入口と同じ）／1280px は今の大きさ。デフォルトの寸法は変更前の commit の実測値で固定。
+//  - 幅: 入るいちばん大きな段を選ぶ。390・360・320px は1行に収まる／収まらない幅は横に送る（続きの見せ方は今の入口と同じ）／1280px は今の大きさ。デフォルトの寸法は変更前の commit の実測値で固定。
+//  - ◎（回答 370・371。T108 の 307 を置き換え）: 新しいモードでは入口の行の◎のボタンと、星取表の列見出し・並べ替えの小窓の◎を出さない。空いた幅は3つのボタンへ。デフォルト・レースは今までどおり。
 // T112_SHOTS=<フォルダ> で 幅-色-状態.png を残す。
 import { reloadReady } from './lib/page-ready.mjs';
 import { entryItem, ENTRY_SEARCH_BTN, readEntryItems } from './lib/entry-search.mjs';
@@ -21,6 +22,8 @@ const TEXT_DEFAULT = 'オススメサポ,脚質オススメ';
 const BASE_DEFAULT = { 390: { fs: '11px', row: 196 }, 360: { fs: '10px', row: 178 }, 320: { fs: '9px', row: 144 }, 1280: { fs: '11px', row: 196 } };
 // PC の新しいモードは今の大きさ（脚質オススメの変更前の幅 95.7・字 11px）
 const STYLE_W_1280 = 95.7;
+// 変更前の commit で測った右端の塊の幅（デフォルト・レース。◎のボタンを含む）
+const TOOLS_W_DEFAULT = { 390: 130, 360: 130, 320: 130, 1280: 130 };
 
 export async function register125(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -70,7 +73,7 @@ export async function register125(env) {
 			looks: vis.map(look), outsideInDom: !!outside, outsideDisabled: !!outside && outside.disabled, outsideW: outside ? outside.getBoundingClientRect().width : -1,
 			rowC: row.clientWidth, rowS: row.scrollWidth, rowW: rr.width, rowH: rr.height, fade: row.getAttribute('data-usd-fade'), ox: getComputedStyle(row).overflowX,
 			fit: head.getAttribute('data-usd-fit'), toolsW: tools.offsetWidth, toolsR: tools.getBoundingClientRect().right, headR: head.getBoundingClientRect().right,
-			toolEls: [...tools.children].map((b) => b.getAttribute('data-usd-el')), circleOff: !!circle && circle.disabled,
+			toolEls: [...tools.children].map((b) => b.getAttribute('data-usd-el')), hasCircle: !!circle,
 			overlap: tools.getBoundingClientRect().left < rr.right - 0.5,
 			docOver: document.documentElement.scrollWidth - window.innerWidth, bodyOver: document.body.scrollWidth - window.innerWidth,
 			dark: document.documentElement.getAttribute('data-theme') || '',
@@ -111,7 +114,7 @@ export async function register125(env) {
 					assert(d.fs.every((x) => x === base0.fs) && Math.abs(d.rowW - base0.row) < 1, tag + label + ': 字と行の幅は変更前の実測のまま', [d.fs, d.rowW, base0]);
 					assert(d.rowS <= d.rowC + 1 && !d.fade, tag + label + ': 横に送らない', [d.rowS, d.rowC, d.fade]);
 					assert(d.docOver <= 0, tag + label + ': ページに横スクロールが出ない', d.docOver);
-					assert(d.toolEls.join().indexOf('palette-delete,entry-search') === 0, tag + label + ': 右端の塊は今のまま', d.toolEls);
+					assert(d.toolEls.join() === 'palette-delete,entry-search,factor-circle-mode,factor-view' && d.toolsW === TOOLS_W_DEFAULT[w], tag + label + ': 右端の塊は今のまま（◎のボタンも出る）', [d.toolEls, d.toolsW]);
 					return d;
 				};
 				await checkDefault('デフォルト');
@@ -131,25 +134,13 @@ export async function register125(env) {
 				assert(n.tops[0] === n.tops[1] && n.tops[1] === n.tops[2], tag + '新しいモード: 3つは横1列', n.tops);
 				assert(!n.overlap && n.toolsR <= n.headR + 0.5, tag + '新しいモード: 右端の塊と重ならない', [n.overlap, n.toolsR, n.headR]);
 				assert(n.docOver <= 0 && n.bodyOver <= 0, tag + '新しいモード: ページに横スクロールが出ない', [n.docOver, n.bodyOver]);
-				assert(n.circleOff, tag + '新しいモード: ◎は押せないまま（307）', n.circleOff);
-				if (w === 320) {
-					assert(n.rowS > n.rowC + 1 && n.ox === 'auto' && n.fade === 'right', tag + '新しいモード: 収まらない幅は横に送る・続きの見せ方は今の入口と同じ', [n.rowS, n.rowC, n.ox, n.fade]);
-					assert(n.fs.every((x) => x === '9px'), tag + '新しいモード: 送る幅の字は今の入口の一番小さい段（9px）', n.fs);
-					const last = await sp.page.evaluate(async () => {
-						const row = document.querySelector('#deck-template-panel .usd-entry-row');
-						row.scrollLeft = 9999;
-						await new Promise((r) => setTimeout(r, 100));
-						const b = row.querySelector('[data-usd-el="noplan-search"]').getBoundingClientRect(), rr = row.getBoundingClientRect();
-						const out = { inside: b.right <= rr.right + 1, fade: row.getAttribute('data-usd-fade') };
-						row.scrollLeft = 0;
-						return out;
-					});
-					assert(last.inside && last.fade === 'left', tag + '新しいモード: 送りきると最後のボタンが全部見える', last);
-				} else {
-					assert(n.rowS <= n.rowC + 0.5 && !n.fade, tag + '新しいモード: 1行に収まり横に送らない', [n.rowS, n.rowC, n.fade]);
-				}
-				if (w === 390) assert(n.fs.every((x) => x === '9px'), tag + '新しいモード: 390px の字は 9px', n.fs);
-				if (w === 360) assert(n.fs.every((x) => x === '8px'), tag + '新しいモード: 360px の字は 8px', n.fs);
+				assert(!n.hasCircle && n.toolEls.join() === 'palette-delete,entry-search,factor-view', tag + '新しいモード: ◎のボタンを出さない（370）', n.toolEls);
+				assert(n.toolsW < TOOLS_W_DEFAULT[w], tag + '新しいモード: 右端の塊は◎のぶん詰まる', n.toolsW);
+				assert(n.rowS <= n.rowC + 0.5 && !n.fade, tag + '新しいモード: 1行に収まり横に送らない', [n.rowS, n.rowC, n.fade, n.fit]);
+				// 入るいちばん大きな段（367）。◎のぶん空いたので前の実測（390: 段4・360: 段5）より大きい
+				if (w === 390) assert(n.fit === '3' && n.fs.every((x) => x === '9px'), tag + '新しいモード: 390px は段3・9px', [n.fit, n.fs]);
+				if (w === 360) assert(n.fit === '4' && n.fs.every((x) => x === '9px'), tag + '新しいモード: 360px は段4・9px', [n.fit, n.fs]);
+				if (w === 320) assert(n.fit === '6' && n.fs.every((x) => x === '8px'), tag + '新しいモード: 320px は段6・8px', [n.fit, n.fs]);
 				if (w === 1280) assert(n.fs.every((x) => x === '11px') && !n.fit && Math.abs(n.widths[0] - STYLE_W_1280) < 1, tag + '新しいモード: PC は今の大きさ', [n.fs, n.fit, n.widths]);
 				await shot('noplan');
 
@@ -164,8 +155,8 @@ export async function register125(env) {
 	}
 
 	// かなが字の幅いっぱいの字体（iPhone・Android の日本語の字体に近い）でも 390・360px で1行に収まる。この PC の既定の字体はかなが詰まるので別に見る
-	await block('T112 字の幅いっぱいの字体: 390・360px で1行に収まる', async () => {
-		for (const [w, h] of [[390, 844], [375, 812], [360, 740]]) {
+	await block('T112 字の幅いっぱいの字体: 390・375・360px で1行に収まる・320px は横に送る', async () => {
+		for (const [w, h] of [[390, 844], [375, 812], [360, 740], [320, 568]]) {
 			const tag = 'T112 全角幅の字体 ' + w + 'px ';
 			const sp = await open({ w, h });
 			await sp.page.addStyleTag({ content: '#deck-template-panel .usd-entry-row > button { font-family: "Yu Gothic", "Hiragino Sans", "Noto Sans CJK JP", sans-serif !important; }' });
@@ -176,9 +167,26 @@ export async function register125(env) {
 				document.body.appendChild(s); const x = s.getBoundingClientRect().width; s.remove(); return x;
 			});
 			assert(Math.abs(em - 32) < 1, tag + '前提: 字体は全角幅', em);
-			assert(n.order === ORDER_NOPLAN && n.rowS <= n.rowC + 0.5 && !n.fade, tag + '1行に収まり横に送らない', [n.rowS, n.rowC, n.fade, n.fit, n.fs, n.widths]);
+			// 収まらない幅は段3（9px）で横に送る。続きの見せ方は今の入口と同じ（この字体の 320px が当たる）
+			if (w === 320) {
+				assert(n.rowS > n.rowC + 1 && n.ox === 'auto' && n.fade === 'right' && n.fit === '3', tag + '収まらない幅は横に送る・続きの見せ方は今の入口と同じ', [n.rowS, n.rowC, n.ox, n.fade, n.fit]);
+				assert(n.fs.every((x) => x === '9px'), tag + '送る幅の字は今の入口の一番小さい段（9px）', n.fs);
+				const last = await sp.page.evaluate(async () => {
+					const row = document.querySelector('#deck-template-panel .usd-entry-row');
+					row.scrollLeft = 9999;
+					await new Promise((r) => setTimeout(r, 100));
+					const b = row.querySelector('[data-usd-el="noplan-search"]').getBoundingClientRect(), rr = row.getBoundingClientRect();
+					const out = { inside: b.right <= rr.right + 1, fade: row.getAttribute('data-usd-fade') };
+					row.scrollLeft = 0;
+					return out;
+				});
+				assert(last.inside && last.fade === 'left', tag + '送りきると最後のボタンが全部見える', last);
+			} else {
+				assert(n.order === ORDER_NOPLAN && n.rowS <= n.rowC + 0.5 && !n.fade, tag + '1行に収まり横に送らない', [n.rowS, n.rowC, n.fade, n.fit, n.fs, n.widths]);
+				assert(n.fs.every((x) => parseFloat(x) >= 8), tag + '字は 8px より小さくならない', n.fs);
+			}
 			assert(n.docOver <= 0 && !n.overlap, tag + 'はみ出さない', [n.docOver, n.overlap]);
-			if (SHOTS && w !== 375) {
+			if (SHOTS && (w === 390 || w === 360)) {
 				fs.mkdirSync(SHOTS, { recursive: true });
 				await sp.page.evaluate(() => document.querySelector('#deck-template-panel .usd-skillgroup-head').scrollIntoView({ block: 'center' }));
 				await sp.page.waitForTimeout(100);
@@ -187,6 +195,80 @@ export async function register125(env) {
 			await sp.page.context().close();
 		}
 	});
+
+	// 回答 371: 新しいモードでは星取表の列見出しと並べ替えの小窓に◎を出さない。デフォルト・レースは今までどおり。保存の値は消さない
+	for (const [w, h] of [[390, 844], [1280, 800]]) {
+		await block('T112 星取表の列見出しの◎（' + w + 'px）: 新しいモードでは出さない・戻すと出る・保存の値は消えない', async () => {
+			const tag = 'T112 星取表 ' + w + 'px ';
+			const sp = await open({ w, h });
+			const ENTRY = P + '[data-usd-el="tone-sort-entry"][data-usd-where="factor"]';
+			const readHead = () => sp.page.evaluate((ENTRY) => {
+				const e = document.querySelector(ENTRY);
+				const box = e.closest('.usd-roster-tonebox');
+				const tones = box.querySelector('.usd-roster-tones');
+				const er = e.getBoundingClientRect(), tr = tones.getBoundingClientRect();
+				return { tones: [...box.querySelectorAll('.usd-roster-tone')].map((t) => t.getAttribute('data-tone')).join(), entryW: er.width, tonesW: tr.width, left: er.left - tr.left,
+					funnelCenter: (() => { const f = box.querySelector('[data-usd-el="tone-sort-funnel"]').getBoundingClientRect(); return f.left + f.width / 2 - (tr.left + tr.width / 2); })(), over: document.documentElement.scrollWidth - window.innerWidth };
+			}, ENTRY);
+			const readPop = async () => {
+				await sp.page.click(ENTRY);
+				await sp.page.waitForSelector('[data-usd-el="tone-sort-list"]');
+				const list = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="tone-sort-pick"]')].map((i) => i.getAttribute('data-tone') + (i.disabled ? ':off' : '')).join());
+				await sp.page.keyboard.press('Escape');
+				await sp.page.waitForTimeout(150);
+				return list;
+			};
+			const keep = () => sp.page.evaluate(() => { const s = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}'); const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || '{}'); return JSON.stringify([s.keepCircleIds || [], r.keepCircleIds || []]); });
+			await sp.page.click(P + '[data-usd-el="factor-view"]');
+			await sp.page.waitForTimeout(250);
+			const FOUR = 'heal,circle,passive,debuff', THREE = 'heal,passive,debuff';
+			const POP4 = 'heal,circle,passive,debuff,', POP3 = 'heal,passive,debuff,';
+			const d = await readHead();
+			assert(d.tones === FOUR, tag + 'デフォルト: 回復・◎・緑・デバフ', d.tones);
+			assert(await readPop() === POP4, tag + 'デフォルト: 小窓に◎がある', POP4);
+			// 変更前の幅（4つ分）。1つ分が 28px（PC）・17px（スマホ。重なり 7px）
+			assert(d.entryW === (w === 1280 ? 112 : 75), tag + 'デフォルト: 入口の幅は変更前のまま', d.entryW);
+			// ◎で並べている間に新しいモードへ移ると、並べ替えは切れる
+			await sp.page.click(ENTRY);
+			await sp.page.click('[data-usd-el="tone-sort-pick"][data-tone="circle"]');
+			await sp.page.waitForTimeout(250);
+			await sp.page.click(P + '[data-usd-el="factor-circle-toggle"]');
+			await sp.page.waitForTimeout(250);
+			const saved = await keep();
+			assert(saved !== '[[],[]]', tag + '前提: ◎を○に変えると値が保存される', saved);
+			await setMode(sp.page, 'noplan');
+			const n = await readHead();
+			assert(n.tones === THREE, tag + '新しいモード: 回復・緑・デバフだけ（371）', n.tones);
+			assert(n.entryW === (w === 1280 ? 84 : 58) && Math.abs(n.entryW - n.tonesW) < 1 && Math.abs(n.left) < 1, tag + '新しいモード: 入口の範囲はアイコン3つ分でずれない', n);
+			assert(Math.abs(n.funnelCenter) < 1, tag + '新しいモード: 漏斗はアイコンの幅の真ん中', n.funnelCenter);
+			assert(n.over <= 0, tag + '新しいモード: 横にはみ出さない', n.over);
+			assert(await readPop() === POP3, tag + '新しいモード: 小窓に◎が無い', POP3);
+			assert(await keep() === saved, tag + '新しいモード: 保存の値は消えない', saved);
+			const cur = await sp.page.evaluate((P) => ({ toggles: document.querySelectorAll(P + '[data-usd-el="factor-circle-toggle"]').length, sorted: document.querySelector(P + '[data-usd-el="tone-sort-entry"]').getAttribute('data-sorted') }), P);
+			assert(cur.toggles === 0 && !cur.sorted, tag + '新しいモード: 入っていた◎のモードは切れる', cur);
+			await sp.page.click(ENTRY);
+			await sp.page.click('[data-usd-el="tone-sort-pick"][data-tone="heal"]');
+			await sp.page.waitForTimeout(250);
+			const heal = await sp.page.evaluate((ENTRY) => document.querySelector(ENTRY).getAttribute('data-sorted'), ENTRY);
+			assert(heal === '1', tag + '新しいモード: ほかの3つは今までどおり並べられる', heal);
+
+			for (const mode of ['race', 'default']) {
+				await setMode(sp.page, mode);
+				const r = await readHead();
+				assert(r.tones === FOUR && r.entryW === d.entryW, tag + mode + ': 戻すと4つ・入口の幅も元のまま', r);
+				assert(await readPop() === POP4, tag + mode + ': 戻すと小窓に◎がある', POP4);
+				assert(await sp.page.isVisible(P + '[data-usd-el="factor-circle-mode"]'), tag + mode + ': 戻すと◎のボタンが出る', true);
+				assert(await keep() === saved, tag + mode + ': 保存の値はそのまま', saved);
+			}
+			// ①の表の列見出しは新しいモードの判定を受けない（戻したあとの①は4つのまま）
+			await sp.page.evaluate(() => selectStepTab(0));
+			await sp.page.waitForTimeout(300);
+			const r1 = await sp.page.evaluate(() => [...document.querySelectorAll('#deck-roster-panel .usd-roster-tone')].map((t) => t.getAttribute('data-tone')).join());
+			assert(r1 === FOUR, tag + '①の列見出しは今のまま', r1);
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.page.context().close();
+		});
+	}
 
 	await block('T112 2つのボタンは小窓の中のボタンと同じものを開く（小窓を経由しない）', async () => {
 		for (const [w, h] of [[390, 844], [1280, 800]]) {

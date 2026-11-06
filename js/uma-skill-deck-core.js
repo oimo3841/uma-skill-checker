@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06e';
 
 	/* ============================================================
 	 * 定数
@@ -4920,22 +4920,23 @@
 		const t = ROW_TONE_SORTS.find(x => x.key === key);
 		return t ? t.label + 'でソート' : 'ソートしない';
 	}
-	function toneSortHeadHtml(active, where) {
+	/** noCircle: ◎を出さない（T112・回答 371。新しいモードの②の星取表）。アイコンの範囲は3つ分に詰める */
+	function toneSortHeadHtml(active, where, noCircle) {
 		const label = 'ソート（今: ' + toneSortLabelOf(active) + '）';
-		return '<span class="usd-roster-tonebox">'
+		return '<span class="usd-roster-tonebox' + (noCircle ? ' usd-roster-tonebox--nocircle' : '') + '">'
 			+ '<button type="button" class="usd-roster-toneentry" data-usd-act="tone-sort-open" data-usd-el="tone-sort-entry" data-usd-where="' + where + '"'
 			+ (active ? ' data-sorted="1"' : '') + ' aria-haspopup="dialog" aria-expanded="false" aria-label="' + esc(label) + '" title="ソート"></button>'
 			+ '<span class="usd-roster-tones" data-usd-el="tone-sorts">'
-			+ ROW_TONE_SORTS.map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">' + toneIconHtml(t, active === t.key)
+			+ ROW_TONE_SORTS.filter(t => !(noCircle && t.key === 'circle')).map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">' + toneIconHtml(t, active === t.key)
 				+ '<span class="usd-roster-ghbtn usd-roster-tonebtn usd-roster-tonegap" aria-hidden="true"></span></span>').join('')
 			+ '<span class="usd-roster-ghbtn usd-roster-tonebtn usd-roster-tonefunnel" data-usd-el="tone-sort-funnel" data-on="' + (active ? '1' : '0') + '" aria-hidden="true">' + TONE_FUNNEL_SVG + '</span>'
 			+ '</span></span>';
 	}
 	/**
 	 * 並べ替えの小窓（T52）。「回復／◎／緑／デバフを上に寄せる」「並べ替えない」から1つ。active＝今の種類（null＝並べ替えない。
-	 * noneChecked＝false なら「並べ替えない」にも印を付けない〔ほかの並べ替え（メンバーの列など）が有効なとき〕）。disabled＝選べない種類の key の集合。onPick(key|null)
+	 * noneChecked＝false なら「並べ替えない」にも印を付けない〔ほかの並べ替え（メンバーの列など）が有効なとき〕）。disabled＝選べない種類の key の集合。onPick(key|null)。omit＝出さない種類の key（T112・回答 371）
 	 */
-	function openToneSortPopover(btn, key, active, noneChecked, disabled, onPick) {
+	function openToneSortPopover(btn, key, active, noneChecked, disabled, onPick, omit) {
 		openPopover({
 			key: key, title: 'ソート', btn: btn, opener: btn, refocus: '[data-usd-el="tone-sort-entry"][data-usd-where="' + btn.getAttribute('data-usd-where') + '"]',
 			build: (body) => {
@@ -4944,7 +4945,7 @@
 				list.setAttribute('aria-label', 'ソート');
 				list.setAttribute('data-usd-el', 'tone-sort-list');
 				const name = uid('usdsort');
-				ROW_TONE_SORTS.map(t => ({ key: t.key, t: t })).concat([{ key: null, t: null }]).forEach(o => {
+				ROW_TONE_SORTS.filter(t => t.key !== omit).map(t => ({ key: t.key, t: t })).concat([{ key: null, t: null }]).forEach(o => {
 					const on = o.key === null ? (active === null && noneChecked !== false) : active === o.key;
 					const dis = o.key !== null && !!disabled && disabled.has(o.key);
 					const lab = infoEl('label', 'usd-sort-opt');
@@ -7524,6 +7525,10 @@
 		// C-168: ◎のボタンを足して4つになったので、重なりを -7px（それまでは 320px だけ）にし、360px 台は余白と文字を詰める。
 		// 359px 以下は4つ分と「スキル名」が並ばないので、見出しの文字は省く（列の見出しの aria-label は「スキル名」のまま。ボタンは4つとも24px）
 		'@media (max-width: 374px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -8px; } .usd-roster-tonebox { --usd-tones-w: 72px; } .usd-roster-ghtitle { font-size: 10px; } }',
+		// T112（回答 371）: 新しいモードの②の星取表は◎を出さないので、入口の範囲をアイコン3つ分にする
+		'.usd-roster-tonebox.usd-roster-tonebox--nocircle { --usd-tones-w: 58px; }',
+		'@media (min-width: 641px) { .usd-roster-tonebox.usd-roster-tonebox--nocircle { --usd-tones-w: 84px; } }',
+		'@media (max-width: 374px) { .usd-roster-tonebox.usd-roster-tonebox--nocircle { --usd-tones-w: 56px; } }',
 		'@media (max-width: 359px) { .usd-roster-ghtitle { display: none; } }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); color: var(--uma-gold-row-text, inherit); }',
@@ -7873,9 +7878,6 @@
 		'.usd-factor-circlebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--uma-r-sm);',
 		'  background: transparent; color: var(--uma-text-heading); cursor: pointer; }',
 		'.usd-factor-circlebtn:hover { background: rgba(0,0,0,.08); }',
-		// T108: 新しいモードの◎のボタン（押せない）。ほかの押せない所と同じ
-		'.usd-factor-circlebtn:disabled { opacity: 0.45; cursor: not-allowed; }',
-		'.usd-factor-circlebtn:disabled:hover { background: transparent; }',
 		'.usd-factor-circlebtn[aria-pressed="true"],',
 		// T29: 表示の切り替えは aria-pressed を持たないので、カード一覧以外（表・分類）のときに data-usd-view で同じ枠
 		'.usd-factor-viewbtn[data-usd-view="table"], .usd-factor-viewbtn[data-usd-view="group"] { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
@@ -14544,11 +14546,11 @@
 				// T52（C-262 の (5)(6)）: 星取表の列見出しの並べ替えの入口。◎の候補が無いときは◎を選べない（操作の行の◎のボタンも出ていない）
 				const cst = factorPtState(currentTarget());
 				const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
-				openToneSortPopover(btn, 'tone-sort:' + draftScopeKey, factorTableSort === null ? factorToneActive() : null, factorTableSort === null, hasCircle && !cst.noPlan ? null : new Set(['circle']), (k) => {
+				openToneSortPopover(btn, 'tone-sort:' + draftScopeKey, factorTableSort === null ? factorToneActive() : null, factorTableSort === null, hasCircle ? null : new Set(['circle']), (k) => {
 					setFactorSort(k === null ? null : 'tone', k);
 					render();
 					focusNoScroll(container.querySelector('[data-usd-el="tone-sort-entry"][data-usd-where="factor"]'));
-				});
+				}, cst && cst.noPlan ? 'circle' : null);
 			}
 			else if (act === 'factor-view') {
 				// ②因子周回 段3: 表示の切り替え（保存しない）。T29: カード一覧 → 表 → 分類 → カード一覧 と回る。押したボタンにフォーカスを戻す
@@ -16434,7 +16436,7 @@
 			h += '<div class="usd-roster-grow" role="row">'
 				// T52: ①の表と同じ「スキル名」＋4つのアイコンと漏斗1つ（範囲全体が並べ替えの入口。星取表の表示だけ）
 				+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-roster-gh--skill usd-fstar-gh" role="columnheader" aria-label="スキル名"><span class="usd-roster-ghtitle" aria-hidden="true">スキル名</span>'
-				+ toneSortHeadHtml(factorTableSort === null ? factorToneActive() : null, 'factor') + '</div>'
+				+ toneSortHeadHtml(factorTableSort === null ? factorToneActive() : null, 'factor', isNoPlanRoster(linkedRosterOf(currentTarget()))) + '</div>'
 				+ cards.map(m => '<div class="usd-roster-gc usd-roster-gh usd-fstar-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '" role="columnheader"'
 					+ ' aria-label="' + esc(m.no + (m.label ? '：' + m.label : '（空き）')) + '"' + (m.typeOrder !== null && m.typeOrder !== undefined ? ' data-type-order="' + m.typeOrder + '"' : '') + '>' + colHead(m) + '</div>').join('')
 				+ '</div>';
@@ -17577,7 +17579,7 @@
 			// C-245: ②独自の候補が無くても、①に関わる○の行（①の◎の候補）があれば出す
 			const hasCircle = !!(cst && ((cst.circleCandidates && cst.circleCandidates.size > 0) || (cst.rosterCircle && cst.rosterCircle.candidates.size > 0)));
 			if (!hasCircle) factorCircleMode = false;
-			// T108（307）: 新しいモードでは◎のモードに入れない（薄く押せない）。保存してある値（keepCircleIds）は消さない。戻すと押せる
+			// T112（回答 370。T108 の 307 を置き換え）: 新しいモードでは◎のボタンを出さず、モードにも入れない。保存してある値（keepCircleIds）は消さない。戻すと今までどおり出る
 			const circleOff = !!(cst && cst.noPlan);
 			if (circleOff && factorCircleMode) { setFactorSort(null); renderSelectedList(); }
 			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
@@ -17586,7 +17588,7 @@
 					+ ' aria-label="削除" title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-4 h-4" aria-hidden="true"></i></button>'
 				+ '<button type="button" class="usd-reset-btn usd-search-btn" data-usd-act="entry-search" data-usd-el="entry-search" aria-haspopup="dialog" aria-expanded="false" aria-label="スキルを探して追加" title="スキルを探して追加">'
 					+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>'
-				+ (hasCircle ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"' + (circleOff ? ' disabled aria-disabled="true"' : '')
+				+ (hasCircle && !circleOff ?'<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
 					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
 					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
 				// ②因子周回 段3: 表示の切り替え（T29: カード一覧 → 表 → 分類。カード一覧以外のときは◎のボタンと同じ選択の枠）
