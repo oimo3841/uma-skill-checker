@@ -112,7 +112,7 @@ export async function register116(env) {
 		assert('揺れがあっても取り込みから結合画像まで作れる', r.persons === 3, r.msg);
 		assert('数字に本文の帯が出る', /本文の帯\d+〜\d+ 行目/.test(r.stats), r.stats.slice(0, 200));
 		assert('数字にこのページの版が出る', r.stats.includes('このページの版' + r.ver) && /^\d{4}-\d{2}-\d{2}[a-z]$/.test(r.ver), r.ver);
-		assert('手順にカーソルの置き場所とホイールが書いてある', r.guide.includes('左の余白') && r.guide.includes('ホイール'));
+		assert('手順にホイールが書いてあり、カーソルの置き場所の文は無い（305）', !r.guide.includes('左の余白') && r.guide.includes('ホイール'));
 		assert('T105(8) コンソールのエラー 0', errors.length === 0, errors.join('／'));
 		await ctx.close();
 	});

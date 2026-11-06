@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>PC の取り込みの画面（モック）</title>
+	<!--
+		T105 段1 のモック（作業用）。UmaStar（special）の③の動画モードに「ウィンドウから取り込む」を足した形を、おいもさんが見て決めるためのページ。
+		**ツール本体には組み込まない**（どのページからもリンクしない）。本当の取り込みはしない（getDisplayMedia を呼ばない）。ゲームの画像は使わず、映像は図で描く。
+		土台は T106 のあとの special.html の動画モード（「静止画｜動画α」・「動画を選ぶ」・右に「？」）。色は今のトークン（css/tokens.css の --uma-*）だけ。
+		進捗の箱は special.html の #video-progress の色と文のまま。
+		引数（撮影・確認用）: ?state=状態の名前 ／ ?theme=light|dark ／ ?h=映像の高さ（px）
+	-->
+	<link rel="stylesheet" href="../css/tokens.css" />
+	<link rel="stylesheet" href="../css/common.css" />
+	<link rel="stylesheet" href="../css/shell.css" />
+	<style>
+html, body { margin: 0; }
+body { background: var(--uma-surface-sunken); color: var(--uma-text); font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+/* 状態の切り替え（モックの外側。製品には入らない） */
+.lab-strip { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; padding: 8px 16px; font-size: 11px; color: var(--uma-text-subtle); border-bottom: 1px dashed var(--uma-border-strong); background: var(--uma-surface); }
+.lab-strip b { margin-right: 2px; font-weight: 700; }
+.lab-strip .lab-sep { flex-basis: 100%; height: 0; }
+.lab-strip button { min-height: 28px; padding: 2px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface); color: var(--uma-text-muted); font: inherit; cursor: pointer; }
+/* スマホでは入口を出さないので、状態の切り替えも出さない */
+@media (max-width: 767px) { .lab-strip #lab-states button, .lab-strip > b:first-child { display: none; } }
+.lab-strip button[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); border-color: var(--uma-surface-inverse); }
+
+.site-head { display: flex; align-items: center; height: 47px; padding: 0 16px; background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); font-weight: 800; color: var(--uma-text-heading); }
+@media (min-width: 768px) { .site-head { height: 56px; font-size: 18px; } }
+.wrap { max-width: 64rem; margin: 0 auto; padding: 16px; padding-bottom: 96px; }
+.card { background: var(--uma-surface); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); padding: 16px; }
+@media (min-width: 768px) { .card { padding: 24px; } }
+
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--uma-border); margin-bottom: 16px; }
+.step { display: flex; align-items: center; gap: 8px; padding: 8px 0 10px 8px; font-size: 12px; font-weight: 600; color: var(--uma-text-subtle); border-bottom: 2px solid transparent; margin-bottom: -1px; min-width: 0; }
+.step i { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-style: normal; font-size: 11px; background: var(--uma-surface-muted); }
+.step[aria-current="step"] { color: var(--uma-text-heading); font-weight: 700; border-bottom-color: var(--uma-control-mark); }
+.step[aria-current="step"] i { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+
+/* 帯のタブの行（special の .video-tabrow のまま）と「静止画｜動画」（special の .upload-mode のまま） */
+.tabrow { display: flex; align-items: center; flex-wrap: nowrap; gap: var(--uma-sp-1); margin-bottom: 12px; }
+.mock-tabs { display: flex; flex: 1 1 0; min-width: 0; border-bottom: 1px solid var(--uma-border-strong); }
+.mock-tab { padding: 8px; font-size: 12px; font-weight: 700; color: var(--uma-text-subtle); white-space: nowrap; }
+.mock-tab[aria-selected="true"] { color: var(--person-fg, var(--uma-text-heading)); background: var(--uma-surface-muted); }
+.upload-mode { flex: none; display: flex; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); }
+.upload-mode-btn { position: relative; height: 30px; padding: 0 10px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; }
+.upload-mode-btn:first-child { border-radius: calc(var(--uma-r-lg) - 1px) 0 0 calc(var(--uma-r-lg) - 1px); }
+.upload-mode-btn:last-child { border-radius: 0 calc(var(--uma-r-lg) - 1px) calc(var(--uma-r-lg) - 1px) 0; border-left: 1px solid var(--uma-border-strong); }
+.upload-mode-btn[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+.upload-mode-btn:disabled { cursor: default; }
+.video-alpha { font-size: 10px; font-weight: 800; margin-left: 1px; align-self: flex-start; margin-top: 6px; }
+
+/* セットの枠（special の .upload-set-panel の見た目・親A＝青） */
+.set-panel { position: relative; border: 1px solid #d0dbea; border-radius: 16px; padding: 16px; background: rgba(70, 105, 165, .05); }
+:root[data-theme="dark"] .set-panel { border-color: #2d3d54; background: rgba(110, 150, 210, .07); }
+.set-clear { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0 0 8px; }
+.set-clear > button:first-child { border: 0; background: none; padding: 0; font: inherit; font-size: 11px; color: var(--uma-text-faint); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.uma-help-box { margin: 0 0 8px; }
+
+/* 入口: special の .video-pick-btn のまま。PC は2つ並べる（同じ高さ 76px）。行は増やさない */
+.pick-row { display: flex; gap: 8px; margin: 0 0 8px; }
+.pick-btn { flex: 1 1 0; min-width: 0; min-height: 76px; padding: 10px 4px; display: flex; align-items: center; justify-content: center; gap: 8px;
+	border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.pick-btn:hover { border-color: var(--uma-control-mark); }
+.pick-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
+.pick-btn svg { width: 20px; height: 20px; color: var(--uma-text-subtle); flex: none; }
+.pick-btn .video-alpha { font-size: 10px; color: var(--uma-text-subtle); margin: 0; align-self: center; }
+
+/* 取り込み中の箱: 左に小さな映像、右に文と止めるボタン。同じ場所で切り替える */
+.cap-box { display: flex; align-items: stretch; gap: 16px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); }
+.cap-video { flex: none; height: var(--pv-h, 200px); aspect-ratio: 984 / 1804; position: relative; border: 1px solid var(--uma-border); border-radius: 4px; overflow: hidden; background: var(--uma-surface-muted); }
+.cap-video svg { display: block; width: 100%; height: 100%; }
+.cap-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.cap-msg { margin: 0; font-size: 13px; line-height: 1.5; font-weight: 700; color: var(--uma-text-heading); }
+.cap-time { margin: 0; font-size: 12px; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }
+.cap-actions { display: flex; }
+.cap-actions .uma-btn { min-height: 44px; }
+.cap-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--uma-danger-text, #dc2626); vertical-align: 1px; }
+
+/* 失敗: 案内の文と「もう一度」 */
+.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-lg); background: var(--uma-danger-bg, #fef2f2); }
+.cap-fail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-danger-text, #b91c1c); }
+.cap-fail .uma-btn { flex: none; min-height: 44px; }
+
+/* 上限で止まったときの1行（処理の箱の上） */
+.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
+
+/* 処理中（special の #video-progress の色と作りのまま） */
+.vprog { margin: 0 0 12px; padding: 16px; border-radius: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; }
+:root[data-theme="dark"] .vprog { background: #0f2a1b; border-color: #1f5135; }
+.vprog-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #14532d; margin-bottom: 8px; }
+:root[data-theme="dark"] .vprog-head { color: #bbf7d0; }
+.vprog-track { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(187, 247, 208, .7); }
+:root[data-theme="dark"] .vprog-track { background: #1f5135; }
+.vprog-bar { height: 100%; width: 38%; border-radius: 999px; background: #16a34a; }
+.video-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; font-size: 11px; }
+.video-steps li { display: flex; align-items: center; gap: 6px; color: var(--uma-text-faint); }
+.video-steps li[data-st="done"] { color: var(--uma-text-muted); }
+.video-steps li[data-st="now"] { color: var(--uma-text-heading); font-weight: 700; }
+.video-steps li i { font-style: normal; width: 14px; text-align: center; }
+.video-prog-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.video-prog-foot small { font-size: 11px; color: var(--uma-text-subtle); }
+
+/* セットの下の文と「結合画像の設定」（場所を見るための図。special の形を写した） */
+.set-note { margin: 12px 0; text-align: center; font-size: 11px; color: var(--uma-text-subtle); }
+.show { padding: 12px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-muted); }
+.show-title { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: var(--uma-text-heading); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; margin-bottom: 8px; }
+.seg span { min-height: 40px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--uma-text-heading); background: var(--uma-surface); }
+.seg span + span { border-left: 1px solid var(--uma-border-strong); }
+.seg span.on { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+.show-list { display: grid; grid-template-columns: repeat(2, max-content); gap: 4px 16px; font-size: 12px; color: var(--uma-text-muted); }
+.show-list label { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.show-list input { width: 1rem; height: 1rem; margin: 0; accent-color: var(--uma-control-mark); }
+
+.upload-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: var(--uma-surface); border-top: 1px solid var(--uma-border); padding: 8px 0; }
+.upload-bar-in { max-width: 64rem; margin: 0 auto; padding: 0 16px; }
+.upload-bar .uma-btn { width: 100%; }
+	</style>
+</head>
+<body data-upload-mode="video">
+<div class="lab-strip" id="lab-strip">
+	<b>状態</b><span id="lab-states" style="display:contents"></span>
+	<span class="lab-sep"></span>
+	<b>映像の高さ</b><button type="button" data-h="160">160px</button><button type="button" data-h="200">200px</button><button type="button" data-h="280">280px</button>
+	<b style="margin-left:12px">色</b><button type="button" data-theme-btn="light">ライト</button><button type="button" data-theme-btn="dark">ダーク</button>
+</div>
+<div class="site-head">UmaStar OCR</div>
+<main class="wrap">
+	<div class="card">
+		<div class="steps">
+			<div class="step"><i>1</i>本育成編成</div>
+			<div class="step"><i>2</i>因子周回</div>
+			<div class="step" aria-current="step"><i>3</i>画像をアップロード</div>
+		</div>
+		<div class="tabrow">
+			<div class="mock-tabs" role="tablist"><span class="mock-tab" role="tab" aria-selected="true">親Aセット</span><span class="mock-tab" role="tab" aria-selected="false">＋親Bセット</span></div>
+			<div class="upload-mode" role="group" aria-label="画像の入れ方">
+				<button type="button" class="upload-mode-btn" aria-pressed="false" id="mode-shot">静止画</button>
+				<button type="button" class="upload-mode-btn" aria-pressed="true" id="mode-video">動画<span class="video-alpha" aria-hidden="true">α</span></button>
+			</div>
+		</div>
+		<div class="set-panel" id="set-panel">
+			<div class="set-clear">
+				<button type="button" id="set-clear-btn">セットをクリア</button>
+				<button type="button" class="uma-help-btn" id="howto-btn" aria-expanded="false" aria-label="撮り方を見る" title="撮り方を見る">?</button>
+			</div>
+			<div class="uma-help-box" id="howto-box" hidden></div>
+			<div id="stage"></div>
+		</div>
+		<p class="set-note">※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。</p>
+		<div class="show">
+			<p class="show-title">結合画像の設定</p>
+			<div class="seg"><span class="on">3列</span><span>2列</span></div>
+			<div class="show-list">
+				<label><input type="checkbox" disabled />分類マーカー</label><label><input type="checkbox" disabled />本育成編成</label>
+				<label><input type="checkbox" disabled />因子周回編成</label><label><input type="checkbox" disabled />理論値SP</label>
+				<label><input type="checkbox" disabled />星取表</label><label><input type="checkbox" checked disabled />タイトルのバー</label>
+			</div>
+		</div>
+	</div>
+</main>
+<div class="upload-bar"><div class="upload-bar-in"><button type="button" class="uma-btn uma-btn--primary uma-btn--lg" disabled>OCR処理を開始する</button></div></div>
+
+<script>
+(function () {
+	/* 画面に出す文（報告 T105-mock-1.md の一覧と同じ） */
+	const TXT = {
+		pick: '動画を選ぶ',
+		capture: 'ウィンドウから取り込む',
+		searching: 'ゲームの画面を探しています',
+		found: '因子の画面をスクロールして、終わったら止めてください',
+		remain: '残り {t}',
+		stop: '取り込みを止める',
+		limit: '3分で止めました',
+		retry: 'もう一度',
+		howtoTitle: '撮り方',
+		howto1: '・親から祖2の一番下までゆっくりスクロール。',
+		howto2: '・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。',
+		howtoCapTitle: 'ウィンドウから取り込む',
+		howtoCap: 'ゲームの因子の画面を開いてから押します。ウィンドウの一覧で umamusume を選び、親から祖2 までスクロールして、止めてください。映像はこの PC の中だけで使います。',
+		prog: ['動画を読み込み中', '親A のフレームを選んでいます', '祖A1 のフレームを選んでいます', '祖A2 のフレームを選んでいます', '完了'],
+		progFoot: '処理中もほかの画面は見られます',
+		abort: '取り消す'
+	};
+	const FAIL = {
+		'fail-small': ['幅が足りない（700 未満）', 'ウィンドウが小さく、結合できない大きさです。ウィンドウを大きくして、もう一度取り込んでください。'],
+		'fail-large': ['幅が大きすぎる', 'ウィンドウが大きく、結合できない大きさです。ウィンドウを小さくして、もう一度取り込んでください。'],
+		'fail-blank': ['真っ黒・真っ白', '画面が真っ黒か真っ白です。ウィンドウを最小化していないか確かめてください。'],
+		'fail-aspect': ['別のウィンドウ', 'ゲームの画面を見つけられませんでした。選んだウィンドウがウマ娘か確かめてください。'],
+		'fail-unstable': ['場所が定まらない', 'ゲームの画面の場所が定まりませんでした。ウィンドウの大きさを変えずに、もう一度取り込んでください。'],
+		'fail-band': ['因子の画面でない', 'ゲームの因子の画面を見つけられませんでした。因子の画面を開いてから取り込んでください。'],
+		'fail-toofew': ['スクロールなし', '動きが読み取れませんでした。因子の画面をスクロールしてください。']
+	};
+	const STATES = [['before', '始める前'], ['howto', '？を開いた'], ['searching', '探している'], ['found', '見つかった'], ['limit', '上限で止まった'], ['processing', '処理中']].concat(Object.keys(FAIL).map((k) => [k, FAIL[k][0]]));
+	const $ = (id) => document.getElementById(id);
+	const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+	const SVG_VIDEO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg>';
+	const SVG_WINDOW = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18"></path><path d="M7 6.5h.01"></path></svg>';
+
+	// 取り込んだ窓の図（ゲームの画像は使わない）。窓の絵 984×1804 の形。枠は見つかったときだけ
+	function windowFigure(withFrame) {
+		let rows = '';
+		for (let y = 880; y < 1560; y += 86) rows += '<rect x="190" y="' + y + '" width="350" height="66" rx="8" fill="#d9dde3"/><rect x="570" y="' + y + '" width="350" height="66" rx="8" fill="#d9dde3"/>';
+		return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 984 1804" role="img" aria-label="取り込み中の映像">'
+			+ '<rect width="984" height="1804" fill="#2f2f2f"/><rect x="2" y="2" width="981" height="56" fill="#f3f3f3"/>'
+			+ '<rect x="20" y="16" width="26" height="26" fill="#c878be"/><rect x="60" y="22" width="150" height="14" fill="#7a7a7a"/>'
+			+ '<rect x="2" y="58" width="981" height="1744" fill="#f4f6f4"/><rect x="24" y="84" width="936" height="70" rx="10" fill="#6fbf2a"/>'
+			+ '<rect x="24" y="170" width="936" height="240" fill="#b7c0cc"/><rect x="24" y="430" width="936" height="340" fill="#dfe6da"/><rect x="24" y="790" width="936" height="50" fill="#e8ebee"/>'
+			+ rows + '<circle cx="110" cy="930" r="56" fill="#e7c98f"/>'
+			+ '<rect x="24" y="1600" width="936" height="2" fill="#d0d4da"/><rect x="340" y="1660" width="300" height="72" rx="10" fill="#fff" stroke="#b5b9c0" stroke-width="3"/>'
+			+ (withFrame ? '<rect x="4" y="60" width="977" height="1740" fill="none" stroke="#0a7cff" stroke-width="12"/>' : '')
+			+ '</svg>';
+	}
+	const entry = () => '<div class="pick-row" id="pick-row"><button type="button" class="pick-btn" data-act="pick">' + SVG_VIDEO + '<span>' + esc(TXT.pick) + '</span><span class="video-alpha" aria-hidden="true">α</span></button>'
+		+ (isPc() ? '<button type="button" class="pick-btn" id="capture-btn" data-act="capture">' + SVG_WINDOW + '<span>' + esc(TXT.capture) + '</span><span class="video-alpha" aria-hidden="true">α</span></button>' : '') + '</div>';
+	const capture = (msg, withFrame, withTime) => '<div class="cap-box" id="cap-box"><div class="cap-video" id="cap-video">' + windowFigure(withFrame) + '</div><div class="cap-body">'
+		+ '<p class="cap-msg" id="cap-msg">' + esc(msg) + '</p>'
+		+ (withTime ? '<p class="cap-time" id="cap-time"><span class="cap-dot" aria-hidden="true"></span>' + esc(TXT.remain.replace('{t}', '2:41')) + '</p>' : '')
+		+ '<div class="cap-actions"><button type="button" class="uma-btn uma-btn--primary" id="stop-btn" data-act="stop">' + esc(TXT.stop) + '</button></div></div></div>';
+	const progress = () => '<div class="vprog" id="vprog" role="status"><div class="vprog-head"><span>' + esc(TXT.prog[1]) + '…</span><span>38%</span></div><div class="vprog-track"><div class="vprog-bar"></div></div>'
+		+ '<ol class="video-steps">' + TXT.prog.map((n, i) => '<li data-st="' + (i === 0 ? 'done' : i === 1 ? 'now' : 'wait') + '"><i>' + (i === 0 ? '✓' : i === 1 ? '●' : '') + '</i>' + esc(n) + '</li>').join('') + '</ol>'
+		+ '<div class="video-prog-foot"><small>' + esc(TXT.progFoot) + '</small><button type="button" class="uma-btn uma-btn--secondary" data-act="abort" style="min-height:44px">' + esc(TXT.abort) + '</button></div></div>';
+	// 出し分け（決定 252）: 本物は使える機能で見る。モックでは幅とタッチだけの端末で見る
+	function isPc() { return window.innerWidth >= 768 && !(matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches); }
+
+	let state = 'before';
+	function howtoHtml() {
+		return '<strong>' + esc(TXT.howtoTitle) + '</strong><br>' + esc(TXT.howto1) + '<br>' + esc(TXT.howto2)
+			+ (isPc() ? '<br><br><strong>' + esc(TXT.howtoCapTitle) + '</strong><br>' + esc(TXT.howtoCap) : '');
+	}
+	function setHowto(open) { $('howto-box').hidden = !open; $('howto-btn').setAttribute('aria-expanded', String(open)); if (open) $('howto-box').innerHTML = howtoHtml(); }
+	function render() {
+		const s = isPc() ? state : 'before';
+		const stage = $('stage');
+		if (s === 'before' || s === 'howto') stage.innerHTML = entry();
+		else if (s === 'searching') stage.innerHTML = capture(TXT.searching, false, false);
+		else if (s === 'found') stage.innerHTML = capture(TXT.found, true, true);
+		else if (s === 'limit') stage.innerHTML = '<p class="cap-note" id="cap-note">' + esc(TXT.limit) + '</p>' + progress();
+		else if (s === 'processing') stage.innerHTML = progress();
+		else if (FAIL[s]) stage.innerHTML = '<div class="cap-fail" id="cap-fail" role="alert"><p>' + esc(FAIL[s][1]) + '</p><button type="button" class="uma-btn uma-btn--secondary" id="retry-btn" data-act="retry">' + esc(TXT.retry) + '</button></div>';
+		setHowto(s === 'howto' || (s === 'before' && $('howto-btn').getAttribute('aria-expanded') === 'true'));
+		const busy = !(s === 'before' || s === 'howto' || !!FAIL[s]);
+		['mode-shot', 'mode-video', 'set-clear-btn'].forEach((id) => { $(id).disabled = busy; });
+		document.querySelectorAll('[data-state]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === state)));
+	}
+	function setState(n) { state = n; if (n !== 'howto') setHowto(false); render(); }
+	function setHeight(h) { document.documentElement.style.setProperty('--pv-h', h + 'px'); document.querySelectorAll('[data-h]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.h === +h))); }
+	function setTheme(t) { document.documentElement.setAttribute('data-theme', t); document.querySelectorAll('[data-theme-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeBtn === t))); }
+
+	$('lab-states').innerHTML = STATES.map(([k, l]) => '<button type="button" data-state="' + k + '">' + esc(l) + '</button>').join('');
+	document.addEventListener('click', (e) => {
+		const b = e.target.closest('button');
+		if (!b) return;
+		if (b.dataset.state) return setState(b.dataset.state);
+		if (b.dataset.h) return setHeight(b.dataset.h);
+		if (b.dataset.themeBtn) return setTheme(b.dataset.themeBtn);
+		if (b.id === 'howto-btn') return setHowto($('howto-box').hidden);
+		const act = b.dataset.act;
+		// 押したときの流れ（本当の取り込みはしない）
+		if (act === 'capture' || act === 'retry') setState('searching');
+		else if (act === 'stop') setState('processing');
+		else if (act === 'abort') setState('before');
+	});
+	window.addEventListener('resize', render);
+
+	const Q = new URLSearchParams(location.search);
+	setTheme(Q.get('theme') === 'dark' ? 'dark' : 'light');
+	setHeight(Q.get('h') || 200);
+	const first = Q.get('state');
+	window.__mock = { STATES, FAIL, TXT, setState, setHeight, setTheme, isPc };
+	setState(first && STATES.some((x) => x[0] === first) ? first : 'before');
+})();
+</script>
+</body>
+</html>

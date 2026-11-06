@@ -147,6 +147,7 @@ import { register117 } from './blocks-117.mjs';
 import { register118 } from './blocks-118.mjs';
 import { register120 } from './blocks-120.mjs';
 import { register119 } from './blocks-119.mjs';
+import { register121 } from './blocks-121.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15512,6 +15513,7 @@ await register118({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 // T108（2026-11-05）: UmaStar のレース欄（デフォルト・レース指定なし／本育成編成なし）・脚質オススメ・条件で検索・Deck α のまとまり
 await register120({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register119({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register121({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
