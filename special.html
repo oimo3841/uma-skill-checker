@@ -58,7 +58,9 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
-	<script src="js/video-frames.js?v=2026-11-06a"></script>
+	<script src="js/video-frames.js?v=2026-11-07a"></script>
+	<!-- PC のウィンドウの取り込み（T105。③の動画モードの「ウィンドウから取り込む」が使う。video-frames.js・stitch.js の後に読む） -->
+	<script src="js/pc-capture.js?v=2026-11-07a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -237,14 +239,40 @@
 		.upload-mode-btn .video-alpha { font-size: 10px; font-weight: 800; margin-left: 1px; align-self: flex-start; margin-top: 6px; }
 		/* 動画モード（T98・C-285）: body の data-upload-mode="video" のあいだ、人ごとの「追加」の代わりにセットに1つの「動画を選ぶ」
 		   （同じ点線の枠・高さ 76px・セットの幅いっぱい）。下の欄は「OCR処理を開始する」だけ（「画像を結合する（OCRしない）」は出さない） */
-		.video-pick-btn { display: none; width: 100%; min-height: 76px; margin: 0 0 8px; padding: 10px 4px; align-items: center; justify-content: center; gap: 8px;
+		.video-pick-row { display: flex; gap: 8px; }
+		.video-pick-btn, .video-capture-btn { flex: 1 1 0; min-width: 0; }
+		.video-pick-btn, .video-capture-btn { display: none; width: 100%; min-height: 76px; margin: 0 0 8px; padding: 10px 4px; align-items: center; justify-content: center; gap: 8px;
 			border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-heading);
 			font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-		.video-pick-btn:hover:not(:disabled) { border-color: var(--uma-control-mark); }
-		.video-pick-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
-		.video-pick-btn svg { width: 20px; height: 20px; color: var(--uma-text-subtle); }
-		.video-pick-btn .video-alpha { font-size: 10px; font-weight: 800; color: var(--uma-text-subtle); }
-		body[data-upload-mode="video"] .video-pick-btn { display: flex; }
+		.video-pick-btn:hover:not(:disabled), .video-capture-btn:hover:not(:disabled) { border-color: var(--uma-control-mark); }
+		.video-pick-btn:focus-visible, .video-capture-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
+		.video-pick-btn svg, .video-capture-btn svg { width: 20px; height: 20px; color: var(--uma-text-subtle); }
+		.video-pick-btn .video-alpha, .video-capture-btn .video-alpha { font-size: 10px; font-weight: 800; color: var(--uma-text-subtle); }
+		body[data-upload-mode="video"] .video-pick-btn, body[data-upload-mode="video"] .video-capture-btn { display: flex; }
+		/* PC のウィンドウの取り込み（T105。T105 のモックのまま）。取り込み中から処理の間は入口の代わりに .video-cap-stage へ出す */
+		.upload-set-panel.cap-on .video-pick-row { display: none; }
+		.cap-box { display: flex; align-items: stretch; gap: 16px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); }
+		.cap-video { flex: none; height: 200px; aspect-ratio: 984 / 1804; position: relative; border: 1px solid var(--uma-border); border-radius: 4px; overflow: hidden; background: var(--uma-surface-muted); }
+		.cap-video video { display: block; width: 100%; height: 100%; object-fit: contain; }
+		/* ゲームの画面を囲む枠（決定 322。青は承認済み） */
+		.cap-frame { position: absolute; box-sizing: border-box; border: 2px solid #0a7cff; pointer-events: none; }
+		/* 取り込み中の映像は、窓に余裕があれば本文の右の余白に出す（決定 333・348）。.glass-card の backdrop-filter の中では fixed の基準がカードになるので、映像は body の直下へ移す。大きさと本文の寄せは layoutCapture が決める（決定 349） */
+		body.cap-side .cap-video { position: fixed; z-index: 40; top: 16px; right: 16px; width: var(--cap-side-w); height: var(--cap-side-h); }
+		body.cap-side .page-wrap { position: relative; left: calc(var(--cap-main-shift) * -1); max-width: min(64rem, var(--cap-main-max)); }
+		.cap-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+		.cap-howto { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-text-heading); }
+		.cap-howto + .cap-howto { margin-top: -6px; }
+		.cap-time { margin: 0; font-size: 12px; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }
+		.cap-actions { display: flex; }
+		.cap-actions .uma-btn { min-height: 44px; }
+		.cap-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--uma-danger-text, #dc2626); vertical-align: 1px; }
+		.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-lg); background: var(--uma-danger-bg, #fef2f2); }
+		.cap-fail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-danger-text, #b91c1c); }
+		.cap-fail .uma-btn { flex: none; min-height: 44px; }
+		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
+		/* 取り込みの間は、映像と止めるボタン・処理の箱は枠の中にあるので薄くしない。3列と「セットをクリア」だけ押せなくする */
+		body.cap-flow .video-busy { opacity: 1; pointer-events: auto; }
+		body.cap-flow .video-busy .upload-cols, body.cap-flow .video-busy .upload-set-clear > button:first-child { opacity: .55; pointer-events: none; }
 		body[data-upload-mode="video"] .upload-add { display: none; }
 		body[data-upload-mode="video"] #stitch-btn { display: none; }
 		/* T106: 動画モードでは「セットをクリア」と「？」を「動画を選ぶ」の上の行に置く（(1) 枠に重ねない・(6)）。「親A」などの字は結合画像を出す前は無し（(5)。枠が3人とも空のときは列そのものが高さ0） */
@@ -1721,8 +1749,12 @@
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 						<button type="button" class="uma-help-btn video-howto-btn" aria-expanded="false" aria-label="${escapeHtml(videoText('video.howto.btn'))}" title="${escapeHtml(videoText('video.howto.btn'))}" onclick="toggleVideoHowto(this)">?</button>
 					</div>
-					<div class="uma-help-box video-howto-box" hidden><strong>${escapeHtml(videoText('video.howto.title'))}</strong><br>${escapeHtml(videoText('video.howto.step1'))}<br>${escapeHtml(videoText('video.howto.step2'))}</div>
-					<button type="button" class="video-pick-btn upload-add-video" onclick="openVideoImport()">${VIDEO_SVG}<span>${escapeHtml(videoText('video.btn.pick'))}</span><span class="video-alpha" aria-hidden="true">${escapeHtml(videoText('video.entry.alpha'))}</span></button>
+					<div class="uma-help-box video-howto-box" hidden><strong>${escapeHtml(videoText('video.howto.title'))}</strong><br>${escapeHtml(videoText('video.howto.step1'))}<br>${escapeHtml(videoText('video.howto.step2'))}${captureOffered() ? '<br><br><strong>' + escapeHtml(videoText('video.howto.capTitle')) + '</strong><br>' + escapeHtml(videoText('video.howto.cap')) : ''}</div>
+					<div class="video-pick-row">
+						<button type="button" class="video-pick-btn upload-add-video" onclick="openVideoImport()">${VIDEO_SVG}<span>${escapeHtml(videoText('video.btn.pick'))}</span><span class="video-alpha" aria-hidden="true">${escapeHtml(videoText('video.entry.alpha'))}</span></button>
+						${captureOffered() ? '<button type="button" class="video-capture-btn" onclick="startPcCapture()">' + VIDEO_SVG_WINDOW + '<span>' + escapeHtml(videoText('video.btn.capture')) + '</span><span class="video-alpha" aria-hidden="true">' + escapeHtml(videoText('video.entry.alpha')) + '</span></button>' : ''}
+					</div>
+					<div class="video-cap-stage"></div>
 					<div class="upload-cols">${cards}</div>
 				</div>`;
 		}
@@ -1846,6 +1878,20 @@
 			'video.howto.step2': '・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。',
 			'video.howto.btn': '撮り方を見る',
 			'video.btn.pick': '動画を選ぶ',
+			'video.btn.capture': 'ウィンドウから取り込む',
+			'video.howto.capTitle': 'ウィンドウから取り込む',
+			'video.howto.cap': 'ゲームの因子の画面を開いてから押します。ウィンドウの一覧でウマ娘の画面を選び、親から祖2 までスクロールして、止めてください。映像はこの PC の中だけで使います。',
+			'video.cap.remain': '残り {t}',
+			'video.cap.stop': '取り込みを止める',
+			'video.cap.limit': '3分で止めました',
+			'video.cap.retry': 'もう一度',
+			'video.cap.fail.small': 'ウィンドウが小さく、結合できない大きさです。ウィンドウを大きくして、もう一度取り込んでください。',
+			'video.cap.fail.large': 'ウィンドウが大きく、結合できない大きさです。ウィンドウを小さくして、もう一度取り込んでください。',
+			'video.cap.fail.blank': '画面が真っ黒か真っ白です。ウィンドウを最小化していないか確かめてください。',
+			'video.cap.fail.aspect': 'ゲームの画面を見つけられませんでした。選んだウィンドウがウマ娘か確かめてください。',
+			'video.cap.fail.unstable': 'ゲームの画面の場所が定まりませんでした。ウィンドウの大きさを変えずに、もう一度取り込んでください。',
+			'video.cap.fail.band': 'ゲームの因子の画面を見つけられませんでした。因子の画面を開いてから取り込んでください。',
+			'video.cap.fail.toofew': '動きが読み取れませんでした。因子の画面をスクロールしてください。',
 			'video.prog.read': '動画を読み込み中',
 			'video.prog.person': '{人} のフレームを選んでいます',
 			'video.prog.done': '完了',
@@ -1868,6 +1914,7 @@
 		}
 		// アイコン（lucide の video・loader-2・triangle-alert をモックと同じく線画で直書き）
 		const VIDEO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg>';
+		const VIDEO_SVG_WINDOW = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18"></path><path d="M7 6.5h.01"></path></svg>';
 		const VIDEO_SVG_DOWNLOAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg>';
 		const VIDEO_SVG_SPIN ='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="w-4 h-4 animate-spin text-green-600"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>';
 		const videoSvgTri = (cls) => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="w-4 h-4 shrink-0 mt-0.5 ' + cls + '"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>';
@@ -1909,6 +1956,7 @@
 			if (videoBusy || mode === uploadMode) return;
 			uploadMode = mode === 'video' ? 'video' : 'shot';
 			writeStored(UPLOAD_MODE_STORAGE_KEY, uploadMode);
+			PERSON_SETS.forEach((set, i) => clearCaptureStage(i));
 			applyUploadMode();
 		}
 		document.addEventListener('DOMContentLoaded', initVideoEntry);
@@ -1935,6 +1983,113 @@
 			else { videoPending = null; input.value = ''; }   // 選ばずに戻った（0本）: 何も読まずに③のまま（T90）
 		}
 
+		/* ── PC のウィンドウの取り込み（T105。部品は js/pc-capture.js。文・状態・置き場所はT105 のモックのまま） ───
+		 * 取り込むのは選んだウィンドウの絵だけで、ゲームには触れない。映像はこの PC の中だけで使う。
+		 * 流れ: 入口 → ウィンドウを選ぶ → 探している → 見つかった（青い枠・残り時間） → 止める／上限 → 今の動画と同じ処理（onVideoChosen） */
+		function captureOffered() { return !!(window.UmaPcCapture && UmaPcCapture.shouldOffer().offer); }
+		function captureStage(setIdx) { return videoSetPanel(setIdx).querySelector('.video-cap-stage'); }
+		function clearCaptureStage(setIdx) {
+			const panel = videoSetPanel(setIdx);
+			if (!panel) return;
+			captureStage(setIdx).textContent = '';
+			panel.classList.remove('cap-on');
+		}
+		// 映像を消して、本文を元の位置へ戻す
+		function removeCaptureVideo() {
+			const v = document.getElementById('cap-video');
+			if (v) v.remove();
+			layoutCapture();
+		}
+		// 映像を右の余白に出すか、枠の中に戻すか（決定 333・348・349）。枠が見えていない間（別のタブ）は本文を動かさない
+		function layoutCapture() {
+			const vid = document.getElementById('cap-video'), box = document.getElementById('cap-box');
+			const root = document.documentElement, bar = document.getElementById('upload-bar');
+			const L = (vid && box && box.offsetParent !== null) ? UmaPcCapture.sideLayout(root.clientWidth, window.innerHeight, bar ? bar.offsetHeight : 0) : { side: false };
+			document.body.classList.toggle('cap-side', L.side);
+			const replay = () => { const m = vid.querySelector('video'); if (m) m.play().catch(() => { /* 流れなくても取り込みは続く */ }); };
+			if (!L.side) {
+				['--cap-side-w', '--cap-side-h', '--cap-main-max', '--cap-main-shift'].forEach(k => root.style.removeProperty(k));
+				if (vid && box && vid.parentElement !== box) { box.prepend(vid); replay(); }
+				return;
+			}
+			root.style.setProperty('--cap-side-w', L.w + 'px');
+			root.style.setProperty('--cap-side-h', L.h + 'px');
+			root.style.setProperty('--cap-main-max', L.mainW + 'px');
+			root.style.setProperty('--cap-main-shift', L.shift + 'px');
+			if (vid.parentElement !== document.body) { document.body.appendChild(vid); replay(); }
+		}
+		window.addEventListener('resize', layoutCapture);
+		// 見つかったら青い枠と残り時間を出す（探している間は出さない）
+		function renderCaptureTick(t) {
+			const vid = document.getElementById('cap-video'), time = document.getElementById('cap-time'), frame = document.getElementById('cap-frame');
+			if (!vid || !time || !frame) return;
+			const found = !!(t.area && t.area.ok && t.width);
+			time.hidden = !found;
+			frame.hidden = !found;
+			layoutCapture();
+			if (!found) return;
+			const sec = Math.ceil(t.rest);
+			time.lastChild.textContent = videoText('video.cap.remain', { t: Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') });
+			// 映像は枠の中に縦横比のまま入っている（object-fit: contain）
+			const bw = vid.clientWidth, bh = vid.clientHeight, q = Math.min(bw / t.width, bh / t.height);
+			const ox = (bw - t.width * q) / 2, oy = (bh - t.height * q) / 2;
+			frame.style.left = (ox + t.area.x * q) + 'px';
+			frame.style.top = (oy + t.area.y * q) + 'px';
+			frame.style.width = (t.area.w * q) + 'px';
+			frame.style.height = (t.area.h * q) + 'px';
+		}
+		function renderCaptureBox(setIdx, stream) {
+			const stage = captureStage(setIdx);
+			stage.innerHTML = '<div class="cap-box" id="cap-box"><div class="cap-video" id="cap-video"><video muted playsinline></video><div class="cap-frame" id="cap-frame" hidden></div></div><div class="cap-body">'
+				+ '<p class="cap-howto">' + escapeHtml(videoText('video.howto.step1')) + '</p><p class="cap-howto">' + escapeHtml(videoText('video.howto.step2')) + '</p>'
+				+ '<p class="cap-time" id="cap-time" hidden><span class="cap-dot" aria-hidden="true"></span><span></span></p>'
+				+ '<div class="cap-actions"><button type="button" class="uma-btn uma-btn--primary" id="cap-stop">' + escapeHtml(videoText('video.cap.stop')) + '</button></div></div></div>';
+			videoSetPanel(setIdx).classList.add('cap-on');
+			const m = stage.querySelector('video');
+			m.srcObject = stream;
+			m.play().catch(() => { /* 流れなくても取り込みは続く */ });
+			layoutCapture();
+		}
+		function showCaptureFail(setIdx, kind) {
+			const stage = captureStage(setIdx);
+			videoSetPanel(setIdx).classList.add('cap-on');
+			stage.innerHTML = '<div class="cap-fail" id="cap-fail" role="alert"><p>' + escapeHtml(videoText('video.cap.fail.' + kind)) + '</p><button type="button" class="uma-btn uma-btn--secondary" id="cap-retry" onclick="startPcCapture()">' + escapeHtml(videoText('video.cap.retry')) + '</button></div>';
+		}
+		// 「ウィンドウから取り込む」「もう一度」。ウィンドウの選択は押した操作の中で開く
+		async function startPcCapture() {
+			if (videoBusy || stitchInProgress || combinedInProgress || !window.UmaVideoFrames || !window.UmaPcCapture) return;
+			const setIdx = activePersonSet;
+			videoBusy = { ctrl: new AbortController(), setIdx, step: 0, capture: true };
+			let session = null, stopped = false;
+			try {
+				const onStop = (reason) => {
+					if (stopped) return;
+					stopped = true;
+					Promise.resolve().then(() => onCaptureStopped(setIdx, session, reason));
+				};
+				session = await UmaPcCapture.begin({ onTick: renderCaptureTick, onStop });
+			} catch (e) {
+				videoBusy = null;
+				// 選ぶのをやめた: 入口に戻す（案内は出さない）
+				clearCaptureStage(setIdx);
+				if (!e || e.name !== 'NotAllowedError') { console.error(e); clearVideoBoxes(); showVideoError(e); }
+				return;
+			}
+			clearVideoBoxes();
+			setVideoBusyUi(true);
+			renderCaptureBox(setIdx, session.stream);
+			const stopBtn = document.getElementById('cap-stop');
+			stopBtn.addEventListener('click', () => session.stop('stop'));
+		}
+		// 止まった: 処理の箱へ（上限のときは上に1行）。処理は今の動画と同じ onVideoChosen
+		function onCaptureStopped(setIdx, session, reason) {
+			removeCaptureVideo();
+			captureStage(setIdx).innerHTML = reason === 'limit' ? '<p class="cap-note" id="cap-note">' + escapeHtml(videoText('video.cap.limit')) + '</p>' : '';
+			videoBusy = null;
+			videoPending = { setIdx };
+			onVideoChosen(session, { capture: true });
+		}
+
 		// 前の取り込みの箱（進捗・知らせ・失敗）を消す
 		function clearVideoBoxes() {
 			['video-progress', 'video-error'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
@@ -1947,7 +2102,9 @@
 		function setVideoBusyUi(on) {
 			PERSON_SETS.forEach(set => { const w = document.getElementById('personset-' + set.id + '-wrap'); if (w) w.classList.toggle('video-busy', on); });
 			document.querySelectorAll('[data-upload-mode-btn]').forEach(x => { x.disabled = on; });
-			document.querySelectorAll('.video-pick-btn').forEach(x => { x.disabled = on; });
+			document.querySelectorAll('.video-pick-btn, .video-capture-btn').forEach(x => { x.disabled = on; });
+			document.querySelectorAll('.upload-set-clear > button:first-child').forEach(x => { x.disabled = on && !!(videoBusy && videoBusy.capture); });
+			document.body.classList.toggle('cap-flow', on && !!(videoBusy && videoBusy.capture));
 			updateProcessBtn();
 		}
 
@@ -1969,7 +2126,8 @@
 					+ '<div class="video-prog-foot"><small>' + escapeHtml(videoText('video.prog.foot')) + '</small>'
 					+ '<button type="button" class="uma-btn uma-btn--secondary" data-video-act="abort" style="min-height:44px">' + escapeHtml(videoText('video.btn.abort')) + '</button></div>';
 				el.querySelector('[data-video-act="abort"]').addEventListener('click', () => { if (videoBusy) videoBusy.ctrl.abort(); });
-				insertVideoBox(el);
+				if (videoBusy && videoBusy.capture) captureStage(setIdx).appendChild(el);
+				else insertVideoBox(el);
 			}
 			el.querySelector('.video-prog-label').textContent = names[step] + (step < 4 ? '…' : '');
 			el.querySelector('.video-prog-pct').textContent = pct + '%';
@@ -2095,14 +2253,16 @@
 
 		// 動画（File）か、フレームの出どころ（UmaVideoFrames.videoSource／canvasSource の形）を受け取り、選んだフレームを入れ先のセットの3人の枠へ入れる。
 		// 戻り値 { ok, aborted?, error? }。取り消し・失敗のときは枠を変えない
-		async function onVideoChosen(input) {
+		// o.capture: input は取り込みの一回分（UmaPcCapture.begin の戻り値）。カーソルを消す処理を足し、失敗は枠の中の案内と「もう一度」で出す
+		async function onVideoChosen(input, o) {
+			const capture = !!(o && o.capture);
 			const pend = videoPending;
 			videoPending = null;
 			if (!pend || !input || videoBusy || !window.UmaVideoFrames) return { ok: false };
 			const setIdx = pend.setIdx;
 			clearVideoBoxes();
 			const ctrl = new AbortController();
-			videoBusy = { ctrl, setIdx, step: 0 };
+			videoBusy = { ctrl, setIdx, step: 0, capture };
 			setVideoBusyUi(true);
 			renderVideoProgress(setIdx, 0, 0);
 			const t0 = performance.now();
@@ -2110,16 +2270,22 @@
 			try {
 				// 読み込み・シークの待ちが返ってこなくても「取り消す」でその場で抜ける（T68。前は読み込みの待ちが取り消しを聞いておらず、押しても何も起きなかった）
 				// 出どころは openSource（T90。MP4 を分解して WebCodecs で復号。使えなければ video 要素のシークに倒す）
-				src = (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.openSource(input, { signal: ctrl.signal });
+				src = capture ? await UmaVideoFrames.untilAbort(input.open(ctrl.signal), ctrl.signal)
+					: (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.openSource(input, { signal: ctrl.signal });
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
-				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress }), ctrl.signal);
+				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
+				// タッチのエフェクトの置き換え（effectVote）は iPhone の動画のためのもの。カーソルが写った画の行を別の画へ写してしまうので、取り込みでは切る
+				const debug = {};
+				if (capture) { selOpts.debug = debug; selOpts.effectVote = false; }
+				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
 				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
+				if (capture) await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal);
 				sel.persons.forEach((p, r) => {
 					const idx = setIdx * 3 + r;
 					const frames = p.files.slice();
 					persons[idx].files = frames;
-					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), expanded: false };
+					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), anchorY: p.anchorY, expanded: false };
 				});
 				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + ': ' + sel.persons.map(p => p.files.length).join('／') + '枚を入れました（置き換え・'
 					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）');
@@ -2131,20 +2297,25 @@
 				if (abortBtn) abortBtn.disabled = true;
 				const stitched = await autoStitchVideoSet(setIdx);
 				document.getElementById('video-progress').remove();
+				if (capture) clearCaptureStage(setIdx);
 				return { ok: true, stitched };
 			} catch (e) {
 				const el = document.getElementById('video-progress');
 				if (el) el.remove();
+				if (capture) clearCaptureStage(setIdx);
 				if (UmaVideoFrames.isAbortError(e)) {
 					showToast(videoText('video.toast.cancel'));
 					return { ok: false, aborted: true };
 				}
-				console.error(e);
+				const capKind = capture && e && (e.capFail || { band: 'band', 'too-few': 'toofew' }[e.code]);
+				if (!capKind) console.error(e);   // 取り込みの案内で知らせる失敗（窓が小さいなど）は不具合ではない
 				devGeometry.push('[動画] 取り込めませんでした（code=' + (e && e.code) + '）: ' + (e && e.message));
-				showVideoError(e);
-				return { ok: false, error: e && e.code || 'error' };
+				if (capKind) showCaptureFail(setIdx, capKind);
+				else showVideoError(e);
+				return { ok: false, error: capKind || (e && e.code) || 'error' };
 			} finally {
 				if (src && src !== input && typeof src.close === 'function') { try { src.close(); } catch (e) { /* 閉じられなくてもよい */ } }
+				if (capture) input.dispose();
 				videoBusy = null;
 				setVideoBusyUi(false);
 			}
@@ -4735,7 +4906,7 @@
 				const files = persons[idx].files;
 				const fromVideo = !!(v && window.UmaVideoFrames && v.files.length === files.length && v.files.every((f, i) => f === files[i]));
 				const contentCanvas = fromVideo
-					? await UmaVideoFrames.composePerson(files, v.shifts, v.uncertain, label, { still: v.still })
+					? await UmaVideoFrames.composePerson(files, v.shifts, v.uncertain, label, { still: v.still, anchorY: v.anchorY })
 					: await stitchOnePerson(files, label);
 				if (!contentCanvas) continue;
 				if (fromVideo) {

@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-06a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-07a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -252,6 +252,16 @@
 		return out;
 	}
 	const mp4Find = (list, type) => list.find((b) => b.type === type);
+	// colr の箱（nclx）が「フルレンジ」と書いているときの色の指定。圧縮の中身に印が無いと復号器がふつうの範囲と読み、236 以上が 255 に飛ぶ（PC の取り込み・T105・決定 258）。
+	// ふつうの範囲の動画（iPhone の画面収録）は null（復号器に何も足さず、今までどおり）
+	const COLR_NAMES = { primaries: { 1: 'bt709', 5: 'bt470bg', 6: 'smpte170m', 9: 'bt2020', 12: 'smpte432' }, transfer: { 1: 'bt709', 6: 'smpte170m', 8: 'linear', 13: 'iec61966-2-1', 16: 'pq', 18: 'hlg' }, matrix: { 0: 'rgb', 1: 'bt709', 5: 'bt470bg', 6: 'smpte170m', 9: 'bt2020-ncl' } };
+	function mp4FullRangeColor(dv, colr) {
+		if (!colr || colr.end - colr.body < 11 || str4(dv, colr.body) !== 'nclx' || !(dv.getUint8(colr.body + 10) & 0x80)) return null;
+		const cs = { fullRange: true };
+		const set = (k, code) => { const n = COLR_NAMES[k][code]; if (n) cs[k] = n; };
+		set('primaries', dv.getUint16(colr.body + 4)); set('transfer', dv.getUint16(colr.body + 6)); set('matrix', dv.getUint16(colr.body + 8));
+		return cs;
+	}
 	// moov から映像トラック（最初の 'vide'）の表を読む
 	function mp4ParseMoov(dv) {
 		const moov = mp4Children(dv, 0, dv.byteLength)[0];
@@ -276,6 +286,7 @@
 			if (!cfgBox) throw framesError('codec', entry.type + ' の設定が無い');
 			const cb = new Uint8Array(dv.buffer, dv.byteOffset + cfgBox.body, cfgBox.end - cfgBox.body);
 			const description = cb.slice();
+			const colorSpace = mp4FullRangeColor(dv, mp4Find(sub, 'colr'));
 			let codec, hasParams = false;
 			if (cfgBox.type === 'hvcC') {
 				const profileSpace = cb[1] >> 6, tier = (cb[1] >> 5) & 1, profile = cb[1] & 31;
@@ -315,7 +326,7 @@
 			const pts = new Float64Array(n); for (let i = 0; i < n; i++) pts[i] = dts[i] + cto[i] - mediaTime;
 			const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => pts[a] - pts[b] || a - b);
 			let keyframes = 0; for (let i = 0; i < n; i++) keyframes += sync[i];
-			return { codec, description, hasParams, width, height, timescale, duration: mediaDur / timescale, n, dur, pts, sync, sizes, offs, order, entryType: entry.type, keyframes };
+			return { codec, description, hasParams, width, height, timescale, duration: mediaDur / timescale, n, dur, pts, sync, sizes, offs, order, entryType: entry.type, keyframes, colorSpace };
 		}
 		throw framesError('no-video-track', '映像トラックが無い');
 	}
@@ -347,6 +358,7 @@
 		const stat = { fed: 0, out: 0, restarts: 0, skips: 0, reads: 0, leadingSkipped: 0 };
 		const cfg = { codec: tr.codec, codedWidth: tr.width, codedHeight: tr.height, optimizeForLatency: false };
 		if (tr.hasParams) cfg.description = tr.description;
+		if (tr.colorSpace) cfg.colorSpace = tr.colorSpace;
 		// 表示順 j ↔ サンプル i（復号順）。出てきたフレームは chunk の timestamp（µs）で引く
 		const usOf = new Float64Array(n); const jOfUs = new Map();
 		for (let j = 0; j < n; j++) { const i = tr.order[j]; let us = Math.round(tr.pts[i] * 1e6 / ts); while (jOfUs.has(us)) us++; usOf[i] = us; jOfUs.set(us, j); }

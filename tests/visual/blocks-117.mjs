@@ -65,7 +65,7 @@ export async function register117(env) {
 			assert(/uma-help-btn/.test(m.cls) && m.text === '?' && m.name && m.exp === 'false' && m.box, `T106(6) ${w}px 「？」はページの他の「？」と同じ部品（.uma-help-btn）で、初めは閉じている`, m);
 			await sp.page.click('#personset-A-wrap .video-howto-btn');
 			const o = await sp.page.evaluate(() => { const b = document.querySelector('#personset-A-wrap .video-howto-box'); const q = document.querySelector('#personset-A-wrap .video-howto-btn'); const pick = document.querySelector('#personset-A-wrap .video-pick-btn'); return { shown: b.getClientRects().length > 0, lines: b.innerText.split(/\n/).map((s) => s.trim()).filter(Boolean), exp: q.getAttribute('aria-expanded'), cls: b.className, above: b.getBoundingClientRect().bottom <= pick.getBoundingClientRect().y }; });
-			assert(o.shown && JSON.stringify(o.lines) === JSON.stringify(HOWTO) && o.exp === 'true' && /uma-help-box/.test(o.cls) && o.above, `T106(6) ${w}px 押すと決めた文が「動画を選ぶ」の上に出る（.uma-help-box）`, o);
+			assert(o.shown && JSON.stringify(o.lines.slice(0, 3)) === JSON.stringify(HOWTO) && o.exp === 'true' && /uma-help-box/.test(o.cls) && o.above, `T106(6) ${w}px 押すと決めた文が「動画を選ぶ」の上に出る（.uma-help-box）`, o);
 			await sp.page.click('#personset-A-wrap .video-howto-btn');
 			assert(await sp.page.evaluate(() => document.querySelector('#personset-A-wrap .video-howto-box').hidden), `T106(6) ${w}px もう一度押すと閉じる`, null);
 			assert(m.sw <= m.iw, `T106 ${w}px 横スクロールなし`, m);

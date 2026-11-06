@@ -132,11 +132,11 @@ export async function register121(env) {
 		}
 	});
 
-	await block('T105 PC取り込み(20) モックと試しのページの判定が同じ文・タッチの条件が無い（決定 325）', async () => {
+	await block('T105 PC取り込み(20) モックと製品の判定が同じ文・タッチの条件が無い（決定 325）', async () => {
 		const read = (n) => fs.readFileSync(path.join(REPO_ROOT, n), 'utf8').replace(/\r\n/g, '\n');
 		const of = (s) => (/\tfunction shouldOffer\(\) \{[\s\S]*?\n\t\}\n/.exec(s) || [''])[0];
-		const a = of(read('lab/pc-capture-mock.html')), b = of(read('lab/pc-capture-diag.html'));
-		assert(a.length > 100 && a === b, 'T105 PC取り込み(20) 2つのページの shouldOffer が同じ文', { a: a.length, b: b.length });
+		const a = of(read('lab/pc-capture-mock.html')), b = of(read('js/pc-capture.js'));
+		assert(a.length > 100 && a === b, 'T105 PC取り込み(20) モックと製品の部品の shouldOffer が同じ文', { a: a.length, b: b.length });
 		assert(!/pointer|coarse|innerWidth/.test(a), 'T105 PC取り込み(20) タッチと幅を見ない');
 		assert(/getDisplayMedia/.test(a) && /MediaStreamTrackProcessor/.test(a) && /VideoEncoder/.test(a) && /VideoDecoder/.test(a) && /userAgentData/.test(a), 'T105 PC取り込み(20) 機能4つとスマホの判定を見る');
 	});
@@ -236,6 +236,6 @@ export async function register121(env) {
 		assert(!/getDisplayMedia\(/.test(mock), 'T105 PC取り込み(17) モックは getDisplayMedia を呼ばない');
 		const diag = read('lab/pc-capture-diag.html');
 		assert(!diag.includes('左の余白'), 'T105 PC取り込み(17) 試しのページの手順に「左の余白」が無い');
-		assert(/const LAB_VERSION = '2026-11-06c'/.test(diag), 'T105 PC取り込み(17) 試しのページの版');
+		assert(/const LAB_VERSION = '2026-11-07a'/.test(diag), 'T105 PC取り込み(17) 試しのページの版');
 	});
 }

@@ -4,7 +4,7 @@ import { SYNTH85 } from './blocks-100.mjs';
 import { FAKE_WINDOW } from './blocks-112.mjs';
 
 // 作り物の画面に作り物のカーソルを描く。at(t) が画面の上の位置（窓に付いていて、中身と一緒には動かない）
-const POINTER = String.raw`
+export const POINTER = String.raw`
 window.__ptr = (function () {
 	const GREEN = [0, 255, 40];
 	function sprite(ctx, x, y, q) {
