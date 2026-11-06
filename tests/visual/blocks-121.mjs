@@ -48,14 +48,15 @@ export async function register121(env) {
 			});
 			const by = Object.fromEntries(r.out.map((x) => [x.k, x]));
 			assert(r.out.every((x) => !x.over), `T105 PC取り込み(14) ${theme} 全部の状態で横スクロールなし`, r.out.filter((x) => x.over).map((x) => x.k));
-			assert(by.searching.text.includes('ゲームの画面を探しています') && by.searching.video && !by.searching.frame && by.searching.stop && !by.searching.time, `T105 PC取り込み(14) ${theme} 探している: 映像だけ・枠なし`, by.searching);
-			assert(by.found.text.includes('因子の画面をスクロールして、終わったら止めてください') && by.found.frame && by.found.stop && by.found.time, `T105 PC取り込み(14) ${theme} 見つかった: 枠・残り時間・止めるボタン`, by.found);
+			assert(by.searching.text.includes('・親から祖2の一番下までゆっくりスクロール。') && by.searching.text.includes('・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。') && by.searching.video && !by.searching.frame && by.searching.stop && !by.searching.time, `T105 PC取り込み(14) ${theme} 探している: 撮り方の2行・映像・枠なし・止めるボタン（321・334）`, by.searching);
+			assert(by.found.text.includes('・親から祖2の一番下までゆっくりスクロール。') && by.found.text.includes('・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。') && by.found.frame && by.found.stop && by.found.time, `T105 PC取り込み(14) ${theme} 見つかった: 撮り方の2行・青い枠・残り時間・止めるボタン（334）`, by.found);
+			assert(!r.out.some((x) => /ゲームの画面を探しています|終わったら止めてください/.test(x.text)), `T105 PC取り込み(14) ${theme} 前の文は出ない（334）`);
 			assert(by.found.locked && by.processing.locked, `T105 PC取り込み(14) ${theme} 取り込み中と処理中は「静止画｜動画」を押せない`);
 			assert(by.limit.text.includes('3分で止めました') && by.limit.prog, `T105 PC取り込み(14) ${theme} 上限で止まった: 文とそのまま処理`, by.limit);
 			assert(by.processing.prog && by.processing.text.includes('処理中もほかの画面は見られます') && by.processing.text.includes('取り消す'), `T105 PC取り込み(14) ${theme} 処理中: 今の進捗の箱の文`, by.processing);
 			for (const k of Object.keys(r.FAIL)) assert(by[k].text.includes(r.FAIL[k][1]) && by[k].retry && by[k].text.includes('もう一度'), `T105 PC取り込み(14) ${theme} ${k}: 案内の文と「もう一度」`, by[k]);
 			assert(by['fail-small'].text.includes('ウィンドウが小さく'), `T105 PC取り込み(14) ${theme} 幅が足りない窓の案内（260）`);
-			assert(by.howto.help.includes('ウィンドウの一覧で umamusume を選び') && by.howto.help.includes('映像はこの PC の中だけで使います'), `T105 PC取り込み(14) ${theme} ？の小窓`, by.howto.help);
+			assert(by.howto.help.includes('ウィンドウの一覧でウマ娘の画面を選び') && !by.howto.help.includes('umamusume') && by.howto.help.includes('映像はこの PC の中だけで使います'), `T105 PC取り込み(14) ${theme} ？の小窓`, by.howto.help);
 			assert(!r.out.some((x) => /カーソル|左の余白/.test(x.text + x.help)), `T105 PC取り込み(14) ${theme} カーソルの置き場所の文は入れない（305）`);
 			assert(errors.length === 0, `T105 PC取り込み(14) ${theme} コンソールのエラー 0`, errors);
 			await ctx.close();
@@ -65,20 +66,16 @@ export async function register121(env) {
 	await block('T105 PC取り込み(15) モック 押したときの流れ・本当の取り込みはしない', async () => {
 		const { ctx, page, errors } = await open(1280, 900);
 		await page.click('#capture-btn');
-		assert((await page.textContent('#cap-msg')).includes('探しています'), 'T105 PC取り込み(15) 入口 → 探している');
+		assert(await page.isVisible('#cap-video') && await page.isVisible('#stop-btn') && !(await page.isVisible('#cap-time')), 'T105 PC取り込み(15) 入口 → 探している');
 		await page.click('#stop-btn');
 		assert(await page.isVisible('#vprog'), 'T105 PC取り込み(15) 止める → 処理中');
 		await page.click('[data-act="abort"]');
 		assert(await page.isVisible('#capture-btn'), 'T105 PC取り込み(15) 取り消す → 始める前');
 		await page.click('[data-state="fail-small"]');
 		await page.click('#retry-btn');
-		assert((await page.textContent('#cap-msg')).includes('探しています'), 'T105 PC取り込み(15) もう一度 → 探している');
+		assert(await page.isVisible('#cap-video') && !(await page.isVisible('#cap-time')), 'T105 PC取り込み(15) もう一度 → 探している');
 		assert(await page.evaluate(() => window.__gdm === 0), 'T105 PC取り込み(15) getDisplayMedia を呼ばない');
-		// 映像の高さの切り替え（縦長の映像が場所を取るのを見る）
-		await page.click('[data-state="found"]');
-		const heights = [];
-		for (const h of [160, 200, 280]) { await page.click(`[data-h="${h}"]`); heights.push(await page.evaluate(() => { const b = document.getElementById('cap-video').getBoundingClientRect(); return [Math.round(b.height), +(b.width / b.height).toFixed(3)]; })); }
-		assert(heights.every((v, i) => Math.abs(v[0] - [160, 200, 280][i]) <= 1 && Math.abs(v[1] - 984 / 1804) < 0.02), 'T105 PC取り込み(15) 映像の高さ 160／200／280・窓の縦横比のまま', heights);
+		assert(await page.locator('[data-h]').count() === 0, 'T105 PC取り込み(15) 「映像の高さ」の切り替えは無い（333）');
 		assert(errors.length === 0, 'T105 PC取り込み(15) コンソールのエラー 0', errors);
 		await ctx.close();
 	});
@@ -142,6 +139,93 @@ export async function register121(env) {
 		assert(a.length > 100 && a === b, 'T105 PC取り込み(20) 2つのページの shouldOffer が同じ文', { a: a.length, b: b.length });
 		assert(!/pointer|coarse|innerWidth/.test(a), 'T105 PC取り込み(20) タッチと幅を見ない');
 		assert(/getDisplayMedia/.test(a) && /MediaStreamTrackProcessor/.test(a) && /VideoEncoder/.test(a) && /VideoDecoder/.test(a) && /userAgentData/.test(a), 'T105 PC取り込み(20) 機能4つとスマホの判定を見る');
+	});
+
+	/* ── 決定 333: 取り込み中の映像を右の余白に ── */
+	const measure = () => {
+		const r = (e) => { const b = e.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) }; };
+		const v = document.getElementById('cap-video');
+		return { side: document.body.classList.contains('cap-side'), v: v && r(v), pos: v && getComputedStyle(v).position, inBox: !!(v && v.closest('#cap-box')), card: r(document.querySelector('.card')), bar: r(document.querySelector('.upload-bar')), body: r(document.querySelector('.cap-body') || document.body), over: document.documentElement.scrollWidth > document.documentElement.clientWidth, W: document.documentElement.clientWidth, Vh: innerHeight };
+	};
+	for (const [W, Vh] of [[1280, 900], [1600, 900], [1920, 1080], [1280, 640]]) {
+		await block(`T105 PC取り込み(21) モック ${W}×${Vh} 映像は右の余白に・スクロールしても見え続ける・高さは画面に合わせる（333）`, async () => {
+			const { ctx, page, errors } = await open(W, Vh);
+			const before = await page.evaluate(`(${measure})()`);
+			for (const st of ['searching', 'found']) {
+				await page.click(`[data-state="${st}"]`);
+				const m = await page.evaluate(`(${measure})()`);
+				assert(m.side && m.pos === 'fixed', `T105 PC取り込み(21) ${W}px ${st} 映像が右の余白にある`, m);
+				assert(m.v.x >= m.card.right + 8 && m.v.right <= W - 8, `T105 PC取り込み(21) ${W}px ${st} 本文の枠に重ならず窓の中`, m);
+				assert(m.v.y >= 8 && m.v.bottom <= m.bar.y, `T105 PC取り込み(21) ${W}px ${st} 上下が画面に入り、下の欄に重ならない`, m);
+				assert(m.Vh - m.v.h - (m.Vh - m.bar.y) <= 40 || m.card.right - m.card.x <= 722, `T105 PC取り込み(21) ${W}px ${st} 高さは画面いっぱい（本文を詰めきったときを除く）`, m);
+				assert(Math.abs(m.v.w / m.v.h - 984 / 1804) < 0.01, `T105 PC取り込み(21) ${W}px ${st} 窓の縦横比のまま`, m.v);
+				assert(m.v.h > 200, `T105 PC取り込み(21) ${W}px ${st} 枠の中の 200px より大きい`, m.v);
+				assert(!m.over, `T105 PC取り込み(21) ${W}px ${st} 横スクロールなし`, m);
+				// スクロールしても見え続ける
+				await page.evaluate(() => { document.body.style.minHeight = '3000px'; window.scrollTo(0, 500); });
+				const s2 = await page.evaluate(`(${measure})()`);
+				assert(s2.v.y === m.v.y && s2.v.x === m.v.x && s2.card.y < m.card.y, `T105 PC取り込み(21) ${W}px ${st} スクロールしても同じ場所`, { y: [m.v.y, s2.v.y], card: [m.card.y, s2.card.y] });
+				await page.evaluate(() => { document.body.style.minHeight = ''; window.scrollTo(0, 0); });
+				// 映像に隠れず帯を押せる
+				const ok = await page.evaluate(() => Array.from(document.querySelectorAll('#lab-strip button')).every((b) => { const q = b.getBoundingClientRect(); const e = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2); return e === b || b.contains(e); }));
+				assert(ok, `T105 PC取り込み(21) ${W}px ${st} 切り替えの帯が映像に隠れない`);
+				assert(m.body.right <= m.card.right, `T105 PC取り込み(21) ${W}px ${st} 文と止めるボタンは本文の枠の中`, m.body);
+				assert(await page.evaluate(() => !!document.getElementById('cap-box').querySelector('#stop-btn')), `T105 PC取り込み(21) ${W}px ${st} 止めるボタンは枠の中`);
+			}
+			// 取り込み中でなければ元の位置
+			await page.click('[data-state="processing"]');
+			const end = await page.evaluate(`(${measure})()`);
+			assert(!end.side && end.card.x === before.card.x && end.card.w === before.card.w, `T105 PC取り込み(21) ${W}px 処理中は本文が元の位置・元の幅`, { end: end.card, before: before.card });
+			assert(errors.length === 0, `T105 PC取り込み(21) ${W}px コンソールのエラー 0`, errors);
+			await ctx.close();
+		});
+	}
+
+	await block('T105 PC取り込み(22) モック 余白が足りる窓は本文を動かさない・足りない窓は左に寄せる（333）', async () => {
+		const pos = async (W, Vh) => {
+			const { ctx, page } = await open(W, Vh);
+			const a = await page.evaluate(`(${measure})()`);
+			await page.click('[data-state="found"]');
+			const b = await page.evaluate(`(${measure})()`);
+			await ctx.close();
+			return { a: a.card, b: b.card, v: b.v };
+		};
+		const big = await pos(2560, 900);
+		assert(big.a.x === big.b.x && big.a.w === big.b.w, 'T105 PC取り込み(22) 余白が足りる窓（2560px）は本文を動かさない', big);
+		const mid = await pos(1600, 900);
+		assert(mid.b.x < mid.a.x, 'T105 PC取り込み(22) 余白が足りない窓（1600px）は本文を左に寄せる', mid);
+		const nar = await pos(1280, 900);
+		assert(nar.b.w < nar.a.w, 'T105 PC取り込み(22) もっと狭い窓（1280px）は本文を詰める', nar);
+	});
+
+	for (const [W, Vh, side] of [[971, 800, true], [970, 800, false], [800, 800, false], [1280, 499, true], [1280, 498, false]]) {
+		await block(`T105 PC取り込み(23) モック ${W}×${Vh} 右に出す境: ${side ? '右の余白' : '枠の中・200px'}（333）`, async () => {
+			const { ctx, page, errors } = await open(W, Vh);
+			for (const st of ['searching', 'found']) {
+				await page.click(`[data-state="${st}"]`);
+				const m = await page.evaluate(`(${measure})()`);
+				assert(m.side === side, `T105 PC取り込み(23) ${W}×${Vh} ${st} ${side ? '右の余白に出す' : '右に出さない'}`, m);
+				if (!side) assert(m.pos !== 'fixed' && m.inBox && m.v.h >= 199 && m.v.h <= 201 && m.v.x >= m.card.x && m.v.right <= m.card.right, `T105 PC取り込み(23) ${W}×${Vh} ${st} 枠の中・200px`, m);
+				else assert(m.v.x >= m.card.right, `T105 PC取り込み(23) ${W}×${Vh} ${st} 本文に重ならない`, m);
+				assert(!m.over, `T105 PC取り込み(23) ${W}×${Vh} ${st} 横スクロールなし`, m);
+			}
+			assert(errors.length === 0, `T105 PC取り込み(23) ${W}×${Vh} コンソールのエラー 0`, errors);
+			await ctx.close();
+		});
+	}
+
+	await block('T105 PC取り込み(24) モック 窓の大きさを変えると、右の余白と枠の中が切り替わる（333）', async () => {
+		const { ctx, page, errors } = await open(1280, 900, '?state=found');
+		assert((await page.evaluate(`(${measure})()`)).side === true, 'T105 PC取り込み(24) 1280px は右');
+		await page.setViewportSize({ width: 900, height: 900 });
+		await page.waitForTimeout(100);
+		const n = await page.evaluate(`(${measure})()`);
+		assert(n.side === false && n.pos !== 'fixed' && n.inBox && n.v.h === 200, 'T105 PC取り込み(24) 900px に狭めると枠の中・200px', n);
+		await page.setViewportSize({ width: 1600, height: 900 });
+		await page.waitForTimeout(100);
+		assert((await page.evaluate(`(${measure})()`)).side === true, 'T105 PC取り込み(24) 1600px に広げると右');
+		assert(errors.length === 0, 'T105 PC取り込み(24) コンソールのエラー 0', errors);
+		await ctx.close();
 	});
 
 	await block('T105 PC取り込み(17) モックと試しのページ: 製品からリンクしない・通信を禁止・試しのページの手順にカーソルの文が無い（305）', async () => {

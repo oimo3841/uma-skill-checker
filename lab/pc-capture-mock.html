@@ -12,7 +12,7 @@
 		**ツール本体には組み込まない**（どのページからもリンクしない）。本当の取り込みはしない（getDisplayMedia を呼ばない）。ゲームの画像は使わず、映像は図で描く。
 		土台は T106 のあとの special.html の動画モード（「静止画｜動画α」・「動画を選ぶ」・右に「？」）。色は今のトークン（css/tokens.css の --uma-*）だけ。
 		進捗の箱は special.html の #video-progress の色と文のまま。
-		引数（撮影・確認用）: ?state=状態の名前 ／ ?theme=light|dark ／ ?h=映像の高さ（px）
+		引数（撮影・確認用）: ?state=状態の名前 ／ ?theme=light|dark
 	-->
 	<link rel="stylesheet" href="../css/tokens.css" />
 	<link rel="stylesheet" href="../css/common.css" />
@@ -73,10 +73,17 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 
 /* 取り込み中の箱: 左に小さな映像、右に文と止めるボタン。同じ場所で切り替える */
 .cap-box { display: flex; align-items: stretch; gap: 16px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); }
-.cap-video { flex: none; height: var(--pv-h, 200px); aspect-ratio: 984 / 1804; position: relative; border: 1px solid var(--uma-border); border-radius: 4px; overflow: hidden; background: var(--uma-surface-muted); }
+.cap-video { flex: none; height: 200px; aspect-ratio: 984 / 1804; position: relative; border: 1px solid var(--uma-border); border-radius: 4px; overflow: hidden; background: var(--uma-surface-muted); }
 .cap-video svg { display: block; width: 100%; height: 100%; }
+/* 取り込み中（探している・見つかった）の映像は、窓に余裕があれば本文の右の余白に出す（決定 333）。スクロールしても見え続ける。大きさと本文の寄せは layoutCapture が決める */
+body.cap-side .cap-video { position: fixed; z-index: 40; top: 16px; right: 16px; width: var(--side-w); height: var(--side-h); }
+body.cap-side .lab-strip, body.cap-side .site-head { padding-right: calc(var(--side-w) + 32px); }
+body.cap-side .wrap, body.cap-side .upload-bar-in { position: relative; left: calc(var(--main-shift) * -1); }
+body.cap-side .wrap { max-width: min(64rem, var(--main-max)); }
+body.cap-side .upload-bar-in { max-width: min(64rem, var(--main-max)); }
 .cap-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
-.cap-msg { margin: 0; font-size: 13px; line-height: 1.5; font-weight: 700; color: var(--uma-text-heading); }
+.cap-howto { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-text-heading); }
+.cap-howto + .cap-howto { margin-top: -6px; }
 .cap-time { margin: 0; font-size: 12px; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }
 .cap-actions { display: flex; }
 .cap-actions .uma-btn { min-height: 44px; }
@@ -127,8 +134,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 <div class="lab-strip" id="lab-strip">
 	<b>状態</b><span id="lab-states" style="display:contents"></span>
 	<span class="lab-sep"></span>
-	<b>映像の高さ</b><button type="button" data-h="160">160px</button><button type="button" data-h="200">200px</button><button type="button" data-h="280">280px</button>
-	<b style="margin-left:12px">色</b><button type="button" data-theme-btn="light">ライト</button><button type="button" data-theme-btn="dark">ダーク</button>
+	<b>色</b><button type="button" data-theme-btn="light">ライト</button><button type="button" data-theme-btn="dark">ダーク</button>
 	<span id="lab-version" style="margin-left:12px"></span>
 </div>
 <div class="site-head">UmaStar OCR</div>
@@ -170,13 +176,11 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 
 <script>
 (function () {
-	const MOCK_VERSION = '2026-11-06c';
+	const MOCK_VERSION = '2026-11-06d';
 	/* 画面に出す文（報告 T105-mock-1.md の一覧と同じ） */
 	const TXT = {
 		pick: '動画を選ぶ',
 		capture: 'ウィンドウから取り込む',
-		searching: 'ゲームの画面を探しています',
-		found: '因子の画面をスクロールして、終わったら止めてください',
 		remain: '残り {t}',
 		stop: '取り込みを止める',
 		limit: '3分で止めました',
@@ -185,7 +189,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 		howto1: '・親から祖2の一番下までゆっくりスクロール。',
 		howto2: '・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。',
 		howtoCapTitle: 'ウィンドウから取り込む',
-		howtoCap: 'ゲームの因子の画面を開いてから押します。ウィンドウの一覧で umamusume を選び、親から祖2 までスクロールして、止めてください。映像はこの PC の中だけで使います。',
+		howtoCap: 'ゲームの因子の画面を開いてから押します。ウィンドウの一覧でウマ娘の画面を選び、親から祖2 までスクロールして、止めてください。映像はこの PC の中だけで使います。',
 		prog: ['動画を読み込み中', '親A のフレームを選んでいます', '祖A1 のフレームを選んでいます', '祖A2 のフレームを選んでいます', '完了'],
 		progFoot: '処理中もほかの画面は見られます',
 		abort: '取り消す'
@@ -221,8 +225,8 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	}
 	const entry = () => '<div class="pick-row" id="pick-row"><button type="button" class="pick-btn" data-act="pick">' + SVG_VIDEO + '<span>' + esc(TXT.pick) + '</span><span class="video-alpha" aria-hidden="true">α</span></button>'
 		+ (isPc() ? '<button type="button" class="pick-btn" id="capture-btn" data-act="capture">' + SVG_WINDOW + '<span>' + esc(TXT.capture) + '</span><span class="video-alpha" aria-hidden="true">α</span></button>' : '') + '</div>';
-	const capture = (msg, withFrame, withTime) => '<div class="cap-box" id="cap-box"><div class="cap-video" id="cap-video">' + windowFigure(withFrame) + '</div><div class="cap-body">'
-		+ '<p class="cap-msg" id="cap-msg">' + esc(msg) + '</p>'
+	const capture = (withFrame, withTime) => '<div class="cap-box" id="cap-box"><div class="cap-video" id="cap-video">' + windowFigure(withFrame) + '</div><div class="cap-body">'
+		+ '<p class="cap-howto">' + esc(TXT.howto1) + '</p><p class="cap-howto">' + esc(TXT.howto2) + '</p>'
 		+ (withTime ? '<p class="cap-time" id="cap-time"><span class="cap-dot" aria-hidden="true"></span>' + esc(TXT.remain.replace('{t}', '2:41')) + '</p>' : '')
 		+ '<div class="cap-actions"><button type="button" class="uma-btn uma-btn--primary" id="stop-btn" data-act="stop">' + esc(TXT.stop) + '</button></div></div></div>';
 	const progress = () => '<div class="vprog" id="vprog" role="status"><div class="vprog-head"><span>' + esc(TXT.prog[1]) + '…</span><span>38%</span></div><div class="vprog-track"><div class="vprog-bar"></div></div>'
@@ -250,8 +254,8 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 		const s = isPc() ? state : 'before';
 		const stage = $('stage');
 		if (s === 'before' || s === 'howto') stage.innerHTML = entry();
-		else if (s === 'searching') stage.innerHTML = capture(TXT.searching, false, false);
-		else if (s === 'found') stage.innerHTML = capture(TXT.found, true, true);
+		else if (s === 'searching') stage.innerHTML = capture(false, false);
+		else if (s === 'found') stage.innerHTML = capture(true, true);
 		else if (s === 'limit') stage.innerHTML = '<p class="cap-note" id="cap-note">' + esc(TXT.limit) + '</p>' + progress();
 		else if (s === 'processing') stage.innerHTML = progress();
 		else if (FAIL[s]) stage.innerHTML = '<div class="cap-fail" id="cap-fail" role="alert"><p>' + esc(FAIL[s][1]) + '</p><button type="button" class="uma-btn uma-btn--secondary" id="retry-btn" data-act="retry">' + esc(TXT.retry) + '</button></div>';
@@ -259,9 +263,28 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 		const busy = !(s === 'before' || s === 'howto' || !!FAIL[s]);
 		['mode-shot', 'mode-video', 'set-clear-btn'].forEach((id) => { $(id).disabled = busy; });
 		document.querySelectorAll('[data-state]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === state)));
+		layoutCapture(s === 'searching' || s === 'found');
+	}
+	// 映像を右の余白に出すか、枠の中に戻すか（決定 333）
+	// 本文の幅は 720px までは詰めてよい。映像は高さ 400px（枠の中の 200px の2倍）より小さくなるなら、右に出す意味が薄いので枠の中に戻す
+	const SIDE = { mainMin: 720, videoMinH: 400, edge: 16, ratio: 984 / 1804, wrapMax: 1024 };
+	function layoutCapture(active) {
+		const W = document.documentElement.clientWidth, Vh = window.innerHeight, bar = document.querySelector('.upload-bar').offsetHeight;
+		const room = W - SIDE.mainMin - SIDE.edge * 2;           // 本文を一番詰めたときの右の余白
+		const byHeight = Vh - SIDE.edge * 2 - bar;               // 画面の高さに合わせた映像の高さ
+		const h = Math.floor(Math.min(byHeight, room / SIDE.ratio));
+		const side = !!active && h >= SIDE.videoMinH;
+		document.body.classList.toggle('cap-side', side);
+		const set = (k, v) => document.documentElement.style.setProperty(k, v);
+		if (!side) { ['--side-w', '--side-h', '--main-max', '--main-shift'].forEach((k) => document.documentElement.style.removeProperty(k)); return; }
+		const w = Math.round(h * SIDE.ratio);
+		const right = W - w - SIDE.edge * 2;                     // 本文の右端をここまでにする
+		const mainW = Math.min(SIDE.wrapMax, right);
+		const centerLeft = (W - mainW) / 2;                      // 今の中央寄せの左端
+		const shift = Math.max(0, centerLeft + mainW - right);   // 中央のままで入るなら動かさない
+		set('--side-w', w + 'px'); set('--side-h', h + 'px'); set('--main-max', mainW + 'px'); set('--main-shift', shift + 'px');
 	}
 	function setState(n) { state = n; if (n !== 'howto') setHowto(false); render(); }
-	function setHeight(h) { document.documentElement.style.setProperty('--pv-h', h + 'px'); document.querySelectorAll('[data-h]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.h === +h))); }
 	function setTheme(t) { document.documentElement.setAttribute('data-theme', t); document.querySelectorAll('[data-theme-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeBtn === t))); }
 
 	// 入口が出ない端末では帯も出さない（押しても変わらないボタンを出さない）
@@ -272,7 +295,6 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 		const b = e.target.closest('button');
 		if (!b) return;
 		if (b.dataset.state) return setState(b.dataset.state);
-		if (b.dataset.h) return setHeight(b.dataset.h);
 		if (b.dataset.themeBtn) return setTheme(b.dataset.themeBtn);
 		if (b.id === 'howto-btn') return setHowto($('howto-box').hidden);
 		const act = b.dataset.act;
@@ -285,9 +307,8 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 
 	const Q = new URLSearchParams(location.search);
 	setTheme(Q.get('theme') === 'dark' ? 'dark' : 'light');
-	setHeight(Q.get('h') || 200);
 	const first = Q.get('state');
-	window.__mock = { VERSION: MOCK_VERSION, STATES, FAIL, TXT, setState, setHeight, setTheme, isPc, shouldOffer };
+	window.__mock = { VERSION: MOCK_VERSION, STATES, FAIL, TXT, SIDE, setState, setTheme, isPc, shouldOffer };
 	setState(first && STATES.some((x) => x[0] === first) ? first : 'before');
 })();
 </script>
