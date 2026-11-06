@@ -243,7 +243,7 @@
 		if (!out.ok) out.reason = 'unstable';
 		return out;
 	}
-	const LAB_VERSION = '2026-11-06b';
+	const LAB_VERSION = '2026-11-06c';
 	const AREA_MSG = {
 		blank: '画面が真っ黒か真っ白です。ウィンドウを最小化していないか確かめてください。',
 		aspect: 'ゲームの画面を見つけられませんでした。選んだウィンドウがウマ娘か確かめてください。',
@@ -791,13 +791,14 @@
 			+ '・CaptureController ' + has(typeof CaptureController !== 'undefined');
 	}
 	// ボタンを出す条件の案（T105 の報告 §4）。画面の表に結果だけ出す
+	// 取り込みの入口を出すか（決定 252・325。段2 で js/pc-capture.js に置く形。lab/pc-capture-diag.html と lab/pc-capture-mock.html は同じ文）
+	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
 	function shouldOffer() {
 		const nav = navigator, md = nav.mediaDevices;
 		if (!(md && typeof md.getDisplayMedia === 'function')) return { offer: false, why: 'getDisplayMedia なし' };
 		if (typeof MediaStreamTrackProcessor === 'undefined' || typeof VideoEncoder === 'undefined' || typeof VideoDecoder === 'undefined') return { offer: false, why: '必要な API なし' };
 		const uad = nav.userAgentData;
 		if (uad && uad.mobile) return { offer: false, why: 'userAgentData.mobile' };
-		if (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches) return { offer: false, why: 'タッチだけの端末' };
 		return { offer: true, why: '' };
 	}
 	function renderStats() {

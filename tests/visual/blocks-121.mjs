@@ -2,7 +2,7 @@
 // 決め: 249（入口は「動画を選ぶ」の並び）・252（スマホでは出さない）・250（止めるボタンと上限 3分）・260（幅が足りない窓の案内）・261（止めるボタンはブラウザの側）・305（カーソルの置き場所の文は入れない）。
 export async function register121(env) {
 	const { block, assert, browser, base, fs, path, REPO_ROOT } = env;
-	const open = async (w, h, q = '') => {
+	const open = async (w, h, q = '', init = null) => {
 		const ctx = await browser.newContext({ viewport: { width: w, height: h } });
 		const page = await ctx.newPage();
 		const errors = [];
@@ -12,6 +12,7 @@ export async function register121(env) {
 			window.__gdm = 0;
 			if (navigator.mediaDevices) navigator.mediaDevices.getDisplayMedia = async () => { window.__gdm++; throw new Error('呼ばない'); };
 		});
+		if (init) await page.addInitScript(init.fn, init.arg);
 		await page.goto(base + '/lab/pc-capture-mock.html' + q);
 		return { ctx, page, errors };
 	};
@@ -82,23 +83,66 @@ export async function register121(env) {
 		await ctx.close();
 	});
 
-	for (const [w, h] of [[390, 844], [360, 740]]) {
-		await block(`T105 PC取り込み(16) モック ${w}px スマホ: 入口が出ない（252）・「動画を選ぶ」は今のまま・？にも文が出ない`, async () => {
-			const { ctx, page, errors } = await open(w, h, '?state=found');
+	// スマホのまね（決定 325 の判定は幅を見ないので、機能と userAgentData でまねる）
+	const PHONE = (kind) => {
+		if (kind === 'iphone') navigator.mediaDevices.getDisplayMedia = undefined; // 呼ばれた数を見る差し替え（open）の上から消す
+		if (kind === 'android') Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => ({ mobile: true, platform: 'Android', brands: [] }), configurable: true });
+	};
+	for (const [w, h, kind] of [[390, 844, 'iphone'], [360, 740, 'android']]) {
+		await block(`T105 PC取り込み(16) モック ${w}px ${kind} のまね: 入口も帯も出ない（252）・「動画を選ぶ」は今のまま・？にも文が出ない`, async () => {
+			const { ctx, page, errors } = await open(w, h, '?state=found', { fn: PHONE, arg: kind });
 			const m = await page.evaluate(() => {
 				const p = document.querySelector('.pick-btn');
+				const strip = document.getElementById('lab-strip');
+				const stripGone = strip.hidden && strip.getBoundingClientRect().height === 0;
 				document.getElementById('howto-btn').click();
-				return { capture: !!document.getElementById('capture-btn'), video: !!document.getElementById('cap-video'), pick: p && p.textContent, pickW: p && Math.round(p.getBoundingClientRect().width), rowW: Math.round(document.getElementById('stage').getBoundingClientRect().width), help: document.getElementById('howto-box').textContent, states: getComputedStyle(document.getElementById('lab-states').querySelector('button')).display };
+				return { capture: !!document.getElementById('capture-btn'), video: !!document.getElementById('cap-video'), pick: p && p.textContent, pickW: p && Math.round(p.getBoundingClientRect().width), rowW: Math.round(document.getElementById('stage').getBoundingClientRect().width), help: document.getElementById('howto-box').textContent, stripGone };
 			});
 			assert(!m.capture && !m.video, `T105 PC取り込み(16) ${w}px 入口も映像も出ない`, m);
 			assert(m.pick.includes('動画を選ぶ') && m.pickW === m.rowW, `T105 PC取り込み(16) ${w}px 「動画を選ぶ」は幅いっぱい`, m);
 			assert(!m.help.includes('ウィンドウ') && m.help.includes('撮り方'), `T105 PC取り込み(16) ${w}px ？に取り込みの文が出ない`, m.help);
-			assert(m.states === 'none', `T105 PC取り込み(16) ${w}px 状態の切り替えを出さない`, m.states);
+			assert(m.stripGone, `T105 PC取り込み(16) ${w}px ${kind} 切り替えの帯を出さない`, m);
 			assert(await noOverflow(page), `T105 PC取り込み(16) ${w}px 横スクロールなし`);
 			assert(errors.length === 0, `T105 PC取り込み(16) ${w}px コンソールのエラー 0`, errors);
 			await ctx.close();
 		});
 	}
+
+	await block('T105 PC取り込み(18) モック タッチだけと見える PC（Surface。決定 325）: 入口と帯が出て、帯で状態が変わる', async () => {
+		const TOUCH = () => { window.matchMedia = (q) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }); };
+		const { ctx, page, errors } = await open(1280, 900, '', { fn: TOUCH });
+		assert(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches), 'T105 PC取り込み(18) まねが効いている（タッチだけと見える）');
+		assert(await page.isVisible('#capture-btn'), 'T105 PC取り込み(18) 「ウィンドウから取り込む」が出る');
+		assert(await page.isVisible('#lab-strip'), 'T105 PC取り込み(18) 切り替えの帯が出る');
+		await page.click('[data-state="found"]');
+		assert(await page.isVisible('#cap-video') && await page.isVisible('#stop-btn'), 'T105 PC取り込み(18) 帯を押すと「見つかった」に変わる');
+		assert(errors.length === 0, 'T105 PC取り込み(18) コンソールのエラー 0', errors);
+		await ctx.close();
+	});
+
+	await block('T105 PC取り込み(19) モック 幅の狭い PC の窓（判定は幅を見ない）: 入口が出て、全部の状態で横スクロールなし', async () => {
+		for (const w of [390, 360]) {
+			const { ctx, page, errors } = await open(w, 800);
+			const r = await page.evaluate(() => {
+				const out = { capture: !!document.getElementById('capture-btn'), over: [] };
+				for (const [k] of __mock.STATES) { __mock.setState(k); if (document.documentElement.scrollWidth > document.documentElement.clientWidth) out.over.push(k); }
+				return out;
+			});
+			assert(r.capture, `T105 PC取り込み(19) ${w}px 入口が出る`, r);
+			assert(r.over.length === 0, `T105 PC取り込み(19) ${w}px 全部の状態で横スクロールなし`, r.over);
+			assert(errors.length === 0, `T105 PC取り込み(19) ${w}px コンソールのエラー 0`, errors);
+			await ctx.close();
+		}
+	});
+
+	await block('T105 PC取り込み(20) モックと試しのページの判定が同じ文・タッチの条件が無い（決定 325）', async () => {
+		const read = (n) => fs.readFileSync(path.join(REPO_ROOT, n), 'utf8').replace(/\r\n/g, '\n');
+		const of = (s) => (/\tfunction shouldOffer\(\) \{[\s\S]*?\n\t\}\n/.exec(s) || [''])[0];
+		const a = of(read('lab/pc-capture-mock.html')), b = of(read('lab/pc-capture-diag.html'));
+		assert(a.length > 100 && a === b, 'T105 PC取り込み(20) 2つのページの shouldOffer が同じ文', { a: a.length, b: b.length });
+		assert(!/pointer|coarse|innerWidth/.test(a), 'T105 PC取り込み(20) タッチと幅を見ない');
+		assert(/getDisplayMedia/.test(a) && /MediaStreamTrackProcessor/.test(a) && /VideoEncoder/.test(a) && /VideoDecoder/.test(a) && /userAgentData/.test(a), 'T105 PC取り込み(20) 機能4つとスマホの判定を見る');
+	});
 
 	await block('T105 PC取り込み(17) モックと試しのページ: 製品からリンクしない・通信を禁止・試しのページの手順にカーソルの文が無い（305）', async () => {
 		const read = (n) => fs.readFileSync(path.join(REPO_ROOT, n), 'utf8');
@@ -108,6 +152,6 @@ export async function register121(env) {
 		assert(!/getDisplayMedia\(/.test(mock), 'T105 PC取り込み(17) モックは getDisplayMedia を呼ばない');
 		const diag = read('lab/pc-capture-diag.html');
 		assert(!diag.includes('左の余白'), 'T105 PC取り込み(17) 試しのページの手順に「左の余白」が無い');
-		assert(/const LAB_VERSION = '2026-11-06b'/.test(diag), 'T105 PC取り込み(17) 試しのページの版');
+		assert(/const LAB_VERSION = '2026-11-06c'/.test(diag), 'T105 PC取り込み(17) 試しのページの版');
 	});
 }

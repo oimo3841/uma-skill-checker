@@ -259,11 +259,12 @@ export async function register112(env) {
 		await ctx.close();
 		// スマホの形: iPhone の Safari（getDisplayMedia なし）と Android の Chrome（userAgentData.mobile）をまねる
 		const init = (kind) => {
+			if (kind === 'no-api') { delete window.MediaStreamTrackProcessor; }
 			if (kind === 'iphone') { try { Object.defineProperty(MediaDevices.prototype, 'getDisplayMedia', { value: undefined, configurable: true }); } catch (e) { /* 何もしない */ } }
 			if (kind === 'android') { Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => ({ mobile: true, platform: 'Android', brands: [] }), configurable: true }); }
-			if (kind === 'tablet') { Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined, configurable: true }); window.matchMedia = (q) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }); }
+			if (kind === 'touch-pc' || kind === 'no-api') { Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined, configurable: true }); window.matchMedia = (q) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }); }
 		};
-		for (const kind of ['iphone', 'android', 'tablet']) {
+		for (const kind of ['iphone', 'android', 'touch-pc', 'no-api']) {
 			const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
 			const p2 = await c2.newPage();
 			const errs2 = [];
@@ -271,7 +272,9 @@ export async function register112(env) {
 			await p2.addInitScript(init, kind);
 			await p2.goto(base + '/lab/pc-capture-diag.html');
 			const q = await p2.evaluate(() => ({ o: __pc.shouldOffer(), sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
-			assert(q.o.offer === false, 'T105 PC取り込み(5) ' + kind + ' では出さない（' + q.o.why + '）', q.o);
+			// 決定 325: タッチだけと見える PC（Surface）でも、機能があってスマホでなければ出す
+			if (kind === 'touch-pc') assert(q.o.offer === true, 'T105 PC取り込み(5) タッチだけと見える PC（Surface）では出す', q.o);
+			else assert(q.o.offer === false, 'T105 PC取り込み(5) ' + kind + ' では出さない（' + q.o.why + '）', q.o);
 			assert(q.sw <= q.cw && errs2.length === 0, 'T105 PC取り込み(5) ' + kind + ' の幅 390 で横スクロールなし・エラーなし', { q, errs2 });
 			await c2.close();
 		}

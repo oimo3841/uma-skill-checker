@@ -28,8 +28,6 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 .lab-strip b { margin-right: 2px; font-weight: 700; }
 .lab-strip .lab-sep { flex-basis: 100%; height: 0; }
 .lab-strip button { min-height: 28px; padding: 2px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface); color: var(--uma-text-muted); font: inherit; cursor: pointer; }
-/* スマホでは入口を出さないので、状態の切り替えも出さない */
-@media (max-width: 767px) { .lab-strip #lab-states button, .lab-strip > b:first-child { display: none; } }
 .lab-strip button[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); border-color: var(--uma-surface-inverse); }
 
 .site-head { display: flex; align-items: center; height: 47px; padding: 0 16px; background: var(--uma-surface); border-bottom: 1px solid var(--uma-border); font-weight: 800; color: var(--uma-text-heading); }
@@ -131,6 +129,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	<span class="lab-sep"></span>
 	<b>映像の高さ</b><button type="button" data-h="160">160px</button><button type="button" data-h="200">200px</button><button type="button" data-h="280">280px</button>
 	<b style="margin-left:12px">色</b><button type="button" data-theme-btn="light">ライト</button><button type="button" data-theme-btn="dark">ダーク</button>
+	<span id="lab-version" style="margin-left:12px"></span>
 </div>
 <div class="site-head">UmaStar OCR</div>
 <main class="wrap">
@@ -171,6 +170,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 
 <script>
 (function () {
+	const MOCK_VERSION = '2026-11-06c';
 	/* 画面に出す文（報告 T105-mock-1.md の一覧と同じ） */
 	const TXT = {
 		pick: '動画を選ぶ',
@@ -228,8 +228,17 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	const progress = () => '<div class="vprog" id="vprog" role="status"><div class="vprog-head"><span>' + esc(TXT.prog[1]) + '…</span><span>38%</span></div><div class="vprog-track"><div class="vprog-bar"></div></div>'
 		+ '<ol class="video-steps">' + TXT.prog.map((n, i) => '<li data-st="' + (i === 0 ? 'done' : i === 1 ? 'now' : 'wait') + '"><i>' + (i === 0 ? '✓' : i === 1 ? '●' : '') + '</i>' + esc(n) + '</li>').join('') + '</ol>'
 		+ '<div class="video-prog-foot"><small>' + esc(TXT.progFoot) + '</small><button type="button" class="uma-btn uma-btn--secondary" data-act="abort" style="min-height:44px">' + esc(TXT.abort) + '</button></div></div>';
-	// 出し分け（決定 252）: 本物は使える機能で見る。モックでは幅とタッチだけの端末で見る
-	function isPc() { return window.innerWidth >= 768 && !(matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches); }
+	// 取り込みの入口を出すか（決定 252・325。段2 で js/pc-capture.js に置く形。lab/pc-capture-diag.html と lab/pc-capture-mock.html は同じ文）
+	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
+	function shouldOffer() {
+		const nav = navigator, md = nav.mediaDevices;
+		if (!(md && typeof md.getDisplayMedia === 'function')) return { offer: false, why: 'getDisplayMedia なし' };
+		if (typeof MediaStreamTrackProcessor === 'undefined' || typeof VideoEncoder === 'undefined' || typeof VideoDecoder === 'undefined') return { offer: false, why: '必要な API なし' };
+		const uad = nav.userAgentData;
+		if (uad && uad.mobile) return { offer: false, why: 'userAgentData.mobile' };
+		return { offer: true, why: '' };
+	}
+	const isPc = () => shouldOffer().offer;
 
 	let state = 'before';
 	function howtoHtml() {
@@ -255,6 +264,9 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	function setHeight(h) { document.documentElement.style.setProperty('--pv-h', h + 'px'); document.querySelectorAll('[data-h]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.h === +h))); }
 	function setTheme(t) { document.documentElement.setAttribute('data-theme', t); document.querySelectorAll('[data-theme-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeBtn === t))); }
 
+	// 入口が出ない端末では帯も出さない（押しても変わらないボタンを出さない）
+	$('lab-strip').hidden = !isPc();
+	$('lab-version').textContent = '版 ' + MOCK_VERSION;
 	$('lab-states').innerHTML = STATES.map(([k, l]) => '<button type="button" data-state="' + k + '">' + esc(l) + '</button>').join('');
 	document.addEventListener('click', (e) => {
 		const b = e.target.closest('button');
@@ -275,7 +287,7 @@ body { background: var(--uma-surface-sunken); color: var(--uma-text); font-famil
 	setTheme(Q.get('theme') === 'dark' ? 'dark' : 'light');
 	setHeight(Q.get('h') || 200);
 	const first = Q.get('state');
-	window.__mock = { STATES, FAIL, TXT, setState, setHeight, setTheme, isPc };
+	window.__mock = { VERSION: MOCK_VERSION, STATES, FAIL, TXT, setState, setHeight, setTheme, isPc, shouldOffer };
 	setState(first && STATES.some((x) => x[0] === first) ? first : 'before');
 })();
 </script>
