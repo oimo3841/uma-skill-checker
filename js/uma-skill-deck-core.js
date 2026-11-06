@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06d';
 
 	/* ============================================================
 	 * 定数
@@ -6349,8 +6349,6 @@
 		// 黒は --usd-rarity-ssr-text（淡い3色の上で 4.5 以上。ダークでは同じ名前を差し替える）
 		'.uma-btn.usd-outside-entry { background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to)); color: var(--usd-rarity-ssr-text); border-color: var(--usd-skill-unique-edge); box-shadow: var(--uma-shadow-1); }',
 		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(0.97); }',
-		// T108: 新しいモードのオススメサポ（押せない）。色を抜いて薄くする
-		'.uma-btn.usd-outside-entry:disabled { filter: grayscale(1); opacity: 0.45; cursor: not-allowed; }',
 		// 脚質オススメの小窓。器はオススメサポと同じ（.usd-modal / .usd-modal-panel / .usd-out-head / .usd-out-body / .usd-modal-foot）。上に固定＝.usd-sty-top、リストだけ縦に送る、下に固定＝.usd-modal-foot
 		'.usd-sty-top { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-4); border-bottom: 1px solid var(--uma-border); }',
 		'.usd-sty-pick { display: flex; align-items: center; flex-wrap: wrap; gap: var(--uma-sp-2); min-width: 0; }',
@@ -7860,6 +7858,16 @@
 		'.usd-skillgroup-head[data-usd-fit="3"] .usd-outside-entry { font-size: 9px; padding-inline: 5px; gap: 2px; }',
 		'.usd-skillgroup-head[data-usd-fit="3"] .usd-outside-entry svg { width: 12px; height: 12px; }',
 		'.usd-skillgroup-head[data-usd-fit="3"], .usd-skillgroup-head[data-usd-fit="3"] .usd-entry-row { gap: 4px; }',
+		// T112（回答 331）: 新しいモードの3つのボタンのための段（4〜6。ほかのモードでは使わない）。字の幅は端末の字体で違う（かなが字の幅いっぱいの字体だと 8px で 18字＝144px）。6 はその字体で 360px に収まる値（実測）
+		'.usd-skillgroup-head[data-usd-fit="4"] .usd-outside-entry { font-size: 9px; padding-inline: 3px; gap: 2px; }',
+		'.usd-skillgroup-head[data-usd-fit="4"] .usd-outside-entry svg { width: 11px; height: 11px; }',
+		'.usd-skillgroup-head[data-usd-fit="4"], .usd-skillgroup-head[data-usd-fit="4"] .usd-entry-row { gap: 4px; }',
+		'.usd-skillgroup-head[data-usd-fit="5"] .usd-outside-entry { font-size: 8px; padding-inline: 3px; gap: 1px; }',
+		'.usd-skillgroup-head[data-usd-fit="5"] .usd-outside-entry svg { width: 10px; height: 10px; }',
+		'.usd-skillgroup-head[data-usd-fit="5"], .usd-skillgroup-head[data-usd-fit="5"] .usd-entry-row { gap: 2px; }',
+		'.usd-skillgroup-head[data-usd-fit="6"] .usd-outside-entry { font-size: 8px; padding-inline: 1.5px; gap: 0; }',
+		'.usd-skillgroup-head[data-usd-fit="6"] .usd-outside-entry svg { width: 8px; height: 8px; }',
+		'.usd-skillgroup-head[data-usd-fit="6"], .usd-skillgroup-head[data-usd-fit="6"] .usd-entry-row { gap: 2px; }',
 		// ②因子周回 段2: 「削除」の右の◎のボタン（①の◎の漏斗のボタンの◎の絵だけを押せるようにした形。押せる範囲 28px＝①の列見出しのボタンと同じ）。
 		// 入っているときは「削除」を選んでいるときと同じ選択の印（2px の枠）
 		'.usd-factor-circlebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--uma-r-sm);',
@@ -15908,14 +15916,36 @@
 			renderFactorCards();
 			renderSelectedList();
 		}
+		/**
+		 * T112（回答 329〜331）: 新しいモードの入口の行。オススメサポを出さず、脚質オススメの右に「条件で検索」「テキストで検索」を出す。
+		 * 押したときの動きは虫眼鏡の小窓の中の同じボタンと同じ（同じ act ＝ openEditorPicker）。見た目は入口のボタン（usd-outside-entry）。
+		 * 2つのボタンは新しいモードの間だけ行に置く（デフォルト・レースの行は今のまま）。
+		 */
+		function syncNoPlanEntry(noPlan) {
+			const outside = q(container, 'outside-open');
+			const style = q(container, 'style-open');
+			if (!outside || !style) return;
+			const has = !!q(container, 'noplan-filter');
+			if (noPlan === has && outside.hidden === noPlan) return;
+			outside.hidden = noPlan;
+			if (noPlan && !has) {
+				style.insertAdjacentHTML('afterend',
+					'<button type="button" class="uma-btn usd-outside-entry" data-usd-act="editor-pick" data-usd-el="noplan-filter">' +
+						'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索</button>' +
+					'<button type="button" class="uma-btn usd-outside-entry" data-usd-act="editor-pick-search" data-usd-el="noplan-search">' +
+						'<i data-lucide="search" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索</button>');
+				refreshIcons();
+			} else if (!noPlan && has) {
+				q(container, 'noplan-filter').remove();
+				q(container, 'noplan-search').remove();
+			}
+			style.parentNode.scrollLeft = 0;
+			fitEntryHead();
+		}
 		function renderPtNeed() {
 			// C-244: 選択欄は Pt のデータの読み込みに関係なく出す
 			if (setBased) { renderFactorCards(); renderFactorFilter(); }
-			// T108: 新しいモードではオススメサポを押せない（脚質オススメは使える）
-			if (setBased) {
-				const ob = q(container, 'outside-open');
-				if (ob) ob.disabled = isNoPlanRoster(linkedRosterOf(currentTarget()));
-			}
+			if (setBased) syncNoPlanEntry(isNoPlanRoster(linkedRosterOf(currentTarget())));
 			const el = q(container, 'pt-need');
 			if (!el) return;
 			// 段8: 帯の合計も同じ数字から出すので、ここで描き直す（継承固有・ヒントLv・ランクの ON/OFF の変更でも追随する）
@@ -16048,10 +16078,14 @@
 			const row = head ? head.querySelector('.usd-entry-row') : null;
 			if (!row || !row.offsetParent) return;
 			row.style.setProperty('--usd-entry-trim', '0px');
-			for (let lv = 0; lv <= 3; lv++) {
+			// T112（回答 331）: 新しいモードの3つのボタンは段6まで詰める。段6でも入らない幅は段3に戻して横に送る
+			const maxLv = q(container, 'noplan-filter') ? 6 : 3;
+			let fits = false;
+			for (let lv = 0; lv <= maxLv && !fits; lv++) {
 				if (lv) head.setAttribute('data-usd-fit', String(lv)); else head.removeAttribute('data-usd-fit');
-				if (row.scrollWidth <= row.clientWidth + 0.5) break;
+				fits = row.scrollWidth <= row.clientWidth + 0.5;
 			}
+			if (!fits) head.setAttribute('data-usd-fit', '3');
 			measureEntryRowTrim(row);
 			updateEntryRowFade(row);
 		}

@@ -2,7 +2,7 @@
 // run-smoke.mjs の末尾から register120() で呼ばれる（塊の見出しはすべて「T108」で始まる。`npm run test:visual -- --only=T108` で回せる）。
 //
 //  - 「指定なし」→「デフォルト」（動き・保存の形は今のまま）。上段はデフォルトで「レース指定」、新しいモードで「レース指定なし／本育成編成なし」（入らなければ「レース／本育成編成なし」）。
-//  - 新しいモード: ①は押せない（中身は消さない）・右上の合計なし・②の継承固有／共通スキルは押せない・Pt の積み上げなし・距離／脚質／バ場は残る・オススメサポは押せない・
+//  - 新しいモード: ①は押せない（中身は消さない）・右上の合計なし・②の継承固有／共通スキルは押せない・Pt の積み上げなし・距離／脚質／バ場は残る・オススメサポは出さない（T112・回答 329）・
 //    脚質オススメは使える（緑スキル〔レース条件〕は空）・結合画像の設定の本育成編成／理論値SP は押せない。
 //  - 脚質オススメと条件で検索の「サポカ外」からレース場の印を持つスキルを外す（292・294）。条件で検索の表示名は「サポカ外（レース場を除く）」。
 //  - 条件で検索の「シナリオスキル」を選ぶとパッシブでも出す（293。「＋」の進化スキルは出さない）。
@@ -66,7 +66,7 @@ export async function register120(env) {
 			factorPt: !!q(P + '[data-usd-el="factor-pt"]'), factorCount: (q(P + '[data-usd-el="factor-count"]') || {}).textContent, sumBtn: !!q(P + '[data-usd-el="pt-need-help-btn"]'),
 			stepsDisabled: steps.length > 0 && steps.every((s) => s.disabled), stepsAnyDisabled: steps.some((s) => s.disabled), uniqOff: !!q(P + '.usd-uniq--off'), reset: !!q(P + '[data-usd-el="factor-reset"]'),
 			pts, ptAny: pts.some((x) => x), filters: [...document.querySelectorAll(P + '[data-usd-el="factor-filter-row"] select')].map((s) => ({ disabled: s.disabled, value: s.value })),
-			outside: q(P + '[data-usd-el="outside-open"]').disabled, style: q(P + '[data-usd-el="style-open"]').disabled,
+			outside: q(P + '[data-usd-el="outside-open"]').hidden, style: q(P + '[data-usd-el="style-open"]').disabled,
 			stitchRoster: stitch('roster'), stitchSp: stitch('sp'), stitchFactor: stitch('factor'), stitchTable: stitch('table'),
 			now: stitchPartsNow(), saved: JSON.parse(localStorage.getItem('uma-special-stitch-parts')),
 			sw: document.documentElement.scrollWidth, iw: window.innerWidth, badge: (q('#skill-count-badge') || {}).textContent
@@ -110,7 +110,7 @@ export async function register120(env) {
 			assert(n.stepsDisabled && n.uniqOff && !n.factorPt && !n.sumBtn && n.factorCount === '12' && n.reset, tag + '②: 継承固有・共通スキルは押せない・Pt を積み上げない・種は②のスキルだけ（継承固有を足さない）・↺ は残る', n);
 			assert(!n.ptAny, tag + '②の行の Pt を出さない', n.pts);
 			assert(n.filters.length === 3 && n.filters.every((f) => !f.disabled), tag + '②の距離・脚質・バ場は残る（選べる）', n.filters);
-			assert(n.outside && !n.style, tag + 'オススメサポは押せない・脚質オススメは押せる（289）', [n.outside, n.style]);
+			assert(n.outside && !n.style, tag + 'オススメサポは出さない（T112・329）・脚質オススメは押せる（289）', [n.outside, n.style]);
 			assert(n.stitchRoster.disabled && n.stitchRoster.off && !n.stitchRoster.checked && n.stitchSp.disabled && n.stitchSp.off && !n.stitchSp.checked, tag + '結合画像の設定: 本育成編成・理論値SP は押せない', [n.stitchRoster, n.stitchSp]);
 			assert(!n.stitchFactor.disabled && n.stitchFactor.checked && !n.stitchTable.disabled && n.stitchTable.checked, tag + '結合画像の設定: 因子周回編成・星取表は今のまま', [n.stitchFactor, n.stitchTable]);
 			assert(n.now.roster === false && n.now.sp === false && n.saved.roster === true && n.saved.sp === true, tag + '結合画像に使う設定は OFF・保存値は変えない', [n.now, n.saved]);
