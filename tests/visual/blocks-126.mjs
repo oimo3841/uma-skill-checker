@@ -367,7 +367,11 @@ export async function register126(env) {
 
 			// UmaExam は今のまま
 			await T.seed(base0());
+			// T116（365）: 青も比べるようになったので、exact にするには登録済みの親（base0）と同じ青を送る
 			await T.send({ from: 'exam', send: [s[6]], persons: [per(d.uma[0], sk, 3, { blue: ['wit', 2], sheet: { 見本: 1 } })] });
+			await T.openReg();
+			assert(await ev(() => window.__deckAlphaRegister.S.persons[0].link) == null, 'UmaExam から: 青が違えば「同一」を選ばない（T116・365）', null);
+			await T.send({ from: 'exam', send: [s[6]], persons: [per(d.uma[0], sk, 3, { blue: ['speed', 3], sheet: { 見本: 1 } })] });
 			await T.openReg();
 			await T.doReg();
 			const s9 = await T.saved();

@@ -13,10 +13,11 @@
  *       各人 = { uma: 衣装の id か null, green: [固有スキル名か null, ★（-1 は★不明）] か null, greenCands: [固有スキル名…] か null（衣装を決められないときの候補）,
  *               blue: [speed|stamina|power|guts|wit, ★] か null, red: [芝・距離・脚質の鍵, ★] か null, skills: { スキルの id: ★ }, genes: { 'ap-…': ★ } } }
  *   ★不明は -1、読めなかった因子は null（T73 の形）。uma が無くても green の固有スキル名から衣装を引く。
- *   T92（段4 の 4-2）: UmaStar（special.html の sendToDeckAlpha）がこの形で書く。uma・blue・red は null、green は③の画像の緑因子の読み取り
+ *   T92（段4 の 4-2）: UmaStar（special.html の sendToDeckAlpha）がこの形で書く。uma は null（blue・red は下の T116）、green は③の画像の緑因子の読み取り
  *   （名前が決まらなければ [null, ★] と greenCands、緑因子の欄が見つからなければ null）。owner は 'self'（持ち主はこの画面で選ぶ）。
  *   T92-1: blue・red の null は「読んでいない」として、閉じた状態で出し（因子の行は「—」）、「要確認」にも入れない。
  *   読もうとして決まらなかったものは [null, ★] で送れば、今までどおり開いて「読めなかった」を出す。
+ *   T116（2026-11-07）: UmaStar も blue・red を読んで送る（読み方は UmaExam と同じ）。いちばん上の段が写っていない入力は null、段があって名前が決まらなければ [null, ★]。
  *   T104（2026-11-05・C-296）: UmaExam からは from: 'exam'・send: 133種の id・race と style は null・blue と red は読めた値（読めなければ [null, ★]）・
  *   persons[].sheet: { めろっぷの行で id の無い行の名前: ★ } を足して送る。セットは「技能試験（133種）」で固定・親Aにも「登録済みの〇〇と同一」を出す（234）。
  *   T115（2026-11-06・356〜363）: 右上にツール切り替えとライト／ダーク（Deck の本体と同じ。登録の前も後も）。UmaStar から送ったときも親Aに「同一」の候補を出す（UmaExam の 234 と同じ）。
@@ -34,7 +35,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-06b';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-07a';
 	const K = window.DeckAlpha;
 	const $ = (s) => document.querySelector(s);
 	const Q = new URLSearchParams(location.search);

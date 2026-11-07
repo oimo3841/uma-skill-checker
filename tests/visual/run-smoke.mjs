@@ -153,6 +153,7 @@ import { register124 } from './blocks-124.mjs';
 import { register123 } from './blocks-123.mjs';
 import { register125 } from './blocks-125.mjs';
 import { register126 } from './blocks-126.mjs';
+import { register127 } from './blocks-127.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15526,6 +15527,9 @@ await register123({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register125({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T115（2026-11-06）: Deck α の軽微な直し（登録の画面の右上のボタン・デフォルトの親と行・同一の親・登録の左の文）。
 await register126({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+
+// T116: UmaStar の青・赤因子の読み取りと、Deck α の「同一」の判定（青・赤も比べる）
+await register127({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

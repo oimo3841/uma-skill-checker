@@ -24,7 +24,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_CORE_VERSION = '2026-11-06b';
+	const DECK_ALPHA_CORE_VERSION = '2026-11-07a';
 	const D = window.DECK_ALPHA_DATA;
 	const DB_NAME = 'uma-deck';
 	const DB_VER = 1;
@@ -300,7 +300,13 @@
 	/* ---------- 登録の画面: 祖が同一かを判断させる候補（C-272 の 13〜15）。
 	 * 衣装が同じ登録済みの親を候補にし（衣装が未定なら白スキルの一致が半分以上の親）、exact（衣装・白スキル・★が全部同じ）→ 白スキルの一致の多い順に5人まで。
 	 * 「同一」を選んだ状態で出すのは exact がいるとき（T115・359: 2人以上なら先頭＝いちばん新しく登録した親）。一致率は画面に出さない（並べる順にだけ使う）。
-	 * 緑の★は、登録の画面の人は greenStar・登録済みの人は green に持つ（T115・360）。どちらも分かっていて違うときは exact にしない ---------- */
+	 * 緑の★は、登録の画面の人は greenStar・登録済みの人は green に持つ（T115・360）。どちらも分かっていて違うときは exact にしない。
+	 * 青・赤（[鍵, ★]）も同じ考え方で比べる（T116・365）: 鍵か★のどちらかが、両方で分かっていて違うときは exact にしない ---------- */
+	function factorDiffers(a, b) {
+		if (!a || !b) return false;
+		if (a[0] && b[0] && a[0] !== b[0]) return true;
+		return a[1] > 0 && b[1] > 0 && a[1] !== b[1];
+	}
 	function matchCandidates(doc, person) {
 		const out = [];
 		const green = person.greenStar !== undefined ? person.greenStar : person.green;
@@ -311,7 +317,7 @@
 			ka.forEach((id) => { if (id in b) { same++; if (a[id] >= 0 && b[id] >= 0) { starCmp++; if (a[id] === b[id]) starSame++; } } });
 			const j = union.size ? same / union.size : 0;
 			const score = Math.round(j * 100);
-			const exact = person.uma === p.uma && same === union.size && starSame === starCmp && (green == null || p.green == null || green < 0 || p.green < 0 || green === p.green);
+			const exact = person.uma === p.uma && same === union.size && starSame === starCmp && (green == null || p.green == null || green < 0 || p.green < 0 || green === p.green) && !factorDiffers(person.blue, p.blue) && !factorDiffers(person.red, p.red);
 			if (person.uma || j >= .5 || exact) out.push({ p, score, exact });
 		});
 		return out.sort((x, y) => (y.exact - x.exact) || (y.score - x.score) || numId(y.p.id) - numId(x.p.id)).slice(0, 5);
