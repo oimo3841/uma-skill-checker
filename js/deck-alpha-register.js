@@ -316,7 +316,9 @@
 	function mergeMember(q, m) {
 		const up = (cur, add) => { const r = Object.assign({}, cur); Object.keys(add || {}).forEach((k) => { if (!(add[k] < 0 && r[k] > 0)) r[k] = add[k]; }); return r; };
 		q.skills = up(q.skills, m.skills); q.genes = up(q.genes, m.genes); if (m.sheet) q.sheet = Object.assign({}, q.sheet, m.sheet); // UmaStar からは sheet が無い（空を足さない）
-		if (m.blue) q.blue = m.blue; if (m.red) q.red = m.red;
+		// 青・赤: 同じ名前で★が不明なら、分かっている★を残す（T116）
+		const fac = (cur, add) => (add ? (cur && cur[0] === add[0] && !(add[1] > 0) ? cur : add) : cur);
+		q.blue = fac(q.blue, m.blue); q.red = fac(q.red, m.red);
 		if (m.green != null && (m.green >= 0 || q.green == null)) q.green = m.green;
 	}
 	function renderDone() {

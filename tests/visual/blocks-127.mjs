@@ -228,6 +228,21 @@ export async function register127(env) {
 			await send(null, null); await openReg();
 			assert(await linked() === 'p1', '青・赤を読んでいなければ今までどおり「同一」', null);
 
+			// 「同一」で足す: ★が不明でも分かっている★を消さない。読めなかった因子は今の値のまま
+			const parentOf = () => ev(async () => { const l = await window.DeckAlpha.store.load(); const ps = l.parents || l.meta.parents || []; const p = ps.find((x) => x.id === 'p1'); return { n: ps.length, blue: p.blue, red: p.red }; });
+			await send(['speed', -1], [null, -1]); await openReg();
+			assert(await linked() === 'p1', '★不明・名前が決まらないものは比べないので「同一」', null);
+			await page.click('#regBtn'); await page.waitForFunction(() => window.__deckAlphaRegister.S.done, null, { timeout: 8000 });
+			const kept = await parentOf();
+			assert(kept.n === 1 && JSON.stringify(kept.blue) === '["speed",3]' && JSON.stringify(kept.red) === '["turf",2]', '「同一」で登録しても分かっている★を消さない', kept);
+			await seed();
+			await ev((x) => { localStorage.removeItem('umaDeck:send'); }, null);
+			await send(['speed', 3], ['turf', -1]); await openReg();
+			await page.click('#regBtn'); await page.waitForFunction(() => window.__deckAlphaRegister.S.done, null, { timeout: 8000 });
+			const kept2 = await parentOf();
+			assert(kept2.n === 1 && JSON.stringify(kept2.red) === '["turf",2]', '赤でも同じ', kept2);
+			await seed();
+
 			// 登録すると青・赤が親に入る（「同一」でない新しい親。読めなかった赤は入らない）
 			await send(['power', 2], [null, 1]); await openReg();
 			const fz = await ev(() => { const t = (k) => document.querySelector('[data-act="toggle-' + k + '"]'); return { b: t('blue').textContent, r: t('red').textContent, rNeed: t('red').classList.contains('need'), bNeed: t('blue').classList.contains('need') }; });
