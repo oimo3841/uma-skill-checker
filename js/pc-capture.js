@@ -227,10 +227,177 @@
 	 * iPhone の動画（カーソルが無い）の流れに入れないよう、ここ（取り込みの側）に置く。js/video-frames.js の選ぶ処理は変えない。
 	 */
 	const POINTER = { poolMax: 40, BH: 16, BW: 16, minD: 80, sep: 60, sepVote: 16, refine: 10, extraMax: 16, extraRefine: 120, alignNear: 16, alignMax: 9, alignRatio: 1.2, maxW: 96, maxH: 128, learnMax: 8, spriteMinPx: 40, spriteMax: 32, spriteSure: 12, spriteVisible: 0.5, pad: 3, ring: 12, ringMean: 10, ringHot: 0.03, hot: 40, hotCount: 4, meanMax: 10 };
+	/*
+	 * 行の右の余白（スクロールバーの辺り）のカーソルを消す（T118。スクロールバーを引っ張って撮るとカーソルが残った。決定は C-327）。
+	 * 上の消し方は「中身と一緒に動く所」でしか使えない（スクロールバーは中身と一緒に動かない）ので、そこを探す範囲からも覚える範囲からも外してあり、
+	 * スクロールバーの上のカーソルは形も覚えられず、探されもしなかった。余白には中身が無いので、別の見分け方にする:
+	 *  1. 中身が動く列の右端を測り、その右を余白とする（幅の割合で決め打ちしない）。
+	 *  2. 余白の地を作る。同じ場所の多数のフレームの中央値（動くつまみとカーソルが消える）。上から下まで同じ色の列はその色（止まったままのカーソルも消える）。
+	 *  3. 地と違う長い縦の線が多くのフレームにあれば、スクロールバーのつまみとする。その色と、地とつまみの間の色（つまみの縁）はカーソルに数えない。
+	 *  4. 地と違う残りの塊がカーソル。その四角を地で塗り、つまみの場所はつまみの色で塗る。
+	 *  5. 塊が余白の左端で切れているときは、行の右端にもかかっている。そこは上の消し方と同じく、まわりが合う別のフレームの画素で置き換える（中身があるので塗らない）。相手が無いときは同じ画の別の行の右端を写す。
+	 * 塊の形も色も決め打ちしない。余白の中の塊からもカーソルの形を覚える（スクロールバーを引っ張る間、カーソルは行の上に来ない）。
+	 */
+	const SCROLLBAR = { moved: 40, bins: 12, binsNeed: 6, share: 0.25, pad: 2, minStart: 0.85, maxStart: 0.99, flat: 0.55, near: 6, diff: 24, blend: 14, thumbRun: 0.06, thumbRunMin: 30, thumbVote: 0.5, thumbNear: 28, thumbMinRows: 24, minPx: 16, hot: 64, hotPx: 8, gap: 2, maxW: 64, maxH: 128, boxPad: 3, smooth: 60, reach: 32, up: 32, down: 16, edgeW: 8, edgeH: 30, selfReach: 20, selfMin: 40, selfMax: 240 };
+	// 中身が動く列の右端の次の列（半分の幅の画で）。見つからなければ null。halves は時刻の順の、帯の半分の幅の画
+	function findMarginStart(halves, hw, cH) {
+		const S = SCROLLBAR, pairs = halves.length - 1;
+		if (pairs < 1) return null;
+		const need = Math.max(1, pairs * S.share), xMin = Math.floor(hw * S.minStart);
+		for (let x = hw - 1; x >= xMin; x--) {
+			let moving = 0;
+			for (let i = 0; i < pairs; i++) {
+				const a = halves[i], b = halves[i + 1];
+				// 上から下まで散らばって変わる列が中身（つまみとカーソルは数か所にとどまる）
+				const hit = new Uint8Array(S.bins);
+				for (let y = 0; y < cH; y++) {
+					const p = (y * hw + x) * 4;
+					if ((Math.abs(a[p] - b[p]) + Math.abs(a[p + 1] - b[p + 1]) + Math.abs(a[p + 2] - b[p + 2])) / 3 > S.moved) hit[Math.floor(y * S.bins / cH)] = 1;
+				}
+				if (hit.reduce((u, v) => u + v, 0) >= S.binsNeed) moving++;
+			}
+			if (moving >= need) {
+				const start = x + 1 + S.pad;
+				return start <= hw * S.maxStart ? start : null;
+			}
+		}
+		return null;
+	}
+	// 余白の地（RGB を並べた配列）。frames は余白の部分の RGBA（どれも mW×cH）
+	function marginBackground(frames, mW, cH) {
+		const S = SCROLLBAR, n = frames.length, bg = new Uint8ClampedArray(mW * cH * 3), v = new Uint8Array(n);
+		for (let i = 0, k = 0; i < mW * cH; i++, k += 3) for (let c = 0; c < 3; c++) {
+			for (let f = 0; f < n; f++) v[f] = frames[f][i * 4 + c];
+			v.sort();
+			bg[k + c] = v[n >> 1];
+		}
+		for (let x = 0; x < mW; x++) {
+			const hist = new Uint16Array(256);
+			for (let y = 0; y < cH; y++) { const k = (y * mW + x) * 3; hist[(bg[k] * 77 + bg[k + 1] * 150 + bg[k + 2] * 29) >> 8]++; }
+			let best = 0; for (let g = 1; g < 256; g++) if (hist[g] > hist[best]) best = g;
+			let cnt = 0, yA = -1, yB = -1; const sum = [0, 0, 0];
+			for (let y = 0; y < cH; y++) {
+				const k = (y * mW + x) * 3;
+				if (Math.abs(((bg[k] * 77 + bg[k + 1] * 150 + bg[k + 2] * 29) >> 8) - best) > S.near) continue;
+				cnt++; sum[0] += bg[k]; sum[1] += bg[k + 1]; sum[2] += bg[k + 2];
+				if (yA < 0) yA = y;
+				yB = y;
+			}
+			if (cnt / cH < S.flat) { // 窓の端の写真のような色の揃わない列: 縦のすぐ近くの中央値（止まったままのカーソルが消える）
+				const col = new Uint8ClampedArray(cH * 3);
+				for (let y = 0; y < cH; y++) for (let c = 0; c < 3; c++) {
+					const list = [];
+					for (let q = Math.max(0, y - S.smooth); q <= Math.min(cH - 1, y + S.smooth); q += 4) list.push(bg[(q * mW + x) * 3 + c]);
+					col[y * 3 + c] = list.sort((u, v) => u - v)[list.length >> 1];
+				}
+				for (let y = 0; y < cH; y++) for (let c = 0; c < 3; c++) bg[(y * mW + x) * 3 + c] = col[y * 3 + c];
+				continue;
+			}
+			// 帯の端につながる違いはそのまま（スクロールバーの溝の端が帯の中に入っていることがある）。間に挟まれた違いだけ、その色にする
+			for (let y = yA; y <= yB; y++) { const k = (y * mW + x) * 3; bg[k] = sum[0] / cnt; bg[k + 1] = sum[1] / cnt; bg[k + 2] = sum[2] / cnt; }
+		}
+		return bg;
+	}
+	const rgbDiff = (d, p, e, k) => (Math.abs(d[p] - e[k]) + Math.abs(d[p + 1] - e[k + 1]) + Math.abs(d[p + 2] - e[k + 2])) / 3;
+	// つまみ: 地と違う長い縦の線が半分以上のフレームにある列のまとまり。{ x0, x1, colors（列ごとの RGB）, len } か null
+	function findThumb(frames, bg, mW, cH) {
+		const S = SCROLLBAR, minRun = Math.max(S.thumbRunMin, cH * S.thumbRun), cols = [];
+		for (let x = 0; x < mW; x++) {
+			const found = [];
+			for (const d of frames) {
+				let best = 0, bestAt = -1, s = -1;
+				for (let y = 0; y <= cH; y++) {
+					const on = y < cH && rgbDiff(d, (y * mW + x) * 4, bg, (y * mW + x) * 3) > S.diff;
+					if (on && s < 0) s = y;
+					if (!on && s >= 0) { if (y - s > best) { best = y - s; bestAt = s; } s = -1; }
+				}
+				if (best >= minRun) found.push({ d, y: bestAt, len: best });
+			}
+			cols.push(found.length >= frames.length * S.thumbVote ? found : null);
+		}
+		let bx = -1, bn = 0;
+		for (let x = 0; x < mW; x++) { if (!cols[x]) continue; let e = x; while (e + 1 < mW && cols[e + 1]) e++; if (e - x + 1 > bn) { bn = e - x + 1; bx = x; } x = e; }
+		if (bx < 0) return null;
+		// 色はつまみ全体で1つ（引っ張る間はカーソルがつまみに乗り続けるので、列ごとだとカーソルの色になることがある）。長さは列ごとのいちばん多い長さの最大
+		const r = [], g = [], b = []; let len = 0;
+		for (let x = bx; x < bx + bn; x++) {
+			const lens = cols[x].map((f) => f.len).sort((u, v) => u - v);
+			len = Math.max(len, lens[lens.length >> 1]);
+			for (const f of cols[x]) for (let y = f.y; y < f.y + f.len; y += 3) { const p = (y * mW + x) * 4; r.push(f.d[p]); g.push(f.d[p + 1]); b.push(f.d[p + 2]); }
+		}
+		const mid = (a) => a.sort((u, v) => u - v)[a.length >> 1];
+		return { x0: bx, x1: bx + bn - 1, color: [mid(r), mid(g), mid(b)], len };
+	}
+	// 地とつまみの間の色か（つまみの縁と圧縮のにじみ）。地→つまみの線分からの距離で見る
+	function nearThumbLine(d, p, bg, k, c) {
+		const vx = c[0] - bg[k], vy = c[1] - bg[k + 1], vz = c[2] - bg[k + 2], vv = vx * vx + vy * vy + vz * vz;
+		let t = vv ? ((d[p] - bg[k]) * vx + (d[p + 1] - bg[k + 1]) * vy + (d[p + 2] - bg[k + 2]) * vz) / vv : 0;
+		t = t < 0 ? 0 : t > 1 ? 1 : t;
+		return (Math.abs(d[p] - bg[k] - t * vx) + Math.abs(d[p + 1] - bg[k + 1] - t * vy) + Math.abs(d[p + 2] - bg[k + 2] - t * vz)) / 3 < SCROLLBAR.blend;
+	}
+	// 1枚の余白から、カーソルらしい塊を探す。[{ x0, x1, y0, y1, pts: [[x, y], …] }]（余白の中の座標）
+	function findMarginBlobs(d, m) {
+		const S = SCROLLBAR, { bg, thumb, mW, cH } = m, strong = new Uint8Array(mW * cH), blobs = [];
+		for (let y = 0; y < cH; y++) for (let x = 0; x < mW; x++) {
+			const i = y * mW + x, p = i * 4, k = i * 3;
+			if (rgbDiff(d, p, bg, k) <= S.diff) continue;
+			if (thumb && x >= thumb.x0 - 1 && x <= thumb.x1 + 1 && nearThumbLine(d, p, bg, k, thumb.color)) continue;
+			strong[i] = 1;
+		}
+		for (let s = 0; s < strong.length; s++) {
+			if (strong[s] !== 1) continue;
+			strong[s] = 2;
+			const st = [s], pts = [];
+			let x0 = mW, x1 = 0, y0 = cH, y1 = 0, hot = 0;
+			while (st.length) {
+				const i = st.pop(), x = i % mW, y = (i - x) / mW;
+				pts.push([x, y]);
+				if (rgbDiff(d, i * 4, bg, i * 3) > S.hot) hot++;
+				if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+				for (let yy = Math.max(0, y - S.gap); yy <= Math.min(cH - 1, y + S.gap); yy++) for (let xx = Math.max(0, x - S.gap); xx <= Math.min(mW - 1, x + S.gap); xx++) {
+					const j = yy * mW + xx;
+					if (strong[j] === 1) { strong[j] = 2; st.push(j); }
+				}
+			}
+			// 細く長い塊は、最初の粗い画のつまみの縁（カーソルは幅がある）
+			if (thumb && x1 - x0 < S.edgeW && y1 - y0 >= S.edgeH && x0 >= thumb.x0 - S.edgeW && x1 <= thumb.x1 + S.edgeW) continue;
+			if (pts.length >= S.minPx && hot >= S.hotPx && x1 - x0 < S.maxW && y1 - y0 < S.maxH) blobs.push({ x0, x1, y0, y1, pts });
+		}
+		return blobs;
+	}
+	// 塊の四角（と少しの余裕）を地で塗り、つまみの場所はつまみの色で塗る。d はその画の余白の RGBA
+	function paintMarginBlob(ctx, d, b, m, ox, oy) {
+		const S = SCROLLBAR, { bg, thumb, mW, cH } = m;
+		const X0 = Math.max(0, b.x0 - S.boxPad), X1 = Math.min(mW - 1, b.x1 + S.boxPad), Y0 = Math.max(0, b.y0 - S.boxPad), Y1 = Math.min(cH - 1, b.y1 + S.boxPad);
+		let ty0 = -1, ty1 = -1;
+		if (thumb) {
+			const xc = (thumb.x0 + thumb.x1) >> 1, c = thumb.color;
+			let n = 0;
+			for (let y = 0; y < cH; y++) {
+				const p = (y * mW + xc) * 4;
+				if ((Math.abs(d[p] - c[0]) + Math.abs(d[p + 1] - c[1]) + Math.abs(d[p + 2] - c[2])) / 3 >= S.thumbNear) continue;
+				if (ty0 < 0) ty0 = y;
+				ty1 = y; n++;
+			}
+			if (n < S.thumbMinRows) ty0 = ty1 = -1;
+			else if (ty1 - ty0 + 1 < thumb.len) { // つまみの端がカーソルに隠れている: 長さから戻す
+				if (b.y0 <= ty0 + S.boxPad) ty0 = Math.max(0, ty1 - thumb.len + 1);
+				else if (b.y1 >= ty1 - S.boxPad) ty1 = Math.min(cH - 1, ty0 + thumb.len - 1);
+			}
+		}
+		const im = ctx.createImageData(X1 - X0 + 1, Y1 - Y0 + 1);
+		for (let y = Y0, q = 0; y <= Y1; y++) for (let x = X0; x <= X1; x++, q += 4) {
+			const inThumb = thumb && ty0 >= 0 && y >= ty0 && y <= ty1 && x >= thumb.x0 && x <= thumb.x1;
+			const c = inThumb ? thumb.color : null, k = (y * mW + x) * 3;
+			im.data[q] = c ? c[0] : bg[k]; im.data[q + 1] = c ? c[1] : bg[k + 1]; im.data[q + 2] = c ? c[2] : bg[k + 2]; im.data[q + 3] = 255;
+		}
+		ctx.putImageData(im, ox + X0, oy + Y0);
+		return { x: [ox + X0, ox + X1 + 1], y: [Y0, Y1 + 1] };
+	}
 	async function removePointer(src, sel, track, signal) {
 		const W = src.width, H = src.height, { headerEnd: hE, contentH: cH } = sel.header;
 		const hw = Math.round(W / 2), P = POINTER;
-		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [] };
+		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null };
 		const known = track.filter((f) => f.pos != null).sort((a, b) => a.t - b.t);
 		if (!known.length) return stat;
 		const posAt = (t) => { let best = known[0]; for (const f of known) if (Math.abs(f.t - t) < Math.abs(best.t - t)) best = f; return best.pos; };
@@ -257,6 +424,17 @@
 			q.half = halfOf(draw);
 		}
 		stat.pool = pool.length;
+		// 行の右の余白（T118）。測れないとき（相手が足りない・中身が右端まである）は null で、今までどおり
+		let margin = null;
+		const mStart = findMarginStart(pool.map((q) => q.half), hw, cH);
+		if (mStart != null) {
+			const mX = Math.ceil(mStart * W / hw), mW = W - mX;
+			const frames = pool.map((q) => q.band.getContext('2d', { willReadFrequently: true }).getImageData(mX, 0, mW, cH).data);
+			const bg = marginBackground(frames, mW, cH);
+			margin = { mX, mW, cH, bg, thumb: findThumb(frames, bg, mW, cH), start: mStart };
+			stat.margin = { x: mX, thumb: margin.thumb ? [mX + margin.thumb.x0, mX + margin.thumb.x1 + 1] : null, len: margin.thumb ? margin.thumb.len : 0, frames: 0, cells: 0, boxes: [], rowCells: 0, rowSelf: 0, rowLeft: 0 };
+		}
+		const xLimit = margin ? margin.start : hw; // 上の消し方（別のフレームの画素で置き換える）はここより左だけ
 		// a の行 ya〜 と b の行 yb〜 の区画の差（RGB の差の平均の平均と、差の大きい画素の数）
 		const cellDiff = (a, ya, b, yb, x0, bw, n) => {
 			let s = 0, hot = 0;
@@ -368,6 +546,7 @@
 				}
 				if (px.length < P.spriteMinPx) continue;
 				const mx = Math.min(...px.map((q) => q[0])), my = Math.min(...px.map((q) => q[1])), w = Math.max(...px.map((q) => q[0])) - mx + 1, h2 = Math.max(...px.map((q) => q[1])) - my + 1;
+				if (margin && mx + w > xLimit) continue; // 余白にかかる塊は右が切れていて、形が欠けている（余白の形は下で覚える）
 				samples.push({ t, w, h: h2, x: mx, y: my, px: px.map((q) => [q[0] - mx, q[1] - my, q[2], q[3], q[4]]) });
 			}
 		};
@@ -383,6 +562,21 @@
 			const t = timeOf(file), me = await loadFile(file);
 			learnFrom(me, t, candsOf(me, t));
 		}
+		// 余白の塊からも覚える（スクロールバーを引っ張る間、カーソルは行の上に来ない）。塊が余白の左端で切れているものは形が欠けているので使わない
+		if (!pickSprite().sprite && margin) {
+			for (const file of uniq) {
+				const t = timeOf(file), me = await loadFile(file);
+				for (const b of findMarginBlobs(dx.getImageData(margin.mX, hE, margin.mW, cH).data, margin)) {
+					if (b.x0 === 0) continue;
+					const seen = new Map();
+					for (const [x, y] of b.pts) { const hx0 = Math.floor((margin.mX + x) * hw / W); seen.set(y * hw + hx0, [hx0, y]); }
+					const px = Array.from(seen.values());
+					if (px.length < P.spriteMinPx) continue;
+					const mx = Math.min(...px.map((q) => q[0])), my = Math.min(...px.map((q) => q[1]));
+					samples.push({ t, w: Math.max(...px.map((q) => q[0])) - mx + 1, h: Math.max(...px.map((q) => q[1])) - my + 1, x: mx, y: my, px: px.map(([x, y]) => { const p = (y * hw + x) * 4; return [x - mx, y - my, me[p], me[p + 1], me[p + 2]]; }) });
+				}
+			}
+		}
 		if (!pickSprite().sprite) {
 			// 止まっている画だけでは覚えられなかった（ホイールを大きく回した）: スクロールの途中のフレームも相手にして、もう一度
 			for (const file of uniq.slice(0, P.learnMax)) {
@@ -396,6 +590,64 @@
 		const { sprite, count } = pickSprite();
 		stat.samples = samples.length; stat.sprite = sprite ? { w: sprite.w, h: sprite.h, px: sprite.px.length, seen: count } : null;
 		const out = new Map();
+		// 余白の左端で切れた塊の、行の上の部分（T118）。まわりが合い、その場所の余白にカーソルが無い相手の画素で置き換える
+		const donorHasBlob = (q, ya, yb) => {
+			if (!q.mBlobs) q.mBlobs = findMarginBlobs(q.band.getContext('2d', { willReadFrequently: true }).getImageData(margin.mX, 0, margin.mW, cH).data, margin);
+			return q.mBlobs.some((b) => b.y0 < yb && b.y1 >= ya);
+		};
+		const fixStraddle = async (b, t, me) => {
+			const S = SCROLLBAR, X1 = xLimit, X0 = Math.max(0, X1 - S.reach), Y0 = Math.max(0, b.y0 - S.up), Y1 = Math.min(cH, b.y1 + 1 + S.down);
+			const RY0 = Math.max(0, Y0 - P.ring), RY1 = Math.min(cH, Y1 + P.ring), RX0 = Math.max(0, X0 - P.ring);
+			const good = (c) => {
+				if (!rowsOk(c, Y0, Y1 - Y0)) return false;
+				let s = 0, n = 0, hot = 0;
+				for (let y = RY0; y < RY1; y++) for (let x = RX0; x < X1; x++) {
+					if ((y >= Y0 && y < Y1 && x >= X0) || y - c.d < 0 || y - c.d >= cH) continue;
+					const p = (y * hw + x) * 4, r = ((y - c.d) * hw + x) * 4, q = c.q.half;
+					const v = (Math.abs(me[p] - q[r]) + Math.abs(me[p + 1] - q[r + 1]) + Math.abs(me[p + 2] - q[r + 2])) / 3;
+					s += v; n++; if (v > P.hot) hot++;
+				}
+				return n > 0 && s / n <= P.ringMean * 1.6 && hot / n <= P.ringHot * 2.56 && !donorHasBlob(c.q, Y0 - c.d, Y1 - c.d);
+			};
+			let c = candsOf(me, t).find(good);
+			if (!c) c = (await extrasFor(me, t, (g) => Y0 - g >= 0 && Y1 - g <= cH)).find(good);
+			if (!c) {
+				// 相手が無い（一覧の先頭と末尾は1枚にしか写らない）: 行は等間隔で右端に文字が無いので、同じ画の中の別の行の右端を写す。まわりがはっきり合う所だけ。
+				// 写す幅はカーソルの所まで（右から続けて違う列）。中身に届く前に止まるので、文字は写らない
+				const xa = Math.max(0, X1 - S.selfReach), rowsDiff = (o, y0, y1, xs, xe) => {
+					let sum = 0, n = 0, hot = 0;
+					for (let y = y0; y < y1; y++) for (let x = xs; x < xe; x++) {
+						const p = (y * hw + x) * 4, r = ((y - o) * hw + x) * 4;
+						const v = (Math.abs(me[p] - me[r]) + Math.abs(me[p + 1] - me[r + 1]) + Math.abs(me[p + 2] - me[r + 2])) / 3;
+						sum += v; n++; if (v > P.hot) hot++;
+					}
+					return { sum, n, hot };
+				};
+				let best = null;
+				for (const o of Array.from({ length: S.selfMax - S.selfMin + 1 }, (_, i) => S.selfMin + i).flatMap((v) => [v, -v])) {
+					// 写す元はカーソルの塊と重ならない。まわりは上下の行
+					if (Y0 - o < 0 || Y1 - o > cH || (Y0 - o < Y1 + S.up && Y1 - o > Y0 - S.up)) continue;
+					const u = RY0 - o >= 0 && Y0 > RY0 ? rowsDiff(o, RY0, Y0, xa, X1) : { sum: 0, n: 0, hot: 0 }, v = RY1 - o <= cH && RY1 > Y1 ? rowsDiff(o, Y1, RY1, xa, X1) : { sum: 0, n: 0, hot: 0 };
+					const n = u.n + v.n, m = (u.sum + v.sum) / n;
+					if (!n || m > P.ringMean || (u.hot + v.hot) / n > P.ringHot) continue;
+					if (!best || m < best.m) best = { o, m };
+				}
+				if (!best) { stat.margin.rowLeft++; return false; }
+				let xl = X1;
+				for (let x = X1 - 1; x >= xa; x--) { if (!rowsDiff(best.o, Y0, Y1, x, x + 1).hot && !rowsDiff(best.o, Y0, Y1, Math.max(xa, x - 1), x).hot) break; xl = x; }
+				if (xl < X1) {
+					const sx = Math.round(Math.max(0, xl - 1) * W / hw), sw = margin.mX - sx;
+					dx.drawImage(draw, sx, hE + Y0 - best.o, sw, Y1 - Y0, sx, hE + Y0, sw, Y1 - Y0);
+				}
+				stat.margin.rowSelf++;
+				return true;
+			}
+			const sx = Math.round(X0 * W / hw), sw = margin.mX - sx;
+			dx.drawImage(c.q.band, sx, Y0 - c.d, sw, Y1 - Y0, sx, hE + Y0, sw, Y1 - Y0);
+			stat.margin.rowCells++;
+			return true;
+		};
+		let fixBySprite = null;
 		if (sprite) {
 			// 2. 画の中でカーソルの形を探す（帯の端で一部だけ写っていてもよい）
 			const fits = (img, ox, oy) => {
@@ -437,17 +689,18 @@
 				}
 				return pickPool.filter((q) => q.j !== i && Math.abs(posG[q.j] - posG[i]) >= P.minD).map((q) => ({ q, d: posG[q.j] - posG[i], dt: Math.abs(q.t - times[i]) })).sort((u, v) => u.dt - v.dt);
 			};
-			for (const file of uniq) {
-				const t = timeOf(file), me = await loadFile(file);
-				const hits = findAll(me, 0, xEnd - (sprite.w >> 1), -(sprite.h >> 1), cH - (sprite.h >> 1));
-				if (!hits.length) continue;
+			fixBySprite = async (file, t, me) => {
+				// 行の右端にかかるカーソルも探す。右へ抜けた所は余白のほうで塗る
+				const hits = findAll(me, 0, Math.max(xEnd - (sprite.w >> 1), margin ? xLimit : 0), -(sprite.h >> 1), cH - (sprite.h >> 1));
+				if (!hits.length) return 0;
 				const cands = candsOf(me, t);
 				let extra = null, done = 0;
 				const fetchExtra = () => extrasFor(me, t, (g) => hits.some((h) => h.y - P.pad - g >= 0 && h.y + sprite.h + P.pad - g <= cH));
 				// 3. カーソルのまわりまで自分と合い（位置が確か）、その場所にカーソルが写っていない相手の画素で、カーソルの所だけを置き換える
 				for (const h of hits) {
-					const X0 = Math.max(0, h.x - P.pad), X1 = Math.min(hw, h.x + sprite.w + P.pad), Y0 = Math.max(0, h.y - P.pad), Y1 = Math.min(cH, h.y + sprite.h + P.pad);
-					const RY0 = Math.max(0, Y0 - P.ring), RY1 = Math.min(cH, Y1 + P.ring), RX0 = Math.max(0, X0 - P.ring), RX1 = Math.min(xEnd, X1 + P.ring);
+					const X0 = Math.max(0, h.x - P.pad), X1 = Math.min(xLimit, h.x + sprite.w + P.pad), Y0 = Math.max(0, h.y - P.pad), Y1 = Math.min(cH, h.y + sprite.h + P.pad);
+					if (X1 <= X0) continue;
+					const RY0 = Math.max(0, Y0 - P.ring), RY1 = Math.min(cH, Y1 + P.ring), RX0 = Math.max(0, X0 - P.ring), RX1 = Math.min(xEnd, xLimit, X1 + P.ring);
 					const good = (c) => {
 						if (!rowsOk(c, RY0, RY1 - RY0)) { why.rows++; return false; }
 						let s = 0, n = 0, hot = 0;
@@ -473,11 +726,28 @@
 					stat.cells++; done++;
 					stat.boxes.push({ t: +t.toFixed(2), x: [sx, sx + sw], y: [Y0, Y1], m: +h.m.toFixed(1), from: +c.q.t.toFixed(2) });
 				}
-				if (done) {
-					stat.frames++;
-					const blob = await new Promise((res) => draw.toBlob(res, 'image/png'));
-					out.set(file, new File([blob], file.name.replace(/\.[a-z]+$/, '.png'), { type: 'image/png' }));
+				return done;
+			};
+		}
+		for (const file of uniq) {
+			const t = timeOf(file), me = await loadFile(file);
+			let done = fixBySprite ? await fixBySprite(file, t, me) : 0;
+			// 4. 行の右の余白のカーソル（T118）
+			if (margin) {
+				const d = dx.getImageData(margin.mX, hE, margin.mW, cH).data;
+				const blobs = findMarginBlobs(d, margin);
+				for (const b of blobs) {
+					if (b.x0 <= 1) await fixStraddle(b, t, me);
+					const box = paintMarginBlob(dx, d, b, margin, margin.mX, hE);
+					stat.margin.cells++; done++;
+					stat.margin.boxes.push({ t: +t.toFixed(2), x: box.x, y: box.y, px: b.pts.length });
 				}
+				if (blobs.length) stat.margin.frames++;
+			}
+			if (done) {
+				stat.frames++;
+				const blob = await new Promise((res) => draw.toBlob(res, 'image/png'));
+				out.set(file, new File([blob], file.name.replace(/\.[a-z]+$/, '.png'), { type: 'image/png' }));
 			}
 		}
 		for (const q of pool) { q.band.width = q.band.height = 0; q.half = null; }
@@ -687,5 +957,5 @@
 		};
 	}
 
-	window.UmaPcCapture = { VERSION: PC_CAPTURE_JS_VERSION, config, SIDE, shouldOffer, begin, sideLayout, detectOne, consensus, cropSource, findMovingBand, steadySource, BAND, removePointer, muxMp4, encodeSink };
+	window.UmaPcCapture = { VERSION: PC_CAPTURE_JS_VERSION, config, SIDE, shouldOffer, begin, sideLayout, detectOne, consensus, cropSource, findMovingBand, steadySource, BAND, removePointer, findMarginStart, muxMp4, encodeSink };
 })();

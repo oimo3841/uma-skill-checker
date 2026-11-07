@@ -158,6 +158,7 @@ import { register128 } from './blocks-128.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
+import { register131 } from './blocks-131.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
@@ -15531,6 +15532,8 @@ await register126({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 
 // T116: UmaStar の青・赤因子の読み取りと、Deck α の「同一」の判定（青・赤も比べる）
 await register127({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T118（2026-11-07）: PC の取り込みで、スクロールバーの辺りのカーソルを消す（js/pc-capture.js）
+await register131({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 // T117: 動画の結合を取り込み直さずに作り直す（OCR の前の③と引き出しの「画像を更新」）
 await register128({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
