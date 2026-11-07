@@ -251,7 +251,7 @@ export async function register108(env) {
 				const bar = [...document.querySelectorAll('#upload-bar .uma-btn')].filter(vis).map((b) => b.textContent.trim());
 				return { mode: document.body.getAttribute('data-upload-mode'), labels: [shotB.textContent, videoB.textContent], alpha: !!videoB.querySelector('.video-alpha'), pressed: [shotB.getAttribute('aria-pressed'), videoB.getAttribute('aria-pressed')].join(),
 					pick: vis(pick), pickText: pick && pick.textContent.trim(), pickW: pick && Math.round(pick.getBoundingClientRect().width), colsW: Math.round(document.querySelector('#personset-A-wrap .upload-cols').getBoundingClientRect().width),
-					pickH: pick && Math.round(pick.getBoundingClientRect().height), adds: [...document.querySelectorAll('#personset-A-wrap .upload-add')].filter(vis).length, bar,
+					pickH: pick && Math.round(pick.getBoundingClientRect().height), cap: vis(document.querySelector('#personset-A-wrap .video-capture-btn')), capW: vis(document.querySelector('#personset-A-wrap .video-capture-btn')) ? Math.round(document.querySelector('#personset-A-wrap .video-capture-btn').getBoundingClientRect().width) : 0, adds: [...document.querySelectorAll('#personset-A-wrap .upload-add')].filter(vis).length, bar,
 					files: persons.map((p) => p.files.length).join(','), saved: localStorage.getItem('uma-special-upload-mode'), sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 			});
 			const a = await st();
@@ -259,8 +259,8 @@ export async function register108(env) {
 				`T98(5) ${w}px 静止画（初期値）: 切り替えは「静止画｜動画α」で静止画が ON・人ごとの「追加」・下は2つのボタン`, a);
 			await page.click('[data-upload-mode-btn="video"]');
 			const b = await st();
-			assert(b.mode === 'video' && b.pressed === 'false,true' && b.pick && b.pickText.replace(/α$/, '') === '動画を選ぶ' && b.adds === 0 && b.pickW === b.colsW && b.pickH === 76,
-				`T98(5) ${w}px 動画モード: 切り替えは動画が ON・「追加」の代わりにセットの幅いっぱいの「動画を選ぶ」1つ（76px）`, b);
+			assert(b.mode === 'video' && b.pressed === 'false,true' && b.pick && b.pickText.replace(/α$/, '') === '動画を選ぶ' && b.adds === 0 && (b.cap ? Math.abs(b.pickW - b.capW) <= 1 && Math.abs(b.pickW + b.capW + 8 - b.colsW) <= 1 : b.pickW === b.colsW) && b.pickH === 76,
+				`T98(5) ${w}px 動画モード: 切り替えは動画が ON・「追加」の代わりにセットの幅いっぱいの「動画を選ぶ」1つ（76px。T105 段2 の「ウィンドウから取り込む」が出る環境では、2つが同じ幅で並んでセットの幅いっぱい）`, b);
 			assert(JSON.stringify(b.bar) === '["OCR処理を開始する"]' && b.files === a.files && b.saved === 'video', `T98(5) ${w}px 下は「OCR処理を開始する」だけ・入っている画像はそのまま・保存する`, b);
 			assert(b.sw <= b.iw, `T98(5) ${w}px 横スクロールなし`, b);
 			await reloadReady(page);
