@@ -154,6 +154,7 @@ import { register123 } from './blocks-123.mjs';
 import { register125 } from './blocks-125.mjs';
 import { register126 } from './blocks-126.mjs';
 import { register127 } from './blocks-127.mjs';
+import { register128 } from './blocks-128.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15530,6 +15531,9 @@ await register126({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 
 // T116: UmaStar の青・赤因子の読み取りと、Deck α の「同一」の判定（青・赤も比べる）
 await register127({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+
+// T117: 動画の結合を取り込み直さずに作り直す（OCR の前の③と引き出しの「画像を更新」）
+await register128({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -300,8 +300,9 @@
 		.upload-set-panel.video-has-result { border-color: transparent; }
 		.video-result { margin: 16px 0 12px; }
 		body[data-upload-mode="video"] .video-result { margin-top: 0; }
-		/* ③の結合画像の上の行（T106 の (9)(10)）: 右に控えめなダウンロードのアイコンだけ。見出しと「画像を更新」は無し */
-		.video-result-head { justify-content: flex-end !important; margin-bottom: 4px !important; }
+		/* ③の結合画像の上の行（T106 の (9)(10)）: 右に控えめなダウンロードのアイコン。見出しは無し。OCR の前はその左に「画像を更新」（T117） */
+		.video-result-head { justify-content: flex-end !important; gap: var(--uma-sp-2); margin-bottom: 4px !important; }
+		.video-refresh-note { margin: 0 0 var(--uma-sp-2); text-align: right; }
 		.video-dl-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--uma-r-full); color: var(--uma-text-subtle); background: transparent; }
 		.video-dl-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
 		.video-dl-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
@@ -1949,8 +1950,11 @@
 			if (label) label.textContent = PROCESS_BTN_LABEL[uploadMode];
 			// 引き出しの「画像を更新」の案内の文の「」の中も、下のボタンの名前に合わせる（T98・決定 197）
 			const note = document.getElementById('stitch-refresh-note');
-			if (note) note.textContent = '画像や集計の設定が変わったため、「' + PROCESS_BTN_LABEL[uploadMode] + '」からやり直してください。';
+			if (note) note.textContent = stitchRefreshNoteText();
 			if (typeof syncUploadBar === 'function') syncUploadBar();
+		}
+		function stitchRefreshNoteText() {
+			return '画像や集計の設定が変わったため、「' + PROCESS_BTN_LABEL[uploadMode] + '」からやり直してください。';
 		}
 		function setUploadMode(mode) {
 			if (videoBusy || mode === uploadMode) return;
@@ -1958,6 +1962,7 @@
 			writeStored(UPLOAD_MODE_STORAGE_KEY, uploadMode);
 			PERSON_SETS.forEach((set, i) => clearCaptureStage(i));
 			applyUploadMode();
+			updateVideoRefreshUi();
 		}
 		document.addEventListener('DOMContentLoaded', initVideoEntry);
 
@@ -2176,6 +2181,7 @@
 		}
 		function clearVideoResult(setIdx) {
 			videoShown[setIdx] = false;
+			videoRestitch[setIdx] = null;
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
 			const box = panel.querySelector('.video-result');
@@ -2184,10 +2190,72 @@
 			const cols = panel.querySelector('.upload-cols');
 			if (cols) cols.hidden = false;
 		}
-		/* ③に結合画像を出しているセットの印（T98）。OCR のあとの結合（runImageStitching）が③も作り直すかを見る。
-		 * ③の「画像を更新」は T106 で無くした（OCR を行わないと有効に機能しない設定が多いため。決定の (9)） */
+		/* ③に結合画像を出しているセットの印（T98）。OCR のあとの結合（runImageStitching）が③も作り直すかを見る。 */
 		const videoShown = [false, false];
-		function showVideoResult(setIdx, canvas) {
+		/* OCR の前の③の「画像を更新」（T117・Chat 381・382。T106 の (9) で無くしたものを、OCR の前に限って戻した。引き出しの refreshStitchedImages と同じ考え方）。
+		 * 取り込みの自動の結合で作った③の画像を、取り込み直さずに今の設定で作り直す。チェックを変えただけでは作り直さない。対象はそのセットだけで、引き出しは変えない。
+		 * videoRestitch … セットごとの { parts, files }。OCR の前の③の画像があるときだけ持つ。OCR のあとの③の画像は持たない（作り直すのは引き出しのボタン）。
+		 * 押せる（'ready'）: 作ったときの設定と今の設定が違う。押せない: 'same' 設定が同じ／'stale' 画像の並びが変わった（案内を出す）／処理中 */
+		const videoRestitch = [null, null];
+		let videoRefreshBusy = -1;
+		function videoSetFiles(setIdx) {
+			return [0, 1, 2].map(r => persons[setIdx * 3 + r].files);
+		}
+		function videoRestitchState(setIdx, parts) {
+			return { parts: parts, files: videoSetFiles(setIdx).map(list => list.slice()) };
+		}
+		function videoRefreshState(setIdx) {
+			const s = videoRestitch[setIdx];
+			if (!s) return 'none';
+			if (!sameStitchFileLists(videoSetFiles(setIdx), s.files)) return 'stale';
+			return sameStitchParts(stitchPartsNow(), s.parts) ? 'same' : 'ready';
+		}
+		function updateVideoRefreshUi() {
+			document.querySelectorAll('[data-video-refresh]').forEach(btn => {
+				const setIdx = Number(btn.getAttribute('data-video-refresh'));
+				const state = videoRefreshState(setIdx);
+				btn.disabled = !!videoBusy || stitchInProgress || combinedInProgress || state !== 'ready';
+				btn.setAttribute('data-state', state);
+				btn.querySelector('span').textContent = videoRefreshBusy === setIdx ? STITCH_REFRESH_BUSY_LABEL : STITCH_REFRESH_LABEL;
+				const note = btn.closest('.video-result').querySelector('.video-refresh-note');
+				note.textContent = stitchRefreshNoteText();
+				note.hidden = state !== 'stale';
+			});
+		}
+		async function refreshVideoResult(setIdx) {
+			if (videoBusy || stitchInProgress || combinedInProgress) return;
+			if (videoRefreshState(setIdx) !== 'ready') { updateVideoRefreshUi(); return; }
+			const panel = videoSetPanel(setIdx);
+			const shownH = panel.querySelector('.video-result').offsetHeight;
+			const state = videoRestitchState(setIdx, stitchPartsNow());
+			videoRefreshBusy = setIdx;
+			stitchInProgress = true;
+			updateProcessBtn();
+			try {
+				const canvas = await buildStitchedSetImage(setIdx, null, false, state.parts);
+				if (!canvas) { showToast(stitchOutcomeText(false, false)); return; }
+				// 作っている間に画像を消した・足した（③の画像は外れている）なら、古い材料の画像を出さない
+				if (!videoRestitch[setIdx] || !sameStitchFileLists(videoSetFiles(setIdx), state.files)) return;
+				showVideoResult(setIdx, canvas, state);
+				// 新しい画像が読み込まれるまで箱の高さが縮むと、スクロール位置が失われる。前の高さを最低の高さとして残す（引き出しと同じ）
+				const box = panel.querySelector('.video-result');
+				box.style.minHeight = shownH + 'px';
+				const img = box.querySelector('img');
+				if (img) await img.decode().catch(() => {});
+				box.style.minHeight = '';
+				showToast('結合画像を更新しました');
+			} catch (e) {
+				// 失敗したら③の今の画像を残す
+				devGeometry.push('[動画] ③の作り直しに失敗しました: ' + (e && e.message));
+				showToast(stitchOutcomeText(false, false));
+			} finally {
+				videoRefreshBusy = -1;
+				stitchInProgress = false;
+				updateProcessBtn();
+			}
+		}
+		// restitch … OCR の前の③の画像のとき videoRestitchState の値（「画像を更新」を出す）。OCR のあとの結合（runImageStitching）からは渡さない
+		function showVideoResult(setIdx, canvas, restitch) {
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
 			clearVideoResult(setIdx);
@@ -2207,9 +2275,28 @@
 				dl.title = 'PNGをダウンロード';
 				dl.setAttribute('aria-label', 'PNGをダウンロード');
 				dl.innerHTML = VIDEO_SVG_DOWNLOAD;
+				// 「画像を更新」はダウンロードの左（行を増やさない。T117）。案内（stale のときだけ）はその行の下
+				if (restitch) {
+					videoRestitch[setIdx] = restitch;
+					const rb = document.createElement('button');
+					rb.type = 'button';
+					rb.className = 'uma-btn uma-btn--primary';
+					rb.setAttribute('data-video-refresh', String(setIdx));
+					rb.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span></span>';
+					rb.addEventListener('click', () => refreshVideoResult(setIdx));
+					head.insertBefore(rb, dl);
+					const note = document.createElement('p');
+					note.className = 'stitch-refresh-note video-refresh-note';
+					note.hidden = true;
+					head.after(note);
+				}
 			}
 			panel.querySelector('.video-howto-box').after(box);
 			panel.classList.add('video-has-result');
+			if (restitch) {
+				if (window.lucide) lucide.createIcons();
+				updateVideoRefreshUi();
+			}
 			const cols = panel.querySelector('.upload-cols');
 			const warned = canvas._videoWarnLabels || [];
 			if (warned.length) {
@@ -2328,9 +2415,10 @@
 			const set = PERSON_SETS[setIdx];
 			stitchInProgress = true;
 			try {
-				const canvas = await buildStitchedSetImage(setIdx, null, false, stitchPartsNow());
+				const parts = stitchPartsNow();
+				const canvas = await buildStitchedSetImage(setIdx, null, false, parts);
 				if (!canvas) return false;
-				showVideoResult(setIdx, canvas);
+				showVideoResult(setIdx, canvas, videoRestitchState(setIdx, parts));
 				return true;
 			} catch (e) {
 				// 失敗は③の中の帯で知らせる（コンソールには出さない）
@@ -2412,9 +2500,9 @@
 			const canOcr = (hasSkills && anyFiles);
 			const comboBtn = document.getElementById('process-stitch-btn');
 			// 動画を取り込んでいる間（動画V1-2・T59）は、枠の中身がまだ決まっていないので処理のボタンも押せない
-			if (comboBtn) comboBtn.disabled = !canOcr || !!videoBusy;
+			if (comboBtn) comboBtn.disabled = !canOcr || !!videoBusy || videoRefreshBusy >= 0;
 			const stitchBtn = document.getElementById('stitch-btn');
-			if (stitchBtn) stitchBtn.disabled = !anyFiles || !!videoBusy;
+			if (stitchBtn) stitchBtn.disabled = !anyFiles || !!videoBusy || videoRefreshBusy >= 0;
 			updateImageCountBadge();
 			// 結合ボタンの下の状態表示（段0）。UIの切り替え・対象スキルセットの選択・画像の増減は
 			// すべてここを通るので、状態表示の更新もここへ乗せる（呼び忘れが起きない）。
@@ -5136,6 +5224,7 @@
 				const b = document.getElementById(id);
 				if (b) b.disabled = true;
 			});
+			updateStitchRefreshUi();   // ③の「画像を更新」も押せなくする（T117）
 			try {
 				const judged = await processImages({ keepClosed: true, quiet: true });
 				// 分類の印が付くのは**この一体のボタンから来たときだけ**（C-63 の (7)）
@@ -5616,6 +5705,7 @@
 
 		// 「画像を更新」のボタンと案内を今の状態に合わせる（ボタンが無い場面では何もしない）
 		function updateStitchRefreshUi() {
+			updateVideoRefreshUi();   // OCR の前の③の「画像を更新」（T117）
 			const btn = document.getElementById('stitch-refresh-btn');
 			if (!btn) return;
 			const state = stitchRefreshState();

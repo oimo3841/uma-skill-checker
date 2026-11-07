@@ -288,7 +288,7 @@ export async function register108(env) {
 	}
 
 	/* ── (6) 動画モードの OCR と③の「画像を更新」 ── */
-	await block('T98(6) 動画モード: 取り込み後の知らせは無し（T106）・③に「画像を更新」は無し（T106 の (9)）・設定を変えても③はその場では描き直さない・「OCR処理を開始する」の結合（枠つき）は③にも出る', async () => {
+	await block('T98(6) 動画モード: 取り込み後の知らせは無し（T106）・OCR の前の③に「画像を更新」あり（T117）・設定を変えても③はその場では描き直さない・「OCR処理を開始する」の結合（枠つき）は③にも出る', async () => {
 		const { ctx, page, errors } = await openSp({ w: 1280, roster: R1S, ids: IDS });
 		await page.addScriptTag({ content: SYNTH });
 		await pickVideo(page);
@@ -298,7 +298,8 @@ export async function register108(env) {
 			return { sum: !!document.getElementById('video-summary'), img: box && box.querySelector('img') ? box.querySelector('img').src.length : 0, rb: !!(box && box.querySelector('[data-video-refresh]')), shown: videoShown[0] };
 		});
 		assert(res && res.ok && !v0.sum, 'T98(6): 取り込み後の知らせは出ない', { res, v0 });
-		assert(v0.img > 0 && !v0.rb && v0.shown === true, 'T98(6): ③の結合画像に「画像を更新」は無い', v0);
+		// T117（Chat 381）: OCR の前の③に「画像を更新」を戻した（T106 の (9) のうちボタンの分を置き換え）
+		assert(v0.img > 0 && v0.rb && v0.shown === true, 'T98(6): OCR の前の③の結合画像に「画像を更新」がある', v0);
 		const before = await page.evaluate(() => document.querySelector('#personset-A-wrap .video-result img').src);
 		await page.click('#stitch-parts-panel [data-stitch-cols="2"]');
 		const same = await page.evaluate(() => document.querySelector('#personset-A-wrap .video-result img').src);

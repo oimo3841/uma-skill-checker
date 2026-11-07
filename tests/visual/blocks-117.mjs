@@ -165,7 +165,7 @@ export async function register117(env) {
 
 	/* ── 通しの流れ・(8)(9)(10) ── */
 	for (const [w, h] of [[390, 844], [1280, 900]]) {
-		await block(`T106(3)(8)(9)(10) ${w}px 通し: 動画を選ぶ → 結合 → ③に結合画像（知らせ・枚数・見出し・「画像を更新」は無し・ダウンロードは控えめなアイコン）→ OCR処理を開始する → 引き出し`, async () => {
+		await block(`T106(3)(8)(9)(10) ${w}px 通し: 動画を選ぶ → 結合 → ③に結合画像（知らせ・枚数・見出しは無し・「画像を更新」あり〔T117〕・ダウンロードは控えめなアイコン）→ OCR処理を開始する → 引き出し`, async () => {
 			const sp = await open({ w, h, mode: 'video', data: true });
 			const res = await runVideo(sp.page);
 			assert(res && res.ok === true && res.stitched === true, `T106 ${w}px 結合まで自動で進む`, res);
@@ -180,7 +180,8 @@ export async function register117(env) {
 			});
 			assert(!m.sum && !/\d+\s*枚/.test(m.text.replace('それぞれで1枚にまとめて', '')) &&!/動画から/.test(m.text) && !/OCR処理を開始する」を押/.test(m.text), `T106(8) ${w}px 読み取り後に何枚取ったかの文・「このあと…」の文は無い`, m.text);
 			assert(!m.tab && m.badge, `T106(8) ${w}px タブとステップの枚数にも出ない`, m);
-			assert(!/親Aセット/.test(m.boxText) && !/画像を更新/.test(m.boxText) && !m.refresh && m.img, `T106(9) ${w}px ③の結合画像の上に「親Aセット」と「画像を更新」は無い`, m.boxText);
+			// T117（Chat 381）: OCR の前の③に「画像を更新」を戻した（T106 の (9) のうちボタンの分を置き換え）。OCR のあとの③に無いことは blocks-128 の T117(6) が見る
+			assert(!/親Aセット/.test(m.boxText) && m.img, `T106(9) ${w}px ③の結合画像の上に「親Aセット」は無い`, m.boxText);
 			assert(m.a.aria === 'PNGをダウンロード' && m.a.text === '' && m.a.svg && m.a.w <= 44 && m.a.h <= 44 && m.a.bg === 'rgba(0, 0, 0, 0)' && m.a.download, `T106(10) ${w}px ダウンロードは地の無いアイコンのボタン（読み上げ名は「PNGをダウンロード」）`, m.a);
 			// 親ごとの画像を見ると、列の字が出る
 			await sp.page.click('#personset-A-wrap .video-showcols');
