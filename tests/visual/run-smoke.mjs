@@ -155,6 +155,7 @@ import { register125 } from './blocks-125.mjs';
 import { register126 } from './blocks-126.mjs';
 import { register127 } from './blocks-127.mjs';
 import { register128 } from './blocks-128.mjs';
+import { register134 } from './blocks-134.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15537,6 +15538,7 @@ await register131({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 
 // T117: 動画の結合を取り込み直さずに作り直す（OCR の前の③と引き出しの「画像を更新」）
 await register128({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register134({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

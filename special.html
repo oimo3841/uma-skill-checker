@@ -57,6 +57,8 @@
 	<script src="js/uma-skill-deck-core.js?v=2026-11-06e"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-01a"></script>
+	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
+	<script src="js/stitch-share.js?v=2026-11-07a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-07a"></script>
 	<!-- PC のウィンドウの取り込み（T105。③の動画モードの「ウィンドウから取り込む」が使う。video-frames.js・stitch.js の後に読む） -->
@@ -5295,6 +5297,7 @@
 			// 長押しやドラッグでの保存では click が飛ばないので、押した瞬間ではなく
 			// pointerdown で入れ直す作りになっている（stitchAttachSaveName のコメント参照）。
 			stitchAttachSaveName(downloadLink, currentStitchSaveName);
+			UmaStitchShare.attach(downloadLink); // スマホでは共有のシート（T122。stitchAttachSaveName の後に付ける）
 			downloadLink.className = 'uma-btn uma-btn--primary';
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
