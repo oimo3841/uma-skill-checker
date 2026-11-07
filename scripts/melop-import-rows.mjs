@@ -10,6 +10,7 @@
 //   - insertAfterId の行がツール側のファイルに無い／取り込む id がすでにある（二重の取り込み）／一覧の中で id が重なる
 //   - いまのファイルの書式が、この道具の書き出しと同じでない（書き出すと関係ない行まで変わるため）
 // 要確認の印（needsReview）があっても値と直前が決まる行は取り込み、報告に一覧で出す（おいもさんが確かめる）。
+// 印 scenarioUpdate の行（シナリオ更新で増えた行）は、ほかの要確認と分けた一覧で出す（D05・2026-11-07）。
 //
 // 使い方:
 //   node scripts/melop-import-rows.mjs <melop-new-rows.json> [--version <版>] [--data-dir <dir>] [--out-dir <dir>] [--report <json>]
@@ -30,7 +31,10 @@ const EFF_FILE = 'skill-efficiency.json';
 const LIST_TOP_KEYS = ['dataVersion', 'category', 'note', 'rows'];
 const LIST_ROW_KEYS = ['id', 'name', 'group', 'insertAfterId', 'score', 'sp', 'efficiency', 'needsReview'];
 const LIST_CATEGORY = 'melopNewRows';
-const REVIEW_FLAGS = ['exception', 'sheetValue', 'sp150', 'effectUnknown', 'spUnknown', 'noOrder', 'sheetMismatch'];
+// scenarioUpdate（D05・2026-11-07）: シナリオ更新で増えた行。位置は仮で、並びはおいもさんと決める（理由は一覧の note の末尾）。
+// ほかの印（シートで確かめるもの）と分けて、標準出力と報告の scenarioUpdate に一覧で出す。
+const SCENARIO_FLAG = 'scenarioUpdate';
+const REVIEW_FLAGS = ['exception', 'sheetValue', 'sp150', 'effectUnknown', 'spUnknown', 'noOrder', 'sheetMismatch', SCENARIO_FLAG];
 const VERSION_RE = /^\d{4}-\d{2}-\d{2}[a-z]$/;
 
 function parseArgs(argv) {
@@ -203,6 +207,8 @@ if (opt.version) { melopDoc.dataVersion = opt.version; effDoc.dataVersion = opt.
 /* ---- 報告（書く前に作る） ---- */
 const inserted = list.rows.map((n) => ({ id: n.id, name: n.name, row: merged.find((r) => r.id === n.id).row, insertAfterId: n.insertAfterId, needsReview: n.needsReview.slice() }));
 const review = inserted.filter((x) => x.needsReview.length);
+const sheetReview = review.filter((x) => x.needsReview.some((f) => f !== SCENARIO_FLAG));
+const scenarioRows = review.filter((x) => x.needsReview.includes(SCENARIO_FLAG));
 const effDiff = list.rows.filter((n) => Math.round(n.score * 1000 / n.sp) / 1000 !== n.efficiency)
 	.map((n) => ({ id: n.id, name: n.name, score: n.score, sp: n.sp, efficiency: n.efficiency, calc: Math.round(n.score * 1000 / n.sp) / 1000 }));
 
@@ -213,16 +219,21 @@ fs.writeFileSync(path.join(opt.outDir, MELOP_FILE), melopText);
 fs.writeFileSync(path.join(opt.outDir, EFF_FILE), effText);
 if (opt.report) {
 	fs.mkdirSync(path.dirname(opt.report), { recursive: true });
-	fs.writeFileSync(opt.report, JSON.stringify({ listVersion: list.dataVersion, firstRow: FIRST, lastRow: LAST, rowCount: merged.length, inserted, review, effDiff }, null, '\t') + '\n');
+	fs.writeFileSync(opt.report, JSON.stringify({ listVersion: list.dataVersion, firstRow: FIRST, lastRow: LAST, rowCount: merged.length, inserted, review, scenarioUpdate: scenarioRows, effDiff }, null, '\t') + '\n');
 }
 
 console.log('一覧 ' + list.dataVersion + '・' + list.rows.length + '行を取り込んだ → ' + path.relative(ROOT, opt.outDir).replace(/\\/g, '/') + '/（改行 ' + (melop.NL === '\r\n' ? 'CRLF' : 'LF') + ' のまま）');
 inserted.forEach((x) => console.log('  ' + x.row + '行目 ' + x.name + '（' + x.id + '・直前 ' + x.insertAfterId + '）' + (x.needsReview.length ? ' 要確認: ' + x.needsReview.join('・') : '')));
 console.log('行番号 ' + FIRST + '〜' + LAST + '（' + merged.length + '行）' + (noteFixed ? '。note の範囲も直した' : '。note に「（N〜M行目）」が無いので直していない'));
 console.log('dataVersion: ' + (opt.version ? opt.version + ' にした' : '変えていない（--version で上げる）'));
-if (review.length) {
-	console.log('要確認の行（' + review.length + '行。取り込んだので、シートで確かめる）:');
-	review.forEach((x) => console.log('  ' + x.row + '行目 ' + x.name + '（' + x.id + '）: ' + x.needsReview.join('・')));
+if (sheetReview.length) {
+	console.log('要確認の行（' + sheetReview.length + '行。取り込んだので、シートで確かめる）:');
+	sheetReview.forEach((x) => console.log('  ' + x.row + '行目 ' + x.name + '（' + x.id + '）: ' + x.needsReview.join('・')));
+}
+if (scenarioRows.length) {
+	console.log('シナリオ更新で増えた行（' + scenarioRows.length + '行。印 ' + SCENARIO_FLAG + '。取り込んだが位置は仮。並びはおいもさんと決める）:');
+	scenarioRows.forEach((x) => console.log('  ' + x.row + '行目 ' + x.name + '（' + x.id + '・直前 ' + x.insertAfterId + '）' +
+		(x.needsReview.length > 1 ? ' ほかの印: ' + x.needsReview.filter((f) => f !== SCENARIO_FLAG).join('・') : '')));
 }
 if (effDiff.length) {
 	console.log('効率が 評価点÷消費sp の丸めと違う行（' + effDiff.length + '行。check:catalog §14 の EFF_ROUNDING_EXEMPT に理由を足すか、値を直す）:');

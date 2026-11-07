@@ -8,6 +8,7 @@
 //   (2) 同じ入力を2回回すと同じバイト列。取り込んだ結果にもう一度当てると、二重の取り込みで止まり何も書かない
 //   (3) --list で渡したデータ側の一覧も、(1) の元に当てて一致する（渡さなければ飛ばす）
 //   (4) exception・sheetValue の印の行は取り込まれ、報告の一覧に出る
+//   (4b) scenarioUpdate の印の行（シナリオ更新で増えた行）も取り込まれ、ほかの要確認と分けた一覧に出る（D05・2026-11-07）
 //   (5) null の行・insertAfterId が無い行・重複の id・形の違いでは、終了コード 1 で止まり、何も書かない
 // スキル名・ID は書かない（足した行は git の履歴と効率のファイルから決める）。
 import fs from 'node:fs';
@@ -156,6 +157,33 @@ console.log('\n(4) exception・sheetValue の印の行は取り込み、報告�
 	const before = r1.report.effDiff.map((x) => x.id);
 	check(k >= 0 && !before.includes(sv.rows[k].id), '計算どおりの効率の行がある（検査が空振りでない）');
 	check(rs.code === 0 && rs.report.effDiff.length === before.length + 1 && rs.report.effDiff.some((x) => x.id === sv.rows[k].id && x.efficiency === sv.rows[k].efficiency), '計算と違う効率の行が報告の effDiff に出る');
+}
+
+console.log('\n(4b) scenarioUpdate の印の行も取り込み、ほかの要確認と分けて出す（D05）');
+{
+	// データ側は、シナリオ更新で増えた行の needsReview に scenarioUpdate を付け、理由を一覧の note の末尾に書く（キーは増えない）
+	const su = JSON.parse(JSON.stringify(list));
+	su.note += ' needsReview の scenarioUpdate は、シナリオ更新で増えた行（位置は仮。並びはおいもさんと決める）。';
+	su.rows.forEach((x) => { x.needsReview = ['scenarioUpdate']; });
+	const both = su.rows[su.rows.length - 1];
+	both.needsReview = ['sheetValue', 'scenarioUpdate'];
+	const r = run(su, baseDir);
+	check(r.code === 0, 'scenarioUpdate の印で止まらない（終了コード 0）', r.stderr);
+	check(sameFiles(r), 'scenarioUpdate の行も取り込み、いまのファイルと一致（印はファイルに書かない）');
+	const rv = r.report ? r.report.review : [];
+	const sl = r.report && Array.isArray(r.report.scenarioUpdate) ? r.report.scenarioUpdate : [];
+	check(rv.length === su.rows.length, '報告の review にはすべての印の行が出る（今までどおり）', rv.length + '行');
+	check(sl.length === su.rows.length && su.rows.every((x) => sl.some((y) => y.id === x.id && y.needsReview.includes('scenarioUpdate'))), '報告の scenarioUpdate に、印のある行がすべて出る', JSON.stringify(sl.map((x) => x.id)));
+	check(sl.length > 0 && sl.every((y) => typeof y.row === 'number' && typeof y.insertAfterId === 'string'), '報告の scenarioUpdate の行に、行番号と直前の id がある');
+	check(new RegExp('シナリオ更新で増えた行（' + su.rows.length + '行').test(r.stdout), '標準出力に、シナリオ更新の行の一覧が別に出る', r.stdout);
+	check(/要確認の行（1行/.test(r.stdout) && r.stdout.includes('ほかの印: sheetValue'), 'ほかの印もある行は、要確認の一覧にも出る（scenarioUpdate だけの行は要確認の一覧に出ない）', r.stdout);
+	// 案A のまま: scenarioUpdate の行でも、値か直前が欠ければ何も取り込まない
+	const su2 = JSON.parse(JSON.stringify(su));
+	su2.rows[0].insertAfterId = null;
+	const r2 = run(su2, baseDir);
+	check(r2.code === 1 && r2.files.length === 0 && r2.stderr.includes(su2.rows[0].id) && r2.stderr.includes('印 scenarioUpdate'), 'scenarioUpdate の行でも insertAfterId が null なら止まる・何も書かない', r2.stderr);
+	// 印の無い一覧・ほかの印だけの一覧では、scenarioUpdate の一覧は空
+	check(r1.report && Array.isArray(r1.report.scenarioUpdate) && r1.report.scenarioUpdate.length === 0 && !/シナリオ更新で増えた行/.test(r1.stdout), '印の無い一覧では scenarioUpdate の一覧が空・標準出力にも出ない');
 }
 
 console.log('\n(5) 止まる場合（終了コード 1・何も書かない）');
