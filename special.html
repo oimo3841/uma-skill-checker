@@ -61,7 +61,7 @@
 	<script src="js/stitch-share.js?v=2026-11-07a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-07a"></script>
-	<!-- PC のウィンドウの取り込み（T105。③の動画モードの「ウィンドウから取り込む」が使う。video-frames.js・stitch.js の後に読む） -->
+	<!-- PC のウィンドウの取り込み（T105。③の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
 	<script src="js/pc-capture.js?v=2026-11-07b"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
@@ -2062,7 +2062,7 @@
 			videoSetPanel(setIdx).classList.add('cap-on');
 			stage.innerHTML = '<div class="cap-fail" id="cap-fail" role="alert"><p>' + escapeHtml(videoText('video.cap.fail.' + kind)) + '</p><button type="button" class="uma-btn uma-btn--secondary" id="cap-retry" onclick="startPcCapture()">' + escapeHtml(videoText('video.cap.retry')) + '</button></div>';
 		}
-		// 「ウィンドウから取り込む」「もう一度」。ウィンドウの選択は押した操作の中で開く
+		// 取り込みのボタン（video.btn.capture）と「もう一度」（video.cap.retry）。ウィンドウの選択は押した操作の中で開く
 		async function startPcCapture() {
 			if (videoBusy || stitchInProgress || combinedInProgress || !window.UmaVideoFrames || !window.UmaPcCapture) return;
 			const setIdx = activePersonSet;
