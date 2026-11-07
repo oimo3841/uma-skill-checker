@@ -37,7 +37,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { loadWeights, weightLookup, planShards } from '../tests/visual/lib/shard-plan.mjs';
+import { loadWeights, weightLookup, planShards, listBlocks } from '../tests/visual/lib/shard-plan.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VISUAL = 'tests/visual';
@@ -91,7 +91,7 @@ function readText(rel) {
 }
 
 // ---------------------------------------------------------------- 塊の索引（静的）
-const BLOCK_RE = /^\s*await block\(\s*/;
+const BLOCK_RE = /^\s*await (?:block|noticeBlock)\(\s*/;   // noticeBlock（お知らせの日付を固定する塊）も塊として数える（T111）
 const REGISTER_RE = /^\s*await (register\w+)\(/;
 /** block( の直後の文字列の見出しを読む。連結や ${} があれば prefix（前方一致で照合）。 */
 function parseTitle(line) {
@@ -112,8 +112,47 @@ function parseTitle(line) {
 	return { title: out, dynamic: rest.startsWith('+') };
 }
 
-const LOOP_LITERAL_RE = /^\s*for\s*\(\s*(?:const|let|var)\s+[\w$]+\s+of\s+\[(.*)\]\s*\)\s*\{?\s*$/;
-const LOOP_ANY_RE = /^\s*(?:for|while)\s*\(/;
+/** 対応するかっこの位置（s[open] が開きかっこ）。引用符の中は数えない。見つからなければ -1 */
+function closeOf(s, open) {
+	let depth = 0, q = null;
+	for (let i = open; i < s.length; i++) {
+		const c = s[i];
+		if (q) { if (c === '\\') { i++; continue; } if (c === q) q = null; continue; }
+		if (c === '\'' || c === '"' || c === '`') { q = c; continue; }
+		if ('([{'.includes(c)) depth++;
+		else if (')]}'.includes(c) && --depth === 0) return i;
+	}
+	return -1;
+}
+/**
+ * 行が for (const x of [字面]) で始まるなら、その行に並ぶ for (… of [字面]) それぞれの配列の中身（角かっこの内側）を返す。
+ * 束ねる名前は分割代入（[w, h]・{ a, b }）でもよい。1行に2つ以上並ぶ形（for (w of [...]) for (theme of [...]) {）も全部（T111）。
+ * for で始まらない・字面でない for が混じるなら null。
+ */
+function literalLoops(line) {
+	if (!/^\s*for\s*\(/.test(line)) return null;
+	const out = [];
+	const re = /for\s*\(\s*(?:const|let|var)\s+/g;
+	let m;
+	let count = 0;
+	while ((m = re.exec(line))) {
+		count++;
+		let p = m.index + m[0].length;
+		if (line[p] === '[' || line[p] === '{') { const e = closeOf(line, p); if (e < 0) return null; p = e + 1; }
+		else { const id = /^[\w$]+/.exec(line.slice(p)); if (!id) return null; p += id[0].length; }
+		const of = /^\s+of\s+/.exec(line.slice(p));
+		if (!of) return null;
+		p += of[0].length;
+		if (line[p] !== '[') return null;
+		const e = closeOf(line, p);
+		if (e < 0) return null;
+		out.push(line.slice(p + 1, e));
+		re.lastIndex = e;
+	}
+	const allFor = (line.match(/\bfor\s*\(/g) || []).length;
+	return count > 0 && count === allFor ? out : null;
+}
+const LOOP_ANY_RE =/^\s*(?:for|while)\s*\(/;
 /** 配列の字面 [a, b, ...] の中身（角かっこの内側）の要素の数。引用符・かっこの中のカンマは数えない */
 function countLiteralItems(inner) {
 	let n = 0, depth = 0, q = null, any = false;
@@ -128,9 +167,14 @@ function countLiteralItems(inner) {
 	}
 	return n + (any ? 1 : 0);
 }
-/** block( の行（0始まり i）を囲む for (const x of [字面]) の回数の積。字面でない繰り返しの中なら1と数えて知らせる */
+/** 字面でない繰り返しの中の塊の注意（実行時の一覧で引き直せなかったときだけ標準エラーに出す。T111） */
+const loopNotes = [];
+/** block( の行（0始まり i）を囲む for (const x of [字面]) の回数の積。字面でない繰り返しの中なら1と数えて覚えておく（戻り値の looped） */
 function loopTimes(lines, i) {
 	let times = 1;
+	let looped = false;
+	let loopLine = -1;   // いちばん外側の字面の繰り返しの行（0始まり）。同じ繰り返しの中の塊をまとめて回す並びにするため（T111）
+	let loopAnyLine = -1;
 	let ind = indentOf(lines[i]);
 	for (let k = i - 1; k >= 0 && ind > 0; k--) {
 		const l = lines[k];
@@ -138,13 +182,69 @@ function loopTimes(lines, i) {
 		const li = indentOf(l);
 		if (li >= ind) continue;
 		ind = li;
-		const m = LOOP_LITERAL_RE.exec(l);
-		if (m) times *= Math.max(1, countLiteralItems(m[1]));
+		// 1行に for (... of [字面]) が2つ以上並ぶ形（blocks-99 の for (w of [...]) for (theme of [...]) {）は、全部の積（T111）
+		const m = literalLoops(l);
+		if (m) { for (const inner of m) times *= Math.max(1, countLiteralItems(inner)); loopLine = k; }
 		else if (LOOP_ANY_RE.test(l)) {
-			console.error('select-blocks: 注意: ' + (i + 1) + '行目の block( は字面でない繰り返し（' + (k + 1) + '行目）の中にあり、1つと数えた。番号は --list（実行時）と見比べる');
+			if (!looped) loopAnyLine = k;   // いちばん内側の字面でない繰り返しの行
+			looped = true;
+			loopNotes.push((i + 1) + '行目の block( は字面でない繰り返し（' + (k + 1) + '行目）の中にあり、1つと数えた');
 		}
 	}
-	return times;
+	return { times, looped, loopLine, loopAnyLine };
+}
+
+/**
+ * 静的に数えた塊を、実行時の一覧（run-smoke.mjs --list-json）の番号へ引き直す（T111・2026-11-07）。
+ * 字面でない繰り返しの中の塊は実行時に何個にもなる（または 0 個）ので、静的な番号だけでは後ろのほうでずれていた
+ * （T112 で select の #885 が実際は T106 の塊だった）。見出しの前方一致で静的な塊と実行時の塊を先頭から順に対応させ、
+ * 1対多（繰り返し）・1対0（条件つき）を許す。最後まで食い違いなく対応できたときだけ、実行時の数・番号で並べ直した配列を返す。
+ * 対応できなければ null（静的な番号のまま使い、注意を出す）。
+ */
+let alignFail = '';
+function alignToRuntime(stat, runtime) {
+	const out = [];
+	const starts = (r, s) => r != null && r.title.startsWith(s.title);
+	let j = 0;
+	for (let i = 0; i < stat.length; i++) {
+		const s = stat[i];
+		if (s.looped) {
+			// 同じ字面でない繰り返しの中の塊（連続する loopKey の組）を、実行時に当たるだけ「組の1周」ずつ対応させる（0周もある）
+			let e = i;
+			while (e + 1 < stat.length && stat[e + 1].loopKey === s.loopKey) e++;
+			const group = stat.slice(i, e + 1);
+			const after = stat[e + 1];
+			// 実行時の塊が繰り返しの後ろの塊にも当たり、後ろの見出しのほうが長い（より確か）なら、繰り返しはそこで終わり
+			const afterStrong = (r, gs) => after != null && after.title.length > 0 && starts(r, after) && after.title.length >= gs.title.length;
+			let progressed = true;
+			while (progressed && j < runtime.length) {
+				progressed = false;
+				for (const gs of group) {
+					if (j < runtime.length && starts(runtime[j], gs) && !afterStrong(runtime[j], gs)) {
+						out.push({ ...gs, no: out.length + 1, runtimeTitle: runtime[j].title, dynamic: true });
+						j++;
+						progressed = true;
+					}
+				}
+			}
+			i = e;
+			continue;
+		}
+		// 字面の繰り返しで増やした写し（同じ行の塊）は、まとめて飛ばせるように次の別の塊を見る
+		let k = i + 1;
+		while (k < stat.length && stat[k].file === s.file && stat[k].start === s.start) k++;
+		const next = stat[k];
+		if (!starts(runtime[j], s)) {
+			// この塊が実行時に 0 個（条件つき。blocks-126 の if (SHOTS) の画像）: 実行時の次の塊が次の静的な塊に当たる
+			if (next != null && next.title.length > 0 && starts(runtime[j], next)) { i = k - 1; continue; }
+			alignFail = '静的 ' + s.file + ':' + s.start + '「' + s.title.slice(0, 30) + '」と実行時 #' + (j + 1) + '「' + (runtime[j] ? runtime[j].title.slice(0, 30) : '（終わり）') + '」';
+			return null;
+		}
+		out.push({ ...s, no: out.length + 1, runtimeTitle: runtime[j].title });
+		j++;
+	}
+	if (j !== runtime.length) alignFail = '実行時の #' + (j + 1) + '「' + runtime[j].title.slice(0, 30) + '」から後ろに当たる静的な塊が無い';
+	return j === runtime.length ? out : null;
 }
 
 /**
@@ -154,6 +254,7 @@ function loopTimes(lines, i) {
  *   harness: run-smoke.mjs の塊の外の行の範囲（[from, to] の配列）
  */
 let prefetched = false;
+let numbering = 'static';   // 'runtime'＝実行時の一覧で引き直した番号（T111）
 function buildIndex() {
 	if (!prefetched) { prefetched = true; prefetchHead(); }
 	const smokeRel = VISUAL + '/run-smoke.mjs';
@@ -177,6 +278,7 @@ function buildIndex() {
 	};
 	const addBlocksOf = (rel, onlyLine) => {
 		const f = fileLines(rel);
+		const found = [];
 		f.lines.forEach((l, i) => {
 			if (!BLOCK_RE.test(l)) return;
 			if (onlyLine != null && i + 1 !== onlyLine) return;
@@ -186,12 +288,21 @@ function buildIndex() {
 			const t = parseTitle(l);
 			// T33: for (const x of [...]) の中の block( は、実行すると配列の要素の数だけ塊になる（blocks-74 のピン画面(1) は light・dark の2つ）。
 			// 静的に1つと数えると、その後ろの番号が実行時（--list）より1つ小さくずれていた
-			const times = loopTimes(f.lines, i);
-			for (let r = 0; r < times; r++) {
-				blocks.push({ no: blocks.length + 1, title: t.title, dynamic: t.dynamic || times > 1, file: rel, start, end });
-				f.blockIdx.push(blocks.length - 1);
-			}
+			found.push({ t, start, end, ...loopTimes(f.lines, i) });
 		});
+		const push = (b) => {
+			blocks.push({ no: blocks.length + 1, title: b.t.title, dynamic: b.t.dynamic || b.times > 1 || b.looped, looped: b.looped, loopKey: b.looped ? rel + ':' + b.loopAnyLine : null, file: rel, start: b.start, end: b.end });
+			f.blockIdx.push(blocks.length - 1);
+		};
+		// 同じ字面の繰り返しの中に塊が複数あれば、実行と同じく「1周目の全部 → 2周目の全部」の順に並べる（T111。blocks-96 の T76画像アップロード(1)〜(3)）
+		for (let n = 0; n < found.length; n++) {
+			const b = found[n];
+			if (b.times <= 1 || b.loopLine < 0) { push(b); continue; }
+			let e = n;
+			while (e + 1 < found.length && found[e + 1].loopLine === b.loopLine && found[e + 1].times === b.times) e++;
+			for (let r = 0; r < b.times; r++) for (let k = n; k <= e; k++) push(found[k]);
+			n = e;
+		}
 	};
 	const sf = fileLines(smokeRel);
 	// run-smoke.mjs を上から読み、block( はその場で、register は呼んだ位置で、そのファイルの塊を並べる
@@ -201,6 +312,24 @@ function buildIndex() {
 		const r = REGISTER_RE.exec(l);
 		if (r && importMap.has(r[1])) { addBlocksOf(importMap.get(r[1])); lastRegister = i + 1; }
 	});
+	// 作業ツリーのときは、実行時の一覧で番号を引き直す（T111。--head のときはその commit を実行できないので静的な番号のまま）
+	if (!HEAD) {
+		const runtime = listBlocks(path.join(REPO_ROOT, VISUAL, 'run-smoke.mjs'), REPO_ROOT);
+		const aligned = runtime ? alignToRuntime(blocks, runtime) : null;
+		if (aligned) {
+			blocks.length = 0;
+			for (const f of Object.values(files)) f.blockIdx = [];
+			for (const b of aligned) { blocks.push(b); files[b.file].blockIdx.push(blocks.length - 1); }
+			numbering = 'runtime';
+		} else {
+			numbering = 'static';
+			console.error('select-blocks: 注意: 実行時の一覧（run-smoke.mjs --list-json）' + (runtime ? 'と静的な索引を対応させられなかった（' + alignFail + '）' : 'が取れなかった') + '。番号は静的に数えたもので、後ろのほうで実際の番号とずれることがある（--list と見比べる）');
+			for (const n of loopNotes) console.error('select-blocks: 注意: ' + n);
+		}
+	} else {
+		numbering = 'static';
+		for (const n of loopNotes) console.error('select-blocks: 注意: ' + n + '。番号は --list（実行時）と見比べる');
+	}
 	// run-smoke.mjs の最後の塊の終わりは、次の区切り（register の行）の前まで。最後の register の後ろは検査の土台。
 	const smokeBlocks = sf.blockIdx.map((k) => blocks[k]);
 	const harness = [[1, sf.preambleEnd]];
@@ -551,7 +680,7 @@ export function main() {
 	}
 	const est = estimate(idx.blocks, nos);
 	const result = {
-		base: base, baseShort, head: HEAD || '(作業ツリー)', blockCount: idx.blocks.length,
+		base: base, baseShort, head: HEAD || '(作業ツリー)', blockCount: idx.blocks.length, numbering,
 		changedFiles, stage, stage3: [...new Set(stage3)], stage3Maybe: [...new Set(stage3Maybe)], full: [...new Set(full)], otherChecks: [...otherChecks],
 		selected: nos.map((no) => ({ no, title: idx.blocks[no - 1].title, reasons: reasons.get(no) })),
 		selectedBeforeCore: [...selectedBeforeCore].sort((a, b) => a - b),
@@ -567,6 +696,10 @@ export function main() {
 
 /** block-sets.json の1項目（{ title, why }。title は見出しの先頭）に当たる塊 */
 function matchSet(blocks, s) {
+	// 実行時の一覧で引き直せたときは、まず実行時の見出し（全文）で当てる（T111。繰り返しの写しを1つずつ見分けられる）。
+	// 当たらなければ今までの当て方（静的な見出しの前方一致）
+	const byRuntime = blocks.filter((b) => b.runtimeTitle != null && b.runtimeTitle.startsWith(s.title));
+	if (byRuntime.length > 0) return byRuntime;
 	return blocks.filter((b) => b.title === s.title || b.title.startsWith(s.title) || (b.dynamic && s.title.startsWith(b.title) && b.title.length >= 6));
 }
 
@@ -640,7 +773,7 @@ const mmss = (s) => Math.floor(s / 60) + '分' + String(Math.round(s % 60)).padS
 function printResult(r) {
 	const out = [];
 	out.push('=== 回す塊の選び方（scripts/select-blocks.mjs） ===');
-	out.push('差: ' + r.baseShort + ' … ' + r.head + '・変えたファイル ' + r.changedFiles.length + '本・塊は全部で ' + r.blockCount + '個');
+	out.push('差: ' + r.baseShort + ' … ' + r.head + '・変えたファイル ' + r.changedFiles.length + '本・塊は全部で ' + r.blockCount + '個' + (r.numbering === 'runtime' ? '（番号は実行時の一覧で引き直したもの）' : '（番号は静的に数えたもの。後ろのほうでずれることがある）'));
 	r.changedFiles.forEach((f) => out.push('  ' + f));
 	out.push('');
 	out.push('段の見立て: 段' + r.stage + (r.stage === 3 ? '（push の前に全体を1回。下の理由が「表示用の定数・文言だけ」なら段2 でよい。決めるのは人）' : r.stage === 2 ? '（関係する塊＋核。全体はしない）' : '（関係する塊。全体はしない）'));
