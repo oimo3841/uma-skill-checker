@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-08d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-09a';
 
 	/* ============================================================
 	 * 定数
@@ -1697,6 +1697,17 @@
 		return parts.join(' ');
 	}
 	/**
+	 * データのタグ（trackVenue）には無いが、決まったレース場でだけ有効なスキル（T144・2026-11-09）。スキルの id → 有効なレース場の値。
+	 * 交流重賞○（186）・交流重賞◎（ex-0607）・交流重賞の鬼（ex-0445）は、大井・川崎・船橋・盛岡のレースでだけ有効。データ側のファイルは変えない（決定 569）。
+	 * **raceRejectsSkill だけが読む**（レース場の決まったレースで、そのどれでもなければ外す。レース場が決まっていなければ外さない）。
+	 * 緑スキル（レース条件）の候補（raceConditionSkillIds・isRaceConditionSkill）・サポカ外の項目の除外（T108）・説明の小窓・絞り込みのタグには使わない（決定 571）。
+	 * 進化先には広げない（交流重賞の鬼の進化先の走る縁起物・盛運のドラムロールは今のまま。決定 568）。
+	 */
+	const SKILL_VENUE_LIMITS = (function () {
+		const kouryu = ['track_oi', 'track_kawasaki', 'track_funabashi', 'track_morioka'];
+		return new Map([['186', kouryu], ['ex-0607', kouryu], ['ex-0445', kouryu]]);
+	})();
+	/**
 	 * スキルがそのレースで発動しえないか（段9。オススメサポの母集団から外す規則）。**公開されていない項目では外さない**。
 	 * スキルがその項目のタグを持たなければ外さない（どのレースでも）。1つでも食い違えば外す。距離・バ場は①の固定（resolvedFilterOf）で効くのでここでは見ない。
 	 * 特殊ルール（no_debuff）は、効果タイプがデバフ（まとめた値を含む）のスキルを外す。course（内／外）は見ない（RACE_EFFECTIVE_ENV_FIELDS）。
@@ -1708,6 +1719,9 @@
 		if (race.venue) {
 			const v = tags.trackVenue || [];
 			if (v.length > 0 && v.indexOf(race.venue) === -1) return true;
+			// T144: タグに無いレース場の限定（交流重賞の3つ）。レース場の決まったレースでだけ見る
+			const lim = SKILL_VENUE_LIMITS.get(skill.id);
+			if (lim && lim.indexOf(race.venue) === -1) return true;
 		}
 		const env = tags.environment || [];
 		for (const f of RACE_EFFECTIVE_ENV_FIELDS) {
@@ -19306,6 +19320,7 @@
 		raceCourseMatches: raceCourseMatches,
 		courseConditionText: courseConditionText,
 		raceRejectsSkill: raceRejectsSkill,
+		getSkillVenueLimits: function () { const o = {}; SKILL_VENUE_LIMITS.forEach((v, k) => { o[k] = v.slice(); }); return o; },   // 検査のため（T144）
 		raceBlocksSkill: raceBlocksSkill, raceLockedTargetOf: raceLockedTargetOf,   // 検査のため（レースで固定した距離の判定。2026-10-17）
 		getCourseConditionKeys: function () { return courseConditions ? Array.from(courseConditions.keys()) : null; },
 		getRaceDistancesMeta: function () { return raceDistancesMeta; },

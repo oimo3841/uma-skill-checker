@@ -394,9 +394,12 @@ export async function register12(env) {
 
 	/** 検査の側の母集団の規則（実装とは別に書いた物差し）。タグの語は値の形（_turn・season_ など）で群に分ける */
 	const groupOf = { direction: (v) => /_turn$/.test(v), season: (v) => /^season_/.test(v), weather: (v) => /^weather_/.test(v), ground: (v) => /^ground_/.test(v) };
-	const oracleRejects = (tags, race) => {
+	// T144（2026-11-09）: タグに無いレース場の限定。交流重賞の3つ（186・ex-0607・ex-0445）は大井・川崎・船橋・盛岡でだけ有効
+	const KOURYU = ['186', 'ex-0607', 'ex-0445'], KOURYU_VENUES = ['track_oi', 'track_kawasaki', 'track_funabashi', 'track_morioka'];
+	const oracleRejects = (tags, race, id) => {
 		const env = tags.environment || [], tv = tags.trackVenue || [];
 		if (race.venue && tv.length > 0 && !tv.includes(race.venue)) return true;
+		if (race.venue && KOURYU.includes(id) && !KOURYU_VENUES.includes(race.venue)) return true;
 		for (const f of Object.keys(groupOf)) {
 			if (!race[f]) continue;
 			const sv = env.filter(groupOf[f]);
@@ -451,7 +454,7 @@ export async function register12(env) {
 				return C.outside.populationOf({ skillFilter: lock, race: blank, outsideOptions: nx }).ids.filter((id) => !tgt || C.matchesFilters(C.findSkill(id), f, tgt));
 			}, { rc: race, nx: NOEX, blank: BLANK });
 			const baseSet = new Set(base);
-			const expected = base0.filter(([id, tags]) => baseSet.has(id) && oracleRejects(tags, race)).map(([id]) => id).sort();
+			const expected = base0.filter(([id, tags]) => baseSet.has(id) && oracleRejects(tags, race, id)).map(([id]) => id).sort();
 			const got = r.ex.slice().sort();
 			const keep = base.filter((id) => expected.indexOf(id) === -1).sort();
 			out.push(label + ' ' + got.length);
