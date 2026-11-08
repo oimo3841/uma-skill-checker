@@ -167,6 +167,7 @@ import { register149 } from './blocks-149.mjs';
 import { register147 } from './blocks-147.mjs';
 import { register146 } from './blocks-146.mjs';
 import { register151 } from './blocks-151.mjs';
+import { register148 } from './blocks-148.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15601,6 +15602,8 @@ await register147({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register146({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T144（2026-11-09）: 交流重賞の3スキルを大井・川崎・船橋・盛岡のレースでだけ有効に（raceRejectsSkill の呼び出し元・進化先・決定 571。見出しは「T144」）
 await register151({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T142（2026-11-09）: UmaExam のつまみで行が落ちる件（T141 と同じ直しを exam.html に。見出しは「T142examつまみと★」）
+await register148({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

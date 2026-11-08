@@ -4860,6 +4860,94 @@
 			return true;
 		}
 
+		// 右端のスクロールバーのつまみを白で塗る（T142・決定 543・547。special.html の T141 と同じ。T138 の案A′）。
+		// つまみ（右端の幅約10px・灰色 約115 の縦の棒）の横の行はそれだけで暗い画素が約10px あり、行のすきまに
+		// 数画素の暗い点が重なると detectSkillRows（common.js）の「横に12px以上」に当たって2段が1本の帯につながり、
+		// 高さの条件で段ごと捨てられていた（抜けた段の★は上の段の★に足される）。右端の帯（x≥0.9W）で、縦に 0.03H 以上
+		// 続く暗い画素の列だけを塗る（文字の列は縦にそれほど続かない）。戻り値: 塗る前の右端の帯（塗らなければ null）。
+		// 行が取れなかったときは呼び出し側が restoreScrollbarThumb で戻し、画全体を読む道の読みを今と同じにする。
+		function maskScrollbarThumb(base, diag) {
+			const W = base.width, H = base.height, x0 = Math.round(W * 0.9);
+			if (x0 >= W) return null;
+			const gray = toGray(getPixels(base));
+			const minRun = Math.round(H * 0.03);
+			const runs = [];
+			for (let x = x0; x < W; x++) {
+				let a = -1;
+				for (let y = 0; y <= H; y++) {
+					const dk = y < H && gray[y * W + x] < DARK_LEVEL;
+					if (dk && a < 0) a = y;
+					if (!dk && a >= 0) { if (y - a >= minRun) runs.push([x, a, y - a]); a = -1; }
+				}
+			}
+			if (!runs.length) return null;
+			const ctx = base.getContext('2d');
+			const saved = { x: x0, data: ctx.getImageData(x0, 0, W - x0, H) };
+			ctx.fillStyle = '#fff';
+			const cols = new Set();
+			runs.forEach(r => { ctx.fillRect(r[0], r[1], 1, r[2]); cols.add(r[0]); });
+			diag.push('右端の縦に長い暗い列（スクロールバーのつまみ）を白で塗った（' + cols.size + '列）');
+			return saved;
+		}
+		function restoreScrollbarThumb(base, saved, diag) {
+			if (!saved) return;
+			base.getContext('2d').putImageData(saved.data, saved.x, 0);
+			diag.push('行が取れないので、つまみを塗る前の画に戻した');
+		}
+
+		// 行の★の数（T142・決定 547。special.html の computeRowStarCountsSpecial〔T141〕と同じ。computeRowStarCounts〔common.js〕と
+		// 同じ範囲の取り方に、T138 の案B・案C を足したもの）。
+		// 案C: 金色の列の連なりのうち、幅 0.005W（最低 3px）未満のもの（星の縁が 2列のすきまで離れた切れ端）を★と数えない。
+		//      すきま 1列までを同じ★の続きとしてつなぐのは countGoldBlobs と同じ。
+		// 案B: 次の文字帯までが、すきまの中央値の 1.6 倍より遠い行（人の最後の段・段が抜けた上の段）は、★を数える範囲を
+		//      すきまの中央値までにする（次の人の青・赤の段や、下の段の★まで数えない）。reliable は今と同じ。
+		function countRowStarBlobs(mask, W, x0, x1, y0, y1) {
+			x0 = Math.max(0, x0); x1 = Math.min(W, x1);
+			if (x1 <= x0 || y1 <= y0) return 0;
+			const colHas = new Uint8Array(x1 - x0);
+			for (let y = y0; y < y1; y++) { const b = y * W; for (let x = x0; x < x1; x++) if (mask[b + x]) colHas[x - x0] = 1; }
+			const minW = Math.max(3, Math.round(W * 0.005));
+			const runs = [];
+			for (let i = 0; i < colHas.length; i++) {
+				if (!colHas[i]) continue;
+				const last = runs[runs.length - 1];
+				if (last && i - last[1] <= 2) last[1] = i; else runs.push([i, i]);
+			}
+			return Math.min(3, runs.filter(r => r[1] - r[0] + 1 >= minW).length);
+		}
+		function computeRowStarCountsExam(baseCanvas, detection) {
+			const W = baseCanvas.width, H = baseCanvas.height;
+			const gold = goldMaskOf(getPixels(baseCanvas));
+			const bands = detection.bands || [];
+			const columnXs = detection.columnXs || [];
+			const gaps = [];
+			for (let i = 0; i + 1 < bands.length; i++) gaps.push(bands[i + 1].a - bands[i].b);
+			const medGap = gaps.length ? median(gaps) : 0;
+			return detection.rows.map(row => {
+				const band = bands[row.band];
+				if (!band) return { stars: 0, reliable: false };
+				const nextBand = bands[row.band + 1];
+				const rowH = band.b - band.a + 1;
+				const y0 = band.b + 1;
+				let y1, reliable;
+				if (nextBand) {
+					// 案B: 次の文字帯が遠い行は、すきまの中央値まで
+					y1 = (medGap > 0 && nextBand.a - band.b > medGap * 1.6) ? band.b + medGap : nextBand.a - 1;
+					reliable = true;
+				} else {
+					y1 = band.b + (medGap > 0 ? medGap : Math.round(rowH * 2));
+					reliable = false;
+					if (y1 > H) y1 = H;
+				}
+				if (y1 <= y0) return { stars: 0, reliable: false };
+				const colX = columnXs[row.col];
+				const nextColX = columnXs[row.col + 1];
+				const x0 = (colX !== undefined) ? colX : row.x;
+				const x1 = (nextColX !== undefined) ? (nextColX - Math.round(W * 0.03)) : W;
+				return { stars: countRowStarBlobs(gold, W, x0, x1, y0, y1), reliable: reliable };
+			});
+		}
+
 		// 1人分の画像群を処理し、★情報つきのOCR行配列を返す
 		// video … 動画から取った画の控え（persons[].video）。その画だけ OCR の前に整える（T139。special.html の T93 と同じ）
 		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview, video) {
@@ -4921,7 +5009,9 @@
 						maskVideoFrameMargins(base, diag);
 						cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
 					}
+					const thumbSaved = maskScrollbarThumb(base, diag);
 					detection = detectSkillRows(base, diag);
+					if (!detection) restoreScrollbarThumb(base, thumbSaved, diag);
 				} catch (err) {
 					console.error(err);
 					diag.push('画像の読み込みに失敗: ' + err);
@@ -4936,7 +5026,7 @@
 						geometry[i].rows = detection.rows;
 						geometry[i].columnXs = detection.columnXs;
 					}
-					rowStars = computeRowStarCounts(base, detection);
+					rowStars = computeRowStarCountsExam(base, detection);
 					const stacked = stackRowsWithMeta(base, detection.rows);
 					target = stacked.canvas;
 					placements = stacked.placements;
