@@ -157,6 +157,7 @@ import { register127 } from './blocks-127.mjs';
 import { register128 } from './blocks-128.mjs';
 import { register134 } from './blocks-134.mjs';
 import { register135 } from './blocks-135.mjs';
+import { register140 } from './blocks-140.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15547,6 +15548,8 @@ await register128({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register134({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T123（2026-11-08）: OCR 中のボタン・「アップロード」の言い換え・②のカードの枠の SR のバッジ・新しいモードの②の下の欄の見出し
 await register135({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T132（2026-11-08）: 速い動画の区切り（頭のパネルが文字で2つの青に割れる）と末尾（一番下の跳ね返りのあとの止まった画）
+await register140({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

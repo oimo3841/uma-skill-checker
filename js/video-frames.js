@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-07a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-08a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -914,11 +914,18 @@
 		}
 		heads.sort((p, q) => p.abs - q.abs);
 		const headTol = Math.max(40, Math.round(cH * 0.05));
+		// 同じ頭にまとめる幅は、パネルの高さより小さい 0.06W まで広げる（T132・決定 482）。x=0.3W の列が頭のパネルの白い文字
+		// （「スタミナ」など）を横切ると、青が「パネルの上端」と「文字の下」の2回始まり、その差（約 45px）が headTol を超えて
+		// 別の頭になることがあった（速い動画 A-1 で区切りが4つ・祖2 のパネルの上が切れた。T129 §2）
+		const groupTol = Math.max(headTol, Math.round(W * 0.06));
 		const groups = [];
 		for (const h of heads) {
 			const g = groups[groups.length - 1];
-			if (g && h.abs - g[g.length - 1].abs <= headTol) g.push(h); else groups.push([h]);
+			if (g && h.abs - g[g.length - 1].abs <= groupTol) g.push(h); else groups.push([h]);
 		}
+		// 区切りの画を選ぶのは、組のいちばん上の頭（パネルの上端）から headTol 以内の頭だけ。文字の下の青だけが写った画
+		// （パネルの上端は帯の外）を区切りにすると、パネルの上が切れる
+		for (let i = 0; i < groups.length; i++) { const g0 = groups[i][0].abs; groups[i] = groups[i].filter((h) => h.abs - g0 <= headTol); }
 		// 頭が窓（帯の上から 0.25W-8）に入るフレームが無い（窓の少し下で止まり、次のスワイプで窓を飛び越えた）。
 		// 頭が最後に見えたフレームと次のフレームの間を半分ずつ取り直して、頭が窓に入るフレームを探す（最大 4回）
 		async function headIntoWindow(g) {
@@ -1077,6 +1084,22 @@
 			}
 			const r = verifySeam(key.plane, f.plane, pos.get(f) - pk);
 			pushPick(key, f, r, !ok(r)); key = f;
+		}
+		// 一番下で行き過ぎて戻った（ゴムのような跳ね返り）あとに止まった区間があれば、末尾の1枚をその区間の画に置き換える（T132・決定 483）。
+		// 行き過ぎた画は指が触れたばかりでエフェクトが写り、一覧の下の余白も入る。戻ったあとの止まった画は写っていない
+		// （速い動画 A-2 の 3.375秒 → 3.75秒。T129 §3 原因4）。末尾の1枚から −0.15cH〜+20px の位置の止まりだけを見る
+		let settledEnd = 0;
+		if (picks.length >= 2) {
+			const last = picks[picks.length - 1];
+			let fl = null;
+			for (const f of same) if (f.stillRep && f.t > last.t && pos.has(f)) fl = f;
+			const dp = fl ? pos.get(fl) - pos.get(last) : null;
+			if (fl && !anchorSet.has(last) && dp >= -Math.round(cH * 0.15) && dp <= 20) {
+				const prev = picks[picks.length - 2];
+				const r = verifySeam(prev.plane, fl.plane, pos.get(fl) - pos.get(prev));
+				const okS = r && r.shift > 0 && isFinite(r.badRate) && r.badRate < opts.okBad * 2 && ratioOf(r) >= opts.warnSecondRatio;
+				if (ok(r) || okS) { picks.pop(); seams.pop(); pushPick(prev, fl, r, !ok(r)); settledEnd++; }
+			}
 		}
 		tm.selectMs = performance.now() - t1;
 		progress('select', 1, 1, { persons: anchorEntries.length });
@@ -1439,7 +1462,7 @@
 			picks: picks.map((p) => p.t), seams, files, persons,
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
 				nears, headHints, predVerifies, loose, micros, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
-				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows },
+				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, settledEnd },
 			tm
 		};
 	}

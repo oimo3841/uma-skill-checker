@@ -1,9 +1,9 @@
-// js/video-frames.js（動画V1-1）を、素材フォルダの本物の画面収録5本で回す手元だけの検査（T42・2026-10-31）。
+// js/video-frames.js（動画V1-1）を、素材フォルダの本物の画面収録（T132 で7本）で回す手元だけの検査（T42・2026-10-31）。
 // tests/skillset と同じ扱い: 素材は Git の管理外。素材フォルダが無い・動画が無いときは「飛ばした」と出して 0 で終わる。
 //
 //   npm run test:video-local                 … 5本 × ふつう
 //   npm run test:video-local -- --cpu=4      … CPU を4倍遅くする（スマホ相当の目安。CDP の Emulation.setCPUThrottlingRate）
-//   npm run test:video-local -- --only=1     … 動画1 だけ（1〜5）
+//   npm run test:video-local -- --only=1     … 動画1 だけ（1〜7）
 //   npm run test:video-local -- --compare    … 同じフレームで stitchOnePerson も呼び、高さと継ぎ目の確かさを並べる（時間に入れない）
 //   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存
 //   npm run test:video-local -- --special    … special.html の③の流れを通す（T59・動画V1-2）: 入口 → 小窓の「動画を選ぶ」→ ファイルの選択に動画を渡す →
@@ -41,8 +41,16 @@ const VIDEOS = [
 	// 同じ親なので高さはほぼ同じ（正解は PC の取り込みの結合画像を幅をそろえた 2002／1906／1651）。動画1・2 の枚数も T109 で変わった（軌跡が正しくなり、誤って足していた動いている画が減った。結合画像の行は同じ。報告 T109-check-1.md）
 	{ no: 3, name: 'ScreenRecording_11-06-2026 16-57-05_1.MP4', anchors: [0, 7, 12.25], heights: [1997, 1901, 1648], picks: 11, counts: [6, 4, 3] },
 	{ no: 4, name: 'ScreenRecording_11-06-2026 16-58-38_1.MP4', anchors: [0, 5.625, 10.25], heights: [1997, 1901, 1647], picks: 10, counts: [4, 5, 3] },
-	{ no: 5, name: 'ScreenRecording_11-06-2026 16-59-47_1.MP4', anchors: [0, 5.5, 11], heights: [1998, 1902, 1649], picks: 10, counts: [5, 4, 3] }
+	{ no: 5, name: 'ScreenRecording_11-06-2026 16-59-47_1.MP4', anchors: [0, 5.5, 11], heights: [1998, 1902, 1649], picks: 10, counts: [5, 4, 3] },
+	// T132（2026-11-08・決定 485・486）: スクロールを始めてから5秒未満で終わる速い動画2本（T129 で調べた A-1・A-2）。親（本人）は別の人で、
+	// 祖1・祖2 は動画3〜5 と同じ。期待値は「3人に分かれる」と、祖1・祖2 の高さ（動画3〜5 の 1901〜1902・1647〜1649 を目安に ±2）だけ。
+	// 親の高さ・区切りの時刻・選ぶ枚数は期待値にしない（null は見ない）。A-1 は直す前は区切りが4つ（祖2 のパネルの頭が文字で2つに割れた）、
+	// A-2 は末尾が一番下で行き過ぎた画で祖2 が 1694（T129-check-1.md）
+	{ no: 6, name: 'fast-scroll-A-1.MP4', anchors: null, heights: [null, 1901, 1648], tol: 2, picks: null, counts: null },
+	{ no: 7, name: 'fast-scroll-A-2.MP4', anchors: null, heights: [null, 1901, 1648], tol: 2, picks: null, counts: null }
 ];
+/** 高さの期待値に合うか（null は見ない。tol は許す差） */
+const heightOk = (v, j, h, tol) => v.heights[j] == null || (h != null && Math.abs(h - v.heights[j]) <= tol);
 const LABELS = ['親', '祖1', '祖2'];
 
 let root = null;
@@ -87,7 +95,8 @@ async function runSpecial(v) {
 	const importS = (Date.now() - t0) / 1000;
 	const imp = await page.evaluate(() => ({ n: persons.slice(0, 3).map((p) => p.files.length), err: (document.getElementById('video-error') || {}).textContent || null,
 		sum: persons.slice(0, 3).map((p) => p.files.length).join('／'), unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1) }));
-	check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／') + '（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
+	if (v.counts) check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／') + '（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
+	else check(!imp.err && imp.n.length === 3 && imp.n.every((x) => x > 0), '3人に分かれる（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
 	const t1 = Date.now();
 	const st = await page.evaluate(async () => {
 		devGeometry = [];
@@ -98,7 +107,7 @@ async function runSpecial(v) {
 	const stitchS = (Date.now() - t1) / 1000;
 	const hs = st.lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
 	// 高さは ±2px（T90: special.html の流れは止まっている画の画素を優先して組み立てるので、末尾の切る行が 1px 動くことがある。動画1 は 1999／1708／1648）
-	check(st.img && st.lines.length === 3 && hs.length === 3 && hs.every((h, i) => h != null && Math.abs(h - v.heights[i]) <= 2), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.join('／') + '（±2）', hs.join('／'));
+	check(st.img && st.lines.length === 3 && hs.length === 3 && hs.every((h, i) => h != null && heightOk(v, i, h, 2)), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + '（±2）', hs.join('／'));
 	console.log('  取り込み ' + importS.toFixed(1) + '秒・結合（OCRしない）' + stitchS.toFixed(1) + '秒・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
 	await ctx.close();
 }
@@ -165,9 +174,10 @@ try {
 		delete res.pngs;
 		res.heapMaxMB = Math.round(heapMax / 1048576);
 		fs.writeFileSync(path.join(outDir, tag + '.json'), JSON.stringify(res, null, 1));
-		check(res.anchors.length === 3 && res.anchors.every((a, j) => Math.abs(a.t - v.anchors[j]) < 1e-6), '区画の頭の時刻 ' + v.anchors.join('／') + ' 秒', res.anchors.map((a) => a.t).join('／'));
-		check(res.persons.length === 3 && res.persons.every((p, j) => p.h === v.heights[j]), '人ごとの高さ ' + v.heights.join('／'), res.persons.map((p) => p.h).join('／'));
-		check(res.picks === v.picks, '選ぶ枚数 ' + v.picks, res.picks);
+		if (v.anchors) check(res.anchors.length === 3 && res.anchors.every((a, j) => Math.abs(a.t - v.anchors[j]) < 1e-6), '区画の頭の時刻 ' + v.anchors.join('／') + ' 秒', res.anchors.map((a) => a.t).join('／'));
+		else check(res.anchors.length === 3, '区画の頭が3つ（3人に分かれる）', res.anchors.length + 'つ: ' + res.anchors.map((a) => a.t).join('／'));
+		check(res.persons.length === 3 && res.persons.every((p, j) => heightOk(v, j, p.h, v.tol || 0)), '人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + (v.tol ? '（±' + v.tol + '）' : ''), res.persons.map((p) => p.h).join('／'));
+		if (v.picks != null) check(res.picks === v.picks, '選ぶ枚数 ' + v.picks, res.picks);
 		if (compare) check(res.persons.every((p) => p.stitchH === p.h), 'stitchOnePerson と同じ高さ', res.persons.map((p) => p.stitchH).join('／'));
 		const s = (ms) => (ms / 1000).toFixed(1);
 		const row = { video: v.no, cpu, selectS: s(res.selectMs), composeS: s(res.composeMs), totalS: s(res.selectMs + res.composeMs), heapMB: res.heapMaxMB,
