@@ -183,6 +183,9 @@ try {
 		else check(res.anchors.length === 3, '区画の頭が3つ（3人に分かれる）', res.anchors.length + 'つ: ' + res.anchors.map((a) => a.t).join('／'));
 		check(res.persons.length === 3 && res.persons.every((p, j) => heightOk(v, j, p.h, v.tol || 0)), '人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + (v.tol ? '（±' + v.tol + '）' : ''), res.persons.map((p) => p.h).join('／'));
 		if (v.picks != null) check(res.picks === v.picks, '選ぶ枚数 ' + v.picks, res.picks);
+		// T136（2026-11-08・決定 484・516）: 速い動画の調べ直し（1/16秒おき）は、出どころが正確（WebCodecs の復号）なときだけ。ここは video 要素の出どころ
+		// （openSource で WebCodecs が使えないときの代わり）なので、動画6〜8 も今までどおり（stats.fast が偽）。製品の流れ（WebCodecs）は --special で通る
+		check(res.stats && res.stats.fast === false, 'video 要素の出どころでは速い動画の調べ直しをしない（stats.fast が偽）', res.stats && res.stats.fast);
 		if (compare) check(res.persons.every((p) => p.stitchH === p.h), 'stitchOnePerson と同じ高さ', res.persons.map((p) => p.stitchH).join('／'));
 		const s = (ms) => (ms / 1000).toFixed(1);
 		const row = { video: v.no, cpu, selectS: s(res.selectMs), composeS: s(res.composeMs), totalS: s(res.selectMs + res.composeMs), heapMB: res.heapMaxMB,

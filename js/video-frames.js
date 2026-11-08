@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-08c';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-08d';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -82,6 +82,10 @@
 		maxSpeed: 8,         // となりのフレームのずれとして認める速さの上限（W/秒。T109。おいもさんの動画の速いスワイプで 3W/秒ほど）
 		grabRetryDt: [0, 1 / 60, -1 / 60, 1 / 30, -1 / 30], // 取り直した画が縮小画と合わないとき、次の画を待って取り直す時刻（選んだ時刻からの差・秒）
 		deltaWin: 240,       // 取り直した画と縮小画のずれを探す範囲（±px）
+		// 速い動画（T136・決定 484）
+		fastSpeed: 0.55,     // スクロールしていた間の速さ（W/秒）がこれを超えたら速い動画（ふだんの速さの素材6本は 0.23〜0.33・速い動画 A-1・A-2・育成終了直後の動画は 0.92〜1.60。その間）
+		fastFps: 16,         // 速い動画を調べる間隔（1秒あたり）
+		lateAge: [0.45, 0.3], // 速い動画で、動いている画の候補は、はじき始めからこの秒数がたった画を、この順に先に試す（はじいた直後は指の位置にエフェクトが出る）
 		maxPicks: 120,
 		sliceMs: 24,
 		labels: null         // 人の名前（例 ['親', '祖1', '祖2']）。無ければ「人1」…
@@ -737,7 +741,7 @@
 			for (let y = 0; y < cH; y++) { col[y * 3] = cd[y * 4]; col[y * 3 + 1] = cd[y * 4 + 1]; col[y * 3 + 2] = cd[y * 4 + 2]; }
 			return { t: +t.toFixed(4), plane, fine: true, heads: blueStarts(col, 0, cH).filter((y) => y >= 8) };
 		}
-		const fine = step / opts.fineDiv;
+		let fine = step / opts.fineDiv;
 		let densified = 0;
 		async function densify(key, f) {
 			if (f.t - key.t <= fine + 1e-6) return false;
@@ -776,7 +780,7 @@
 				weak: !!weak, uncertain: uncertainOf(r), anchor: anchorSet.has(to)
 			});
 		};
-		let stills = 0, backs = 0, local = 0, localFallback = 0, coarse = 0, verifies = 0, nears = 0, headHints = 0, predVerifies = 0, loose = 0, micros = 0;
+		let stills = 0, backs = 0, local = 0, localFallback = 0, coarse = 0, verifies = 0, nears = 0, headHints = 0, predVerifies = 0, loose = 0, micros = 0, microWide = 0;
 		// となりどうしのずれ（正＝下へスクロール・0＝止まっている・負＝上へ戻った・null＝測れない）
 		function stepShift(a, b, prev) {
 			b.strictStill = false;
@@ -834,8 +838,26 @@
 		// 1/16 秒でもつながらない組（T109）。一覧は同じ高さの行が並ぶので、全範囲で探すと「数行先の位置」も同じくらい合って決め手が無い
 		// （実例: 正しいずれ 131 の不一致 2.0%・7行先の 807 が 3.6%）。間の画を 1/60 秒ごとに取り、ごく近くだけを探して足していく。
 		// 探す範囲を行の高さの半分（0.04W）までにすれば、となりの行には合わない。途中で測れなければ null
-		async function microStep(a, b) {
+		// strict（速い動画の作り直しだけ・T136・決定 501）: はじき始めの組（A-1 の 1.625〜1.8125秒）は、止まっていた画の次のフレームで一気に約 100px 動き、
+		// 指の位置に大きなエフェクトも出る。見込み（0 の近く ±0.04W）の中に当たりが無いと、ずれ 0 と見込みの近くの「どちらも合わない」中で小さいほうを
+		// 選んで「止まっている（0）」や 3px と答え、軌跡が 3px・70px・1画面 と外れていた（正しくは 100・264・186px）。strict では、ずれ 0 は不一致が microBad 未満の
+		// ときだけ、見込みの近くの当たりは不一致が okBad の2倍未満のときだけ認める（正しい当たりは 1.6〜3.4%・外れた当たりは 5.4〜11%）。どちらでもなければ、
+		// 1フレームに進みうる範囲（maxSpeed の1/30秒ぶん）を探して、不一致が okBad の2倍未満で当たりが1つに決まる（±0.04W の外の次点との比 1.5 以上）ときだけ使う
+		async function microStep(a, b, strict) {
 			const win = Math.max(8, Math.round(W * 0.04));
+			const wideMax = Math.min(cH - 60, Math.round(W * opts.maxSpeed / 30));
+			const wide = (p, q) => {
+				const rates = [];
+				let best = -1;
+				for (let d = 1; d <= wideMax; d++) {
+					const r = scanRange(p, q, d, d, opts.seamYs, opts.seamXs);
+					rates[d] = r.shift === d ? r.badRate : Infinity;
+					if (best < 0 || rates[d] < rates[best]) best = d;
+				}
+				let second = Infinity;
+				for (let d = 1; d <= wideMax; d++) if (Math.abs(d - best) > win && rates[d] < second) second = rates[d];
+				return best > 0 && rates[best] < opts.okBad * 2 && second >= rates[best] * 1.5 ? best : null;
+			};
 			const one = (p, q, pred) => {
 				// 止まっているかは「ずれ 0 の不一致がいちばん小さいか」で見る（badNear0 は ±3px を止まりに入れるので、札の形だけの一覧は 15px 動いても基準を下回る）
 				let bad0 = 0, tot0 = 0;
@@ -845,8 +867,15 @@
 				const r = pred <= win ? scanRange(q, p, 1, win, opts.seamYs, opts.seamXs) : { shift: -1, badRate: Infinity };
 				const back = r.badRate < f.badRate;
 				const best = back ? r : f;
-				if (bad0 <= best.badRate) return 0;
-				return best.shift > 0 && best.badRate < opts.microBad ? (back ? -best.shift : best.shift) : null;
+				if (!strict) {
+					if (bad0 <= best.badRate) return 0;
+					return best.shift > 0 && best.badRate < opts.microBad ? (back ? -best.shift : best.shift) : null;
+				}
+				if (bad0 <= best.badRate && bad0 < opts.microBad) return 0;
+				if (best.shift > 0 && best.badRate < bad0 && best.badRate < opts.okBad * 2) return back ? -best.shift : best.shift;
+				const w = wide(p, q);
+				if (w != null) microWide++;
+				return w;
 			};
 			let prev = a.plane, total = 0, pred = 0;
 			const add = (q) => {
@@ -866,26 +895,69 @@
 		}
 		// 軌跡を作る。測れない組（速すぎる）は間を細かく取り直してから測り直す
 		const pos = new Map();
-		pos.set(same[0], 0);
-		let prevShift = null, guard = 0;
-		for (let n = 1; n < same.length; n++) {
-			if (++guard > 5000) throw framesError('track', '軌跡を作れない');
-			await pause();
-			progress('select', Math.min(n, same.length), same.length * 2);
-			const a = same[n - 1], b = same[n];
-			let s = stepShift(a, b, prevShift);
-			if (s == null) {
-				if (await densify(a, b)) { n--; continue; } // a の次から測り直す
-				s = await microStep(a, b);
+		let guard = 0;
+		// fineTrack: 速い動画の作り直し（1/fastFps 秒おき）。測れない組の 1/60 秒の足し合わせを strict にする（microStep）
+		async function buildTrack(fineTrack) {
+			pos.clear();
+			pos.set(same[0], 0);
+			let prevShift = null;
+			guard = 0;
+			for (let n = 1; n < same.length; n++) {
+				if (++guard > 5000) throw framesError('track', '軌跡を作れない');
+				await pause();
+				progress('select', Math.min(n, same.length), same.length * 2);
+				const a = same[n - 1], b = same[n];
+				let s = stepShift(a, b, prevShift);
+				if (s == null) {
+					if (await densify(a, b)) { n--; continue; } // a の次から測り直す
+					s = await microStep(a, b, !!fineTrack);
+				}
+				if (s == null) {
+					pos.set(b, pos.get(a) + cH); // 1/60 秒でもつながらない。重なりなしとして進む（確かめで弱い継ぎ目になる）
+					prevShift = null;
+					continue;
+				}
+				pos.set(b, pos.get(a) + s);
+				b.stepPrev = s;
+				prevShift = s > 0 ? s : null;
 			}
-			if (s == null) {
-				pos.set(b, pos.get(a) + cH); // 1/60 秒でもつながらない。重なりなしとして進む（確かめで弱い継ぎ目になる）
-				prevShift = null;
-				continue;
+		}
+		await buildTrack();
+		// スクロールしていた間の速さ（W/秒）。前へ minShift 以上進んだ最初の組の始まりから最後の組の終わりまでの時間で、進んだ量を割る
+		function scrollSpeed() {
+			const tr = same.filter((f) => pos.has(f));
+			let i0 = -1, i1 = -1;
+			for (let i = 1; i < tr.length; i++) if (pos.get(tr[i]) - pos.get(tr[i - 1]) >= opts.minShift) { if (i0 < 0) i0 = i - 1; i1 = i; }
+			if (i0 < 0) return { speed: 0, travel: 0, dur: 0 };
+			const p0 = pos.get(tr[i0]);
+			let travel = 0;
+			for (let i = i0; i <= i1; i++) travel = Math.max(travel, pos.get(tr[i]) - p0);
+			const dur = tr[i1].t - tr[i0].t;
+			return { speed: dur > 0 ? travel / dur / W : 0, travel, dur, t0: tr[i0].t, t1: tr[i1].t };
+		}
+		// 速い動画（T136・決定 484 の B2）: スクロールしていた間の速さが fastSpeed（W/秒）を超えたら、調べる間隔を 1/fastFps 秒にして軌跡を作り直す。
+		// 速い動画（A-1・A-2）は、はじきの合間の止まりが 0.07〜0.1秒しかなく、0.25秒おきでは「止まっている画」（エフェクトが写らない）が見つからず、
+		// はじいた直後の動いている画（大きな蹄鉄・星が写る）ばかりを選んでいた（T129 §3）。1/16秒おきなら、指で止めた短い止まりも止まっている区間として拾える。
+		// ふだんの速さの動画（0.23〜0.33W/秒）は今までどおり（作り直さない）。タッチのエフェクトは iPhone の画面収録のもので、置き換え（effectVote）と同じく、
+		// 出どころが正確（復号・作り物）なときだけ。PC の取り込み（effectVote を切る）と video 要素のシークは今までどおり。opts.fastMode（true／false）で決め打ちできる
+		const fastOn = opts.fastMode === true || (opts.fastMode !== false && opts.effectVote !== false && source.exact === true);
+		const speedInfo = fastOn ? scrollSpeed() : null;
+		const fastVideo = !!speedInfo && (opts.fastMode === true || (speedInfo.speed > opts.fastSpeed && speedInfo.travel >= cH * 2));
+		let fastAdded = 0;
+		if (fastVideo) {
+			const fstep = 1 / opts.fastFps;
+			const tEnd = same[same.length - 1].t;
+			for (let k = 1; k * fstep < tEnd - 1e-6; k++) {
+				const t = +(k * fstep).toFixed(4);
+				if (same.some((e) => Math.abs(e.t - t) < fstep / 2)) continue;
+				const e = await sampleEntry(t);
+				if (e) { same.push(e); fastAdded++; }
 			}
-			pos.set(b, pos.get(a) + s);
-			b.stepPrev = s;
-			prevShift = s > 0 ? s : null;
+			same.sort((p, q) => p.t - q.t);
+			for (const f of same) { f.stepPrev = undefined; f.strictStill = false; }
+			// 細かく取り直す間隔も 1/fastFps 秒（fineDiv 1）。1/64秒にすると動画のフレームの間隔（約1/30秒）より細かくなり、選ぶ段が画を足し続けて終わらなかった（T129）
+			fine = fstep;
+			await buildTrack(true);
 		}
 
 		// 止まっている区間（となりとのずれ 0 が続く所）。区間の真ん中の1枚を候補にする（T85。T83 の案1 (a)）。
@@ -908,6 +980,58 @@
 			}
 			flush();
 		}
+		// 速い動画の末尾の行き過ぎ（T136）: 一覧の一番下に着いたあと、もう一度はじいて一番下を越え、跳ね返って止まる（A-1 の 4.03〜4.56秒・約 145px 越えた）。
+		// 1/16秒おきに調べると越えた所の画も候補に入り、選ぶと一覧の下の余白と指のエフェクトが末尾に入った（祖2 が 150px 長くなった）。
+		// 最後に止まった区間の位置から 0.06cH より先の画は候補から外す（最後に止まった区間が末尾にあり、そこより前で 0.25cH を超えて先へ行っていないときだけ。
+		// 越えた量が小さい行き過ぎは、今までどおり選び終わったあとの末尾の置き換え〔T132〕で扱う）
+		let overscrolled = 0;
+		if (fastVideo) {
+			const tr = same.filter((f) => pos.has(f));
+			let k = -1;
+			for (let i = tr.length - 1; i >= 0; i--) if (tr[i].stillRep) { k = i; break; }
+			if (k >= 0) {
+				const pr = pos.get(tr[k]);
+				let maxP = -Infinity;
+				for (const f of tr) maxP = Math.max(maxP, pos.get(f));
+				if (tr.slice(k + 1).every((f) => pos.get(f) <= pr + opts.minShift) && maxP - pr <= cH * 0.25) {
+					const lim = pr + Math.round(cH * 0.06);
+					for (let i = same.length - 1; i > 0; i--) if (pos.has(same[i]) && pos.get(same[i]) > lim && !same[i].still) { same.splice(i, 1); overscrolled++; }
+				}
+			}
+		}
+		// はじき始めの時刻（T136・決定 484 の B3。速い動画だけ）。はじいた直後は、指の位置にエフェクトが写る
+		// （A-2 の 1.714秒のはじき: はじいてから 0.22秒まで大きな蹄鉄と星・0.29〜0.41秒は淡い輪・0.47秒からは無い）。
+		// はじき始め＝前へ minShift 以上進んだ組のうち、1つ前の組が止まっていた（minShift 未満）か、速さが1つ前の組から急に上がった組。
+		// ただし、はじき始めの組のすぐ次の組は数えない（はじき始めの組は途中から動くので速さが小さく出て、次の組が「急に上がった」に見える）。
+		// 指が離れた時刻はその組の中にあるので、次の組の速さで進んだとして組の終わりから戻して見積もる（組の始まりより前・終わりより後にはしない）
+		const releaseTs = [];
+		if (fastVideo) {
+			const tr = same.filter((f) => pos.has(f));
+			const dOf = (i) => pos.get(tr[i]) - pos.get(tr[i - 1]);
+			const vOf = (i) => dOf(i) / (tr[i].t - tr[i - 1].t);
+			let lastI = -9;
+			for (let i = 1; i < tr.length; i++) {
+				const d = dOf(i);
+				if (d < opts.minShift) continue;
+				const v = vOf(i), vp = i >= 2 ? vOf(i - 1) : 0;
+				const launch = i < 2 || dOf(i - 1) < opts.minShift;
+				if (!launch && (i - 1 === lastI || !(v > vp * 1.5 + W * 0.3))) continue;
+				const vn = i + 1 < tr.length && dOf(i + 1) > 0 ? Math.max(v, vOf(i + 1)) : v;
+				releaseTs.push(Math.min(tr[i].t, Math.max(tr[i - 1].t, tr[i].t - d / vn)));
+				lastI = i;
+			}
+		}
+		const ageOf = (f) => { let s = null; for (const x of releaseTs) if (x <= f.t + 1e-6) s = x; return s == null ? Infinity : f.t - s; };
+		// 動いている画の候補は、はじき始めから lateAge[0] 秒（エフェクトが消えた）→ lateAge[1] 秒（淡い輪だけ）たった画の順に先に試す（同じ組の中は元の順）。
+		// 残り（はじいた直後の画）は、時間のたったものから（止まり→止まりの間に足す画を「真ん中に近い順」で選ぶと、届く範囲の中でもはじいた直後の画になった）
+		const lateFirst = (list) => {
+			if (!releaseTs.length) return list;
+			const out = [];
+			for (const a of opts.lateAge) for (const j of list) if (!out.includes(j) && ageOf(same[j]) >= a) out.push(j);
+			const rest = list.filter((j) => !out.includes(j));
+			rest.sort((p, q) => ageOf(same[q]) - ageOf(same[p]));
+			return out.concat(rest);
+		};
 		// 区切り（アンカー）: 頭の位置を軌跡の上の位置（pos＋頭の y）で覚え、同じ位置の頭は1つにまとめる（T85。T83 の案3）。
 		// 人の1枚目は、頭が帯の上から 0.25W-8 以内（組み立ての stitchDetectFirstSkillPanelTop が頭を探す範囲）のフレームのうち、
 		// 止まっている区間の候補があればその中で、無ければ全部の中で、頭がいちばん上に近いもの（止まっている画はシークがずれても同じ画で、
@@ -964,7 +1088,9 @@
 			if (g[0].abs <= W * 0.25 - 8 || (firstAbs != null && g.some((h) => h.f === same[0]))) continue;
 			const inWin = g.filter((h) => h.y <= W * 0.25 - 8);
 			if (!inWin.length) { const h = await headIntoWindow(g); if (h) inWin.push(h); }
-			const pool = inWin.filter((h) => h.f.stillRep);
+			let pool = inWin.filter((h) => h.f.stillRep);
+			// 速い動画で止まっている画が無ければ、はじき始めから時間のたった画を先に（T136・B3。区切りの1枚もエフェクトが写りにくい画に）
+			for (const a of releaseTs.length ? opts.lateAge : []) if (!pool.length) pool = inWin.filter((h) => ageOf(h.f) >= a);
 			const from = pool.length ? pool : inWin.length ? inWin : g;
 			let best = from[0];
 			for (const h of from) if (h.y < best.y || (h.y === best.y && h.f.t < best.f.t)) best = h;
@@ -1055,7 +1181,7 @@
 					const mv = [];
 					for (let j = k + 1; j < goal; j++) { const g = gapOf(j); if (g >= opts.minShift && g >= gg - maxGap && g <= maxGap) mv.push(j); }
 					mv.sort((p, q) => Math.abs(gapOf(p) - gg / 2) - Math.abs(gapOf(q) - gg / 2));
-					if (await tryList(mv)) continue;
+					if (await tryList(lateFirst(mv))) continue;
 				}
 			}
 			// 前に進む候補（位置が minShift 以上先・予測の重なりが target 以上）を遠いほうから
@@ -1064,7 +1190,7 @@
 				const g = gapOf(j);
 				if (g >= opts.minShift && cH - g >= opts.target * cH) cands.push(j);
 			}
-			if (await tryList(cands)) picked = true;
+			if (await tryList(lateFirst(cands))) picked = true;
 			if (picked) continue;
 			// 候補が無い: 終わり（この先に前へ進むフレームが無い）か、次のフレームが遠すぎる
 			let further = -1;
@@ -1480,6 +1606,7 @@
 		tm.totalMs = performance.now() - T0;
 		// 手元の調べ用（T85）: opts.debug（空のオブジェクト）を渡すと、軌跡（時刻・位置・ずれ・頭・止まり）を入れて返す
 		if (opts.debug) opts.debug.track = same.map((f) => ({ t: f.t, pos: pos.has(f) ? pos.get(f) : null, step: f.stepPrev, heads: f.heads, fine: !!f.fine, still: !!f.still, rep: !!f.stillRep }));
+		if (opts.debug && releaseTs.length) { opts.debug.releaseTs = releaseTs.map((x) => +x.toFixed(4)); opts.debug.pickAges = picks.map((p) => +Math.min(99, ageOf(p)).toFixed(3)); }
 		return {
 			version: VIDEO_FRAMES_JS_VERSION,
 			video: { W, H, D }, xs: opts.xs, fps: opts.fps,
@@ -1488,7 +1615,8 @@
 			picks: picks.map((p) => p.t), seams, files, persons,
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
 				nears, headHints, predVerifies, loose, micros, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
-				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, settledEnd },
+				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, settledEnd,
+				scrollSpeed: speedInfo ? +speedInfo.speed.toFixed(3) : null, fast: fastVideo, fastAdded, releases: releaseTs.length, microWide, overscrolled },
 			tm
 		};
 	}
