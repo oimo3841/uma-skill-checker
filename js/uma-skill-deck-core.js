@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-08b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-08c';
 
 	/* ============================================================
 	 * 定数
@@ -67,7 +67,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-10-26b',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-26b',
+		'data/extended-skills.json': '2026-11-07f',
 		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
 		'data/searchable-extended-ids.json': '2026-10-26a',
 		// 検索に出さないスキルの id の一覧（T130・2026-11-08。おいもさんの決定 497）。継承できないので出さない。ツールの側で持つ。searchable-extended-ids.json と同じ経路で読む

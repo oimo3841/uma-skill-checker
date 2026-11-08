@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-26b",
+	"dataVersion": "2026-11-07f",
 	"category": "extendedSkill",
 	"nextSerial": "ex-1700",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
@@ -1249,7 +1249,25 @@
 		{
 			"id": "ex-0051",
 			"name": "波乱注意砲！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"midpoint"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0052",
@@ -1451,7 +1469,25 @@
 		{
 			"id": "ex-0060",
 			"name": "アクセルX",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": [
+					"remain_200"
+				]
+			}
 		},
 		{
 			"id": "ex-0061",
@@ -1606,7 +1642,26 @@
 		{
 			"id": "ex-0067",
 			"name": "レッドエース",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"second_half"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0068",
@@ -1837,7 +1892,25 @@
 		{
 			"id": "ex-0077",
 			"name": "精神一到",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_straight"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0078",
@@ -2390,7 +2463,26 @@
 		{
 			"id": "ex-0100",
 			"name": "熱血☆アミーゴ",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_straight"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0101",
@@ -2740,7 +2832,25 @@
 		{
 			"id": "ex-0115",
 			"name": "エンプレス・プライド",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0116",
@@ -3456,7 +3566,26 @@
 		{
 			"id": "ex-0145",
 			"name": "勝利のキッス☆",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0146",
@@ -3866,7 +3995,27 @@
 		{
 			"id": "ex-0162",
 			"name": "燃えろ筋肉！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"late"
+				],
+				"coursePos": [
+					"corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0163",
@@ -4381,7 +4530,28 @@
 		{
 			"id": "ex-0184",
 			"name": "introduction：My body",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"second_half"
+				],
+				"coursePos": [
+					"corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"stamina",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0185",
@@ -4718,7 +4888,25 @@
 		{
 			"id": "ex-0198",
 			"name": "全力Vサインッ！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_straight"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0199",
@@ -5414,7 +5602,25 @@
 		{
 			"id": "ex-0227",
 			"name": "学級委員長+速さ＝バクシン",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"second_half"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0228",
@@ -5933,7 +6139,25 @@
 		{
 			"id": "ex-0249",
 			"name": "クリアハート",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"stamina"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0250",
@@ -6821,7 +7045,25 @@
 		{
 			"id": "ex-0285",
 			"name": "ワクワクよーいドン",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"stamina"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0286",
@@ -6993,7 +7235,25 @@
 		{
 			"id": "ex-0293",
 			"name": "ペガサスフルパワー！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": [
+					"remain_150"
+				]
+			}
 		},
 		{
 			"id": "ex-0294",
@@ -7143,7 +7403,26 @@
 		{
 			"id": "ex-0300",
 			"name": "来てください来てください！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"late"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0301",
@@ -7467,7 +7746,25 @@
 		{
 			"id": "ex-0314",
 			"name": "アタシもたまには、ね？",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"late"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0315",
@@ -7565,7 +7862,25 @@
 		{
 			"id": "ex-0319",
 			"name": "Call me KING",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": [
+					"remain_200"
+				]
+			}
 		},
 		{
 			"id": "ex-0320",
@@ -7715,7 +8030,27 @@
 		{
 			"id": "ex-0326",
 			"name": "レディー、どんっ！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid",
+					"second_half"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"stamina",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0327",
@@ -7794,7 +8129,26 @@
 		{
 			"id": "ex-0330",
 			"name": "打ち、鍛えて",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"final_stage",
+					"lastspurt"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0331",
@@ -8017,7 +8371,25 @@
 		{
 			"id": "ex-0340",
 			"name": "エンジン点火！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0341",
@@ -8542,7 +8914,25 @@
 		{
 			"id": "ex-0362",
 			"name": "心、強し！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_straight"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0363",
@@ -10869,7 +11259,25 @@
 		{
 			"id": "ex-0455",
 			"name": "アピール宣言！",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0456",
@@ -26032,6 +26440,7 @@
 				"style": [],
 				"surface": [],
 				"phase": [
+					"final_stage",
 					"lastspurt"
 				],
 				"coursePos": [],
