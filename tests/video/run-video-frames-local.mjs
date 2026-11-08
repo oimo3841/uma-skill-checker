@@ -47,7 +47,11 @@ const VIDEOS = [
 	// 親の高さ・区切りの時刻・選ぶ枚数は期待値にしない（null は見ない）。A-1 は直す前は区切りが4つ（祖2 のパネルの頭が文字で2つに割れた）、
 	// A-2 は末尾が一番下で行き過ぎた画で祖2 が 1694（T129-check-1.md）
 	{ no: 6, name: 'fast-scroll-A-1.MP4', anchors: null, heights: [null, 1901, 1648], tol: 2, picks: null, counts: null },
-	{ no: 7, name: 'fast-scroll-A-2.MP4', anchors: null, heights: [null, 1901, 1648], tol: 2, picks: null, counts: null }
+	{ no: 7, name: 'fast-scroll-A-2.MP4', anchors: null, heights: [null, 1901, 1648], tol: 2, picks: null, counts: null },
+	// T134（2026-11-08）: 育成を終えてすぐの画面（窓の外に紙吹雪）から撮った7.5秒の動画。撮り始めの約1.2秒は一覧が止まっていて、
+	// 直す前は本文の帯の下端が窓の下の紙吹雪（2520）まで伸び、「継承の画面が見つからない」（band）で止まっていた。親は別の人で、祖1・祖2 は動画3〜5 と同じ。
+	// 期待値は「3人に分かれる」と人ごとの高さ（確かめた値 1805／1902／1649 を目安に ±2）。区切りの時刻・選ぶ枚数は期待値にしない
+	{ no: 8, name: 'ScreenRecording_11-08-2026 13-19-49_1.MP4', anchors: null, heights: [1805, 1902, 1649], tol: 2, picks: null, counts: null }
 ];
 /** 高さの期待値に合うか（null は見ない。tol は許す差） */
 const heightOk = (v, j, h, tol) => v.heights[j] == null || (h != null && Math.abs(h - v.heights[j]) <= tol);

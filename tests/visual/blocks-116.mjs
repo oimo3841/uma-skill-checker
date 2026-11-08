@@ -57,7 +57,10 @@ export async function register116(env) {
 			}
 			return out;
 		}, LABELS);
-		for (const name of ['先頭', 'キー', 'カーソル']) assert(`そろえないと ${name} の揺れで本文の帯の失敗になる（実物の再現）`, !r.raw[name].ok && r.raw[name].code === 'band', JSON.stringify(r.raw[name]));
+		for (const name of ['キー', 'カーソル']) assert(`そろえないと ${name} の揺れで本文の帯の失敗になる（実物の再現）`, !r.raw[name].ok && r.raw[name].code === 'band', JSON.stringify(r.raw[name]));
+		// T134（2026-11-08）で、本文の帯の下端を「頭が中央値の近くの区間の終わり」だけから取るようにした。先頭の粗い1枚の組は区間が画面の上から始まるので外れ、
+		// そろえなくても帯を 640〜1360 で見つけて通る（前は、その組の区間の終わりが下端の最大に入って band で止まっていた）
+		assert('そろえなくても 先頭 の粗い1枚では止まらない（T134 の下端の取り方）・帯が 640〜1360 ±3', r.raw['先頭'].ok && Math.abs(r.raw['先頭'].header.headerEnd - 640) <= 3 && Math.abs(r.raw['先頭'].header.footer - 1360) <= 3, JSON.stringify(r.raw['先頭']));
 		for (const name of ['先頭', 'キー', 'カーソル', '全部']) {
 			const f = r.fixed[name];
 			assert(`${name}: 帯を 640〜1360 ±3 行で見つける`, !!f.band && Math.abs(f.band[0] - 640) <= 3 && Math.abs(f.band[1] - 1360) <= 3, JSON.stringify(f.band));

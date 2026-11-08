@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-08a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-08b';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -688,15 +688,20 @@
 		// 組ごとの「差が続く中でいちばん長い区間」（T109）。育成完了後の画面は、窓の上と下に背景と紙吹雪が動いていて、
 		// 「最初に差が出る行」が画面のいちばん上のほうになる。窓の中の固定部分は動かないので、差の途切れ（100行以上。stitch と同じ長さ）で区間に分けると、
 		// スクロールする本文がいちばん長い区間になる。stitch は最小を取るので、演出が1組で上の方に出ると上端が上がる。解析側は中央値を使う
-		const firsts = [];
-		let runEnd = -1;
+		// 下端は、頭が中央値の近く（±0.02H）の区間の終わりの最大（T134）。一覧が止まっている組（撮り始めの数秒など）では本文に差が出ず、
+		// いちばん長い区間が窓の外の紙吹雪になる。その組の終わりまで最大に入れると、下端が画面の下まで伸びて「帯が想定の範囲の外」で止まっていた
+		const runs = [];
 		for (let k = 0; k < probes.length - 1; k++) {
-			const d = stitchRowDiffSignal(probes[k], probes[k + 1]);
-			const r = longestDiffRun(d, 5, 100);
-			if (r) { firsts.push(r.start); runEnd = Math.max(runEnd, r.end); }
+			const r = longestDiffRun(stitchRowDiffSignal(probes[k], probes[k + 1]), 5, 100);
+			if (r) runs.push(r);
 		}
-		const sorted = firsts.slice().sort((p, q) => p - q);
-		if (sorted.length) { hf.headerEnd = sorted[Math.floor(sorted.length / 2)]; hf.footerStart = runEnd; }
+		if (runs.length) {
+			const sorted = runs.map((r) => r.start).sort((p, q) => p - q);
+			const mid = sorted[Math.floor(sorted.length / 2)], tol = Math.round(H * 0.02);
+			let runEnd = -1;
+			for (const r of runs) if (Math.abs(r.start - mid) <= tol) runEnd = Math.max(runEnd, r.end);
+			hf.headerEnd = mid; hf.footerStart = runEnd;
+		}
 		const footer = stitchTrimFixedFooterChrome(probes, hf.headerEnd, hf.footerStart, '動画の解析');
 		const hE = hf.headerEnd, cH = footer - hE;
 		if (hE < bandY0 || footer > bandY1 || cH < 200) throw framesError('band', '本文の帯が想定の範囲の外: ' + hE + '〜' + footer);
