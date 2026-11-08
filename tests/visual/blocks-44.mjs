@@ -213,9 +213,9 @@ export async function register44(env) {
 			return { P1: p(P1), P2: p(P2), P3: p(P3), P3none: p(P3, { exclude: {} }), P1none: p(P1, { exclude: {} }) };
 		}, { A: ROSTER_A, FULL, races: RACES, pairs: readJson('data/recommended-skills.json').equivalentPairs.map((x) => x.skillIds) });
 		console.log('     [実測] 母集団: P1 ' + JSON.stringify(res.P1) + ' / P2 ' + JSON.stringify(res.P2) + ' / P3 ' + JSON.stringify(res.P3));
-		assert(res.P1.n - res.P1.restored === 105 && res.P2.n - res.P2.restored === 135 && res.P1.restored > 0, 'C-185 B2→C-223 P1・P2 の母集団は（①の Lv2 以下の白と組の相手で戻った分を除くと） Step 0 の実測（99・132）に、先行データ（2026-10-25a）で増えた分（逃げ・長距離＋5／先行・中距離＋2）と 2026-10-26 の ex-1693（距離・脚質の限定なし＋1）を足した値（105・135）と一致（レースを選んでいるので B3 は効かない）', { P1: res.P1, P2: res.P2 });
+		assert(res.P1.n - res.P1.restored === 105 && res.P2.n - res.P2.restored === 134 && res.P1.restored > 0, 'C-185 B2→C-223 P1・P2 の母集団は（①の Lv2 以下の白と組の相手で戻った分を除くと） Step 0 の実測（99・132）に、先行データ（2026-10-25a）で増えた分（逃げ・長距離＋5／先行・中距離＋2）と 2026-10-26 の ex-1693（距離・脚質の限定なし＋1）を足した値（105・135）から、T130（2026-11-08・決定 497）: 検索に出さないスキル2つ（data/search-excluded-skills.json）を外した分（先行・中距離 −1）を引いた値（105・134）と一致（レースを選んでいるので B3 は効かない）', { P1: res.P1, P2: res.P2 });
 		assert(res.P1.noRace === 0 && res.P2.noRace === 0, 'C-185 B3 レースを選んでいれば、レース条件の緑スキルは外さない', { P1: res.P1, P2: res.P2 });
-		assert(res.P3.n + res.P3.noRace - res.P3.restored === 150, 'C-185 B3→C-223 P3（レースなし）は、①の Lv2 以下の白と組の相手で戻った分を除き、緑スキルを外した分（' + res.P3.noRace + '種）を戻すと Step 0 の実測（146）に先行データ（2026-10-25a）で増えた3種と 2026-10-26 の ex-1693 を足した値（150）と一致', res.P3);
+		assert(res.P3.n + res.P3.noRace - res.P3.restored === 149, 'C-185 B3→C-223 P3（レースなし）は、①の Lv2 以下の白と組の相手で戻った分を除き、緑スキルを外した分（' + res.P3.noRace + '種）を戻すと Step 0 の実測（146）に先行データ（2026-10-25a）で増えた3種と 2026-10-26 の ex-1693 を足した値（150）から、T130（2026-11-08・決定 497）: 検索に出さないスキル2つ（data/search-excluded-skills.json）を外した分（−1）を引いた値（149）と一致', res.P3);
 		assert(res.P1none.n > res.P1.n && res.P3none.n > res.P3.n, 'C-185 B2 除外なしの母集団は、4つを除外したときより多い', { P1: [res.P1none.n, res.P1.n], P3: [res.P3none.n, res.P3.n] });
 		await sp.ctx.close();
 	});

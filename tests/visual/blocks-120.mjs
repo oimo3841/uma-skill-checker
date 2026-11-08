@@ -362,7 +362,9 @@ export async function register120(env) {
 	await block('T108 条件で検索: サポカ外（レース場を除く）・シナリオスキルはパッシブでも出す（＋は出さない）', async () => {
 		const ext = readJson('data/extended-skills.json');
 		const scenPassive = [...TAGS.entries()].filter(([, t]) => (t.scenario || []).includes('scenario') && (t.passive || []).length > 0).map(([id]) => id);
-		const scenAll = [...TAGS.entries()].filter(([, t]) => (t.scenario || []).includes('scenario')).map(([id]) => id);
+		// T130（決定 497）: 検索に出さないスキル（data/search-excluded-skills.json。継承できない）は除く。それらが出ないことは blocks-139 の T130(5) が見る
+		const searchExcluded = new Set(readJson('data/search-excluded-skills.json').entries.map((e) => String(e.skillId)));
+		const scenAll = [...TAGS.entries()].filter(([id, t]) => (t.scenario || []).includes('scenario') && !searchExcluded.has(id)).map(([id]) => id);
 		const evolved = (ext.entries || ext.skills || []).filter((e) => e.tags && (e.tags.scenario || []).includes('scenario') && /\+$/.test(e.name)).map((e) => e.id);
 		assert(scenPassive.length > 0 && evolved.length > 0, 'T108 前提: パッシブのシナリオスキルと「＋」のスキルがデータにある', [scenPassive, evolved.length]);
 		const WANT_NS = NS_IDS.filter((id) => { const t = TAGS.get(id) || {}; return !(t.scenario || []).includes('scenario') && (t.trackVenue || []).length === 0; });

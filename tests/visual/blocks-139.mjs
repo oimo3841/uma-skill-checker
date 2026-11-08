@@ -12,7 +12,8 @@
 import { reloadReady } from './lib/page-ready.mjs';
 
 export async function register139(env) {
-	const { block, assert, browser, base, openPage } = env;
+	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
@@ -72,8 +73,9 @@ export async function register139(env) {
 			'T130(1): 3列目は上から 理論値SP → 星取表 → 本育成編成 → 因子周回編成（間は上段と中段の間と同じ）', { sp: all.sp, table: all.table, roster: all.roster, factor: all.factor });
 		// 本育成編成は6枚・因子周回編成は5枚（R1S）。どちらも1列に上から詰める
 		const col = (cards, box, n) => cards.length === n && cards.every((c, i) => c.x === box.x && c.w === box.w && c.y === box.y + L.topHeadH + L.topHeadGap + i * (L.cardH + L.cardGap));
-		assert(col(all.rosterCards, all.roster, L.n) && col(all.factorCards, all.factor, 5) && all.roster.w === all.col3.w && all.factor.w === all.col3.w,
-			'T130(1): 編成はそれぞれ見出しの下に1列で上から詰める（6枚・5枚。3列目の幅いっぱい・すきまは今のカードと同じ）', { roster: all.rosterCards, factor: all.factorCards, col3: all.col3 });
+		// 決定 499: カードの幅は3列目の幅で、上限 400px（理論値SP の欄と同じ）。左に寄せる
+		assert(col(all.rosterCards, all.roster, L.n) && col(all.factorCards, all.factor, 5) && all.col3.w > 400 && all.roster.w === 400 && all.factor.w === 400 && all.roster.x === all.col3.x,
+			'T130(1): 編成はそれぞれ見出しの下に1列で上から詰める（6枚・5枚。幅は 400px まで・左寄せ・すきまは今のカードと同じ）', { roster: all.rosterCards, factor: all.factorCards, col3: all.col3 });
 		assert(all.roster.h === L.topHeadH + L.topHeadGap + L.n * L.cardH + (L.n - 1) * L.cardGap && all.factor.h === all.roster.h, 'T130(1): 編成の欄の高さは見出し＋6枚分（枚数で変えない）', { roster: all.roster, factor: all.factor });
 		assert(r.heads[0] === '①本育成編成' && r.heads[1] === '②因子周回編成', 'T130(1): 見出しは今の文のまま', r.heads);
 		assert(!r.noSp.sp && r.noSp.table.y === r.noSp.bodyY && r.noSp.roster.y === r.noSp.table.y + r.noSp.table.h + L.topAfter, 'T130(1): 理論値SP OFF: 星取表が3列目の上端から・編成はその下', r.noSp);
@@ -150,6 +152,42 @@ export async function register139(env) {
 		const c = await read();
 		assert(!c.col3, 'T130(4): 4つとも OFF なら3列目は無い', c);
 		assert(jsErrors(errors).length === 0, 'T130(4): コンソールエラー0', jsErrors(errors).slice(0, 3));
+		await ctx.close();
+	});
+
+	/* ── (5) 検索に出さないスキル（決定 497） ── */
+	await block('T130(5) 検索に出さないスキル（data/search-excluded-skills.json）: 条件で検索の「シナリオスキル」・テキストで検索・名前を入れて探す・オススメサポの母集団に出ない・ほかのシナリオスキルは出る・取り込みの照合は今のまま', async () => {
+		// 期待値はデータから読む（スキル名を書かない。恒久ルール1）
+		const ex = readJson('data/search-excluded-skills.json');
+		const EX = ex.entries.map((e) => ({ id: String(e.skillId), name: e.name }));
+		const master = readJson('uma-skill-deck-skills.json').skills;
+		const ext = readJson('data/extended-skills.json').entries;
+		const searchable = new Set(readJson('data/searchable-extended-ids.json').entries.map((e) => String(e.skillId)));
+		const exIds = new Set(EX.map((e) => e.id));
+		const isScen = (s) => s.tags && (s.tags.scenario || []).includes('scenario');
+		const others = master.filter(isScen).map((s) => String(s.id)).concat(ext.filter((s) => isScen(s) && searchable.has(s.id)).map((s) => s.id)).filter((id) => !exIds.has(id));
+		assert(EX.length === 2 && ex.dataVersion && ex.category === 'searchExcludedSkill' && others.length > 0, 'T130(5) 前提: 一覧に2件・ほかのシナリオスキルがある', { n: EX.length, others: others.length });
+		const { ctx, page, errors } = await openSp();
+		await page.evaluate(() => selectStepTab(1));
+		await page.click('#deck-template-panel [data-usd-act="entry-search"]');
+		await page.click('[data-usd-el="entry-search-list"] [data-usd-act="editor-pick"]');
+		await page.waitForTimeout(400);
+		await page.evaluate(() => { const c = document.querySelector('[data-usd-el="filter-check"][data-axis="scenario"][data-value="scenario"]'); if (c && !c.checked) c.click(); });
+		await page.waitForTimeout(500);
+		const r = await page.evaluate((EX) => {
+			const shown = [...document.querySelectorAll('[data-usd-el="results"] label.usd-row input')].map((i) => i.value);
+			const C = UmaSkillDeckCore;
+			const text = EX.map((e) => ({ id: e.id, search: C.findSkillsByNameFragment(e.name, { searchableOnly: true, limit: Infinity }).hits.map((h) => h.id),
+				plain: C.findSkillsByNameFragment(e.name, { limit: Infinity }).hits.map((h) => h.id) }));
+			const pool = C.taggedSkillPool().map((s) => s.id);
+			return { shown, text, pool, found: EX.map((e) => !!C.findSkill(e.id)) };
+		}, EX);
+		assert(r.shown.length > 0 && EX.every((e) => !r.shown.includes(e.id)), 'T130(5): 条件で検索の「シナリオスキル」に2つは出ない', { shown: r.shown.length, hit: EX.filter((e) => r.shown.includes(e.id)) });
+		assert(others.every((id) => r.shown.includes(id)), 'T130(5): ほかのシナリオスキルは今までどおり出る（' + others.length + '種）', others.filter((id) => !r.shown.includes(id)));
+		assert(r.text.every((t) => !t.search.includes(t.id)), 'T130(5): テキストで検索・名前を入れて探す（searchableOnly）に2つは出ない', r.text);
+		assert(r.text.every((t) => t.plain.includes(t.id)) && r.found.every(Boolean), 'T130(5): 取り込みの照合（既定の呼び方）と findSkill では今までどおり引ける', r.text);
+		assert(EX.every((e) => !r.pool.includes(e.id)) && others.every((id) => r.pool.includes(id)), 'T130(5): オススメサポ・②の無効のスキルの判定が使う母集団（taggedSkillPool）から2つだけ外れる', null);
+		assert(jsErrors(errors).length === 0, 'T130(5): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});
 }

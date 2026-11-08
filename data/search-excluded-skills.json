@@ -1,0 +1,15 @@
+{
+	"dataVersion": "2026-11-08a",
+	"category": "searchExcludedSkill",
+	"note": "ツール（UmaStar・UmaSkill Deck）の側で持つ一覧。継承できないスキルを、検索（条件で検索・テキストで検索・名前を入れて探す・オススメサポの候補）に出さないための id の一覧。「＋」の進化スキルと同じ扱い。スキルの分類やタグは変えない（シナリオスキルのまま）。足すときは skillId（独自ID）と name を書き、dataVersion と js/uma-skill-deck-core.js の DATA_JSON_VERSIONS を上げる。",
+	"entries": [
+		{
+			"skillId": "ex-0691",
+			"name": "アスリート魂"
+		},
+		{
+			"skillId": "433",
+			"name": "食の極意"
+		}
+	]
+}

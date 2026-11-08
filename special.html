@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-08a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-08b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
@@ -4996,10 +4996,11 @@
 				layout.bar = { x: L.margin, y: L.margin, w: W0 - L.margin * 2, h: L.barH };
 				layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W0 - L.margin * 2, L.barH, parts.barText || '');
 			}
-			// 3列目の編成（T130）: 見出し（今の文のまま）＋1列に6枚
+			// 3列目の編成（T130）: 見出し（今の文のまま）＋1列に6枚。幅は3列目の幅で、上限は理論値SP の欄の幅（spW・400px。決定 499）。左に寄せる
+			const cardColW = Math.min(col3W, L.spW);
 			cardKeys.forEach((k, i) => {
-				const cards = stitchDrawTopCards(ctx, col3X, cardYs[i], col3W, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor, 1);
-				layout[k] = { x: col3X, y: cardYs[i], w: col3W, h: cardsH, cards: cards };
+				const cards = stitchDrawTopCards(ctx, col3X, cardYs[i], cardColW, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor, 1);
+				layout[k] = { x: col3X, y: cardYs[i], w: cardColW, h: cardsH, cards: cards };
 			});
 			let x = L.margin;
 			if (parent) {
