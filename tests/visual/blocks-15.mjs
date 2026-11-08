@@ -307,9 +307,9 @@ export async function register15(env) {
 		const sp2 = await openSp({ roster: Object.assign({}, FULL, { skillFilter: FILTER }), effect: 'fail' });
 		await sp2.page.click(T + '[data-usd-el="outside-open"]');
 		await settle(sp2.page);
-		const r = await sp2.page.evaluate(() => ({ cards: document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').length,
-			err: !!document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-error"]') }));
-		assert(r.cards > 0 && !r.err, 'C129D 段階のデータが読めなくても、オススメは出る（低効果では何も外さない）', r);
+		// T137（決定 539）: outside-error は製品に一度も無い名前で !r.err がいつも真だったので外した
+		const r = await sp2.page.evaluate(() => ({ cards: document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').length }));
+		assert(r.cards > 0,'C129D 段階のデータが読めなくても、オススメは出る（低効果では何も外さない）', r);
 		assert(jsErrors(sp2.errors).length === 0, 'C129D 読めないとき: コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
 		await sp2.ctx.close();
 	});
