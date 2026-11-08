@@ -8,6 +8,8 @@
 //   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存
 //   npm run test:video-local -- --special    … special.html の③の流れを通す（T59・動画V1-2）: 入口 → 小窓の「動画を選ぶ」→ ファイルの選択に動画を渡す →
 //                                               「動画から N枚」が入るまで → 「画像を結合する（OCRしない）」で結合画像ができるまで。人ごとの枚数と高さを見る
+//   npm run test:video-local -- --exam       … exam.html の②の流れを通す（T139）: 動画モード →「動画を選ぶ」→ ②の結合画像（OCR の前）→「OCR処理を開始する」で
+//                                               OCR と結合。人ごとの枚数・高さ（OCR の前とあとの両方）・検出が0でないことを見る（runExam）
 //
 // 期待値（T39 の実測）: 区画の頭の時刻・人ごとの高さ・選ぶ枚数。**時間は揺れるので期待値にしない**（表に出すだけ）。
 // iPhone の収録は HEVC なので、同梱の Chromium では復号できない。channel:'chrome' で回す（tests/skillset/extract-video-frames.mjs と同じ）。
@@ -113,12 +115,60 @@ async function runSpecial(v) {
 	const hs = st.lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
 	// 高さは ±2px（T90: special.html の流れは止まっている画の画素を優先して組み立てるので、末尾の切る行が 1px 動くことがある。動画1 は 1999／1708／1648）
 	check(st.img && st.lines.length === 3 && hs.length === 3 && hs.every((h, i) => h != null && heightOk(v, i, h, 2)), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + '（±2）', hs.join('／'));
+	console.log('  人ごとの枚数 ' + imp.n.join('／') + '・高さ ' + hs.join('／'));
 	console.log('  取り込み ' + importS.toFixed(1) + '秒・結合（OCRしない）' + stitchS.toFixed(1) + '秒・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
 	await ctx.close();
 }
+/** exam.html の②の流れを通す（T139）: 入口 → 「動画を選ぶ」→ ファイルの選択に動画を渡す → ②に結合画像（OCR の前の1枚）が出るまで →
+ *  下の「OCR処理を開始する」（動画モードの一体のボタン）で OCR と結合が終わるまで。人ごとの枚数（--special と同じ期待値）と高さ（±2）を、
+ *  OCR の前の②の画像と OCR のあとの結合画像の両方で見る。時間は「ファイルを渡してから②の画像が出るまで」と「OCR＋結合」 */
+async function runExam(v) {
+	console.log('\n=== 動画' + v.no + '（exam.html の流れ・CPU ' + cpu + '倍）===');
+	const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+	const page = await ctx.newPage();
+	page.setDefaultTimeout(600000);
+	page.on('pageerror', (e) => console.log('[page error]', String(e)));
+	await page.addInitScript(() => localStorage.setItem('uma-exam-last-step', '2'));
+	await page.goto(base + '/exam.html');
+	await page.waitForTimeout(1500);
+	for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('#ui-notice-ok').catch(() => {});
+	await page.evaluate(() => selectStepTab(2));
+	const cdp = await ctx.newCDPSession(page);
+	if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
+	const chooser = await pickVideo(page);
+	const t0 = Date.now();
+	await chooser.setFiles(path.join(root, v.name));
+	await page.waitForSelector('#personset-A-wrap .video-result img, #personset-A-wrap .video-result .text-red-700, #video-error', { timeout: 600000 });
+	const importS = (Date.now() - t0) / 1000;
+	const heightsOf = (lines) => lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
+	const imp = await page.evaluate(() => ({ n: persons.slice(0, 3).map((p) => p.files.length), err: (document.getElementById('video-error') || {}).textContent || null,
+		lines: devGeometry.filter((l) => /^\[動画\].*composePerson/.test(l)), unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1),
+		preview: !!document.querySelector('#personset-A-wrap .video-result img') }));
+	if (v.counts) check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／'), imp.err || imp.n.join('／'));
+	else check(!imp.err && imp.n.length === 3 && imp.n.every((x) => x > 0), '3人に分かれる', imp.err || imp.n.join('／'));
+	const hp = heightsOf(imp.lines);
+	check(imp.preview && hp.length === 3 && hp.every((h, i) => h != null && heightOk(v, i, h, 2)), 'OCR の前の②の画像: 3人とも composePerson・人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + '（±2）', hp.join('／'));
+	const t1 = Date.now();
+	await page.evaluate(() => { document.getElementById('process-stitch-btn').click(); });
+	await page.waitForFunction(() => !stitchInProgress && !busyBtnId && !!document.querySelector('#stitch-result-content img'), null, { timeout: 900000 });
+	const ocrS = (Date.now() - t1) / 1000;
+	const st = await page.evaluate(() => ({ lines: devGeometry.filter((l) => /^\[動画\].*composePerson/.test(l)),
+		detected: persons.slice(0, 3).map((p, i) => personResults[i] ? personResults[i].detectedSkills.size : -1),
+		inPanel: !!document.querySelector('#personset-A-wrap .video-result img'),
+		warn: (document.querySelector('#stitch-result-content .video-warn') || {}).textContent || null }));
+	const hs = heightsOf(st.lines);
+	check(hs.length === 3 && hs.every((h, i) => h != null && heightOk(v, i, h, 2)), 'OCR のあとの結合: 3人とも composePerson・人ごとの高さ（±2）', hs.join('／'));
+	check(st.detected.every((n) => n > 0), 'OCR: 3人とも1つ以上のスキルを検出', st.detected.join('／'));
+	check(st.inPanel, 'OCR のあとの結合画像が②にも出る');
+	console.log('  人ごとの枚数 ' + imp.n.join('／') + '・高さ（OCR の前）' + hp.join('／') + '・（OCR のあと）' + hs.join('／'));
+	console.log('  取り込み＋②の画像 ' + importS.toFixed(1) + '秒・OCR＋結合 ' + ocrS.toFixed(1) + '秒・検出 ' + st.detected.join('／') + '・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
+	await ctx.close();
+}
+const exam = process.argv.includes('--exam');
 try {
 	if (special) for (const v of targets) await runSpecial(v);
-	for (const v of special ? [] : targets) {
+	if (exam) for (const v of targets) await runExam(v);
+	for (const v of (special || exam) ? [] : targets) {
 		console.log('\n=== 動画' + v.no + '（CPU ' + cpu + '倍）===');
 		const page = await browser.newPage();
 		page.on('pageerror', (e) => console.log('[page error]', String(e)));

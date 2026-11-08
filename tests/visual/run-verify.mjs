@@ -181,9 +181,12 @@ for (const [p, pat, ver, name] of [
 	// C-140（微調整2・E）: お知らせ（告知）の定義。special / exam の2ページが1か所ずつ読む
 	['special.html', /js\/announce\.js\?v=([0-9a-z-]+)/g, announceVer, 'announce.js'],
 	['exam.html', /js\/announce\.js\?v=([0-9a-z-]+)/g, announceVer, 'announce.js'],
-	// T59: 動画の部品は special.html だけが読む（UmaExam には動画の入口を置かない）
+	// T59: 動画の部品は special.html が読む（T139 から exam.html も。下の2行）
 	['special.html', /js\/video-frames\.js\?v=([0-9a-z-]+)/g, videoFramesVer, 'video-frames.js'],
 	['special.html', /js\/pc-capture\.js\?v=([0-9a-z-]+)/g, pcCaptureVer, 'pc-capture.js'],
+	// T139（決定 402・519〜522）: UmaExam にも動画の入口を置いた。exam.html も1か所ずつ読む
+	['exam.html', /js\/video-frames\.js\?v=([0-9a-z-]+)/g, videoFramesVer, 'video-frames.js'],
+	['exam.html', /js\/pc-capture\.js\?v=([0-9a-z-]+)/g, pcCaptureVer, 'pc-capture.js'],
 	['special.html', /js\/stitch-share\.js\?v=([0-9a-z-]+)/g, stitchShareVer, 'stitch-share.js'],
 	['exam.html', /js\/stitch-share\.js\?v=([0-9a-z-]+)/g, stitchShareVer, 'stitch-share.js'],
 	['special.html', /js\/deck-alpha-images\.js\?v=([0-9a-z-]+)/g, deckImagesVer, 'deck-alpha-images.js'],
@@ -528,7 +531,7 @@ console.log('\n=== 4. 消したclassがJSに掴まれていないか ===');
 // querySelector 系は文書全体を探すのでファイル横断で危険。
 const SIBLINGS = {
 	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
-	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
+	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
 	'uma-skill-deck.html': ['uma-skill-deck.html', 'js/uma-skill-deck.js', 'js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck-core.js': ['js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck.js': ['js/uma-skill-deck.js'],

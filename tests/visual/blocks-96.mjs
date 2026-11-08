@@ -197,7 +197,7 @@ export async function register96(env) {
 			}
 		});
 
-		await block('T76画像アップロード(3) ' + name + ' の操作は今どおり（375px）: 「追加」からファイルを選ぶとその人のサムネイルが縦に増えタブの枚数も増える・× で外れる・欄のボタンは画像が入ると押せる・親Bセットのタブで親Bの3列に切り替わる（画像は保持）' + (tool === 'special' ? '・動画の入口はタブの行の右端にあり押すと小窓が開く' : '・動画の入口は無い'), async () => {
+		await block('T76画像アップロード(3) ' + name + ' の操作は今どおり（375px）: 「追加」からファイルを選ぶとその人のサムネイルが縦に増えタブの枚数も増える・× で外れる・欄のボタンは画像が入ると押せる・親Bセットのタブで親Bの3列に切り替わる（画像は保持）' + (tool === 'special' ? '・動画の入口はタブの行の右端にあり押すと小窓が開く' : '・動画の入口はタブの行の右端（T139）'), async () => {
 			const { ctx, page, errors } = await openTool(tool, 375);
 			const tag = 'T76(3) ' + name;
 			const before = await page.evaluate((ids) => ids.map((id) => document.getElementById(id).disabled), BTNS[tool].split('|').map((s) => s.split(':')[0]));
@@ -226,15 +226,12 @@ export async function register96(env) {
 				tag + ': 親Bセットのタブで親Bの3列に切り替わる', m.sets.map((s) => ({ shown: s.shown, heads: s.cols.map((c) => c.head) })));
 			const kept = await page.evaluate(() => persons[1].files.length);
 			assert(kept === 1, tag + ': 親Aセットの画像は保持', kept);
-			if (tool === 'special') {
-				assert(m.video && m.video.row && m.video.last && m.video.rect.h === 32, tag + ': 入れ方の切り替え（静止画｜動画）はタブの行の右端（T106）', m.video);
-				const chooser = await pickVideo(page);
-				const pend = await page.evaluate(() => videoPending && videoPending.setIdx);
-				assert(!!chooser && pend === 1, tag + ': 「動画を選ぶ」ですぐファイルの選択が開く（入れる先は今見ている親Bセット。T106）', { chooser: !!chooser, pend });
-				await page.evaluate(() => setUploadMode('shot'));
-			} else {
-				assert(m.video === null, tag + ': 動画の入口は無い', m.video);
-			}
+			// T139（決定 519）: UmaExam にも同じ入口を置いた（前の期待値は「UmaExam には動画の入口は無い」）
+			assert(m.video && m.video.row && m.video.last && m.video.rect.h === 32, tag + ': 入れ方の切り替え（静止画｜動画）はタブの行の右端（' + (tool === 'special' ? 'T106' : 'T139') + '）', m.video);
+			const vChooser = await pickVideo(page);
+			const pend = await page.evaluate(() => videoPending && videoPending.setIdx);
+			assert(!!vChooser && pend === 1, tag + ': 「動画を選ぶ」ですぐファイルの選択が開く（入れる先は今見ている親Bセット）', { chooser: !!vChooser, pend });
+			await page.evaluate(() => setUploadMode('shot'));
 			assert(jsErrors(errors).length === 0, tag + ': コンソールエラー0', jsErrors(errors).slice(0, 3));
 			await ctx.close();
 		});

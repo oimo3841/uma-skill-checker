@@ -100,13 +100,20 @@ export async function register89(env) {
 		});
 	}
 
-	await block('T59動画(1b) UmaExam に動画の入口が無い（js/video-frames.js も読まない）', async () => {
+	// T139（決定 519〜522）: UmaExam にも動画の入口を置いた。前の期待値は「UmaExam には動画の入口が無く、video-frames.js も読まない」。
+	// 今は「入口があり、video-frames.js・pc-capture.js を読み、画面の文の表（VIDEO_TEXTS）は UmaStar と同じ」を見る
+	await block('T59動画(1b) UmaExam にも動画の入口がある（js/video-frames.js・js/pc-capture.js を読む・文の表は UmaStar と同じ。T139）', async () => {
 		const ex = await openPage(browser, base, 'exam.html', { width: 375, height: 812 });
 		await closeNotices(ex.page);
 		await ex.page.evaluate(() => selectStepTab(2));
 		await ex.page.waitForTimeout(200);
-		const r = await ex.page.evaluate(() => ({ btn: !!document.querySelector('#upload-mode, .video-pick-btn'), lib: typeof window.UmaVideoFrames, script: [...document.scripts].some((s) => /video-frames/.test(s.src)), tabs: !!document.getElementById('personset-tabs') }));
-		assert(r.tabs && !r.btn && r.lib === 'undefined' && !r.script, 'T59(1b) UmaExam にはタブの行があるが、動画の入口は無く、video-frames.js も読まない', r);
+		const r = await ex.page.evaluate(() => ({ btn: !!document.querySelector('#upload-mode') && !!document.querySelector('.video-pick-btn'), lib: typeof window.UmaVideoFrames, cap: typeof window.UmaPcCapture,
+			script: [...document.scripts].filter((s) => /video-frames|pc-capture/.test(s.src)).length, tabs: !!document.getElementById('personset-tabs'), texts: JSON.stringify(VIDEO_TEXTS) }));
+		assert(r.tabs && r.btn && r.lib === 'object' && r.cap === 'object' && r.script === 2, 'T59(1b) UmaExam にはタブの行と動画の入口があり、video-frames.js・pc-capture.js を読む', Object.assign({}, r, { texts: undefined }));
+		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
+		const st = await sp.page.evaluate(() => JSON.stringify(VIDEO_TEXTS));
+		assert(r.texts === st, 'T59(1b) UmaExam の画面の文の表（VIDEO_TEXTS）は UmaStar と同じ（キーと文）', r.texts === st ? null : { exam: r.texts.length, star: st.length });
+		await sp.ctx.close();
 		await ex.ctx.close();
 	});
 
