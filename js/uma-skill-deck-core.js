@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-06e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-08a';
 
 	/* ============================================================
 	 * 定数
@@ -3055,6 +3055,8 @@
 	 * SR のカードを置いたときだけ SR の印を出して気づかせる）。②のオススメサポ・脚質オススメの小窓は where を渡さない＝SSR・SR の両方を出す（C-187）
 	 */
 	const CARD_PLACE_ROSTER = 'roster';
+	/** ②因子周回のカードの枠（T123・おいもさんの決定 447）: SSR・SR ともレアリティの印を出さない（SR だけ印が出て不自然・×が見えにくくなるため）。①の枠は CARD_PLACE_ROSTER のまま（C-187） */
+	const CARD_PLACE_FACTOR = 'factor';
 	/** 種別アイコンが作れる種別か（番号が 1〜6 の外・決まらないものは false）。C-188 */
 	function cardTypeKnown(typeOrder) { return !!CARD_TYPE_ICON_KEYS[typeOrder]; }
 	/**
@@ -3066,6 +3068,7 @@
 	}
 	function cardRarityShown(rarity, where) {
 		if (!CARD_RARITY_ICON_KEYS[rarity]) return false;
+		if (where === CARD_PLACE_FACTOR) return false;
 		return !(where === CARD_PLACE_ROSTER && rarity === 'SSR');
 	}
 	/** レアリティのバッジ（SSR・SR だけ。それ以外は ''。場所は cardRarityShown） */
@@ -3081,15 +3084,17 @@
 	/**
 	 * ①の6枚のカードのタイル1枚（C-187・C-188。①の編成と、②因子周回のカードのパネル〔T53・C-262 の (3)〕で共通）。
 	 * i … 枠の番号（0 始まり）／cardId … カードID（空きは ''・null）。
-	 * o: { pickAct, pickEl, clearAct, clearEl, tileEl, nameEl, nickEl …（data-usd-act／data-usd-el の値）, emptyName（空きの名前）, emptyAria（空きの読み上げ）, selected（太い枠） }
+	 * o: { pickAct, pickEl, clearAct, clearEl, tileEl, nameEl, nickEl …（data-usd-act／data-usd-el の値）, emptyName（空きの名前）, emptyAria（空きの読み上げ）, selected（太い枠）,
+	 *      place（レアリティの印の場所。省略は CARD_PLACE_ROSTER＝①。②のパネルは CARD_PLACE_FACTOR＝印を出さない。T123） }
 	 */
 	function rosterCardTileHtml(i, cardId, o) {
+		const place = o.place || CARD_PLACE_ROSTER;
 		const slotCard = cardId ? findCard(cardId) : null;
 		const slotOrder = slotCard ? cardTypeOrderOf(slotCard) : null;
 		const shortLabel = !cardId ? o.emptyName : slotCard ? formatEntryShortLabel(slotCard) : '（読み込めません：' + cardId + '）';
 		const fullLabel = slotCard ? formatEntryLabel(slotCard) : shortLabel;
 		const slotKnown = cardTypeKnown(slotOrder);
-		let kind = slotCard ? cardKindText(slotOrder, slotCard.rarity, CARD_PLACE_ROSTER) : '';
+		let kind = slotCard ? cardKindText(slotOrder, slotCard.rarity, place) : '';
 		if (cardId && !slotKnown) kind = ['種別不明'].concat(kind ? [kind] : []).join('・');   // 正常なデータでは出ない（読み込めないカード・種別が 1〜6 の外）
 		const aria = !cardId && o.emptyAria ? o.emptyAria : (i + 1) + '枚目：' + fullLabel + (kind ? '（' + kind + '）' : '');
 		const nick = slotCard && slotCard.title ? '[' + slotCard.title + ']' : '';
@@ -3105,7 +3110,7 @@
 			+ (slotOrder !== null && slotOrder !== undefined ? ' data-type-order="' + slotOrder + '"' : '') + (slotCard && slotCard.rarity ? ' data-rarity="' + esc(slotCard.rarity) + '"' : '') + '>'
 			+ '<span class="usd-out-card-lead">' + (slotKnown ? cardIconBoxHtml(slotOrder) : '') + '</span>'
 			+ main('<span class="usd-out-card-names">' + (nick ? '<span class="usd-out-card-nick" data-usd-el="' + o.nickEl + '">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="' + o.nameEl + '">' + esc(shortLabel) + '</span></span>')
-			+ '<span class="usd-out-card-side">' + (slotCard ? cardRarityIconHtml(slotCard.rarity, CARD_PLACE_ROSTER) : '')
+			+ '<span class="usd-out-card-side">' + (slotCard ? cardRarityIconHtml(slotCard.rarity, place) : '')
 			+ '<span class="usd-out-card-sub usd-out-card-sub--x"><button type="button" class="usd-out-card-btn usd-out-card-x" data-usd-act="' + o.clearAct + '" data-index="' + i + '" data-usd-el="' + o.clearEl + '" aria-label="' + esc((i + 1) + '枚目を外す') + '" title="外す"><span class="usd-out-card-xg" aria-hidden="true">×</span></button></span></span></div>';
 	}
 	/* ------------------------------------------------------------
@@ -15851,7 +15856,7 @@
 			let tiles = '';
 			for (let i = 0; i < ROSTER_CARD_SLOTS; i++) {
 				tiles += rosterCardTileHtml(i, cards[i] || '', { pickAct: 'factor-card-pick', pickEl: 'factor-card-pick', clearAct: 'factor-card-clear', clearEl: 'factor-card-clear', tileEl: 'factor-card-tile',
-					nameEl: 'factor-card-name', nickEl: 'factor-card-nick', emptyName: 'サポートカード', emptyAria: (i + 1) + '枚目：サポートカードを選ぶ', cardIdAttr: true });
+					nameEl: 'factor-card-name', nickEl: 'factor-card-nick', emptyName: 'サポートカード', emptyAria: (i + 1) + '枚目：サポートカードを選ぶ', cardIdAttr: true, place: CARD_PLACE_FACTOR });
 			}
 			const html = '<div class="usd-roster-lower"><div class="usd-roster-sub usd-factor-cards-blank" data-usd-el="factor-cards-blank" aria-hidden="true"></div>'
 				+ '<div class="usd-roster-sub"><div class="usd-roster-slots" data-usd-el="factor-card-slots" role="group" aria-label="②因子周回のサポートカード">' + tiles + '</div></div></div>';
@@ -16308,8 +16313,15 @@
 			});
 			return out.sort(compareGameOrder);
 		}
-		/** 無効の段の見出し（C-225）。カード一覧と星取表で同じ文言。画面の呼び名は「“オススメサポ”で除外されたスキル」（C-232。引用符も出す） */
-		function factorOffHeadText(n) { return '“オススメサポ”で除外されたスキル ' + n + '件'; }
+		/**
+		 * 無効の段の見出し（C-225）。カード一覧と星取表で同じ文言。画面の呼び名は「“オススメサポ”で除外されたスキル」（C-232。引用符も出す）。
+		 * T123（おいもさんの決定 450・451）: 新しいモード（roster.noPlan）では「編成サポカで得られるスキルのうち未追加のスキル」（中身・＋の動きは同じ）。
+		 * ＋のボタンの読み上げ（factorOffTileHtml）も同じ呼び名を使う
+		 */
+		function factorOffKindText() {
+			return isNoPlanRoster(linkedRosterOf(currentTarget())) ? '編成サポカで得られるスキルのうち未追加のスキル' : '“オススメサポ”で除外されたスキル';
+		}
+		function factorOffHeadText(n) { return factorOffKindText() + ' ' + n + '件'; }
 		/**
 		 * 無効の行（C-225）。左の＋のボタン（factor-enable）を押すと②に足して有効にする（C-238: 追加はこのボタンだけ。パネルのほかの部分・名前では追加しない）。
 		 * 地は①の表で「取得しない」にした行と同じ薄い地・名前は薄い文字のまま。名前は説明の小窓のボタン（下線。C-238 で取り消しの線をやめた）。
@@ -16317,7 +16329,7 @@
 		 */
 		function factorOffTileHtml(id) {
 			const name = getSkillName(id);
-			const label = name + '（“オススメサポ”で除外されたスキル）を因子周回に追加する';
+			const label = name + '（' + factorOffKindText() + '）を因子周回に追加する';
 			return '<div class="usd-panel usd-panel--off" data-usd-el="factor-off-row" data-off-skill-id="' + esc(id) + '">'
 				+ '<button type="button" class="usd-panel-offadd" data-usd-act="factor-enable" data-usd-el="factor-enable" data-off-skill-id="' + esc(id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">'
 				+ '<span class="usd-panel-offadd-mark" aria-hidden="true"><i data-lucide="plus"></i></span></button>'

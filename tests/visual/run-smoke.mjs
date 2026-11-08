@@ -156,6 +156,7 @@ import { register126 } from './blocks-126.mjs';
 import { register127 } from './blocks-127.mjs';
 import { register128 } from './blocks-128.mjs';
 import { register134 } from './blocks-134.mjs';
+import { register135 } from './blocks-135.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -9213,54 +9214,59 @@ await noticeBlock('C-62 の (11・裏）: 初めて開く人には最新の1件�
 	assert(btns.twReady === true,
 		'段1: .uma-tw-ready が付く（common.css の「Tailwind を読めなかったときの保険」を無効にする）', btns.twReady);
 
-	// 段2) 結合の進捗バー。OCR のバーと同じ作りで、既定は隠れている
+	// 段2) 結合の進み具合。T123（C-324・決定 404）で今のゲージ（#progress-wrap・#stitch-progress-wrap）を無くし、押したボタンの中に出す形にした。
+	// 前は「結合の進捗バーは既定で隠れている・setStitchProgress がバーに割合と文を出す」を見ていた。ボタンの中の表示は blocks-135 の T123 でも見る
 	const bar = await page.evaluate(() => {
-		const w = document.getElementById('stitch-progress-wrap');
-		const before = w.classList.contains('hidden');
+		const gone = !document.getElementById('stitch-progress-wrap') && !document.getElementById('progress-wrap');
+		startBtnBusy('process-stitch-btn');
 		setStitchProgress(0.5, '親A 祖A1を結合中…');
-		w.classList.remove('hidden');
+		const b = document.getElementById('process-stitch-btn');
 		const shown = {
-			pct: document.getElementById('stitch-progress-pct').textContent,
-			label: document.getElementById('stitch-progress-label').querySelector('span').textContent,
-			width: document.getElementById('stitch-progress-bar').style.width,
+			pct: b.querySelector('[data-busy-pct]').textContent,
+			label: b.querySelector('[data-busy-text]').textContent,
+			width: b.querySelector('[data-busy-fill]').style.width,
 		};
-		w.classList.add('hidden');
-		return { before: before, shown: shown };
+		endBtnBusy();
+		updateProcessBtn();
+		return { gone: gone, shown: shown, back: !b.querySelector('.ocr-busy-in') && !b.classList.contains('ocr-busy') };
 	});
-	assert(bar.before === true, '段2: 結合の進捗バーは既定では隠れている', bar.before);
+	assert(bar.gone === true, '段2→T123: 今のゲージ（OCR・結合）は無い', bar.gone);
 	assert(bar.shown.pct === '50%' && bar.shown.width === '50%' && bar.shown.label === '親A 祖A1を結合中…',
-		'段2: setStitchProgress が割合と「だれを結合中か」を出す', bar.shown);
+		'段2→T123: setStitchProgress が押したボタンの中に割合と「だれを結合中か」を出す', bar.shown);
+	assert(bar.back === true, 'T123: 終わるとボタンは元の表示に戻る', bar.back);
 
-	// 段2) 結合中は出て、終わったら隠れる。結合そのものは差し替えて速く回す
+	// 段2) 結合中はボタンの中に出る。結合そのものは差し替えて速く回す
 	const flow = await page.evaluate(async () => {
 		const orig = buildStitchedSetImage;
 		const seen = [];
-		const w = document.getElementById('stitch-progress-wrap');
+		const b = document.getElementById('process-stitch-btn');
+		const text = () => { const t = b.querySelector('[data-busy-text]'); return t ? t.textContent : null; };
 		persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
 		buildStitchedSetImage = async (setIdx, run, onPersonStart) => {
 			if (onPersonStart) onPersonStart('親A');
-			seen.push({ hidden: w.classList.contains('hidden'), label: document.getElementById('stitch-progress-label').querySelector('span').textContent });
+			seen.push(text());
 			const c = document.createElement('canvas');
 			c.width = 60; c.height = 60; c._personMeta = []; c._stitchWarnings = [];
 			return c;
 		};
+		startBtnBusy('process-stitch-btn');
 		await runImageStitching();
 		const during = seen.slice();
-		const after = w.classList.contains('hidden');
-		// 「画像を更新」（引き出しの中）はバーを出さない
+		// 「画像を更新」（引き出しの中）は進み具合を書かない（このボタン自身が「更新中…」になる）
+		setStitchProgress(0, '（前の文）');
 		seen.length = 0;
 		await runImageStitching(captureRun(), { quiet: true, progress: false });
-		const quiet = seen.map((s) => s.hidden);
+		const quiet = seen.slice();
+		endBtnBusy();
 		buildStitchedSetImage = orig;
 		persons[0].files = [];
-		return { during: during, after: after, quiet: quiet };
+		updateProcessBtn();
+		return { during: during, quiet: quiet };
 	});
-	assert(flow.during.length > 0 && flow.during.every((s) => s.hidden === false),
-		'段2: 1人分の結合に入るとき、バーは見えている', flow.during);
-	assert(flow.during[0].label.includes('を結合中…'), '段2: バーに「だれを結合中か」が出る', flow.during[0].label);
-	assert(flow.after === true, '段2: 結合が終わるとバーは隠れる', flow.after);
-	assert(flow.quiet.every((h) => h === true),
-		'段2: 引き出しの中からの「画像を更新」ではバーを出さない（引き出しの裏に隠れるため）', flow.quiet);
+	assert(flow.during.length > 0 && flow.during[0] && flow.during[0].includes('を結合中…'),
+		'段2→T123: 1人分の結合に入るとき、ボタンの中に「だれを結合中か」が出る', flow.during);
+	assert(flow.quiet.every((t) => t === '（前の文）'),
+		'段2→T123: 引き出しの中からの「画像を更新」では進み具合を書かない', flow.quiet);
 
 	// 段1) 結果の見出しは「親Aセット」だけ（special と同じ）
 	const head = await page.evaluate(() => {
@@ -15539,6 +15545,8 @@ await register131({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 // T117: 動画の結合を取り込み直さずに作り直す（OCR の前の③と引き出しの「画像を更新」）
 await register128({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register134({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T123（2026-11-08）: OCR 中のボタン・「アップロード」の言い換え・②のカードの枠の SR のバッジ・新しいモードの②の下の欄の見出し
+await register135({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

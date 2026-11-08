@@ -819,6 +819,21 @@
 		body.has-upload-bar .uma-fab-nav,
 		body.has-upload-bar .uma-undo-fab { bottom: calc(var(--uma-fab-edge) + var(--upload-bar-h, 0px)); }
 		body.has-upload-bar { padding-bottom: var(--upload-bar-h, 0px); }
+		/* T123（C-324・おいもさんの決定 401・404〜406・408。モック lab/ocr-progress-btn-mock.html の形）: OCR・結合の処理中は、押したボタンが同じ位置・同じ高さのまま
+		   「回る印＋今の文（左）・％（右）」と 4px の帯に切り替わる（今のゲージの位置には何も出さない）。どちらのボタンから始めても主なボタンの塗り。色はトークンだけ。
+		   押せないことは aria-disabled で示し、disabled にしない（共通の .uma-btn:disabled は薄くなるため）。もう1つのボタンは disabled（薄く押せない）。special.html と同じ値 */
+		.uma-btn.ocr-busy { flex-direction: column; align-items: stretch; justify-content: center; padding-top: 0; padding-bottom: 0; min-width: 0; cursor: default; scale: 1; transition: none; }
+		.uma-btn.ocr-busy.uma-btn--primary:hover { background: var(--uma-control); }
+		.uma-btn.ocr-busy > :not(.ocr-busy-in) { display: none; }
+		.ocr-busy-in { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+		.ocr-busy-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; height: 20px; }
+		.ocr-busy-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+		.ocr-busy-text { overflow: hidden; text-overflow: ellipsis; }
+		.ocr-busy-pct { flex: none; font-variant-numeric: tabular-nums; }
+		.ocr-busy-track { display: block; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--uma-control-text) 28%, transparent); }
+		.ocr-busy-fill { display: block; height: 100%; border-radius: 2px; background: var(--uma-control-text); transition: width .3s; }
+		.ocr-spin { flex: none; width: 16px; height: 16px; animation: ocr-spin 1s linear infinite; }
+		@keyframes ocr-spin { to { transform: rotate(360deg); } }
 		/* (2)-8: いちばん下の左の「!」（高度な解析オプション）。丸の線（--uma-border-strong）の中に灰の「!」（--uma-text-faint）・押せる範囲 44px */
 		.adv-opts { margin-top: var(--uma-sp-3); }
 		.adv-opts-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -11px; padding: 0; border: 0; background: transparent; cursor: pointer; }
@@ -1279,7 +1294,7 @@
 				<button type="button" role="tab" class="step-tab" id="step-tab-2"
 					aria-controls="step-panel-2" aria-selected="false" tabindex="-1" onclick="selectStepTab(2)">
 					<span class="step-tab-num" aria-hidden="true">2</span>
-					<span class="step-tab-label">画像をアップロード</span>
+					<span class="step-tab-label">画像を選ぶ</span>
 					<!-- 隠れている側の状況が分かるよう、アップロード済みの枚数をここに出す -->
 					<span id="image-count-badge" class="step-tab-badge" hidden></span>
 				</button>
@@ -1483,19 +1498,7 @@
 
 			<!-- 「高度な解析オプション」は T56（C-258 の (2)-8）で、このパネルのいちばん下の「!」へ移した（#adv-opts） -->
 
-			<!-- プログレスバー -->
-			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-[var(--uma-deco-soft)] border border-[var(--uma-deco-border)]">
-				<div class="flex justify-between text-xs font-semibold text-[var(--uma-deco-text)] mb-2">
-					<span id="progress-label" class="flex items-center gap-1.5">
-						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-[var(--uma-deco)]"></i>
-						<span>処理中…</span>
-					</span>
-					<span id="progress-pct">0%</span>
-				</div>
-				<div class="h-2 bg-[var(--uma-deco-border)]/70 rounded-full overflow-hidden">
-					<div id="progress-bar" class="h-full bg-[var(--uma-deco)] rounded-full transition-all duration-300" style="width:0%"></div>
-				</div>
-			</div>
+			<!-- OCR の進み具合のゲージ（#progress-wrap）は T123（C-324・決定 404）で無くした。進み具合は押したボタンの中に出す（startBtnBusy） -->
 
 			<!-- 画質警告表示（対象外として除外した画像がある場合） -->
 			<div id="quality-warn-wrap" class="hidden mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 whitespace-pre-line flex gap-2">
@@ -1526,22 +1529,7 @@
 			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。</p>
-			<!-- 画像結合の進捗バー（段2。special.html と同じ作り・同じ見た目）。
-			     結合のほうが OCR より重い（バナー・印・凡例を描く）のに、それまでは OCR の進捗バーが
-			     消えたあと完了まで何も出ず、止まったように見えていた。OCR のバーとは別に持つのは、
-			     2つの処理の進み方が別物だから（special と同じ判断）。 -->
-			<div id="stitch-progress-wrap" class="hidden mt-3 p-4 rounded-xl bg-[var(--uma-deco-soft)] border border-[var(--uma-deco-border)]">
-				<div class="flex justify-between text-xs font-semibold text-[var(--uma-deco-text)] mb-2">
-					<span id="stitch-progress-label" class="flex items-center gap-1.5">
-						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-[var(--uma-deco)]"></i>
-						<span>画像結合中…</span>
-					</span>
-					<span id="stitch-progress-pct">0%</span>
-				</div>
-				<div class="h-2 bg-[var(--uma-deco-border)]/70 rounded-full overflow-hidden">
-					<div id="stitch-progress-bar" class="h-full bg-[var(--uma-deco)] rounded-full transition-all duration-300" style="width:0%"></div>
-				</div>
-			</div>
+			<!-- 画像結合の進捗バー（#stitch-progress-wrap。段2）は T123（C-324・決定 404）で無くした。結合の進み具合も押したボタンの中に出す（startBtnBusy） -->
 			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。検出数カード／シナリオ因子・遺伝子／印／凡例／集計条件）。
 			     ここに置いてあるのは、切り替えを効かせるには結合をやり直す必要があるから
 			     （結果画像の引き出しに置くと、切り替えてもその場では何も変わらない）。
@@ -1645,7 +1633,7 @@
 		<div id="old-step2-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6" hidden>
 			<div class="flex items-center gap-2 mb-2">
 				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-				<h2 class="text-sm font-bold text-slate-800">因子セットの画像をアップロード</h2>
+				<h2 class="text-sm font-bold text-slate-800">因子セットの画像を選ぶ</h2>
 			</div>
 			<div id="old-step2-slot"></div>
 		</div>
@@ -3964,6 +3952,13 @@
 		function updateProcessBtn() {
 			// 対象スキルは常に133種登録済みのため、画像の有無だけで判定する。
 			const anyFiles = persons.some(p => p.files.length > 0);
+			// T123（決定 408）: 処理中は、押したボタンは処理中の表示のまま・もう1つは押せないまま（途中で画像を足し引きしても戻さない）
+			if (busyBtnId) {
+				lockBusyButtons();
+				updateImageCountBadge();
+				updateStitchRefreshUi();
+				return;
+			}
 			processBtn.disabled = !anyFiles;
 			const stitchBtn = document.getElementById('process-stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = !anyFiles;
@@ -4185,7 +4180,7 @@
 			const run = (opts && opts.run) || captureRun();
 			const anyFiles = run.files.some(files => files.length > 0);
 			// 呼び出し元（processImagesAndStitch）が「判定できたか」を見て開くタブを決めるので、真偽を返す
-			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return false; }
+			if (!anyFiles) { showToast('少なくとも1人分の画像を選んでください'); return false; }
 
 			devGeometry = [];
 			previewCanvases = [];
@@ -4197,13 +4192,14 @@
 			// これ以降の personResults 等はこの run のもの
 			lastOcrRun = run;
 
-			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
 			const qualityWarnWrap = document.getElementById('quality-warn-wrap');
 			errorWrap.classList.add('hidden');
 			qualityWarnWrap.classList.add('hidden');
-			progressWrap.classList.remove('hidden');
-			processBtn.disabled = true;
+			// T123（決定 405・408）: 「OCR処理を開始する」から来たときは、このボタンを処理中の表示にし、もう1つ（OCR処理＋画像結合）を押せなくする。
+			// 「OCR処理＋画像結合」の中から呼ばれたときは、あちらがもう処理中の表示にしている（このボタンは押せないまま）
+			const ownBusy = !busyBtnId && startBtnBusy('process-btn');
+			const endOwnBusy = () => { if (ownBusy) { endBtnBusy(); updateProcessBtn(); } };
 
 			// 画像前処理・高精度多重パスは常時有効（デフォルトのまま固定）
 			const usePre = true;
@@ -4261,10 +4257,14 @@
 					user_defined_dpi: '300'
 				});
 
+				// T123（決定 406）: ％の分母は画像のある人数（前は6枠の数で、3人だと 33% で止まって見えた）。分子は先に済んだ人数
+				const ocrTotal = run.files.filter(f => f.length > 0).length;
+				let ocrDone = 0;
 				for (let p = 0; p < persons.length; p++) {
 					const files = run.files[p];
 					if (files.length === 0) continue;
-					setProgress(p / persons.length, PERSON_LABELS[p] + 'を処理中…');
+					setProgress(ocrDone / ocrTotal, PERSON_LABELS[p] + 'を処理中…');
+					ocrDone++;
 					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
@@ -4304,15 +4304,13 @@
 				console.error(err);
 				errorWrap.classList.remove('hidden');
 				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
-				progressWrap.classList.add('hidden');
-				processBtn.disabled = false;
+				endOwnBusy();
 				return false;
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
 			}
 
-			progressWrap.classList.add('hidden');
-			processBtn.disabled = false;
+			endOwnBusy();
 
 			// 文面の組み立ては common.js の buildImageQualityNotice() に集約している
 			// （exam.html / special.html で同じ文言を二重に持たないため）。ここはDOMに入れるだけ。
@@ -4326,7 +4324,7 @@
 				errorWrap.classList.remove('hidden');
 				const totalFiles = persons.reduce((s, p) => s + p.files.length, 0);
 				if (skippedAll.length > 0 && skippedAll.length === totalFiles) {
-					document.getElementById('error-content').textContent = 'アップロードされた画像は、いずれもゲーム画面が小さすぎて読み取れませんでした。パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直してください。';
+					document.getElementById('error-content').textContent = '選んだ画像は、いずれもゲーム画面が小さすぎて読み取れませんでした。パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直してください。';
 				} else {
 					document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
 				}
@@ -4345,19 +4343,70 @@
 			return true;
 		}
 
-		function setProgress(ratio, label) {
-			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
-			document.getElementById('progress-bar').style.width = pct + '%';
-			document.getElementById('progress-pct').textContent = pct + '%';
-			document.getElementById('progress-label').querySelector('span').textContent = label;
-		}
+		// OCR と画像結合の進み具合（段2 で結合のバーを別に持った）。T123 から、どちらも押したボタンの中に出す（setBusyProgress。今のゲージの位置には何も出さない）
+		function setProgress(ratio, label) { setBusyProgress(ratio, label); }
+		function setStitchProgress(ratio, label) { setBusyProgress(ratio, label); }
 
-		// 画像結合の進捗（段2。OCR とは別のバーを持つ。special.html の setStitchProgress と同じ）
-		function setStitchProgress(ratio, label) {
+		/* ============================================================
+		 * 処理中のボタン（T123・C-324・おいもさんの決定 401・404〜406・408。モック lab/ocr-progress-btn-mock.html の形。special.html と同じ作り）
+		 *
+		 * OCR・結合の進み具合（今のゲージの文・％・帯）は、押したボタンの中に出す。文は setProgress・setStitchProgress に渡す文のまま。
+		 * 押したボタンは disabled にしない（共通の .uma-btn:disabled で薄くなるため）。aria-disabled で押せないことを示し、多重の実行は
+		 * 今のフラグ（stitchInProgress）と busyBtnId が防ぐ。下の欄のもう1つのボタンは disabled（一方の実行中はもう一方を押せない。決定 408）。
+		 * ボタンの元の中身（アイコンと文の span）は消さずに隠し、後ろに足す
+		 * ============================================================ */
+		const BUSY_SPIN_SVG = '<svg class="ocr-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+		let busyBtnId = null;   // いま進み具合を出しているボタンの id（無ければ null）
+		function lockBusyButtons() {
+			if (!busyBtnId) return;
+			document.querySelectorAll('#upload-bar .upload-bar-in > .uma-btn').forEach(b => { b.disabled = b.id !== busyBtnId; });
+		}
+		/** id のボタンを処理中の表示に切り替える。ほかのボタンがもう処理中なら何もしない（false） */
+		function startBtnBusy(id) {
+			const btn = document.getElementById(id);
+			if (!btn || busyBtnId) return false;
+			busyBtnId = id;
+			const h = Math.round(btn.getBoundingClientRect().height);
+			btn.dataset.idleClass = btn.className;
+			btn.className = 'uma-btn uma-btn--primary uma-btn--lg ocr-busy' + (btn.classList.contains('w-full') ? ' w-full' : '');
+			if (h > 0) btn.style.height = h + 'px';   // 高さは切り替える前のまま（固定の欄の高さを変えない）
+			const box = document.createElement('span');
+			box.className = 'ocr-busy-in';
+			box.innerHTML = '<span class="ocr-busy-row"><span class="ocr-busy-label">' + BUSY_SPIN_SVG + '<span class="ocr-busy-text" data-busy-text></span></span><span class="ocr-busy-pct" data-busy-pct>0%</span></span>'
+				+ '<span class="ocr-busy-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-busy-track><span class="ocr-busy-fill" data-busy-fill style="width:0%"></span></span>';
+			btn.appendChild(box);
+			btn.disabled = false;
+			btn.setAttribute('aria-disabled', 'true');
+			btn.setAttribute('aria-busy', 'true');
+			lockBusyButtons();
+			return true;
+		}
+		function setBusyProgress(ratio, label) {
+			const btn = busyBtnId ? document.getElementById(busyBtnId) : null;
+			const box = btn ? btn.querySelector('.ocr-busy-in') : null;
+			if (!box) return;
 			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
-			document.getElementById('stitch-progress-bar').style.width = pct + '%';
-			document.getElementById('stitch-progress-pct').textContent = pct + '%';
-			document.getElementById('stitch-progress-label').querySelector('span').textContent = label;
+			box.querySelector('[data-busy-text]').textContent = label;
+			box.querySelector('[data-busy-pct]').textContent = pct + '%';
+			box.querySelector('[data-busy-fill]').style.width = pct + '%';
+			box.querySelector('[data-busy-track]').setAttribute('aria-valuenow', String(pct));
+		}
+		/** 処理中の表示を元のボタンに戻す（disabled は呼び出し元が updateProcessBtn で決める） */
+		function endBtnBusy() {
+			const btn = busyBtnId ? document.getElementById(busyBtnId) : null;
+			busyBtnId = null;
+			if (!btn) return;
+			const box = btn.querySelector('.ocr-busy-in');
+			if (box) box.remove();
+			// 戻すときも色をすぐ切り替える（共通の .uma-btn の色の移り変わりの間、白い字が淡い地に乗らないように）
+			btn.style.transition = 'none';
+			if (btn.dataset.idleClass) btn.className = btn.dataset.idleClass;
+			delete btn.dataset.idleClass;
+			btn.style.height = '';
+			void btn.offsetWidth;
+			btn.style.transition = '';
+			btn.removeAttribute('aria-disabled');
+			btn.removeAttribute('aria-busy');
 		}
 
 		/* ============================================================
@@ -7999,10 +8048,10 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// 処理中はボタンを無効化し、完了後の再クリックでは（runImageStitching側で
 		// container.innerHTMLを都度クリアするため）前回の結合結果が上書きされる。
 		async function processImagesAndStitch() {
-			if (stitchInProgress) return; // 多重クリック防止
+			if (stitchInProgress || busyBtnId) return; // 多重クリック防止（T123: 「OCR処理を開始する」の実行中も受け付けない）
 			stitchInProgress = true;
-			const stitchBtn = document.getElementById('process-stitch-btn');
-			if (stitchBtn) stitchBtn.disabled = true;
+			// T123（決定 405・408）: このボタンを処理中の表示にし、もう1つ（OCR処理を開始する）を押せなくする
+			startBtnBusy('process-stitch-btn');
 			try {
 				// 押した時点の設定と画像で OCR も合成も行う（処理中に画面を触っても、この回には効かせない）
 				const run = captureRun();
@@ -8013,6 +8062,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 				if (judged) { selectResultTab('result'); openDrawer('result'); }
 				else if (made) { selectResultTab('stitch'); openDrawer('result'); }
 			} finally {
+				endBtnBusy();
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
 			}
@@ -8025,7 +8075,6 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		async function runImageStitching(run, opts) {
 			run = run || captureRun();
 			const withProgress = !(opts && opts.progress === false);
-			const progressWrap = document.getElementById('stitch-progress-wrap');
 			const container = document.getElementById('stitch-result-content');
 			container.innerHTML = '';
 			let anyOutput = false;  // 結果画像のタブに出すものがあるか（エラーの帯も含む）
@@ -8042,10 +8091,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			const totalPersons = targets.reduce((s, t) => s + t.count, 0);
 
 			try {
-				if (withProgress && totalPersons > 0) {
-					progressWrap.classList.remove('hidden');
-					setStitchProgress(0, '画像結合を準備中…');
-				}
+				if (withProgress && totalPersons > 0) setStitchProgress(0, '画像結合を準備中…');
 				let done = 0;
 				for (const target of targets) {
 					const set = PERSON_SETS[target.setIdx];
@@ -8068,7 +8114,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 				}
 				if (withProgress && totalPersons > 0) setStitchProgress(1, '完了');
 			} finally {
-				progressWrap.classList.add('hidden');
+				// 進み具合はボタンの中（T123）。表示を戻すのは呼び出し元（processImagesAndStitch）
 			}
 
 			// 「結果画像がある」の印はエラーの帯だけでも立てる（タブを開いて理由を読めるように）。

@@ -494,6 +494,11 @@ const INTENTIONALLY_REMOVED = {
 	// 中で開く引き出し（#deck-drawer 一式）を消した。commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
 	// 2026-11-05（T106）: special の入口のボタン（#video-import-btn。「静止画｜動画」の #upload-mode に替えた）・動画の小窓（#video-sheet・#video-sheet-h）・
 	// 読み取り後の知らせ（#video-summary）・③の「画像を更新」（data-video-refresh）を、おいもさんの指摘 (3)(4)(8)(9) で消した。commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
+	// 2026-11-08（T123・C-324 の決定 404・407）: OCR と結合の進み具合のゲージ（special・exam の #progress-wrap・#progress-label・#progress-pct・#progress-bar と
+	// #stitch-progress-wrap・#stitch-progress-label・#stitch-progress-pct・#stitch-progress-bar）を消した（進み具合は押したボタンの中に出す）。
+	// commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
+	// 同じ commit の前の検査では、§4 が special の bg-green-50・border-green-200（動画の進み具合〔renderVideoProgress〕が JS で付ける）を「消した class」として挙げた。
+	// 静的な印から消えただけで、Tailwind（ブラウザで生成）が見た目を作ることを確かめた（地 green-50・枠 green-200）。§2 の index.html（決定 436 の文言の直し）も commit で消える。
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

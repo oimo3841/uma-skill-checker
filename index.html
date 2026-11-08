@@ -235,7 +235,7 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-					<h2 class="text-sm font-bold text-slate-800">画像をアップロード & 設定</h2>
+					<h2 class="text-sm font-bold text-slate-800">画像を選ぶ & 設定</h2>
 				</div>
 			</div>
 
@@ -532,7 +532,7 @@
 
 		async function processImages() {
 			if (skillList.length === 0) { showToast('スキルリストを解析してください'); return; }
-			if (uploadedFiles.length === 0) { showToast('画像をアップロードしてください'); return; }
+			if (uploadedFiles.length === 0) { showToast('画像を選んでください'); return; }
 
 			detectedSkills.clear();
 			matchReasons = {};
