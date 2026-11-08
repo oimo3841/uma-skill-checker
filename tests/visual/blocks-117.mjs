@@ -120,7 +120,8 @@ export async function register117(env) {
 		const m = await read();
 		const pct = (v) => v / m.w * 100;
 		const near = (a, b, tol) => Math.abs(a - b) <= tol;
-		assert(near(m.w / m.h, 0.67, 0.04), 'T106(2) 全体の幅÷高さは実物の 0.67 に近い', { w: m.w, h: m.h });
+		// T130: 上段（高さ 176＋間 30）を無くしたので、実物は 2661×(3961−206)＝幅÷高さ 0.71
+		assert(near(m.w / m.h, 0.71, 0.04), 'T106(2)・T130 全体の幅÷高さは実物の 0.71 に近い', { w: m.w, h: m.h });
 		assert(near(pct(m.parent.w), 43.4, 1.5) && near(pct(m.g1.w), 36, 1.5) && near(pct(m.sp.w), 17, 1.5), 'T106(2) 親・祖・3列目の幅は実物の比率（43.4・36・17）に近い', { parent: pct(m.parent.w), grand: pct(m.g1.w), sp: pct(m.sp.w) });
 		assert(near(m.status.h / m.parent.h, 1 / 3, 0.04) && m.parts, 'T106(2)(B) 親の上の欄は親の高さの約 1/3 で、因子の画面の上半分の形（帯・肖像・ステータス・適性・ボタン・タブ）', { ratio: m.status.h / m.parent.h });
 		assert(near(m.parent.w / m.parent.h, 0.33, 0.03), 'T106(2)(B) 親の縦横比は実物（0.33）に近い', { ratio: m.parent.w / m.parent.h });
@@ -136,12 +137,12 @@ export async function register117(env) {
 		await set({ table: true });
 		const b = await read();
 		assert(a.sp && a.sp.h > 5 && !a.table && b.sp && b.sp.h === a.sp.h && b.table, 'T106(2)(D) 星取表 OFF でも ON でも理論値SP の欄は同じ大きさで見える', { off: a.sp, on: b.sp });
-		await set({ sp: false, table: false });
+		await set({ sp: false, table: false, roster: false, factor: false });
 		const c = await read();
-		assert(!c.sp && !c.table && c.w < b.w * 0.9 && c.parent.w === b.parent.w, 'T106(2) 理論値SP・星取表が両方 OFF なら3列目は無く、画像の幅が狭くなる（親の幅は同じ）', { off: c.w, on: b.w });
+		assert(!c.sp && !c.table && c.w < b.w * 0.9 && c.parent.w === b.parent.w, 'T106(2)・T130 理論値SP・星取表・編成2つがすべて OFF なら3列目は無く、画像の幅が狭くなる（親の幅は同じ）', { off: c.w, on: b.w });
 		await set({ sp: true, table: true, roster: false, factor: false });
 		const d = await read();
-		assert(d.sp.y === d.people.y, 'T106(2) 上段が OFF なら3列目と人の上端がそろう', { sp: d.sp.y, people: d.people.y });
+		assert(d.sp.y === d.people.y && m.sp.y === m.people.y, 'T106(2)・T130 3列目と人の上端がそろう（上段は無い）', { sp: d.sp.y, people: d.people.y, all: [m.sp.y, m.people.y] });
 		assert(jsErrors(sp.errors).length === 0, 'T106(2) コンソールのエラー0', sp.errors);
 		await sp.ctx.close();
 	});

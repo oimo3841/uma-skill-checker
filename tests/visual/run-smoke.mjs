@@ -157,6 +157,7 @@ import { register127 } from './blocks-127.mjs';
 import { register128 } from './blocks-128.mjs';
 import { register134 } from './blocks-134.mjs';
 import { register135 } from './blocks-135.mjs';
+import { register139 } from './blocks-139.mjs';
 import { register140 } from './blocks-140.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
@@ -15550,6 +15551,8 @@ await register134({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register135({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T132（2026-11-08）: 速い動画の区切り（頭のパネルが文字で2つの青に割れる）と末尾（一番下の跳ね返りのあとの止まった画）
 await register140({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T130（2026-11-08）: UmaStar の2列の結合画像で、本育成編成・因子周回編成を3列目（星取表の下）へ移した（見出しは「T130」）
+await register139({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -685,9 +685,8 @@
 		.stitch-wire-2 { display: flex; gap: calc(1 * var(--u)); align-items: stretch; }
 		.stitch-wire-2l { flex: none; width: calc(80 * var(--u)); display: flex; flex-direction: column; gap: calc(1.5 * var(--u)); }
 		.stitch-wire-2r { flex: none; width: calc(15.8 * var(--u)); display: flex; flex-direction: column; gap: calc(1.5 * var(--u)); }
-		.stitch-wire-sheet--2 .stitch-wire-top { height: calc(6.4 * var(--u)); gap: calc(1 * var(--u)); }
-		.stitch-wire-sheet--2 .stitch-wire-top > span { padding: 0 calc(1 * var(--u)) 0 0; border: 0; }
-		.stitch-wire-sheet--2 .stitch-wire-cards { width: calc(39 * var(--u)); grid-auto-rows: calc(2.8 * var(--u)); gap: calc(.8 * var(--u)); }
+		/* T130: 編成は3列目（星取表の下）に1列に6枚 */
+		.stitch-wire-sheet--2 .stitch-wire-cards { width: auto; flex: none; grid-template-columns: 1fr; grid-auto-rows: calc(2.8 * var(--u)); gap: calc(.8 * var(--u)); }
 		.stitch-wire-sheet--2 .stitch-wire-sp { display: flex; flex-direction: column; gap: calc(1.2 * var(--u)); width: auto; height: calc(8.4 * var(--u)); flex: none; }
 		.stitch-wire-sheet--2 .stitch-wire-sp b { display: block; height: calc(1 * var(--u)); border-radius: 1px; background: var(--uma-border-strong); }
 		.stitch-wire-sheet--2 .stitch-wire-sp b:first-child { height: calc(2.6 * var(--u)); width: 75%; background: var(--uma-text-subtle); }
@@ -4543,14 +4542,16 @@
 			ctx.closePath();
 		}
 		/** 上段のカードの欄（見出し＋3列×2行。左上から詰める）。返り値は描いたカードの矩形 */
-		function stitchDrawTopCards(ctx, x, y, w, head, cards) {
+		// cols … 列の数（省略なら cardCols。2列の結合画像の3列目は 1＝縦に並べる。T130）
+		function stitchDrawTopCards(ctx, x, y, w, head, cards, cols) {
 			const L = STITCH_LAYOUT;
+			const nc = cols || L.cardCols;
 			stitchDrawTopHead(ctx, x, y, w, head);
-			const cw = (w - L.cardGap * (L.cardCols - 1)) / L.cardCols;
+			const cw = (w - L.cardGap * (nc - 1)) / nc;
 			const isz = 42;
 			return cards.map((c, i) => {
-				const cx = Math.round(x + (i % L.cardCols) * (cw + L.cardGap));
-				const cy = y + L.topHeadH + L.topHeadGap + Math.floor(i / L.cardCols) * (L.cardH + L.cardGap);
+				const cx = Math.round(x + (i % nc) * (cw + L.cardGap));
+				const cy = y + L.topHeadH + L.topHeadGap + Math.floor(i / nc) * (L.cardH + L.cardGap);
 				const w1 = Math.round(cw);
 				ctx.save();
 				stitchRoundRectPath(ctx, cx + 0.5, cy + 0.5, w1 - 1, L.cardH - 1, 10);
@@ -4851,17 +4852,18 @@
 		 * 2列の結合画像（T98・C-285。決定 150〜155・161〜163・182〜184。モック lab/stitch-2col-video-mock.html）
 		 *
 		 *  ┌ タイトルのバー（ON のとき。全幅）──────────────────────────────┐
-		 *  │ ①本育成編成 ┃ ②因子周回編成（1列目・2列目の上だけ）│ 理論値SP          │ ← 3列目は上段の上端から
-		 *  │ ［親A］                        │［祖A1］           │ 星取表            │
-		 *  │ 親の上の欄（ステータス・適性）    │ 祖A1 の因子        │（下端は枠の見かたの│
-		 *  │ 親の因子                        │［祖A2］           │  行の下端まで。無け│
-		 *  │                                │ 祖A2 の因子        │  れば親の列の下端）│
+		 *  │ ［親A］                        │［祖A1］           │ 理論値SP          │ ← 3列目は人の上端から
+		 *  │ 親の上の欄（ステータス・適性）    │ 祖A1 の因子        │ 星取表            │
+		 *  │ 親の因子                        │［祖A2］           │ ①本育成編成（6枚） │
+		 *  │                                │ 祖A2 の因子        │ ②因子周回編成（6枚）│
 		 *  │ 枠の見かた（1列目・2列目の下）                      │                   │
 		 *  └──────────────────────────────────────────────────┘
+		 *  ・T130: 本育成編成・因子周回編成は、1列目・2列目の上（上段）から3列目の星取表の下へ移した（1列に6枚・見出しは今の文）。上段は無い。
 		 *  ・人の画像は両側を削らない（小窓の左右の端で切るので、小窓の外の背景は落ちる。小窓の中の「‹ ›」は残る＝決定 178）。
 		 *  ・祖の2人は同じ縮小率で、見出しと間を含めた2人の高さの合計を1列目（見出し＋親の上の欄＋因子）の高さにそろえる（拡大しない）。
-		 *  ・欠けた所は詰める: 上段は本育成編成・因子周回編成が両方 OFF なら行ごと無い。理論値SP・星取表が両方 OFF なら3列目は無い。
-		 *    星取表は、入りきらなければ行の高さを縮めて下端までに収める（画像の下にはみ出さない）。
+		 *  ・欠けた所は詰める: 理論値SP・星取表・本育成編成・因子周回編成がすべて OFF なら3列目は無い。
+		 *    星取表は、入りきらなければ行の高さを縮めて下端（枠の見かたの行の下端。無ければ親の列の下端）までに収める。
+		 *    編成を置くために縮めるのは3列の表の下限まで（T130）。それでも入らなければ3列目が左より長くなり、画像がその分だけ縦に伸びる。
 		 *  ・画像の画素数が maxPixels を超えるときは全体を同じ割合で縮める。
 		 * ------------------------------------------------------------ */
 		const STITCH_MODAL_GREEN_MIN = 0.7;   // 小窓の上端の緑の帯（「ウマ娘詳細」）とみなす横幅の割合
@@ -4929,7 +4931,8 @@
 			const grands = [1, 2].map(k => ({ k: k, c: parts.canvases[k] })).filter(g => g.c);
 			const top = parts.top || null;
 			const show = (top && top.show) || STITCH_TOP_SHOW_ALL;
-			const hasTop = !!top && (show.roster || show.factor);
+			// T130: 本育成編成・因子周回編成は3列目（星取表の下）へ移した。1列目・2列目の上の上段は無い
+			const cardKeys = top ? ['roster', 'factor'].filter(k => show[k]) : [];
 			const hasSp = !!top && show.sp;
 			const data = parts.table || null;
 			const legend = parts.legend || null;
@@ -4944,26 +4947,35 @@
 			const col2W = gs.length ? Math.max(...gs.map(g => g.w)) : 0;
 			const spanW = col1W + (parent && gs.length ? L.innerGap : 0) + col2W;
 			const bodyY = L.margin + (noBar ? 0 : L.barH + L.barGap);
-			const cardsH = L.topHeadH + L.topHeadGap + L.cardRows * L.cardH + (L.cardRows - 1) * L.cardGap;
-			const personsY = bodyY + (hasTop ? cardsH + L.topAfter : 0);
+			const personsY = bodyY;
 			let lw = 0, lh = 0;
 			if (legend) { const k = Math.min(1, spanW / legend.width); lw = Math.round(legend.width * k); lh = Math.round(legend.height * k); }
 			const legendY = personsY + colH + L.legendGap;
 			const leftBottom = legend ? legendY + lh : personsY + colH;
-			// 3列目: 上段の上端から 理論値SP → 星取表（下端は左の下端まで。入らなければ行を縮める）
-			const has3 = hasSp || !!data;
+			// 3列目: 上端から 理論値SP → 星取表 → ①本育成編成 → ②因子周回編成（T130。OFF の欄は詰める。欄の間は topAfter）。
+			// 編成は1列に6枚（cardCols×cardRows 枚）。星取表は下端を左の下端までに収めるよう行を縮める（T98）が、
+			// 編成を置くために縮めるのは3列の表の下限（rowMin。rowCap 行を超えれば rowMinOver）まで。それでも入らなければ3列目が左より長くなる
+			const has3 = hasSp || !!data || cardKeys.length > 0;
 			const spH = L.topHeadH + L.topHeadGap + L.spLine1H + L.spRows * L.spRowH;
+			const cardN = L.cardCols * L.cardRows;
+			const cardsH = L.topHeadH + L.topHeadGap + cardN * L.cardH + (cardN - 1) * L.cardGap;
 			const tableY = bodyY + (hasSp ? spH + L.topAfter : 0);
+			const cardsTotal = cardKeys.length * cardsH + cardKeys.length * L.topAfter;
 			let rowH = 0, tc = null;
 			if (data) {
 				const n = data.rows.length;
-				rowH = Math.max(1, Math.min(L.rowMax, Math.floor((leftBottom - tableY) / (n + 2))));
+				const rowOld = Math.max(1, Math.min(L.rowMax, Math.floor((leftBottom - tableY) / (n + 2))));
+				const rowFit = Math.max(1, Math.min(L.rowMax, Math.floor((leftBottom - tableY - cardsTotal) / (n + 2))));
+				const floorRh = n > L.rowCap ? L.rowMinOver : L.rowMin;
+				rowH = Math.max(rowFit, Math.min(rowOld, floorRh));
 				tc = stitchDrawTable(data, rowH);
 			}
-			const col3W = has3 ? Math.max(hasSp ? L.spW : 0, tc ? tc.width : 0) : 0;
+			const col3W = has3 ? Math.max(hasSp || cardKeys.length ? L.spW : 0, tc ? tc.width : 0) : 0;
 			const col3X = L.margin + spanW + L.gap;
 			const W0 = L.margin + spanW + (has3 ? L.gap + col3W : 0) + L.margin;
-			const col3Bottom = Math.max(hasSp ? bodyY + spH : 0, tc ? tableY + tc.height : 0);
+			let cardsY = tc ? tableY + tc.height + L.topAfter : (hasSp ? tableY : bodyY);
+			const cardYs = cardKeys.map(() => { const y = cardsY; cardsY += cardsH + L.topAfter; return y; });
+			const col3Bottom = cardKeys.length ? cardYs[cardYs.length - 1] + cardsH : Math.max(hasSp ? bodyY + spH : 0, tc ? tableY + tc.height : 0);
 			const H0 = Math.max(leftBottom, col3Bottom) + L.margin;
 			// 画素数の上限（iOS の Canvas の面積）。超えるときは全体を同じ割合で縮める
 			const scale = W0 * H0 > L.maxPixels ? Math.sqrt(L.maxPixels / (W0 * H0)) : 1;
@@ -4978,25 +4990,17 @@
 			if (scale !== 1) ctx.scale(scale, scale);
 			const layout = { cols: 2, width: out.width, height: out.height, scale: scale, logical: { width: W0, height: H0 },
 				bodyY: bodyY, personsY: personsY, colH: colH, grandScale: gScale, bar: null, top: null, parent: null, grands: [],
-				legend: null, sp: null, table: null, col3: has3 ? { x: col3X, y: bodyY, w: col3W } : null, leftBottom: leftBottom };
+				legend: null, sp: null, table: null, roster: null, factor: null,
+				col3: has3 ? { x: col3X, y: bodyY, w: col3W, bottom: col3Bottom } : null, leftBottom: leftBottom };
 			if (!noBar) {
 				layout.bar = { x: L.margin, y: L.margin, w: W0 - L.margin * 2, h: L.barH };
 				layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W0 - L.margin * 2, L.barH, parts.barText || '');
 			}
-			if (hasTop) {
-				// 上段: 1列目・2列目の上だけ。本育成編成｜因子周回編成（片方なら左に詰める。欄の幅は両方のときと同じ）
-				const zone = L.gap + L.sepW + L.gap;
-				const cardW = Math.floor((spanW - zone) / 2);
-				const blocks = ['roster', 'factor'].filter(k => show[k]);
-				let bx = L.margin;
-				layout.top = { x: L.margin, y: bodyY, w: spanW, h: cardsH };
-				blocks.forEach((k, i) => {
-					if (i > 0) { ctx.fillStyle = STITCH_TOP_SEP; ctx.fillRect(bx + L.gap, bodyY, L.sepW, cardsH); bx += zone; }
-					const cards = stitchDrawTopCards(ctx, bx, bodyY, cardW, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor);
-					layout.top[k] = { x: bx, y: bodyY, w: cardW, h: cardsH, cards: cards };
-					bx += cardW;
-				});
-			}
+			// 3列目の編成（T130）: 見出し（今の文のまま）＋1列に6枚
+			cardKeys.forEach((k, i) => {
+				const cards = stitchDrawTopCards(ctx, col3X, cardYs[i], col3W, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor, 1);
+				layout[k] = { x: col3X, y: cardYs[i], w: col3W, h: cardsH, cards: cards };
+			});
 			let x = L.margin;
 			if (parent) {
 				ctx.drawImage(parent, x, personsY);
@@ -5605,16 +5609,14 @@
 			const P2 = [null, null, null, null, null, null, 'card', 'other', 'other', 'other', 'other', null, null, 'card', null, null, null, 'other', 'other', null, null, null, null, 'other', null, null, null, null, null, null, null, null, 'gene', null].concat(blanks(6));
 			const G1 = [null, null, 'other', 'other', 'card', 'other', 'other', 'other', null, null, null, null, null, 'other', 'card', null, null, null, null, null, null, null, null, null, 'gene', null].concat(blanks(4));
 			const G2 = [null, null, null, null, null, null, null, 'card', 'other', 'other', 'star', 'other', 'other', 'other', null, null, 'other', 'other', null, null, null, null, null, null, null, null, null, null, null, null, null, null, 'gene', null, null, null, null, null, null, null];
-			// 2列の模式図（T98・決定 182〜184。T106 で作り直し）: 帯 → 左に［上段（本育成編成｜因子周回編成）→ 親A（上の欄＋因子）｜祖A1 の下に祖A2 → 枠の見かた］、右に［理論値SP → 星取表］
+			// 2列の模式図（T98・決定 182〜184。T106 で作り直し。T130 で編成を右へ）: 帯 → 左に［親A（上の欄＋因子）｜祖A1 の下に祖A2 → 枠の見かた］、
+			// 右に［理論値SP → 星取表 → 本育成編成（1列に6枚） → 因子周回編成（1列に6枚）］
+			const cards6 = '<i></i>'.repeat(6);
 			const wire2 =
 				'<div class="stitch-wire-sheet stitch-wire-sheet--2" data-stitch-wire-cols="2">' +
 					'<div class="stitch-wire-bar" data-stitch-part="title"></div>' +
 					'<div class="stitch-wire-2">' +
 						'<div class="stitch-wire-2l">' +
-							'<div class="stitch-wire-top" data-stitch-wire-top2>' +
-								'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards + '<i></i></span>' +
-								'<span class="stitch-wire-cards" data-stitch-part="factor">' + cards + '</span>' +
-							'</div>' +
 							'<div class="stitch-wire-2p" data-stitch-part="people">' +
 								'<span class="w2-parent" data-wire-person="parent"><span class="w2-status"><span class="w2-band"></span><span class="w2-hero"></span><span class="w2-stats"></span><span class="w2-apt"></span><span class="w2-btn"></span><span class="w2-tabs"></span></span>' + fac(P2) + '</span>' +
 								'<span class="w2-grands"><span class="w2-grand" data-wire-person="grand1">' + fac(G1) + '</span><span class="w2-grand" data-wire-person="grand2">' + fac(G2) + '</span></span>' +
@@ -5626,6 +5628,8 @@
 						'<div class="stitch-wire-2r" data-stitch-wire-col3>' +
 							'<span class="stitch-wire-sp" data-stitch-part="sp"><b></b><b></b><b></b><b></b></span>' +
 							'<div class="stitch-wire-table" data-stitch-part="table">' + '<i></i>'.repeat(72) + '</div>' +
+							'<span class="stitch-wire-cards" data-stitch-part="roster">' + cards6 + '</span>' +
+							'<span class="stitch-wire-cards" data-stitch-part="factor">' + cards6 + '</span>' +
 						'</div>' +
 					'</div>' +
 				'</div>';
@@ -5681,8 +5685,7 @@
 					panel.querySelectorAll('[data-stitch-part="' + k + '"]').forEach(el => { el.hidden = !parts[k]; });
 				});
 				panel.querySelectorAll('[data-stitch-wire-top]').forEach(el => { el.hidden = !(parts.sp || parts.roster || parts.factor); });
-				panel.querySelectorAll('[data-stitch-wire-top2]').forEach(el => { el.hidden = !(parts.roster || parts.factor); });
-				panel.querySelectorAll('[data-stitch-wire-col3]').forEach(el => { el.hidden = !(parts.sp || parts.table); });
+				panel.querySelectorAll('[data-stitch-wire-col3]').forEach(el => { el.hidden = !(parts.sp || parts.table || parts.roster || parts.factor); });
 				panel.querySelectorAll('[data-stitch-wire-cols]').forEach(el => { el.hidden = Number(el.getAttribute('data-stitch-wire-cols')) !== cols; });
 				panel.querySelectorAll('.stitch-wire-sheet').forEach(el => el.classList.toggle('is-marker', !!stitchParts.marker));
 			});

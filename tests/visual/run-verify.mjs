@@ -499,6 +499,7 @@ const INTENTIONALLY_REMOVED = {
 	// commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
 	// 同じ commit の前の検査では、§4 が special の bg-green-50・border-green-200（動画の進み具合〔renderVideoProgress〕が JS で付ける）を「消した class」として挙げた。
 	// 静的な印から消えただけで、Tailwind（ブラウザで生成）が見た目を作ることを確かめた（地 green-50・枠 green-200）。§2 の index.html（決定 436 の文言の直し）も commit で消える。
+	// 2026-11-08（T130）: 2列の模式図の左の上段（data-stitch-wire-top2）を消した（編成は3列目〔data-stitch-wire-col3〕へ移した）。免除は置かず、commit で HEAD から消える。
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

@@ -6,6 +6,7 @@
 //    ③・引き出し・右下のボタン群の3か所が同じ1つの設定（保存キー uma-special-stitch-parts に cols・title を足した）。旧UI はいつも3列・バーあり。
 //  - 2列の配置: タイトルのバーは全幅。1列目＝親A（親の上の欄＋因子）・2列目＝祖A1 の下に祖A2（間を空けずにつなぎ、2人の合計の高さを1列目にそろえて縮める）。人の見出しの行は3人とも描かない（決定 209 ほか）。
 //    上段（本育成編成・因子周回編成）は1列目・2列目の上だけ。3列目は上段の上端から 理論値SP → 星取表。枠の見かたは1列目・2列目の下。
+//    （T130・2026-11-08: 上段を無くし、本育成編成・因子周回編成は3列目の星取表の下へ。1列に6枚。(3) の期待値を直した。詳しくは blocks-139）
 //    星取表の下端は枠の見かたの行の下端（無ければ親の列の下端）まで。入らなければ行を縮める（画像の下にはみ出さない）。欠けた所は詰める。
 //  - 3列はタイトルのバー ON なら T96 と同じ画（設定 title が無い・true で同じ画素）。OFF でバーとその下の間を詰める。
 //  - 動画モード: 入口のボタンで切り替え（読み上げ名「動画モードにする（αテスト）」⇔「スクショのモードに戻す」）・人ごとの「追加」の代わりに
@@ -155,7 +156,8 @@ export async function register108(env) {
 	}
 
 	/* ── (3) 2列の配置 ── */
-	await block('T98(3) 2列の配置: 上段は1・2列目の上だけ・3列目は上段の上端から理論値SP→星取表・枠の見かたは1・2列目の下・祖2人の高さを1列目にそろえる・欠けた所を詰める', async () => {
+	// T130（2026-11-08）: 本育成編成・因子周回編成を上段から3列目の星取表の下へ移した（上段は無い）。並びの細かい検査は blocks-139
+	await block('T98(3) 2列の配置: 上段なし・3列目は人の上端から理論値SP→星取表→本育成編成→因子周回編成（T130）・枠の見かたは1・2列目の下・祖2人の高さを1列目にそろえる・欠けた所を詰める', async () => {
 		const { ctx, page, errors } = await openSp({ roster: R1S, ids: IDS });
 		const r = await page.evaluate(async () => {
 			const L = STITCH_LAYOUT;
@@ -173,15 +175,16 @@ export async function register108(env) {
 		// 全部 ON
 		const gTotal = all.grands.reduce((s, g) => s + g.h, 0);
 		assert(all.cols === 2 && all.bar && all.bar.y === L.margin && all.bar.x === L.margin && all.bar.w === all.width - L.margin * 2, 'T98(3): タイトルのバーは画像の全幅', all.bar);
-		assert(all.top && all.top.x === L.margin && all.top.y === all.bodyY && all.top.x + all.top.w <= all.col3.x - L.gap && all.top.roster && all.top.factor && near(all.top.w, span(all), 1),
-			'T98(3): 上段（本育成編成｜因子周回編成）は1列目・2列目の上だけ（3列目の上に掛からない）', { top: all.top, col3: all.col3 });
-		assert(all.parent.x === L.margin && all.parent.y === all.personsY && all.personsY === all.bodyY + all.top.h + L.topAfter, 'T98(3): 1列目は親A（見出しの行なしで上の欄＋因子）', { parent: all.parent, personsY: all.personsY });
+		assert(!all.top && all.personsY === all.bodyY && all.roster && all.factor && all.roster.x === all.col3.x && all.factor.x === all.col3.x,
+			'T98(3)・T130: 上段は無く（1列目・2列目は上端から）、本育成編成・因子周回編成は3列目', { top: all.top, roster: all.roster, factor: all.factor, col3: all.col3 });
+		assert(all.parent.x === L.margin && all.parent.y === all.personsY, 'T98(3): 1列目は親A（見出しの行なしで上の欄＋因子）', { parent: all.parent, personsY: all.personsY });
 		assert(all.grands.length === 2 && all.grands[0].x === all.parent.x + all.parent.w + L.innerGap && all.grands[0].y === all.personsY && all.grands[1].y === all.grands[0].y + all.grands[0].h && gTotal === all.colH && all.colH === all.parent.h && all.grandScale < 1,
 			'T98(3): 2列目は祖A1 の下に祖A2 をすきま無くつなぎ、2人の合計の高さを1列目の高さにぴったりそろえて同じ割合で縮める', { grands: all.grands, gTotal, colH: all.colH, s: all.grandScale });
-		assert(all.col3 && all.col3.y === all.top.y && all.sp && all.sp.x === all.col3.x && all.sp.y === all.col3.y && all.table && all.table.x === all.col3.x && all.table.y === all.sp.y + all.sp.h + L.topAfter,
-			'T98(3): 3列目は上段の上端から、上に理論値SP、その下に星取表', { col3: all.col3, sp: all.sp, table: all.table });
+		assert(all.col3 && all.col3.y === all.bodyY && all.sp && all.sp.x === all.col3.x && all.sp.y === all.col3.y && all.table && all.table.x === all.col3.x && all.table.y === all.sp.y + all.sp.h + L.topAfter
+			&& all.roster.y === all.table.y + all.table.h + L.topAfter && all.factor.y === all.roster.y + all.roster.h + L.topAfter,
+			'T98(3)・T130: 3列目は人の上端から 理論値SP → 星取表 → 本育成編成 → 因子周回編成', { col3: all.col3, sp: all.sp, table: all.table, roster: all.roster, factor: all.factor });
 		assert(all.legend && all.legend.x === L.margin && all.legend.y === all.personsY + all.colH + L.legendGap && all.legend.x + all.legend.w <= all.col3.x - L.gap, 'T98(3): 枠の見かたは1列目・2列目の下（3列目に掛からない）', all.legend);
-		assert(all.table.y + all.table.h <= all.leftBottom && all.ch >= all.leftBottom + L.margin, 'T98(3): 星取表は左の下端までに収まる・画像の下にはみ出さない', { tb: all.table.y + all.table.h, lb: all.leftBottom, ch: all.ch });
+		assert(all.col3.bottom <= all.leftBottom && all.ch === all.leftBottom + L.margin, 'T98(3)・T130: 星取表の行が少なければ3列目（編成まで）は左の下端までに収まる・画像は伸びない', { c3: all.col3.bottom, lb: all.leftBottom, ch: all.ch });
 		// 星取表が長い: 枠の見かたの行の下端まで伸ばし、入らなければ行を縮める
 		const lg = r.long;
 		assert(lg.table.rowH < L.rowMax && lg.table.y + lg.table.h <= lg.leftBottom && lg.table.y + lg.table.h > lg.leftBottom - (lg.table.rows + 2) && lg.leftBottom === lg.legend.y + lg.legend.h && lg.ch === lg.leftBottom + L.margin,
@@ -191,8 +194,9 @@ export async function register108(env) {
 		// 欠けた所の詰め方
 		assert(!off.top && !off.col3 && !off.legend && !off.sp && !off.table && off.personsY === off.bodyY && off.cw === L.margin * 2 + span(off), 'T98(3): 全部 OFF は1列目・2列目だけ（上段・3列目なし）', off);
 		assert(!r.star.top && r.star.col3 && !r.star.sp && r.star.table.y === r.star.bodyY && r.star.personsY === r.star.bodyY, 'T98(3): 星取表だけ: 上段の行なし・3列目は星取表だけ（上端から）', r.star);
-		assert(r.hen.top && r.hen.top.roster && r.hen.top.factor && !r.hen.col3 && r.hen.cw === L.margin * 2 + span(r.hen), 'T98(3): 編成2つだけ: 上段だけ・3列目なし', r.hen);
-		assert(r.roster.top && r.roster.top.roster && !r.roster.top.factor && r.roster.top.roster.x === L.margin && r.roster.top.roster.w === r.hen.top.roster.w, 'T98(3): 本育成編成だけ: 左に詰める（欄の幅は2つのときと同じ）', r.roster.top);
+		assert(!r.hen.top && r.hen.col3 && r.hen.roster && r.hen.factor && r.hen.roster.y === r.hen.bodyY && r.hen.factor.y === r.hen.roster.y + r.hen.roster.h + L.topAfter && r.hen.col3.w === L.spW && r.hen.personsY === r.hen.bodyY,
+			'T98(3)・T130: 編成2つだけ: 3列目の上端から本育成編成→因子周回編成（幅は理論値SP の欄と同じ）', r.hen);
+		assert(r.roster.roster && !r.roster.factor && r.roster.roster.y === r.roster.bodyY && r.roster.roster.w === r.hen.roster.w, 'T98(3)・T130: 本育成編成だけ: 3列目の上端に詰める', r.roster);
 		assert(!r.sp.top && r.sp.col3 && r.sp.sp && r.sp.sp.y === r.sp.bodyY && !r.sp.table && r.sp.col3.w === L.spW, 'T98(3): 理論値SP だけ: 3列目は理論値SP だけ', r.sp);
 		assert(r.marker.legend && !r.marker.col3 && !r.marker.top, 'T98(3): 分類マーカーだけ: 枠の見かただけ（1・2列目の下）', r.marker);
 		assert(!r.notitle.bar && r.notitle.bodyY === L.margin && r.notitle.ch === all.ch - L.barH - L.barGap, 'T98(3): タイトルのバー OFF: バーとその下の間ぶん上に詰まる', { bodyY: r.notitle.bodyY, ch: r.notitle.ch, all: all.ch });
