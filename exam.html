@@ -39,6 +39,7 @@
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-08a"></script>
+	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -7933,6 +7934,7 @@
 				if (onPersonStart) onPersonStart(label);
 				const contentCanvas = await stitchOnePerson(run.files[idx], label);
 				if (!contentCanvas) continue;
+				const deckShot = !!(run.deck && window.UmaDeckImages);   // T126: Deck α の登録の画面に出す1人分の画像（印を焼いたあとで書く）
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
 				}
@@ -7947,6 +7949,12 @@
 				}
 				mark.kinds.forEach(k => usedMarkKinds.add(k));
 				if (mark.suppressed) markSuppressed.add(mark.suppressed);
+				// T126（決定 418）: 印を焼いたあとの1人分を、別の IndexedDB に書いておく（待たない。新UI のときだけ）
+				if (deckShot) {
+					const tk = UmaDeckImages.tokenOf(run.files[idx]);
+					deckAlphaShotToken[idx] = tk;
+					UmaDeckImages.save(DECK_ALPHA_IMG_FROM + ':' + idx, tk, contentCanvas);
+				}
 				const detected = countDetected(idx, run);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
@@ -8905,6 +8913,16 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		const DECK_ALPHA_SEND_KEY = 'umaDeck:send';
 		const DECK_ALPHA_REGISTER_URL = 'deck-alpha-register.html';
 		const DECK_ALPHA_URL = 'deck-alpha.html';
+		/* T126（決定 418）: 人ごとの結合画像は、結合のときに js/deck-alpha-images.js が別の IndexedDB に書く（buildStitchedSetImage）。
+		 * 送る JSON には印（img: { slot, token }）だけを入れる。入れるのは、結合したときのファイル（deckAlphaShotToken）と
+		 * OCR の時点のファイル（lastOcrRun.files）が同じ人だけ（special.html と同じ考え方） */
+		const DECK_ALPHA_IMG_FROM = 'exam';
+		const deckAlphaShotToken = {};
+		function deckAlphaImgOf(i) {
+			const t = deckAlphaShotToken[i];
+			const ocr = (window.UmaDeckImages && lastOcrRun) ? UmaDeckImages.tokenOf(lastOcrRun.files[i]) : null;
+			return (t && t === ocr) ? { slot: DECK_ALPHA_IMG_FROM + ':' + i, token: t } : null;
+		}
 		// いちばん上の段の名前 → Deck α の鍵（js/deck-alpha-core.js の BLUE・RED と同じ）
 		const DECK_ALPHA_BLUE_KEY = { 'スピード': 'speed', 'スタミナ': 'stamina', 'パワー': 'power', '根性': 'guts', '賢さ': 'wit' };
 		const DECK_ALPHA_RED_KEY = { '芝': 'turf', 'ダート': 'dirt', '短距離': 'short', 'マイル': 'mile', '中距離': 'medium', '長距離': 'long', '逃げ': 'nige', '先行': 'senko', '差し': 'sashi', '追込': 'oikomi' };
@@ -9134,7 +9152,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 					greenCands: g && !g.name && g.cands ? g.cands.slice() : null,
 					blue: factorOf(top && top.blue, DECK_ALPHA_BLUE_KEY),
 					red: factorOf(top && top.red, DECK_ALPHA_RED_KEY),
-					skills: skills, genes: genes, sheet: sheet
+					skills: skills, genes: genes, sheet: sheet,
+					img: deckAlphaImgOf(i)
 				};
 			});
 			return { format: 'uma-deck-send', v: 1, sentAt: new Date().toISOString(), from: 'exam', race: null, style: null, send: EXAM_SKILL_LIST.map(s => s.id), owner: 'self', persons: persons };

@@ -227,7 +227,8 @@ export async function register99(env) {
 			const sendTo = async (c) => { await addMock(); await ev((c) => { const S = window.__deckAlpha ? window.__deckAlpha.S : window.__deckAlphaRegister.S; localStorage.setItem('umaDeck:send', JSON.stringify(window.__deckAlphaMock.makeSend(c, S.doc))); }, c); };
 			const openReg = async () => { await page.goto(base + '/deck-alpha-register.html'); await page.waitForFunction(() => window.__deckAlphaRegister, null, { timeout: 15000 }); await page.waitForTimeout(200); };
 			await sendTo('a'); await openReg();
-			const ra = await ev(() => ({ bar: !document.getElementById('regbar').hidden, dis: document.getElementById('regBtn').disabled, set: document.querySelector('#setPick .t').textContent, scope: [...document.querySelectorAll('#scopeSeg button')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '') + (b.disabled ? '(x)' : '')), fz: document.querySelectorAll('.fzline .fz').length, persist: window.__persistN }));
+			// T126（決定 414）: 下の帯は無くし、「登録する」は①の中（bar は①の中にボタンがあるか）
+			const ra = await ev(() => ({ bar: !!document.querySelector('section.regtop #regBtn') && !document.getElementById('regbar'), dis: document.getElementById('regBtn').disabled, set: document.querySelector('#setPick .t').textContent, scope: [...document.querySelectorAll('#scopeSeg button')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '') + (b.disabled ? '(x)' : '')), fz: document.querySelectorAll('.fzline .fz').length, persist: window.__persistN }));
 			assert(ra.bar && !ra.dis && /リーグ オブ ヒーローズ/.test(ra.set) && ra.scope.join() === '親Aだけ*,親Aセット(x)' && ra.fz === 3 && ra.persist === 0, tag + ' 登録の画面（親Aだけ）: 送り先は UmaStar のレース・因子は1行の3つ', ra);
 			await look('14-toroku', true);
 			await page.click('[data-act="toggle-sk"]'); await look('14b-toroku-shiro', true); await page.click('[data-act="toggle-sk"]');
@@ -241,8 +242,9 @@ export async function register99(env) {
 			await look('16-toroku-go');
 			// 親Aセット（祖1 は登録済みと全部同じ →「同一」を選んだ状態）
 			await sendTo('b'); await openReg();
-			const rb = await ev(() => ({ scope: [...document.querySelectorAll('#scopeSeg button')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')), cards: document.querySelectorAll('section.card').length, linked: [...document.querySelectorAll('section.card')].map((c) => !!c.querySelector('[data-link][aria-pressed="true"]')) }));
-			assert(rb.scope.join() === '親Aだけ,親Aセット*' && rb.cards === 4 && rb.linked[2] === true, tag + ' 登録の画面（親Aセット）: 祖1 は「同一」を選んだ状態', rb);
+			// T126: 人ごとの欄はカードからタブの中の欄（.ppanel）へ。カードは①と②の2つ
+			const rb = await ev(() => ({ scope: [...document.querySelectorAll('#scopeSeg button')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')), cards: document.querySelectorAll('section.card').length, panels: document.querySelectorAll('.ppanel').length, linked: [...document.querySelectorAll('.ppanel')].map((c) => !!c.querySelector('[data-link][aria-pressed="true"]')) }));
+			assert(rb.scope.join() === '親Aだけ,親Aセット*' && rb.cards === 2 && rb.panels === 3 && rb.linked[1] === true, tag + ' 登録の画面（親Aセット）: 祖1 は「同一」を選んだ状態', rb);
 			await look('17-toroku-set', true);
 			// 読めない所あり: 衣装の候補を押すまで登録できない
 			await sendTo('c'); await openReg();
@@ -253,7 +255,7 @@ export async function register99(env) {
 			await look('18-toroku-yomenai', true);
 			// 送られたものが無い（形が崩れている）とき
 			await ev(() => localStorage.setItem('umaDeck:send', '{"format":"other"}')); await openReg();
-			const rn = await ev(() => ({ t: document.getElementById('body').innerText, bar: document.getElementById('regbar').hidden }));
+			const rn = await ev(() => ({ t: document.getElementById('body').innerText, bar: !document.getElementById('regBtn') }));
 			assert(/送られた親がありません。UmaStar か UmaExam の OCR の結果から送ってください/.test(rn.t) && rn.bar, tag + ' 受け取るものが無いときは「送られた親がありません」と Deck (αテスト)を開くボタンだけ', rn);
 
 			// (9) 一覧から消えたレース（UmaStar の欄に出なくなった）は、開いたときに終了レースのカテゴリへ付け替わる

@@ -59,6 +59,7 @@
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-08a"></script>
+	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-08c"></script>
 	<!-- PC のウィンドウの取り込み（T105。③の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
@@ -2940,6 +2941,7 @@
 			personGeometry = persons.map(() => null);
 			personGreen = persons.map(() => null);
 			personTop = persons.map(() => null);
+			deckAlphaOcrToken = persons.map(() => null);   // T126: OCR の時点の画像のファイルの印（Deck α へ結合画像を渡すときの確かめ）
 
 			const errorWrap = document.getElementById('error-wrap');
 			const qualityWarnWrap = document.getElementById('quality-warn-wrap');
@@ -2991,6 +2993,7 @@
 					personResults[p] = applyFactorStrictMatch(matchWithAllSkillNames(matchLines), matchLines);
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
+					if (window.UmaDeckImages) deckAlphaOcrToken[p] = UmaDeckImages.tokenOf(files);
 					// T92: Deck α へ送るときの緑因子（継承固有）。新UI のときだけ読む。読めなくても判定は続ける
 					if (deckMode) {
 						try { personGreen[p] = await readGreenFactor(worker, files); } catch (e) { personGreen[p] = null; }
@@ -5164,6 +5167,12 @@
 				const cropped = stitchSideCrop(contentCanvas, icon);
 				if (!cropped._sideCrop.ok) devGeometry.push('[結合画像] ' + label + ': 両側を削りませんでした（' + cropped._sideCrop.reason + '）');
 				stitched[idx] = cropped;
+				// T126（決定 418）: Deck α の登録の画面に出す1人分の画像を、別の IndexedDB に書いておく（待たない。新UI のときだけ）
+				if (deckMode && window.UmaDeckImages) {
+					const tk = UmaDeckImages.tokenOf(files);
+					deckAlphaShotToken[idx] = tk;
+					UmaDeckImages.save(DECK_ALPHA_IMG_FROM + ':' + idx, tk, cropped);
+				}
 				// 動画から来た人の継ぎ目は、画像の番号で言う警告ではなく人の単位の警告（videoWarnLabels）で知らせる
 				if (!fromVideo && contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
@@ -7310,6 +7319,16 @@
 		const DECK_ALPHA_SEND_KEY = 'umaDeck:send';
 		const DECK_ALPHA_REGISTER_URL = 'deck-alpha-register.html';
 		const DECK_ALPHA_URL = 'deck-alpha.html';
+		/* T126（決定 418）: 人ごとの結合画像は、結合のときに js/deck-alpha-images.js が別の IndexedDB に書く（buildStitchedSetImage）。
+		 * 送る JSON には印（img: { slot, token }）だけを入れる。入れるのは、結合したときのファイル（deckAlphaShotToken）と
+		 * OCR の時点のファイル（deckAlphaOcrToken）が同じ人だけ（OCR のあとに画像を入れ替えて結合し直すと、別の人の画像になるため） */
+		const DECK_ALPHA_IMG_FROM = 'star';
+		let deckAlphaOcrToken = PERSON_LABELS.map(() => null);
+		const deckAlphaShotToken = {};
+		function deckAlphaImgOf(i) {
+			const t = deckAlphaShotToken[i];
+			return (window.UmaDeckImages && t && t === deckAlphaOcrToken[i]) ? { slot: DECK_ALPHA_IMG_FROM + ':' + i, token: t } : null;
+		}
 
 		/** Deck (αテスト) のページを新しいタブで開く（開けなければこのタブで） */
 		function openDeckAlphaPage(url) {
@@ -7694,7 +7713,8 @@
 					greenCands: g && !g.name && g.cands ? g.cands.slice() : null,
 					blue: factorOf(top && top.blue, DECK_ALPHA_BLUE_KEY),
 					red: factorOf(top && top.red, DECK_ALPHA_RED_KEY),
-					skills: skills, genes: genes
+					skills: skills, genes: genes,
+					img: deckAlphaImgOf(i)
 				};
 			});
 			let race = null, style = null, noPlan = false;

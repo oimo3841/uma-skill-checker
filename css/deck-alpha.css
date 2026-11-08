@@ -1,4 +1,4 @@
-/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-06b（?v= と同じ）。
+/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-08a（?v= と同じ）。
  * T94（2026-11-04・C-282）: 方眼紙デザイン。モック版14（lab/deck-v14/deck-v14.css）の版A（今の字体）を製品に移し、おいもさんの回答（T94 への連絡）を入れた。
  * 見本（FiveThirtyEight「Science Isn't Broken」）から読み取った全体の決まり:
  *   1. 背景は方眼紙。データの点も文字も方眼の上に置く    2. 区切りは太い黒の横線だけ。カード・角丸の枠・影は使わない
@@ -381,14 +381,12 @@ canvas.ov { display: block; }
 .okbox b { font-size: 20px; }
 
 /* ---------- 登録の画面: カードをやめ、太い黒の線で区切り、黒丸の番号で手順を示す（決まり 2・3） ---------- */
-.reg { max-width: 720px; margin: 0 auto; padding: 8px max(12px, env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 10px; counter-reset: step; }
+/* T126: 下の帯を無くしたので、下の余白は帯のぶんを空けない（決定 414） */
+.reg { max-width: 720px; margin: 0 auto; padding: 8px max(12px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 10px; counter-reset: step; }
 .card { background: transparent; border: 0; border-top: 2px solid var(--gp-ink); padding: 10px 0 12px; display: flex; flex-direction: column; gap: 8px; position: relative; }
 .reg .card::before { counter-increment: step; content: counter(step); display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--gp-ink); color: var(--gp-paper); font: 700 11px/1 var(--dk-mono); align-self: flex-start; }
 .reg .card:only-child::before { display: none; } /* 手順が1つだけ（登録できた・送られた親がない）のときは番号を出さない */
 .card h2 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.card h2 .role { display: inline-grid; place-items: center; min-width: 40px; height: 24px; padding: 0 6px; background: var(--gp-sel); color: var(--gp-sel-text); font-size: 12px; }
-.card.off { color: var(--gp-sub); }
-.card.off .role { background: var(--gp-line); color: var(--gp-sub); }
 .need { display: inline-flex; align-items: center; border: 1px solid var(--gp-ink); background: transparent; color: var(--gp-ink); padding: 0 6px; min-height: 22px; font-size: 11px; font-weight: 700; }
 .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; font-size: 13px; }
 .line .k { font-size: 11px; font-weight: 700; color: var(--gp-sub); min-width: 3.5em; }
@@ -406,10 +404,6 @@ canvas.ov { display: block; }
 .sklist .sk { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--gp-line); padding: 4px 0; font-size: 13px; min-height: 44px; }
 .sklist .sk.unk .nm::after { content: " ★?"; color: var(--gp-ink); font-weight: 700; }
 .sklist .sk .sc { font-family: var(--dk-mono); font-size: 12px; color: var(--gp-sub); }
-.regbar { position: fixed; left: 0; right: 0; bottom: 0; background-color: var(--gp-paper); background-image: linear-gradient(var(--gp-grid) 1px, transparent 1px), linear-gradient(90deg, var(--gp-grid) 1px, transparent 1px); background-size: 10px 10px; border-top: 2px solid var(--gp-ink); padding: 8px max(12px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 8px; z-index: 20; }
-.regbar .btn.pri { flex: 1; min-width: 96px; }
-.regbar .sum { font-size: 12px; color: var(--gp-sub); }
-.regbar .sum span { display: inline-block; } /* 文が長いときは「・★不明…」の前で折り返す（T115・361） */
 .topline { display: flex; align-items: flex-start; gap: 6px; padding: 2px 0; }
 .topline .tl { flex: 1; min-width: 0; min-height: 38px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .topline h1 { font-size: 15px; margin: 0; letter-spacing: .04em; }
@@ -481,4 +475,69 @@ details.fold[open] > summary::before { content: "▾"; }
 .modeline .seg { display: flex; }
 .modeline .seg button { flex: 1; min-height: 40px; }
 
-:root { --deck-alpha-css-version: "2026-11-06b"; }
+/* ---------- T126（2026-11-08・決定 412〜417）: 登録の画面の作り直し（T119 のモック lab/deck-register-mock.html の形）。新しい色は無い（今のトークンだけ） ---------- */
+/* ① の欄（要望 (3)）。「登録する」はほかのボタンより大きく、①の中に置く（下の帯は無くした＝414） */
+.regtop-grid { display: flex; flex-direction: column; gap: 8px; }
+.regact { display: flex; flex-direction: column; gap: 4px; }
+.regbig { min-height: 56px; width: 100%; font-size: 18px; letter-spacing: .08em; }
+.regact .sum { font-size: 12px; color: var(--gp-sub); }
+.regact .sum span { display: inline-block; } /* 文が長いときは「・★不明…」の前で折り返す（T115・361） */
+.reglines { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* ② の欄：親A／祖A1／祖A2 のタブ。選択は黒の塗り（.seg と同じ）。タブの帯は上に止める（sticky なので opacity は使わない＝恒久ルール9） */
+.ptabs { position: sticky; top: 0; z-index: 5; display: flex; flex-direction: column; gap: 4px; padding: 4px 0; background-color: var(--gp-paper); background-image: linear-gradient(var(--gp-grid) 1px, transparent 1px), linear-gradient(90deg, var(--gp-grid) 1px, transparent 1px); background-size: 10px 10px; }
+.ptabrow { display: flex; width: 100%; }
+.ptabrow button { flex: 1 1 0; min-width: 0; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.ptabrow button .tn { font-size: 10px; font-weight: 700; border: 1px solid currentColor; padding: 0 3px; line-height: 16px; }
+.ptabrow button .ts { font-size: 11px; font-weight: 400; }
+.subrow { display: flex; width: 100%; }
+.subrow button { flex: 1 1 0; }
+.pgrid { display: flex; flex-direction: column; gap: 8px; }
+.pleft { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.phead { display: flex; align-items: flex-start; gap: 8px; min-height: 28px; }
+.phead h2 { flex: 1; min-width: 0; }
+/* 一覧：白スキルと遺伝子を同じ形で。★の帯をいちばん長いスキル名のすぐ右にそろえる（要望 (2)） */
+.skt { display: grid; grid-template-columns: minmax(0, max-content) max-content; justify-content: start; column-gap: 10px; }
+.skt .sk { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; border-bottom: 1px solid var(--gp-line); padding: 2px 0; font-size: 13px; }
+.skt .sk.unk .nm::after { content: " ★?"; color: var(--gp-ink); font-weight: 700; }
+.line .k.gk { min-width: 0; margin-left: 8px; }
+/* 「同一」を選んだ祖は見るだけ（押せない★・因子。決定 415） */
+.stars button:disabled { color: var(--gp-sub); cursor: default; }
+.stars button[aria-pressed="true"]:disabled { background: var(--gp-sub); color: var(--gp-paper); }
+.fzrow .fz:disabled { cursor: default; }
+/* 結合画像（決定 418） */
+.pimg img { display: block; width: 100%; height: auto; border: 1px solid var(--gp-ink); }
+.pimgbtn { display: block; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+.pimg.none { border: 1px dashed var(--gp-line); padding: 24px 12px; text-align: center; }
+#sheet.imgsheet .bigimg { display: block; width: 100%; height: auto; border: 1px solid var(--gp-ink); }
+/* 大きく見るとき、「閉じる」の下に画像がのぞかないように、小窓の下の余白を帯の側で持つ */
+#sheet.imgsheet { padding-bottom: 0; }
+#sheet.imgsheet .acts { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+/* PC（900px 以上。決定 412）：①は横に広げて右に「登録する」（280×72px）。②は左に一覧、右に画像（最大 560px・画面の幅 1600px 以上は 640px） */
+@media (min-width: 900px) {
+	.reg { max-width: 1240px; }
+	.regtop-grid { flex-direction: row; align-items: stretch; gap: 24px; }
+	.reglines { flex: 1; display: grid; grid-template-columns: auto auto; justify-content: start; gap: 8px 32px; }
+	.linepair { display: contents; }
+	.regact { flex: none; width: 280px; justify-content: center; }
+	.regbig { min-height: 72px; font-size: 20px; }
+	.ptabrow { max-width: 480px; }
+	.ptabrow button { min-height: 40px; }
+	.pgrid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 24px; align-items: start; }
+	.pleft { min-width: 460px; }
+	/* 画像は一覧と一緒に見えるように、画面に沿って止める（タブの帯の高さぶん下げる） */
+	.pimgwrap { position: sticky; top: 52px; max-height: calc(100dvh - 60px); overflow: auto; max-width: 560px; }
+	.skt .sk { min-height: 30px; }
+	.skt .nm { white-space: nowrap; }
+	.skt .stars button { min-width: 36px; min-height: 26px; font-size: 12px; }
+}
+@media (min-width: 1600px) { .reg { max-width: 1320px; } .pimgwrap { max-width: 640px; } }
+/* スマホ（899px 以下。決定 413・414）：「登録する」は①の先頭。「送る」と「持ち主」を1行に（入らない幅では折り返す） */
+@media (max-width: 899px) {
+	.skt .sk { min-height: 44px; }
+	.regact { order: -1; }
+	.linepair { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+	.linepair .line .k { min-width: 0; }
+	.linepair .seg button { padding: 0 6px; }
+}
+
+:root { --deck-alpha-css-version: "2026-11-08a"; }

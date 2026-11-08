@@ -166,10 +166,10 @@ export async function register104(env) {
 			errs.length = 0;
 			await ev((o) => { localStorage.setItem('umaDeck:send', JSON.stringify({ format: 'uma-deck-send', v: 1, sentAt: new Date().toISOString(), from: 'star', race: null, style: null, send: [o.ex, o.m1], owner: 'self', persons: [{ uma: o.uma, green: null, greenCands: null, blue: null, red: null, skills: { [o.ex]: 2, [o.m1]: 3 }, genes: {} }] })); }, { ex: EX.id, m1: MASTER[0].id, uma: JSON.parse(read('data/training-umamusume.json')).entries[0].id });
 			await page.goto(base + '/deck-alpha-register.html'); await page.waitForFunction(() => window.__deckAlphaRegister && window.__deckAlphaRegister.S.doc, null, { timeout: 15000 }); await page.waitForTimeout(250);
-			await page.click('[data-act="toggle-sk"]'); await page.waitForTimeout(150);
-			const reg = await ev(() => ({ text: document.body.innerText, bar: getComputedStyle(document.getElementById('regbar')).backgroundColor, card: getComputedStyle(document.querySelector('.card')).borderTopLeftRadius }));
+			// T126: 白スキルの一覧は既定で開いている（押すと閉じるので押さない）。下の帯は無くしたので、地の色はタブの帯（上に止まる）で見る
+			const reg = await ev(() => ({ text: document.body.innerText, bar: getComputedStyle(document.querySelector('.ptabs')).backgroundColor, card: getComputedStyle(document.querySelector('.card')).borderTopLeftRadius }));
 			assert(reg.text.includes(EX.name) && !/ex-\d+/.test(reg.text), tag + ' 登録の画面の白スキルの一覧に拡張スキルが名前で出る（追加3）', reg.text.slice(0, 160));
-			assert(reg.bar === PAPER[theme] && reg.card === '0px', tag + ' 登録の画面の下の欄は地の色で、手順の区切りに角丸が無い', { bar: reg.bar, card: reg.card });
+			assert(reg.bar === PAPER[theme] && reg.card === '0px', tag + ' 登録の画面のタブの帯は地の色で、手順の区切りに角丸が無い', { bar: reg.bar, card: reg.card });
 			assert(errs.length === 0, tag + ' 登録の画面でコンソールのエラーが無い', errs);
 			await look('06-register');
 			try { await ev(() => localStorage.removeItem('umaDeck:send')); } catch (e) { /* 消せなくてもよい */ }

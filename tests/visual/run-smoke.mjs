@@ -161,6 +161,7 @@ import { register139 } from './blocks-139.mjs';
 import { register140 } from './blocks-140.mjs';
 import { register142 } from './blocks-142.mjs';
 import { register141 } from './blocks-141.mjs';
+import { register143 } from './blocks-143.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15581,6 +15582,8 @@ await register139({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register142({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T133（2026-11-08）: iPhone の再読み込みの対策（サムネイルの縮小・結合画像を Blob の URL にして③と引き出しで共有。見出しは「T133」）
 await register141({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T126（2026-11-08）: Deck α の登録の画面の作り直し（タブ・①の「登録する」・人ごとの結合画像を別の IndexedDB で渡す。見出しは「T126」）
+await register143({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

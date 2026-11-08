@@ -191,12 +191,15 @@ export async function register102(env) {
 				tag + ' 3人を送る: 祖1 は名前が決まらず候補・祖2 は緑因子が読めない（null）', ps.map((p) => ({ g: p.green, c: p.greenCands })));
 			await openReg();
 			const g3 = await ev(() => ({ scope: [...document.querySelectorAll('#scopeSeg button')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')),
-				cards: document.querySelectorAll('section.card').length, cands: [...document.querySelectorAll('.cand')].map((b) => b.dataset.cand), need: document.getElementById('needTop').textContent,
+				cards: document.querySelectorAll('section.card').length, panels: document.querySelectorAll('.ppanel').length, cands: [...document.querySelectorAll('.cand')].map((b) => b.dataset.cand), need: document.getElementById('needTop').textContent,
 				umas: window.__deckAlphaRegister.S.persons.map((p) => p.uma) }));
-			assert(g3.scope.join() === '親Aだけ,親Aセット*' && g3.cards === 4 && g3.cands.join() === [C1.name, C2.name].join() && g3.umas[0] === G0.id && g3.umas[1] === null && g3.umas[2] === null && /^要確認 \d+/.test(g3.need),
+			// T126: 人ごとの欄はカードからタブの中の欄（.ppanel）へ。カードは①と②の2つ
+			assert(g3.scope.join() === '親Aだけ,親Aセット*' && g3.cards === 2 && g3.panels === 3 && g3.cands.join() === [C1.name, C2.name].join() && g3.umas[0] === G0.id && g3.umas[1] === null && g3.umas[2] === null && /^要確認 \d+/.test(g3.need),
 				tag + ' 登録の画面（3人）: 祖1 は候補から選ぶ・祖2 は衣装が未定', g3);
 			await look('d3-toroku-3nin', { fullPage: true });
+			await page.click('#ptab1'); await page.waitForTimeout(100); // T126: 祖1 はタブを開いてから
 			await page.click('.cand[data-cand="' + C1.name + '"]'); await page.waitForTimeout(150);
+			await page.click('#ptab0'); await page.waitForTimeout(100);
 			await page.click('#body [data-nolink="0"]'); await page.waitForTimeout(100); // T115（363）: 親Aは1人目と全部同じなので「同一」を選んだ状態で出る。ここは新しい親の形を見る
 			await page.click('#regBtn'); await page.waitForTimeout(200);
 			await page.click('a:has-text("Deck (αテスト)を開く")');

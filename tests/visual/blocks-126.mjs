@@ -64,7 +64,8 @@ export async function register126(env) {
 	const cntOf = (T) => T.ev(() => document.querySelector('.vc .cnt').textContent);
 	const choose = async (T, key) => { await T.ev((k) => { const a = window.__deckAlpha; a.S.settings.cur = k; a.renderAll(); }, key); await T.page.waitForTimeout(150); };
 	const sum = (T) => T.ev(() => document.getElementById('regSum').textContent);
-	const linkState = (T) => T.ev(() => [...document.querySelectorAll('#body section.card')].slice(1).map((c) => ({ all: [...c.querySelectorAll('[data-link]')].map((b) => b.dataset.link), on: (c.querySelector('[data-link][aria-pressed="true"]') || { dataset: {} }).dataset.link || null, none: !!c.querySelector('[data-nolink]') })));
+	// T126: 人ごとの欄はカードからタブの中の欄（.ppanel・人の順）へ
+	const linkState = (T) => T.ev(() => [...document.querySelectorAll('#body .ppanel')].map((c) => ({ all: [...c.querySelectorAll('[data-link]')].map((b) => b.dataset.link), on: (c.querySelector('[data-link][aria-pressed="true"]') || { dataset: {} }).dataset.link || null, none: !!c.querySelector('[data-nolink]') })));
 
 	/* ---------- 356: 右上のボタン ---------- */
 	for (const w of [390, 1280]) {
@@ -269,8 +270,9 @@ export async function register126(env) {
 			await T.send({ race: rid, style: 'senko', send: [s[10], s[11]], persons: [per(d.uma[0], sk, 3), per(d.uma[1], { [s[2]]: 2, [s[4]]: 3 }, 2), per(d.uma[2], { [s[3]]: 1 }, -1)] });
 			await T.openReg();
 			const l = await linkState(T);
-			const top = await ev(() => ({ t: document.getElementById('body').innerText, cards: document.querySelectorAll('section.card').length, fz: document.querySelectorAll('section.card')[1].querySelectorAll('.fzrow').length, need: document.getElementById('needTop').hidden }));
-			assert(l[0].on === 'p1' && /登録済みの/.test(top.t) && /と同一/.test(top.t) && top.fz === 0, '親Aに「登録済みの〇〇と同一」を「同一」を選んだ状態で出す（因子の行はたたむ）', [l[0], top.fz]);
+			const top = await ev(() => ({ t: document.getElementById('body').innerText, cards: document.querySelectorAll('section.card').length, fz: document.getElementById('ppanel0').querySelectorAll('.fzrow').length, need: document.getElementById('needTop').hidden }));
+			// T126（決定 415）: 「同一」を選んだ人も因子の行と一覧を残す（前は因子の行をたたんでいた）
+			assert(l[0].on === 'p1' && /登録済みの/.test(top.t) && /と同一/.test(top.t) && top.fz === 1, '親Aに「登録済みの〇〇と同一」を「同一」を選んだ状態で出す（因子の行と一覧は残す）', [l[0], top.fz]);
 			assert(l[2].on === 'p2', '祖の exact も選ぶ', l[2]);
 			await T.look('reg-same');
 			await T.doReg();
@@ -413,7 +415,7 @@ export async function register126(env) {
 			const n = await ev(() => document.getElementById('needTop').textContent);
 			assert(/要確認 1/.test(n) && await sum(T) === '親Aだけ（1人）を登録', '紐づけの選び残しだけなら後ろの文を付けない', [n, await sum(T)]);
 			// 古い文が残っていない
-			const body = await ev(() => document.querySelector('.regbar').innerText);
+			const body = await ev(() => document.querySelector('.regtop .regact').innerText); // T126: 下の帯は無くし、①の中へ
 			assert(!/親A＋祖2人|のまま登録/.test(body), '古い文が残っていない', body);
 			assert(T.errs.length === 0, 'エラーなし', T.errs);
 		} finally { await T.ctx.close(); }
