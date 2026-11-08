@@ -102,7 +102,8 @@ const TOP_KEYS = {
 const ENTRY_KEYS = {
 	// raceDistance（レースの距離の限定）は 2026-09-26・C-97 で許可した（おいもさんの承認）。中身の形は RACE_DISTANCE_KEYS と §2-2
 	extendedSkill: { need: ['id', 'name'], opt: ['tags', 'tagsPending', 'raceDistance'] },
-	trainingUmamusume: { need: ['id', 'title', 'charaName', 'initialStar', 'initialSkills', 'awakeningSkills', 'dataStatus'], opt: [] },
+	// releaseOrder は実装の順の番号（1 が最古・新しいほど大きい）。2026-11-08 の T140 で足した（おいもさんの決定 524・530）
+	trainingUmamusume: { need: ['id', 'title', 'charaName', 'initialStar', 'initialSkills', 'awakeningSkills', 'dataStatus'], opt: ['releaseOrder'] },
 	// type（種類）と typeOrder（ゲーム内で扱われる順番）は、どちらもデータが持つ値。
 	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
 	// rarity・isGroup・groupMembers は 2026-09-27（C-102 の区切り3）に data-work の公開用データで入った。
@@ -460,10 +461,17 @@ docs.geneFactor.entries.forEach((e, i) => {
 });
 
 // 育成ウマ娘
+// releaseOrder（任意。T140）: あれば正の整数で、ファイルの中で重複しない
+const umaReleaseOrderSeen = new Map();
 docs.trainingUmamusume.entries.forEach((e, i) => {
 	const w = 'trainingUmamusume[' + i + ']';
 	if (!checkKeys(e, ENTRY_KEYS.trainingUmamusume, w, unknownKeys, missingKeys)) return;
 	if (!isStr(e.id) || !isStr(e.title) || !isStr(e.charaName)) badTypes.push(w + ': id / title / charaName は空でない文字列');
+	if ('releaseOrder' in e) {
+		if (!isInt(e.releaseOrder) || e.releaseOrder < 1) badTypes.push(w + ': releaseOrder は正の整数: ' + JSON.stringify(e.releaseOrder));
+		else if (umaReleaseOrderSeen.has(e.releaseOrder)) badTypes.push(w + ': releaseOrder ' + e.releaseOrder + ' が ' + umaReleaseOrderSeen.get(e.releaseOrder) + ' と重複');
+		else umaReleaseOrderSeen.set(e.releaseOrder, e.id);
+	}
 	if (!isInt(e.initialStar) || e.initialStar < STAR_MIN || e.initialStar > STAR_MAX) badTypes.push(w + ': initialStar は ' + STAR_MIN + '〜' + STAR_MAX + ' の整数');
 	if (isArr(e.initialSkills)) {
 		e.initialSkills.forEach((row, j) => {

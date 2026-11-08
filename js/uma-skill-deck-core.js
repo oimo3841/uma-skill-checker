@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-08c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-08d';
 
 	/* ============================================================
 	 * 定数
@@ -74,7 +74,7 @@
 		'data/search-excluded-skills.json': '2026-11-08a',
 		// サポカで得られないスキル（公開用・独自カテゴリ3のみ。2026-10-16c・C-163）。②の「サポカ外」ボタンの候補。データ側が規則で作る。loadNonSupportSkills() が読む
 		'data/non-support-skills.json': '2026-10-25a',
-		'data/training-umamusume.json': '2026-10-26a',
+		'data/training-umamusume.json': '2026-11-08a',
 		'data/support-cards.json': '2026-10-26b',
 		'data/support-card-event-skills.json': '2026-10-29a',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
@@ -2527,6 +2527,18 @@
 	function listUmas() {
 		const src = trainingSources.trainingUmamusume;
 		return ((src && src.entries) || []).slice();
+	}
+	/**
+	 * 育成ウマ娘を実装の新しい順に（T140・おいもさんの決定 523・524・530・531）。
+	 * releaseOrder（データ側の実装の順の番号。1 が最古・新しいほど大きい）の降順。
+	 * 番号の無い行（正の整数でないもの）は最後に置き、その中はデータの順の逆（それまでの並び方）。
+	 * 使うのは①の「育成ウマ娘を選ぶ」の小窓だけ。
+	 */
+	function listUmasNewestFirst() {
+		const rev = listUmas().reverse();
+		const hasOrder = (e) => !!e && Number.isInteger(e.releaseOrder) && e.releaseOrder > 0;
+		const ranked = rev.filter(hasOrder).sort((a, b) => b.releaseOrder - a.releaseOrder);
+		return ranked.concat(rev.filter(e => !hasOrder(e)));
 	}
 	function listCards() {
 		const src = trainingSources.supportCard;
@@ -13066,7 +13078,8 @@
 
 		function searchEntries(kind, text, type) {
 			const query = normalizeSkillText(text || '');
-			const pool = (kind === 'uma' ? listUmas() : listCards()).slice().reverse();
+			// T140: 育成ウマ娘は実装の新しい順（listUmasNewestFirst）。サポートカードはデータの順の逆のまま
+			const pool = kind === 'uma' ? listUmasNewestFirst() : listCards().reverse();
 			// オススメサポの残りの枠から開いたとき（段13・C1）は、①の編成ではなく、指定済みのカードと同じキャラクターを選べないものにする
 			const ext = picking && picking.external ? picking.external : null;
 			const used = kind === 'card' ? (ext ? ext.used : roster.cardIds.filter(Boolean)) : [];

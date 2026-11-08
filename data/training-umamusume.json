@@ -1,8 +1,8 @@
 {
-	"dataVersion": "2026-10-26a",
+	"dataVersion": "2026-11-08a",
 	"category": "trainingUmamusume",
 	"nextSerial": "uma-0273",
-	"note": "育成ウマ娘（勝負服ごと）。initialSkills は★ごとの初期スキルで、minStar が現在の★以下の行のうち minStar が最大のものを使う（各行はその★での全部であって、前の行との差分ではない）。awakeningSkills は覚醒レベルごと。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus は done（確かめて載せた）／none（無いと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。",
+	"note": "育成ウマ娘（勝負服ごと）。initialSkills は★ごとの初期スキルで、minStar が現在の★以下の行のうち minStar が最大のものを使う（各行はその★での全部であって、前の行との差分ではない）。awakeningSkills は覚醒レベルごと。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus は done（確かめて載せた）／none（無いと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。releaseOrder は実装の順の番号（整数）で、1 がいちばん古く、新しいほど大きい（重複・欠番なし）。同じお知らせで2人が実装されたときは、お知らせで先に書かれている方が大きい番号。新しい衣装は、公式のお知らせのガチャの告知の日付の順で、今の最大の次から続ける。実装日（日付）は持たない。",
 	"entries": [
 		{
 			"id": "uma-0001",
@@ -96,7 +96,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 1
 		},
 		{
 			"id": "uma-0002",
@@ -172,7 +173,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 44
 		},
 		{
 			"id": "uma-0003",
@@ -248,7 +250,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 88
 		},
 		{
 			"id": "uma-0004",
@@ -342,7 +345,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 2
 		},
 		{
 			"id": "uma-0005",
@@ -418,7 +422,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 137
 		},
 		{
 			"id": "uma-0006",
@@ -512,7 +517,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 3
 		},
 		{
 			"id": "uma-0007",
@@ -588,7 +594,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 30
 		},
 		{
 			"id": "uma-0008",
@@ -664,7 +671,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 146
 		},
 		{
 			"id": "uma-0009",
@@ -740,7 +748,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 4
 		},
 		{
 			"id": "uma-0010",
@@ -816,7 +825,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 43
 		},
 		{
 			"id": "uma-0011",
@@ -892,7 +902,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 195
 		},
 		{
 			"id": "uma-0012",
@@ -968,7 +979,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 41
 		},
 		{
 			"id": "uma-0013",
@@ -1044,7 +1056,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 74
 		},
 		{
 			"id": "uma-0014",
@@ -1120,7 +1133,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 252
 		},
 		{
 			"id": "uma-0015",
@@ -1196,7 +1210,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 5
 		},
 		{
 			"id": "uma-0016",
@@ -1272,7 +1287,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 59
 		},
 		{
 			"id": "uma-0017",
@@ -1348,7 +1364,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 235
 		},
 		{
 			"id": "uma-0018",
@@ -1433,7 +1450,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 6
 		},
 		{
 			"id": "uma-0019",
@@ -1509,7 +1527,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 90
 		},
 		{
 			"id": "uma-0020",
@@ -1585,7 +1604,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 139
 		},
 		{
 			"id": "uma-0021",
@@ -1670,7 +1690,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 7
 		},
 		{
 			"id": "uma-0022",
@@ -1746,7 +1767,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 107
 		},
 		{
 			"id": "uma-0023",
@@ -1831,7 +1853,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 8
 		},
 		{
 			"id": "uma-0024",
@@ -1907,7 +1930,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 106
 		},
 		{
 			"id": "uma-0025",
@@ -1983,7 +2007,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 9
 		},
 		{
 			"id": "uma-0026",
@@ -2059,7 +2084,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 86
 		},
 		{
 			"id": "uma-0027",
@@ -2135,7 +2161,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 242
 		},
 		{
 			"id": "uma-0028",
@@ -2220,7 +2247,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 10
 		},
 		{
 			"id": "uma-0029",
@@ -2296,7 +2324,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 40
 		},
 		{
 			"id": "uma-0030",
@@ -2372,7 +2401,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 192
 		},
 		{
 			"id": "uma-0031",
@@ -2448,7 +2478,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 38
 		},
 		{
 			"id": "uma-0032",
@@ -2524,7 +2555,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 130
 		},
 		{
 			"id": "uma-0033",
@@ -2618,7 +2650,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 11
 		},
 		{
 			"id": "uma-0034",
@@ -2694,7 +2727,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 29
 		},
 		{
 			"id": "uma-0035",
@@ -2770,7 +2804,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 89
 		},
 		{
 			"id": "uma-0036",
@@ -2873,7 +2908,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 12
 		},
 		{
 			"id": "uma-0037",
@@ -2949,7 +2985,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 39
 		},
 		{
 			"id": "uma-0038",
@@ -3025,7 +3062,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 26
 		},
 		{
 			"id": "uma-0039",
@@ -3101,7 +3139,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 63
 		},
 		{
 			"id": "uma-0040",
@@ -3177,7 +3216,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 34
 		},
 		{
 			"id": "uma-0041",
@@ -3253,7 +3293,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 109
 		},
 		{
 			"id": "uma-0042",
@@ -3329,7 +3370,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 13
 		},
 		{
 			"id": "uma-0043",
@@ -3405,7 +3447,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 55
 		},
 		{
 			"id": "uma-0044",
@@ -3490,7 +3533,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 14
 		},
 		{
 			"id": "uma-0045",
@@ -3566,7 +3610,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 36
 		},
 		{
 			"id": "uma-0046",
@@ -3642,7 +3687,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 49
 		},
 		{
 			"id": "uma-0047",
@@ -3718,7 +3764,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 99
 		},
 		{
 			"id": "uma-0048",
@@ -3794,7 +3841,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 37
 		},
 		{
 			"id": "uma-0049",
@@ -3870,7 +3918,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 73
 		},
 		{
 			"id": "uma-0050",
@@ -3946,7 +3995,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 262
 		},
 		{
 			"id": "uma-0051",
@@ -4022,7 +4072,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 61
 		},
 		{
 			"id": "uma-0052",
@@ -4098,7 +4149,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 103
 		},
 		{
 			"id": "uma-0053",
@@ -4174,7 +4226,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 60
 		},
 		{
 			"id": "uma-0054",
@@ -4250,7 +4303,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 82
 		},
 		{
 			"id": "uma-0055",
@@ -4326,7 +4380,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 259
 		},
 		{
 			"id": "uma-0056",
@@ -4402,7 +4457,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 28
 		},
 		{
 			"id": "uma-0057",
@@ -4478,7 +4534,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 58
 		},
 		{
 			"id": "uma-0058",
@@ -4554,7 +4611,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 186
 		},
 		{
 			"id": "uma-0059",
@@ -4639,7 +4697,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 15
 		},
 		{
 			"id": "uma-0060",
@@ -4715,7 +4774,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 35
 		},
 		{
 			"id": "uma-0061",
@@ -4791,7 +4851,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 184
 		},
 		{
 			"id": "uma-0062",
@@ -4867,7 +4928,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 53
 		},
 		{
 			"id": "uma-0063",
@@ -4943,7 +5005,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 156
 		},
 		{
 			"id": "uma-0064",
@@ -5019,7 +5082,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 256
 		},
 		{
 			"id": "uma-0065",
@@ -5095,7 +5159,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 27
 		},
 		{
 			"id": "uma-0066",
@@ -5171,7 +5236,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 66
 		},
 		{
 			"id": "uma-0067",
@@ -5256,7 +5322,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 16
 		},
 		{
 			"id": "uma-0068",
@@ -5332,7 +5399,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 115
 		},
 		{
 			"id": "uma-0069",
@@ -5408,7 +5476,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 48
 		},
 		{
 			"id": "uma-0070",
@@ -5484,7 +5553,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 227
 		},
 		{
 			"id": "uma-0071",
@@ -5560,7 +5630,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 96
 		},
 		{
 			"id": "uma-0072",
@@ -5636,7 +5707,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 155
 		},
 		{
 			"id": "uma-0073",
@@ -5712,7 +5784,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 17
 		},
 		{
 			"id": "uma-0074",
@@ -5788,7 +5861,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 51
 		},
 		{
 			"id": "uma-0075",
@@ -5864,7 +5938,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 174
 		},
 		{
 			"id": "uma-0076",
@@ -5940,7 +6015,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 79
 		},
 		{
 			"id": "uma-0077",
@@ -6016,7 +6092,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 114
 		},
 		{
 			"id": "uma-0078",
@@ -6092,7 +6169,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 215
 		},
 		{
 			"id": "uma-0079",
@@ -6177,7 +6255,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 18
 		},
 		{
 			"id": "uma-0080",
@@ -6253,7 +6332,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 136
 		},
 		{
 			"id": "uma-0081",
@@ -6329,7 +6409,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 168
 		},
 		{
 			"id": "uma-0082",
@@ -6405,7 +6486,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 68
 		},
 		{
 			"id": "uma-0083",
@@ -6481,7 +6563,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 190
 		},
 		{
 			"id": "uma-0084",
@@ -6557,7 +6640,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 83
 		},
 		{
 			"id": "uma-0085",
@@ -6633,7 +6717,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 102
 		},
 		{
 			"id": "uma-0086",
@@ -6718,7 +6803,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 19
 		},
 		{
 			"id": "uma-0087",
@@ -6794,7 +6880,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 95
 		},
 		{
 			"id": "uma-0088",
@@ -6870,7 +6957,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 164
 		},
 		{
 			"id": "uma-0089",
@@ -6946,7 +7034,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 87
 		},
 		{
 			"id": "uma-0090",
@@ -7022,7 +7111,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 143
 		},
 		{
 			"id": "uma-0091",
@@ -7098,7 +7188,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 46
 		},
 		{
 			"id": "uma-0092",
@@ -7174,7 +7265,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 65
 		},
 		{
 			"id": "uma-0093",
@@ -7250,7 +7342,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 177
 		},
 		{
 			"id": "uma-0094",
@@ -7326,7 +7419,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 31
 		},
 		{
 			"id": "uma-0095",
@@ -7402,7 +7496,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 81
 		},
 		{
 			"id": "uma-0096",
@@ -7478,7 +7573,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 52
 		},
 		{
 			"id": "uma-0097",
@@ -7554,7 +7650,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 145
 		},
 		{
 			"id": "uma-0098",
@@ -7630,7 +7727,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 42
 		},
 		{
 			"id": "uma-0099",
@@ -7706,7 +7804,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 54
 		},
 		{
 			"id": "uma-0100",
@@ -7782,7 +7881,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 214
 		},
 		{
 			"id": "uma-0101",
@@ -7867,7 +7967,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 20
 		},
 		{
 			"id": "uma-0102",
@@ -7943,7 +8044,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 126
 		},
 		{
 			"id": "uma-0103",
@@ -8019,7 +8121,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 248
 		},
 		{
 			"id": "uma-0104",
@@ -8095,7 +8198,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 97
 		},
 		{
 			"id": "uma-0105",
@@ -8171,7 +8275,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 183
 		},
 		{
 			"id": "uma-0106",
@@ -8247,7 +8352,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 116
 		},
 		{
 			"id": "uma-0107",
@@ -8323,7 +8429,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 266
 		},
 		{
 			"id": "uma-0108",
@@ -8399,7 +8506,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 84
 		},
 		{
 			"id": "uma-0109",
@@ -8475,7 +8583,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 171
 		},
 		{
 			"id": "uma-0110",
@@ -8560,7 +8669,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 21
 		},
 		{
 			"id": "uma-0111",
@@ -8636,7 +8746,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 50
 		},
 		{
 			"id": "uma-0112",
@@ -8712,7 +8823,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 167
 		},
 		{
 			"id": "uma-0113",
@@ -8788,7 +8900,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 33
 		},
 		{
 			"id": "uma-0114",
@@ -8864,7 +8977,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 93
 		},
 		{
 			"id": "uma-0115",
@@ -8940,7 +9054,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 208
 		},
 		{
 			"id": "uma-0116",
@@ -9016,7 +9131,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 108
 		},
 		{
 			"id": "uma-0117",
@@ -9092,7 +9208,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 180
 		},
 		{
 			"id": "uma-0118",
@@ -9168,7 +9285,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 56
 		},
 		{
 			"id": "uma-0119",
@@ -9244,7 +9362,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 133
 		},
 		{
 			"id": "uma-0120",
@@ -9320,7 +9439,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 228
 		},
 		{
 			"id": "uma-0121",
@@ -9414,7 +9534,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 104
 		},
 		{
 			"id": "uma-0122",
@@ -9490,7 +9611,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 234
 		},
 		{
 			"id": "uma-0123",
@@ -9566,7 +9688,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 32
 		},
 		{
 			"id": "uma-0124",
@@ -9642,7 +9765,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 94
 		},
 		{
 			"id": "uma-0125",
@@ -9718,7 +9842,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 187
 		},
 		{
 			"id": "uma-0126",
@@ -9794,7 +9919,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 75
 		},
 		{
 			"id": "uma-0127",
@@ -9870,7 +9996,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 129
 		},
 		{
 			"id": "uma-0128",
@@ -9955,7 +10082,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 22
 		},
 		{
 			"id": "uma-0129",
@@ -10031,7 +10159,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 62
 		},
 		{
 			"id": "uma-0130",
@@ -10107,7 +10236,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 91
 		},
 		{
 			"id": "uma-0131",
@@ -10183,7 +10313,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 132
 		},
 		{
 			"id": "uma-0132",
@@ -10268,7 +10399,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 157
 		},
 		{
 			"id": "uma-0133",
@@ -10344,7 +10476,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 131
 		},
 		{
 			"id": "uma-0134",
@@ -10420,7 +10553,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 226
 		},
 		{
 			"id": "uma-0135",
@@ -10505,7 +10639,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 23
 		},
 		{
 			"id": "uma-0136",
@@ -10581,7 +10716,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 47
 		},
 		{
 			"id": "uma-0137",
@@ -10657,7 +10793,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 118
 		},
 		{
 			"id": "uma-0138",
@@ -10733,7 +10870,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 194
 		},
 		{
 			"id": "uma-0139",
@@ -10809,7 +10947,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 45
 		},
 		{
 			"id": "uma-0140",
@@ -10885,7 +11024,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 98
 		},
 		{
 			"id": "uma-0141",
@@ -10961,7 +11101,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 57
 		},
 		{
 			"id": "uma-0142",
@@ -11037,7 +11178,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 85
 		},
 		{
 			"id": "uma-0143",
@@ -11122,7 +11264,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 24
 		},
 		{
 			"id": "uma-0144",
@@ -11198,7 +11341,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 78
 		},
 		{
 			"id": "uma-0145",
@@ -11274,7 +11418,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 153
 		},
 		{
 			"id": "uma-0146",
@@ -11359,7 +11504,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 25
 		},
 		{
 			"id": "uma-0147",
@@ -11435,7 +11581,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 77
 		},
 		{
 			"id": "uma-0148",
@@ -11511,7 +11658,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 170
 		},
 		{
 			"id": "uma-0149",
@@ -11596,7 +11744,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 70
 		},
 		{
 			"id": "uma-0150",
@@ -11672,7 +11821,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 125
 		},
 		{
 			"id": "uma-0151",
@@ -11757,7 +11907,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 159
 		},
 		{
 			"id": "uma-0152",
@@ -11833,7 +11984,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 238
 		},
 		{
 			"id": "uma-0153",
@@ -11909,7 +12061,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 80
 		},
 		{
 			"id": "uma-0154",
@@ -11985,7 +12138,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 149
 		},
 		{
 			"id": "uma-0155",
@@ -12061,7 +12215,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 113
 		},
 		{
 			"id": "uma-0156",
@@ -12137,7 +12292,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 163
 		},
 		{
 			"id": "uma-0157",
@@ -12222,7 +12378,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 117
 		},
 		{
 			"id": "uma-0158",
@@ -12298,7 +12455,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 71
 		},
 		{
 			"id": "uma-0159",
@@ -12374,7 +12532,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 111
 		},
 		{
 			"id": "uma-0160",
@@ -12450,7 +12609,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 140
 		},
 		{
 			"id": "uma-0161",
@@ -12526,7 +12686,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 69
 		},
 		{
 			"id": "uma-0162",
@@ -12602,7 +12763,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 110
 		},
 		{
 			"id": "uma-0163",
@@ -12678,7 +12840,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 152
 		},
 		{
 			"id": "uma-0164",
@@ -12754,7 +12917,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 64
 		},
 		{
 			"id": "uma-0165",
@@ -12830,7 +12994,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 122
 		},
 		{
 			"id": "uma-0166",
@@ -12906,7 +13071,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 135
 		},
 		{
 			"id": "uma-0167",
@@ -12982,7 +13148,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 205
 		},
 		{
 			"id": "uma-0168",
@@ -13058,7 +13225,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 67
 		},
 		{
 			"id": "uma-0169",
@@ -13134,7 +13302,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 121
 		},
 		{
 			"id": "uma-0170",
@@ -13210,7 +13379,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 76
 		},
 		{
 			"id": "uma-0171",
@@ -13286,7 +13456,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 166
 		},
 		{
 			"id": "uma-0172",
@@ -13371,7 +13542,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 199
 		},
 		{
 			"id": "uma-0173",
@@ -13447,7 +13619,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 72
 		},
 		{
 			"id": "uma-0174",
@@ -13523,7 +13696,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 148
 		},
 		{
 			"id": "uma-0175",
@@ -13599,7 +13773,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 261
 		},
 		{
 			"id": "uma-0176",
@@ -13675,7 +13850,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 123
 		},
 		{
 			"id": "uma-0177",
@@ -13751,7 +13927,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 237
 		},
 		{
 			"id": "uma-0178",
@@ -13827,7 +14004,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 138
 		},
 		{
 			"id": "uma-0179",
@@ -13903,7 +14081,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 189
 		},
 		{
 			"id": "uma-0180",
@@ -13979,7 +14158,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 258
 		},
 		{
 			"id": "uma-0181",
@@ -14055,7 +14235,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 101
 		},
 		{
 			"id": "uma-0182",
@@ -14131,7 +14312,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 198
 		},
 		{
 			"id": "uma-0183",
@@ -14207,7 +14389,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 196
 		},
 		{
 			"id": "uma-0184",
@@ -14283,7 +14466,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 160
 		},
 		{
 			"id": "uma-0185",
@@ -14359,7 +14543,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 230
 		},
 		{
 			"id": "uma-0186",
@@ -14435,7 +14620,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 224
 		},
 		{
 			"id": "uma-0187",
@@ -14511,7 +14697,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 169
 		},
 		{
 			"id": "uma-0188",
@@ -14587,7 +14774,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 247
 		},
 		{
 			"id": "uma-0189",
@@ -14663,7 +14851,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 120
 		},
 		{
 			"id": "uma-0190",
@@ -14739,7 +14928,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 142
 		},
 		{
 			"id": "uma-0191",
@@ -14815,7 +15005,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 128
 		},
 		{
 			"id": "uma-0192",
@@ -14891,7 +15082,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 204
 		},
 		{
 			"id": "uma-0193",
@@ -14967,7 +15159,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 119
 		},
 		{
 			"id": "uma-0194",
@@ -15043,7 +15236,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 162
 		},
 		{
 			"id": "uma-0195",
@@ -15119,7 +15313,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 144
 		},
 		{
 			"id": "uma-0196",
@@ -15195,7 +15390,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 212
 		},
 		{
 			"id": "uma-0197",
@@ -15271,7 +15467,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 100
 		},
 		{
 			"id": "uma-0198",
@@ -15347,7 +15544,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 197
 		},
 		{
 			"id": "uma-0199",
@@ -15423,7 +15621,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 150
 		},
 		{
 			"id": "uma-0200",
@@ -15499,7 +15698,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 219
 		},
 		{
 			"id": "uma-0201",
@@ -15575,7 +15775,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 151
 		},
 		{
 			"id": "uma-0202",
@@ -15651,7 +15852,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 218
 		},
 		{
 			"id": "uma-0203",
@@ -15727,7 +15929,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 209
 		},
 		{
 			"id": "uma-0204",
@@ -15803,7 +16006,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 154
 		},
 		{
 			"id": "uma-0205",
@@ -15879,7 +16083,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 220
 		},
 		{
 			"id": "uma-0206",
@@ -15955,7 +16160,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 229
 		},
 		{
 			"id": "uma-0207",
@@ -16031,7 +16237,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 141
 		},
 		{
 			"id": "uma-0208",
@@ -16107,7 +16314,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 223
 		},
 		{
 			"id": "uma-0209",
@@ -16183,7 +16391,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 172
 		},
 		{
 			"id": "uma-0210",
@@ -16259,7 +16468,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 251
 		},
 		{
 			"id": "uma-0211",
@@ -16335,7 +16545,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 225
 		},
 		{
 			"id": "uma-0212",
@@ -16411,7 +16622,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 202
 		},
 		{
 			"id": "uma-0213",
@@ -16487,7 +16699,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 221
 		},
 		{
 			"id": "uma-0214",
@@ -16563,7 +16776,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 92
 		},
 		{
 			"id": "uma-0215",
@@ -16639,7 +16853,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 207
 		},
 		{
 			"id": "uma-0216",
@@ -16715,7 +16930,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 112
 		},
 		{
 			"id": "uma-0217",
@@ -16791,7 +17007,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 176
 		},
 		{
 			"id": "uma-0218",
@@ -16867,7 +17084,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 105
 		},
 		{
 			"id": "uma-0219",
@@ -16943,7 +17161,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 231
 		},
 		{
 			"id": "uma-0220",
@@ -17019,7 +17238,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 165
 		},
 		{
 			"id": "uma-0221",
@@ -17095,7 +17315,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 241
 		},
 		{
 			"id": "uma-0222",
@@ -17180,7 +17401,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 243
 		},
 		{
 			"id": "uma-0223",
@@ -17256,7 +17478,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 134
 		},
 		{
 			"id": "uma-0224",
@@ -17332,7 +17555,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 193
 		},
 		{
 			"id": "uma-0225",
@@ -17408,7 +17632,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 124
 		},
 		{
 			"id": "uma-0226",
@@ -17484,7 +17709,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 179
 		},
 		{
 			"id": "uma-0227",
@@ -17560,7 +17786,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 127
 		},
 		{
 			"id": "uma-0228",
@@ -17636,7 +17863,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 222
 		},
 		{
 			"id": "uma-0229",
@@ -17712,7 +17940,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 147
 		},
 		{
 			"id": "uma-0230",
@@ -17788,7 +18017,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 203
 		},
 		{
 			"id": "uma-0231",
@@ -17864,7 +18094,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 158
 		},
 		{
 			"id": "uma-0232",
@@ -17940,7 +18171,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 161
 		},
 		{
 			"id": "uma-0233",
@@ -18016,7 +18248,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 216
 		},
 		{
 			"id": "uma-0234",
@@ -18092,7 +18325,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 181
 		},
 		{
 			"id": "uma-0235",
@@ -18168,7 +18402,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 211
 		},
 		{
 			"id": "uma-0236",
@@ -18244,7 +18479,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 188
 		},
 		{
 			"id": "uma-0237",
@@ -18320,7 +18556,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 253
 		},
 		{
 			"id": "uma-0238",
@@ -18396,7 +18633,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 217
 		},
 		{
 			"id": "uma-0239",
@@ -18472,7 +18710,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 263
 		},
 		{
 			"id": "uma-0240",
@@ -18548,7 +18787,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 232
 		},
 		{
 			"id": "uma-0241",
@@ -18624,7 +18864,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 200
 		},
 		{
 			"id": "uma-0242",
@@ -18700,7 +18941,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 178
 		},
 		{
 			"id": "uma-0243",
@@ -18776,7 +19018,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 255
 		},
 		{
 			"id": "uma-0244",
@@ -18852,7 +19095,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 191
 		},
 		{
 			"id": "uma-0245",
@@ -18928,7 +19172,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 250
 		},
 		{
 			"id": "uma-0246",
@@ -19004,7 +19249,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 173
 		},
 		{
 			"id": "uma-0247",
@@ -19080,7 +19326,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 233
 		},
 		{
 			"id": "uma-0248",
@@ -19156,7 +19403,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 175
 		},
 		{
 			"id": "uma-0249",
@@ -19232,7 +19480,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 182
 		},
 		{
 			"id": "uma-0250",
@@ -19308,7 +19557,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 185
 		},
 		{
 			"id": "uma-0251",
@@ -19384,7 +19634,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 239
 		},
 		{
 			"id": "uma-0252",
@@ -19460,7 +19711,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 206
 		},
 		{
 			"id": "uma-0253",
@@ -19536,7 +19788,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 265
 		},
 		{
 			"id": "uma-0254",
@@ -19612,7 +19865,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 244
 		},
 		{
 			"id": "uma-0255",
@@ -19688,7 +19942,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 249
 		},
 		{
 			"id": "uma-0256",
@@ -19764,7 +20019,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 201
 		},
 		{
 			"id": "uma-0257",
@@ -19840,7 +20096,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 210
 		},
 		{
 			"id": "uma-0258",
@@ -19916,7 +20173,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 245
 		},
 		{
 			"id": "uma-0259",
@@ -19992,7 +20250,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 213
 		},
 		{
 			"id": "uma-0260",
@@ -20068,7 +20327,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 257
 		},
 		{
 			"id": "uma-0261",
@@ -20144,7 +20404,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 236
 		},
 		{
 			"id": "uma-0262",
@@ -20220,7 +20481,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 254
 		},
 		{
 			"id": "uma-0263",
@@ -20296,7 +20558,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 240
 		},
 		{
 			"id": "uma-0264",
@@ -20372,7 +20635,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 264
 		},
 		{
 			"id": "uma-0265",
@@ -20448,7 +20712,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 246
 		},
 		{
 			"id": "uma-0266",
@@ -20524,7 +20789,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 260
 		},
 		{
 			"id": "uma-0267",
@@ -20600,7 +20866,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 267
 		},
 		{
 			"id": "uma-0268",
@@ -20676,7 +20943,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 268
 		},
 		{
 			"id": "uma-0269",
@@ -20752,7 +21020,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 270
 		},
 		{
 			"id": "uma-0270",
@@ -20828,7 +21097,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 269
 		},
 		{
 			"id": "uma-0271",
@@ -20904,7 +21174,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 271
 		},
 		{
 			"id": "uma-0272",
@@ -20980,7 +21251,8 @@
 			"dataStatus": {
 				"initial": "done",
 				"awakening": "done"
-			}
+			},
+			"releaseOrder": 272
 		}
 	]
 }

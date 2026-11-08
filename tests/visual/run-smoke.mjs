@@ -163,6 +163,7 @@ import { register142 } from './blocks-142.mjs';
 import { register141 } from './blocks-141.mjs';
 import { register143 } from './blocks-143.mjs';
 import { register145 } from './blocks-145.mjs';
+import { register149 } from './blocks-149.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15589,6 +15590,8 @@ await register141({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register143({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T136（2026-11-08）: 速い動画だけ 1/16秒おきに調べ、はじき始めから時間のたった画を先に選ぶ（エフェクトを減らす・軌跡のはじき始めの組）
 await register145({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T140（2026-11-08）: ①の「育成ウマ娘を選ぶ」の小窓を実装の新しい順（releaseOrder の降順・番号の無い行は最後）に（見出しは「T140」）
+await register149({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
