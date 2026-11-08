@@ -14462,7 +14462,16 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	const wAny = master.filter((s) => plain(s) && (s.tags.distance || []).length === 0);
 	// 絞り込み（距離=短距離）に当たるか（matchesFilters と同じ決まり: 距離は空なら万能・値があればその値を含むか。脚質・バ場は選んでいない）
 	const wantedShort = (id) => { const s = byId.get(id); return !s || !s.tags || (s.tags.distance || []).length === 0 || (s.tags.distance || []).includes('short'); };
-	const wPending = ext.find((s) => s.tagsPending && !hinted.has(s.id));
+	// T128（extended-skills 2026-11-07f）: 実データの tagsPending が0件になったので、無いときは仮のデータで1行をタグ未設定にする
+	// （ツールの tagsPending の扱いは残す決定〔2026-10-16〕。その扱いを見るこの塊の意味を保つため。拡張スキルの JSON を差し替えて読ませる）
+	let wPending = ext.find((s) => s.tagsPending && !hinted.has(s.id));
+	let extFixture = null;
+	if (!wPending) {
+		const src = ext.find((s) => s.tags && !s.raceDistance && !hinted.has(s.id));
+		const extDoc = readJson('data/extended-skills.json');
+		extFixture = Object.assign({}, extDoc, { entries: extDoc.entries.map((e) => (e.id === src.id ? { id: e.id, name: e.name, tagsPending: true } : e)) });
+		wPending = { id: src.id, name: src.name, tagsPending: true };
+	}
 	const used = new Set([wShort, wLong, wPending].map((s) => s.id));
 	const anyPick = wAny.filter((s) => !used.has(s.id)).slice(0, 6);
 	// W0 短距離／W1 長距離／W2・W3・W4・W5・W7・W8 万能／W6 タグ未設定
@@ -14497,6 +14506,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		await page.route('**/data/skill-pt.json*', (route) => route.fulfill(json(ptDoc)));
 		await page.route('**/data/skill-step-up.json*', (route) => route.fulfill(json(stepDoc)));
 		await page.route('**/data/skill-descriptions.json*', (route) => route.fulfill(json(descDoc)));
+		if (extFixture) await page.route('**/data/extended-skills.json*', (route) => route.fulfill(json(extFixture)));
 	};
 	const open = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 }, o.userData);
@@ -14897,7 +14907,16 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	const wAny = master.filter((s) => plain(s) && (s.tags.distance || []).length === 0);
 	// 絞り込み（距離=短距離）に当たるか（matchesFilters と同じ決まり: 距離は空なら万能・値があればその値を含むか。脚質・バ場は選んでいない）
 	const wantedShort = (id) => { const s = byId.get(id); return !s || !s.tags || (s.tags.distance || []).length === 0 || (s.tags.distance || []).includes('short'); };
-	const wPending = ext.find((s) => s.tagsPending && !hinted.has(s.id));
+	// T128（extended-skills 2026-11-07f）: 実データの tagsPending が0件になったので、無いときは仮のデータで1行をタグ未設定にする
+	// （ツールの tagsPending の扱いは残す決定〔2026-10-16〕。その扱いを見るこの塊の意味を保つため。拡張スキルの JSON を差し替えて読ませる）
+	let wPending = ext.find((s) => s.tagsPending && !hinted.has(s.id));
+	let extFixture = null;
+	if (!wPending) {
+		const src = ext.find((s) => s.tags && !s.raceDistance && !hinted.has(s.id));
+		const extDoc = readJson('data/extended-skills.json');
+		extFixture = Object.assign({}, extDoc, { entries: extDoc.entries.map((e) => (e.id === src.id ? { id: e.id, name: e.name, tagsPending: true } : e)) });
+		wPending = { id: src.id, name: src.name, tagsPending: true };
+	}
 	const used = new Set([wShort, wLong, wPending].map((s) => s.id));
 	const anyPick = wAny.filter((s) => !used.has(s.id)).slice(0, 6);
 	// W0 短距離／W1 長距離／W2・W3・W4・W5・W7・W8 万能／W6 タグ未設定
@@ -14932,6 +14951,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		await page.route('**/data/skill-pt.json*', (route) => route.fulfill(json(ptDoc)));
 		await page.route('**/data/skill-step-up.json*', (route) => route.fulfill(json(stepDoc)));
 		await page.route('**/data/skill-descriptions.json*', (route) => route.fulfill(json(descDoc)));
+		if (extFixture) await page.route('**/data/extended-skills.json*', (route) => route.fulfill(json(extFixture)));
 	};
 	const open = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 }, o.userData);
