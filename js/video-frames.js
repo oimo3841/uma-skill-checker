@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-08b';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-08c';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -74,6 +74,7 @@
 		// T85（T83 の案1＋案3）
 		preferStill: true,   // 止まっている区間の真ん中の1枚を先に選ぶ（止まり→止まりが maxGap を超える所だけ動いている1枚を足す）
 		maxGap: 0.85,        // 止まっている候補を選ぶ距離の上限（本文の帯の高さに対する割合）
+		minWeakOverlap: 0.2, // 基準をゆるめて認める継ぎ目・無理につなぐ前に先を探すときの、重なりの下限（本文の帯の高さに対する割合。T135）
 		grabMatch: 0.03,     // 取り直した等倍の画を縮めて、選ぶときの縮小画と比べる不一致率の上限（badNear0）
 		remeasureWin: 48,    // 取り直した画どうしで、選ぶときのずれの ±この範囲を測り直す
 		nearWin: 12,         // 測れない組の、ほぼ止まっている見込みで探す範囲（±px）
@@ -1021,7 +1022,11 @@
 			// 動いている1枚（タッチのエフェクトが写る）からの継ぎ目は不一致が膨らみ、iPhone と PC で画素がわずかに違うだけで基準をまたいで、
 			// 止まっている画の代わりに動いている画が選ばれることがあった（動画A の祖A2: PC は 15.5秒の止まり・iPhone は 16.625秒の動き）。
 			// 継ぎ目は取り直した画で測り直すので、ここでの基準は選ぶ画を決めるだけ。ゆるめて認めた継ぎ目は「弱い」として持つ
-			const okStill = (r) => r && r.shift > 0 && isFinite(r.badRate) && r.badRate < opts.okBad * 2 && ratioOf(r) >= opts.warnSecondRatio;
+			// ゆるめて認めるのは、重なりが本文の帯の高さの minWeakOverlap 以上のときだけ（T135・決定 494 の案A）。PC のホイールの取り込みで、
+			// にじんだ画の前後で軌跡が外れ、本当は重なりの無い止まった画が「形の似た別の行どうし」の小さな重なり（約1行）でこの基準を通り、
+			// 祖1 の1行が警告なしで抜けた（T124 §原因）
+			const enoughOverlap = (r) => cH - r.shift >= Math.round(cH * opts.minWeakOverlap);
+			const okStill = (r) => r && r.shift > 0 && isFinite(r.badRate) && r.badRate < opts.okBad * 2 && ratioOf(r) >= opts.warnSecondRatio && enoughOverlap(r);
 			const tryList = async (list, accept) => {
 				for (const j of list) {
 					if (nextA >= 0 && j === nextA) continue;
@@ -1088,6 +1093,22 @@
 				continue;
 			}
 			const r = verifySeam(key.plane, f.plane, pos.get(f) - pk);
+			// ほかに選べず次のフレームへ無理につなぐ前に: つながらないなら、その先のフレームを順に確かめ、つながる最初の1枚を選ぶ（T135・決定 494 の案B2）。
+			// 測れない組を「1画面分進んだ」とみなした位置は外れていることがあり、そのまま無理につなぐと同じ行が二重に入った（T124 §原因・11/5 201751）
+			if (!ok(r)) {
+				let alt = null, ra = null;
+				for (let j = further + 1; j <= end; j++) {
+					await pause();
+					const g = same[j];
+					const r2 = verifySeam(key.plane, g.plane, pos.get(g) - pk);
+					if ((ok(r2) || okStill(r2)) && enoughOverlap(r2)) { alt = g; ra = r2; break; }
+				}
+				if (alt) {
+					if (opts.debug) (opts.debug.skipAhead = opts.debug.skipAhead || []).push({ from: key.t, skip: f.t, to: alt.t, shift: ra.shift });
+					pushPick(key, alt, ra, !ok(ra)); key = alt;
+					continue;
+				}
+			}
 			pushPick(key, f, r, !ok(r)); key = f;
 		}
 		// 一番下で行き過ぎて戻った（ゴムのような跳ね返り）あとに止まった区間があれば、末尾の1枚をその区間の画に置き換える（T132・決定 483）。
