@@ -12,6 +12,14 @@
 //   npm run test:select -- --times=<フォルダ>     … 時間の見込みに使う計器のログ（block-times-*-sKof3.jsonl）を探す場所を足す
 //   npm run test:select -- --drop-modified-tests … 既存の tests/ の変更を見ない（バックテスト用。あとから直した期待値を当てにしない）
 //   npm run test:select -- --cap=20            … 1つの識別子が当たる塊がこれより多ければ「広すぎ」として使わない（既定 20。文言は --jp-cap=10）
+//   npm run test:select -- --purpose=見た目|文章|保存|計算|動き|処理（カンマで複数可）
+//                                                … 変更の目的を宣言し、今の選び方に並べて「印で絞った場合」の塊と見込みを出す（T127・決定 478〜480）。
+//                                                  差の種類（下の diffTypesOfFile）と突き合わせ、宣言の外の種類（特に処理）があれば宣言を広げて理由（ファイル:行）を出す。
+//                                                  回す印: 見た目 → V、文章 → T＋V、保存 → S＋A、計算 → C、動き → A、処理 → 全部（印は tests/visual/block-marks.json・scripts/mark-blocks.mjs）。
+//                                                  絞るのは段3 の「全体」と、段1・段2 の (2) だけで当たった塊。核・(1)(4)(6)・一覧に無い塊・印が * の塊は絞らない。
+//                                                  文章のときの見た目（V だけで当たる塊）は、変えた文の出るページを開かない塊を外す（ページが分からなければ外さない）。
+//                                                  **恒久ルール22 の選び方は変えない（上の出力のまま）。** 印で絞った選び方は参考に並べるだけ（決定 480）。
+//   npm run test:select -- --marks=<path>      … 印の一覧を別のファイルから読む（確かめ用）
 //
 // ■ 選び方（理由はすべて出す）
 //   (1) 変えた tests/visual の塊: diff の行が入っている塊（塊の範囲＝その block( の行から次の block( の前まで）。
@@ -26,7 +34,8 @@
 //   (5) 検査の土台（tests/visual/lib/・run-smoke.mjs の塊の外・run-parallel.mjs・package-lock.json）を変えたら「全体」と出す。
 //   (6) 「寸法に敏感な塊」（block-sets.json の dimensionSensitive。列見出し・帯・入口の行の高さ・寸法・見た目を固定値で測る）。
 //       段2 以上で、.css・画面の HTML（リポジトリ直下の *.html。版の付け替えとコメントだけなら除く）・帯や列見出しを作る関数（DIM_FUNCS）を変えたときだけ足す（2026-10-30）。
-//   段3 と決まる変更（CSS トークンと共有の CSS・保存データの形と移行・凍結ファイル・検査の土台）と、段3 かもしれない変更
+//   段3 と決まる変更（CSS トークンと共有の CSS・保存データの形と移行・凍結ファイル・検査の土台＝lib/・run-parallel.mjs・run-smoke.mjs の塊の外。
+//   run-smoke.mjs の塊の中の直しと、新しい塊のファイルの登録の行だけなら段3 にしない。T127）と、段3 かもしれない変更
 //   （core・2ページで共有の部品・保存の鍵）は、その旨を出す（中身で決めるのは人）。
 //
 // 塊の番号は、run-smoke.mjs と blocks-*.mjs の block( の並びから静的に数える（npm run test:visual -- --list と同じ番号。
@@ -38,6 +47,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadWeights, weightLookup, planShards, listBlocks } from '../tests/visual/lib/shard-plan.mjs';
+import { loadMarks, marksTable, marksHit, withOrd, keyOf } from './block-marks-lib.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VISUAL = 'tests/visual';
@@ -55,6 +65,8 @@ const JP_CAP = Number(arg('jp-cap') || 10);   // 文言（日本語）の当た�
 const NO_CORE = ARGV.includes('--no-core');
 const QUIET = ARGV.includes('--quiet');
 const TIMES_DIR = arg('times');      // 計器のログ（block-times-*-sKof3.jsonl）を探すフォルダを足す
+const PURPOSE = arg('purpose');      // 変更の目的の宣言（T127。見た目|文章|保存|計算|動き|処理。カンマか | で複数）
+const MARKS_ARG = arg('marks');      // 印の一覧を別のファイルから読む（確かめ用。既定は tests/visual/block-marks.json）
 
 // ---------------------------------------------------------------- git と読み込み
 function git(args, opts = {}) {
@@ -255,7 +267,7 @@ function alignToRuntime(stat, runtime) {
  */
 let prefetched = false;
 let numbering = 'static';   // 'runtime'＝実行時の一覧で引き直した番号（T111）
-function buildIndex() {
+export function buildIndex() {
 	if (!prefetched) { prefetched = true; prefetchHead(); }
 	const smokeRel = VISUAL + '/run-smoke.mjs';
 	const smoke = readText(smokeRel);
@@ -456,7 +468,9 @@ const STAGE3_FILES = [
 	[/^js\/common\.js$/, '凍結ファイル（js/common.js）'],
 	[/^index\.html$/, '凍結ファイル（index.html）'],
 	[/^tests\/visual\/lib\//, '検査の土台（tests/visual/lib/）'],
-	[/^tests\/visual\/run-(parallel|smoke)\.mjs$/, '検査の土台（run-smoke.mjs の塊の外・run-parallel.mjs）'],
+	// run-smoke.mjs はここに入れない（T127・決定 476）: 塊の中の直し・新しい塊のファイルの登録の行（import と await registerNN）だけで
+	// 段3 になっていた（最近の150本で段3 の80本のうち60本）。塊の外を変えたときは、下の本体の「塊の外」の判定（full と同じ行）で段3 にする
+	[/^tests\/visual\/run-parallel\.mjs$/, '検査の土台（run-parallel.mjs）'],
 	[/^package(-lock)?\.json$/, 'package.json（依存・npm の入口）'],
 ];
 const STORAGE_RE = /schemaVersion|migrat/;                                  // 保存データの形と移行 → 段3
@@ -485,6 +499,185 @@ const OTHER_CHECKS = [
 	[/^tests\/rules\//, 'npm run check:rules'],
 	[/^tests\/privacy\//, 'npm run check:privacy'],
 ];
+
+// ---------------------------------------------------------------- 目的の宣言（--purpose。T127・決定 478〜480）
+// 宣言の名前 → 記号。記号 W（処理）は「すべての印」。
+const PURPOSE_ALIASES = {
+	'見た目': 'V', V: 'V', visual: 'V',
+	'文章': 'T', '文言': 'T', T: 'T', text: 'T',
+	'保存': 'S', '保存データ': 'S', S: 'S', storage: 'S',
+	'計算': 'C', 'データ': 'C', '計算・データ': 'C', C: 'C', calc: 'C', data: 'C',
+	'動き': 'A', A: 'A', action: 'A',
+	'処理': 'W', W: 'W', logic: 'W',
+};
+const PURPOSE_NAMES = { V: '見た目', T: '文章', S: '保存', C: '計算', A: '動き', W: '処理' };
+// 宣言ごとに回す印（決定 478・479）: 見た目 → V、文章 → T＋V、保存 → S＋A、計算 → C、動き → A、処理 → 全部
+const PURPOSE_MARKS = { V: ['V'], T: ['T', 'V'], S: ['S', 'A'], C: ['C'], A: ['A'], W: ['*'] };
+
+// 差の種類の見立て（T125 の difftype の試作を固めたもの）: 製品のファイルの変えた行から V 見た目・T 文章・S 保存・C データ・W 処理 を見立てる。
+// 迷う行は W（処理＝すべて）に倒す。tests/・scripts/・docs/・*.md は製品でないので種類に入れない。
+const DT_COMMENT = (l) => /^\s*(\/\/|\*|\/\*|<!--)/.test(l);
+const DT_VER = (l) => /\?v=\d{4}-\d{2}-\d{2}/.test(l) || /-version:\s*'?\d{4}-\d{2}-\d{2}/.test(l) || /_VERSION\s*=\s*'\d{4}-\d{2}-\d{2}/.test(l);
+const DT_JP = /[぀-ヿ㐀-鿿０-９Ａ-Ｚａ-ｚ々ー「」（）・、。！？]/;
+// 文字列の字面のうち、日本語を含むものの中身を消した形（文言だけの変更なら、前後で同じになる）
+const dtStripJp = (l) => l.replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, (s) => (DT_JP.test(s) ? '""' : s)).replace(/>[^<>]*</g, (s) => (DT_JP.test(s) ? '><' : s)).trim();
+const DT_STORE = /localStorage|sessionStorage|indexedDB|STORAGE_KEY|schemaVersion|migrat|umaSkillDeck:/;
+// CSS の宣言らしい行（HTML・JS の中の style・class の付け替えも見た目。最後の形は core の中の CSS の文字列 '.a { b: c; }',）
+const DT_CSS_LINE = /^\s*[-a-z]+\s*:\s*[^;{}]+;?\s*$|^\s*[.#\w\-\[\]:>,*\s()="']+\{\s*$|^\s*\}\s*$|^\s*@media|style=|\.style\.|class(Name|List)?=|classList\.(add|remove|toggle)|^\s*\+?\s*['"`][^'"`]*[{;:][^'"`]*['"`]\s*[,+]?\s*$/;
+
+/** 1つのファイルの差から種類を見立てる。戻り値 [{ t: 'V'|'T'|'S'|'C'|'W', at: 'ファイル:行', why }] */
+export function diffTypesOfFile(fd) {
+	const out = [];
+	const file = fd.file;
+	if (/^(tests|scripts|docs|output)\//.test(file) || /\.md$/.test(file) || /^\.[^/]+$/.test(file)) return out;
+	if (file.startsWith('data/') || /\.json$/.test(file)) { out.push({ t: 'C', at: file, why: 'データのファイル' }); return out; }
+	if (fd.binary || /\.(png|jpe?g|webp|svg|ico|woff2?)$/.test(file)) { out.push({ t: 'V', at: file, why: '画像・字体' }); return out; }
+	for (const h of fd.hunks) {
+		const minus = h.minus.filter((l) => l.trim() && !DT_COMMENT(l) && !DT_VER(l));
+		const plus = h.plus.filter((l) => l.trim() && !DT_COMMENT(l) && !DT_VER(l));
+		if (!minus.length && !plus.length) continue;
+		const at = file + ':' + h.newStart;
+		if (/\.css$/.test(file)) { out.push({ t: 'V', at, why: 'CSS' }); continue; }
+		const all = minus.concat(plus);
+		if (all.some((l) => DT_STORE.test(l))) out.push({ t: 'S', at, why: '保存の鍵・形に触れる行' });
+		// 文言だけ: 行の数が同じで、日本語の字面を消すと前後が同じ
+		if (minus.length === plus.length && minus.every((l, i) => dtStripJp(l) === dtStripJp(plus[i])) && all.some((l) => DT_JP.test(l))) { out.push({ t: 'T', at, why: '文言だけの行' }); continue; }
+		if (all.every((l) => DT_CSS_LINE.test(l))) { out.push({ t: 'V', at, why: '見た目の行だけ（class・style・CSS の文字列）' }); continue; }
+		const sample = (plus[0] || minus[0] || '').trim().slice(0, 50);
+		out.push({ t: 'W', at, why: '処理・作りの行（' + sample + '）' });
+	}
+	return out;
+}
+
+/** 宣言を読む（知らない名前は投げる） */
+function parsePurpose(s) {
+	const set = new Set();
+	for (const w of String(s).split(/[,|、・＋+\s]+/).map((x) => x.trim()).filter(Boolean)) {
+		const k = PURPOSE_ALIASES[w];
+		if (!k) throw new Error('--purpose の「' + w + '」が分からない（見た目|文章|保存|計算|動き|処理）');
+		set.add(k);
+	}
+	if (set.size === 0) throw new Error('--purpose が空');
+	return set;
+}
+
+/** ページのファイル（*.html）の一覧と、部品（js・css）を読み込むページ（ファイル名で引く） */
+let pageIndexCache = null;
+function pageIndex() {
+	if (pageIndexCache) return pageIndexCache;
+	let names = [];
+	try { names = (HEAD ? git(['ls-tree', '-r', '--name-only', HEAD]) : git(['ls-files'])).split('\n').map((s) => s.trim()).filter((s) => /\.html$/.test(s) && !/^(tests|docs|output)\//.test(s)); } catch (e) { names = []; }
+	const pages = names.map((n) => ({ rel: n, text: readText(n) || '' }));
+	pageIndexCache = pages;
+	return pages;
+}
+/** 変えた製品のファイルが出るページ（html の名前の集合）。分からなければ null */
+function pagesOfFile(rel) {
+	if (/\.html$/.test(rel)) return new Set([path.basename(rel)]);
+	if (!/\.(js|css|mjs)$/.test(rel)) return null;
+	const base = path.basename(rel);
+	const hit = pageIndex().filter((p) => p.text.includes(base)).map((p) => path.basename(p.rel));
+	return hit.length ? new Set(hit) : null;
+}
+/** 塊が開くページ（本文の *.html。無ければファイルの共通の準備の *.html）。分からなければ null */
+function pagesOfBlock(idx, b) {
+	const f = idx.files[b.file];
+	const grab = (text) => new Set([...text.matchAll(/([\w-]+)\.html\b/g)].map((m) => m[1] + '.html'));
+	let s = grab(f.lines.slice(b.start - 1, b.end).join('\n'));
+	if (s.size === 0 && b.file !== idx.smokeRel) s = grab(f.lines.slice(0, f.preambleEnd).join('\n'));
+	return s.size ? s : null;
+}
+
+/**
+ * 目的の宣言で「印で絞った場合」の塊を出す（恒久ルール22 の選び方はそのまま。並べて出すだけ。決定 480）。
+ * 絞るのは (a) 段3 の「全体」の代わりの「印が当たる塊」と、(b) 段1・段2 の「関係する塊」のうち (2) 識別子・文言だけで当たった塊。
+ * 核の塊・(1) 変えた塊・(4)(6) の塊・一覧に無い塊・印が * の塊は絞らない。
+ */
+function purposeSelect({ idx, diff, reasons, stage, full, selectedNos }) {
+	const declared = parsePurpose(PURPOSE);
+	// ---- 差と突き合わせる: 宣言の外の種類があれば広げる（理由はファイル:行）
+	const types = diff.flatMap((fd) => diffTypesOfFile(fd));   // 消したファイルは消した行（−）で見立てる
+	const finalSet = new Set(declared);
+	const widened = [];
+	for (const k of ['W', 'S', 'C', 'V', 'T']) {
+		const hits = types.filter((x) => x.t === k);
+		if (!hits.length || finalSet.has(k)) continue;
+		finalSet.add(k);
+		widened.push({ to: k, name: PURPOSE_NAMES[k], count: hits.length, at: hits.slice(0, 5).map((x) => x.at + ' ' + x.why) });
+	}
+	const want = new Set([...finalSet].flatMap((k) => PURPOSE_MARKS[k]));
+	let doc = loadMarks(REPO_ROOT);
+	if (MARKS_ARG) { try { doc = JSON.parse(fs.readFileSync(path.resolve(MARKS_ARG), 'utf8')); } catch (e) { doc = null; } }
+	const table = marksTable(doc);
+	const rows = withOrd(idx.blocks, (b) => (b.runtimeTitle != null ? b.runtimeTitle : b.title));
+	// 鍵で引けない塊（--head で静的な番号のとき、見出しを組み立てる塊は見出しの先頭しか分からない）は、同じファイルで見出しが同じか
+	// その先頭で始まる項目の印を合わせて使う（どれかが * なら *）。それでも無ければ null＝一覧に無い（すべてに当たる）
+	const byFile = new Map();
+	for (const e of (doc && doc.blocks) || []) { if (!byFile.has(e.file)) byFile.set(e.file, []); byFile.get(e.file).push(e); }
+	const markOf = (no) => {
+		const r = rows[no - 1];
+		const e = table.get(r.key);
+		if (e) return e.marks;
+		const b = r.b;
+		const cands = (byFile.get(b.file) || []).filter((x) => x.title === r.title || (b.dynamic && b.title.length >= 6 && x.title.startsWith(b.title)));
+		if (!cands.length) return null;
+		const ms = cands.map((x) => (table.get(keyOf(x.file, x.title, x.ord)) || x).marks);
+		return ms.includes('*') ? '*' : [...new Set(ms.join(''))].join('');
+	};
+	// ---- 文章のときの見た目（決定 479・おいもさんの指定）: 変えた文の出るページと関係の無い見た目の塊は外す（迷えば残す）
+	const textOnlyV = finalSet.has('T') && !finalSet.has('V') && !want.has('*');
+	let textPages = null;
+	let textPagesWhy = '';
+	if (textOnlyV) {
+		textPages = new Set();
+		for (const fd of diff) {
+			if (diffTypesOfFile(fd).length === 0) continue;   // 製品でない・版とコメントだけ
+			const p = pagesOfFile(fd.file);
+			if (!p) { textPages = null; textPagesWhy = fd.file + ' の出るページが分からない（見た目の塊はページで外さない）'; break; }
+			p.forEach((x) => textPages.add(x));
+		}
+		if (textPages && textPages.size === 0) { textPages = null; textPagesWhy = '製品の文を変えていない（見た目の塊はページで外さない）'; }
+	}
+	const protectedReason = (rs) => rs.some((x) => !x.startsWith('(2)'));   // (1)(3)(4)(6) の理由がある塊は絞らない
+	const dropped = { mark: [], page: [] };
+	const keep = (no, rs) => {
+		if (rs && protectedReason(rs)) return true;
+		const m = markOf(no);
+		if (m == null || m === '*') return true;
+		if (!marksHit(m, want)) { dropped.mark.push(no); return false; }
+		if (textPages) {
+			// 文章の印（T）が当たる塊は残す。見た目（V）だけで当たる塊は、開くページが変えた文の出るページに無ければ外す
+			const viaT = m.includes('T') || [...m].some((k) => k !== 'V' && want.has(k));
+			if (!viaT) {
+				const bp = pagesOfBlock(idx, idx.blocks[no - 1]);
+				if (bp && ![...bp].some((x) => textPages.has(x))) { dropped.page.push(no); return false; }
+			}
+		}
+		return true;
+	};
+	const isFull = stage === 3;
+	const baseNos = isFull ? idx.blocks.map((b) => b.no) : selectedNos;
+	const narrowed = baseNos.filter((no) => keep(no, reasons.get(no)));
+	const nowEst = estimate(idx.blocks, baseNos);
+	const narEst = estimate(idx.blocks, narrowed);
+	const missing = rows.filter((r) => markOf(r.b.no) == null).length;
+	return {
+		declared: [...declared].map((k) => PURPOSE_NAMES[k]),
+		final: [...finalSet].map((k) => PURPOSE_NAMES[k]),
+		widened,
+		diffTypes: [...new Set(types.map((x) => x.t))],
+		marks: want.has('*') ? ['*'] : [...want],
+		marksFile: doc ? { count: table.size, missing } : null,
+		now: { kind: isFull ? '段3 の全体' : '段' + stage + ' の選んだ塊', count: baseNos.length, parallelSec: nowEst.parallelSec, serialSec: nowEst.serialSec },
+		narrowed: { count: narrowed.length, parallelSec: narEst.parallelSec, serialSec: narEst.serialSec, only: narrowed.join(',') },
+		droppedByMark: dropped.mark.length,
+		droppedByPage: dropped.page.length,
+		droppedByPageNos: dropped.page,
+		textPages: textPages ? [...textPages] : null,
+		textPagesWhy,
+		fullReasons: full,
+	};
+}
 
 // ---------------------------------------------------------------- 本体
 export function main() {
@@ -679,6 +872,7 @@ export function main() {
 		nos = nos.filter((no) => keep.has(no));
 	}
 	const est = estimate(idx.blocks, nos);
+	const purpose = PURPOSE ? purposeSelect({ idx, diff, reasons, stage, full: [...new Set(full)], selectedNos: nos }) : null;
 	const result = {
 		base: base, baseShort, head: HEAD || '(作業ツリー)', blockCount: idx.blocks.length, numbering,
 		changedFiles, stage, stage3: [...new Set(stage3)], stage3Maybe: [...new Set(stage3Maybe)], full: [...new Set(full)], otherChecks: [...otherChecks],
@@ -687,6 +881,7 @@ export function main() {
 		dimensionSensitive: dimAdded ? [...new Set(dimWhy)] : [],
 		broad, estimate: est, budget: BUDGET, dropped,
 		only: nos.join(','),
+		purpose,
 	};
 	if (JSON_OUT === '-') { process.stdout.write(JSON.stringify(result) + '\n'); return result; }   // --json=- は JSON だけを標準出力へ
 	if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(result, null, 1));
@@ -799,7 +994,28 @@ function printResult(r) {
 	for (const s of r.selected) out.push('  #' + s.no + ' ' + s.title.slice(0, 60) + '\n      ← ' + s.reasons.slice(0, 4).join(' ／ ') + (s.reasons.length > 4 ? ' ／ ほか' + (s.reasons.length - 4) : ''));
 	if (r.broad.length > 0) out.push('\n広すぎて使わなかった語（' + r.broad.length + '）: ' + r.broad.slice(0, 40).join('、') + (r.broad.length > 40 ? ' ほか' : ''));
 	out.push('\nほかの検査: ' + r.otherChecks.join(' ／ '));
+	if (r.purpose) printPurpose(out, r.purpose);
 	console.log(out.join('\n'));
+}
+/** --purpose の結果（今の選び方と「印で絞った場合」を並べる。恒久ルール22 の選び方は上のまま。T127・決定 480） */
+function printPurpose(out, p) {
+	const t = (sec) => (sec != null ? '約 ' + mmss(sec) : '—');
+	out.push('');
+	out.push('=== 目的の宣言（--purpose）で印で絞った場合（参考。push の前の選び方は上の恒久ルール22 のまま） ===');
+	out.push('宣言: ' + p.declared.join('＋') + (p.widened.length ? ' → 差と突き合わせて ' + p.final.join('＋') + ' に広げた' : '（差の種類 ' + (p.diffTypes.length ? p.diffTypes.join('') : 'なし') + ' は宣言の中）'));
+	for (const w of p.widened) {
+		out.push('  広げた理由: 「' + w.name + '」の行が ' + w.count + 'か所' + (w.to === 'W' ? '（処理＝すべての印）' : '') + ':');
+		w.at.forEach((a) => out.push('    ' + a));
+		if (w.count > w.at.length) out.push('    ほか ' + (w.count - w.at.length) + 'か所');
+	}
+	out.push('回す印: ' + (p.marks.includes('*') ? 'すべて（絞らない）' : p.marks.join('＋')) + '（核の塊・変えた塊・(4)(6) の塊・一覧に無い塊・印が * の塊は絞らない）');
+	if (!p.marksFile) out.push('  注意: tests/visual/block-marks.json が無い・読めない → どの塊も「すべてに当たる」扱い（node scripts/mark-blocks.mjs で作る）');
+	else if (p.marksFile.missing) out.push('  注意: 一覧に無い塊 ' + p.marksFile.missing + '（すべてに当たる扱い。node scripts/mark-blocks.mjs --check）');
+	out.push('今の選び方（' + p.now.kind + '）: ' + p.now.count + '塊・並列 N=3 で' + t(p.now.parallelSec) + '（直列 ' + t(p.now.serialSec) + '）');
+	out.push('印で絞った場合: ' + p.narrowed.count + '塊・並列 N=3 で' + t(p.narrowed.parallelSec) + '（直列 ' + t(p.narrowed.serialSec) + '）・外した ' + (p.droppedByMark + p.droppedByPage) + '塊'
+		+ '（印が当たらない ' + p.droppedByMark + (p.textPages || p.droppedByPage ? '・文章のときの見た目で、変えた文の出るページ（' + (p.textPages || []).join('・') + '）を開かない ' + p.droppedByPage : '') + '）');
+	if (p.textPagesWhy) out.push('  文章のときの見た目: ' + p.textPagesWhy);
+	if (p.narrowed.count > 0 && p.narrowed.count < p.now.count) out.push('印で絞った場合のコマンド: npm run test:visual:parallel -- --only=' + p.narrowed.only);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
