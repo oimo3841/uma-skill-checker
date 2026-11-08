@@ -64,7 +64,14 @@ export async function register128(env) {
 			openDrawer: openDrawerKey
 		};
 	}, setIdx);
-	const imgSize = (page, src) => page.evaluate(async (src) => { const i = new Image(); i.src = src; await i.decode(); return { w: i.naturalWidth, h: i.naturalHeight }; }, src);
+	// T133: 結合画像は PNG の Blob の object URL になり、作り直すと前の URL は手放される（同じ画でも URL は変わる）。
+	// 大きさと中身（PNG のバイトの SHA-256）は、URL が生きているうち（読んだ直後）に取って比べる
+	const imgSize = (page, src) => page.evaluate(async (src) => {
+		const i = new Image(); i.src = src; await i.decode();
+		const buf = await (await fetch(src)).arrayBuffer();
+		const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)), (b) => b.toString(16).padStart(2, '0')).join('');
+		return { w: i.naturalWidth, h: i.naturalHeight, hash };
+	}, src);
 	/** 押して、終わるまで待つ */
 	const pressStep3 = async (page, setIdx = 0) => {
 		await page.click('#personset-' + (setIdx ? 'B' : 'A') + '-wrap [data-video-refresh]');
@@ -86,6 +93,7 @@ export async function register128(env) {
 			const res = await runVideo(page);
 			assert(res && res.ok === true && res.stitched === true, `T117(1) ${w}px 自動の結合は今のまま動く`, res);
 			const s0 = await read(page);
+			const sz0 = await imgSize(page, s0.src);
 			assert(s0.btn && s0.disabled === true && s0.state === 'same' && s0.label === LABEL, `T117(1) ${w}px ボタンが出て、設定が同じなので押せない`, s0);
 			assert(s0.n.select === 1 && s0.n.compose === 3 && s0.n.stitchOne === 0, `T117(1) ${w}px 取り込みは1回・3人とも composePerson`, s0.n);
 			assert(!s0.stitchReady && !s0.lastShown && s0.drawerImgs === 0, `T117(1) ${w}px 取り込みでは引き出しの中身は変わらない`, s0);
@@ -107,7 +115,7 @@ export async function register128(env) {
 			await pressStep3(page);
 			const s2 = await read(page);
 			const y1 = await page.evaluate(() => window.scrollY);
-			const sz0 = await imgSize(page, s0.src), sz2 = await imgSize(page, s2.src);
+			const sz2 = await imgSize(page, s2.src);
 			assert(s2.src !== s0.src && sz2.w !== sz0.w, `T117(1) ${w}px 2列の画像に作り直された`, { sz0, sz2 });
 			assert(s2.n.select === 1 && s2.n.compose === 6 && s2.n.stitchOne === 0 && s2.n.ocr === 0, `T117(1) ${w}px 取り込み直さず、動画のずれで組み立て、OCR は回さない`, s2.n);
 			assert(s2.btn && s2.disabled === true && s2.state === 'same' && s2.label === LABEL, `T117(1) ${w}px 作り直したあとは押せない`, s2);
@@ -120,7 +128,8 @@ export async function register128(env) {
 			assert(s3.state === 'ready' && s3.disabled === false, `T117(1) ${w}px 3列に戻すと押せる`, s3);
 			await pressStep3(page);
 			const s4 = await read(page);
-			assert(s4.src === s0.src, `T117(1) ${w}px 3列に戻して作り直すと最初の画像と同じ`, null);
+			const sz4 = await imgSize(page, s4.src);
+			assert(sz4.hash === sz0.hash && sz4.w === sz0.w, `T117(1) ${w}px 3列に戻して作り直すと最初の画像と同じ（PNG のバイトが同じ）`, { sz0, sz4 });
 			assert(s4.n.select === 1 && s4.n.compose === 9, `T117(1) ${w}px ここでも取り込み直さない`, s4.n);
 			assert(jsErrors(errors).length === 0, `T117(1) ${w}px コンソールエラー0`, jsErrors(errors).slice(0, 3));
 			await sp.ctx.close();
@@ -308,12 +317,13 @@ export async function register128(env) {
 			assert(st2 === 'same', `T117(6) ${name}: 作り直したあとは押せない`, st2);
 			return src2;
 		};
-		const three = await drawerSrc();
+		const szThree = await imgSize(page, await drawerSrc());
 		const two = await flow('3列→2列', '#stitch-parts-panel-drawer [data-stitch-cols="2"]');
-		const szTwo = await imgSize(page, two), szThree = await imgSize(page, three);
+		const szTwo = await imgSize(page, two);
 		assert(szTwo.w !== szThree.w, 'T117(6) 2列の画像は3列と幅が違う', { szTwo, szThree });
 		const back = await flow('2列→3列', '#stitch-parts-panel-drawer [data-stitch-cols="3"]');
-		assert(back === three, 'T117(6) 3列に戻すと最初の画像と同じ', null);
+		const szBack = await imgSize(page, back);
+		assert(szBack.hash === szThree.hash, 'T117(6) 3列に戻すと最初の画像と同じ（PNG のバイトが同じ）', { szBack, szThree });
 		await flow('タイトルのバー', '#stitch-parts-panel-drawer input[data-stitch-part-key="title"]');
 		assert(await page.evaluate((t) => document.getElementById('toast-message').textContent === t, DONE), `T117(6) トースト「${DONE}」`, null);
 		assert(jsErrors(errors).length === 0, 'T117(6) コンソールエラー0', jsErrors(errors).slice(0, 3));

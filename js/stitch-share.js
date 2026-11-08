@@ -7,12 +7,14 @@
  * - ファイル名と番号は js/stitch.js の stitchAttachSaveName が決める。click の受け手を止めない（stopPropagation しない）。
  *   stitchAttachSaveName の後に attach を呼ぶと、ここが動くときには link.download が番号を進めた後の名前になっている。
  * - 押した操作から離れた share は断られることがあるので、share までに非同期の処理を挟まない。
- *   href の data URL は手元にあるので、押したときにその場で File にする（読み直しも描き直しも要らない）。
+ *   PNG は手元にあるので、押したときにその場で File にする（読み直しも描き直しも要らない）。
+ *   special.html は結合画像を Blob の object URL で持つ（T133）ので、attach の2つ目の引数で Blob を渡す（押したときに呼んで受け取る）。
+ *   渡さないとき（exam.html）は、今までどおり href の data URL から作る。
  * - 長押しのメニュー（contextmenu）・ドラッグの保存は click が飛ばないので、ここを通らない。今のまま。
  */
 (function () {
 	'use strict';
-	const STITCH_SHARE_JS_VERSION = '2026-11-07a';
+	const STITCH_SHARE_JS_VERSION = '2026-11-08a';
 	// 2度押しの2回目を捨てる間（シートが開くまでの間に押されたとき）。フラグにしないのは、share の結果が返らない端末でボタンが効かなくなるのを避けるため
 	const DOUBLE_PRESS_MS = 1000;
 
@@ -41,15 +43,18 @@
 
 	let lastShareAt = -Infinity;
 
-	/** 保存のリンク（href が PNG の data URL）に付ける。stitchAttachSaveName の後に呼ぶ。 */
-	function attach(link) {
+	/** 保存のリンクに付ける。stitchAttachSaveName の後に呼ぶ。
+	 *  getBlob … PNG の Blob を返す関数（href が object URL のとき。T133）。無ければ href の PNG の data URL から作る。 */
+	function attach(link, getBlob) {
 		link.addEventListener('click', (e) => {
 			const nav = navigator;
 			if (!isMobileOs(nav) || !nav.share || !nav.canShare) return;
 			if (performance.now() - lastShareAt < DOUBLE_PRESS_MS) { e.preventDefault(); return; }
 			let file, shared;
 			try {
-				file = new File([dataUrlToPngBlob(link.href)], link.download, { type: 'image/png' });
+				const blob = typeof getBlob === 'function' ? getBlob() : null;
+				if (!blob && !/^data:/.test(link.href)) return;   // PNG が手元に無ければ今のダウンロードのまま
+				file = new File([blob || dataUrlToPngBlob(link.href)], link.download, { type: 'image/png' });
 				if (!nav.canShare({ files: [file] })) return;
 				shared = nav.share({ files: [file] });
 			} catch (err) {

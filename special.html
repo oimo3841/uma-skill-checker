@@ -58,7 +58,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
-	<script src="js/stitch-share.js?v=2026-11-07a"></script>
+	<script src="js/stitch-share.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-08c"></script>
 	<!-- PC のウィンドウの取り込み（T105。③の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
@@ -2180,6 +2180,7 @@
 			panel.classList.remove('video-has-result');
 			const cols = panel.querySelector('.upload-cols');
 			if (cols) cols.hidden = false;
+			sweepStitchPngUrls();
 		}
 		/* ③に結合画像を出しているセットの印（T98）。OCR のあとの結合（runImageStitching）が③も作り直すかを見る。 */
 		const videoShown = [false, false];
@@ -2225,6 +2226,7 @@
 			try {
 				const canvas = await buildStitchedSetImage(setIdx, null, false, state.parts);
 				if (!canvas) { showToast(stitchOutcomeText(false, false)); return; }
+				await stitchPngReady(canvas);   // PNG の object URL を作ってから出す（T133）
 				// 作っている間に画像を消した・足した（③の画像は外れている）なら、古い材料の画像を出さない
 				if (!videoRestitch[setIdx] || !sameStitchFileLists(videoSetFiles(setIdx), state.files)) return;
 				showVideoResult(setIdx, canvas, state);
@@ -2243,9 +2245,10 @@
 				videoRefreshBusy = -1;
 				stitchInProgress = false;
 				updateProcessBtn();
+				sweepStitchPngUrls();
 			}
 		}
-		// restitch … OCR の前の③の画像のとき videoRestitchState の値（「画像を更新」を出す）。OCR のあとの結合（runImageStitching）からは渡さない
+		// restitch …OCR の前の③の画像のとき videoRestitchState の値（「画像を更新」を出す）。OCR のあとの結合（runImageStitching）からは渡さない
 		function showVideoResult(setIdx, canvas, restitch) {
 			const panel = videoSetPanel(setIdx);
 			if (!panel) return;
@@ -2311,9 +2314,10 @@
 			});
 			box.firstElementChild.appendChild(b);
 		}
-		function videoTileHtml(personIdx, files) {
+		// thumbFiles … renderPersonImageList の縮小画像の控え（img の data-thumb がこの並びの番号）
+		function videoTileHtml(personIdx, files, thumbFiles) {
 			if (!files.length) return '';
-			return '<button type="button" class="video-tile" onclick="expandVideoTile(' + personIdx + ')"><img src="' + URL.createObjectURL(files[0]) + '" alt="" />'
+			return '<button type="button" class="video-tile" onclick="expandVideoTile(' + personIdx + ')">' + personThumbImgHtml(files[0], thumbFiles, ' alt=""')
 				+ escapeHtml(videoText('video.tile.text')) + '<small>' + escapeHtml(videoText('video.tile.hint')) + '</small></button>';
 		}
 		function expandVideoTile(personIdx) {
@@ -2409,6 +2413,7 @@
 				const parts = stitchPartsNow();
 				const canvas = await buildStitchedSetImage(setIdx, null, false, parts);
 				if (!canvas) return false;
+				await stitchPngReady(canvas);   // PNG の object URL を作ってから出す（T133）
 				showVideoResult(setIdx, canvas, videoRestitchState(setIdx, parts));
 				return true;
 			} catch (e) {
@@ -2424,6 +2429,7 @@
 				return false;
 			} finally {
 				stitchInProgress = false;
+				sweepStitchPngUrls();
 			}
 		}
 
@@ -2461,20 +2467,100 @@
 		}
 
 		// 動画から入れた画像は、閉じている間は「動画から N枚」の1行（videoTileHtml）にまとめ、ほかの画像だけをサムネイルで並べる（動画V1-2・T59）
+		/* サムネイルの縮小画像（T133・決定 488。A1・A4）。③の枠の画像と動画のタイルは、元の大きさ（1179×2556 など。1枚で約12MB の画素）の
+		 * まま並べず、File ごとに1回だけ幅 PERSON_THUMB_W px の縮小画像を作って img に使う（iPhone の Safari で、ほかのアプリから戻ると
+		 * 再読み込みされるのを減らすため）。元の File は persons[].files に今のまま持つ（OCR・結合はそちらを読む）。
+		 * - 縮小は1枚ずつ順に作る（元の大きさの画素を同時に何枚も抱えない）。作り終えるまでの img は src なし（枠の高さは h-14 で変わらない）。
+		 * - 縮小できなかったら元の File の URL を使う（今と同じ見た目）。元の幅が PERSON_THUMB_W 以下ならそのまま使う。
+		 * - 描き直しでは同じ URL を使い回す（描き直すたびに URL を作らない）。どの枠にも無くなった File の URL は手放す（releaseUnusedThumbs）。 */
+		const PERSON_THUMB_W = 336;   // 表示（約 105px）の約3倍の画面でもぼやけない幅（決定 509。168px ではぼやけた）
+		const personThumbs = new Map();   // File → { url: 作り終えたら object URL・まだなら '', ready: Promise<url>, dead: 手放したか }
+		let personThumbQueue = Promise.resolve();
+		async function makePersonThumbUrl(file) {
+			const full = URL.createObjectURL(file);
+			const img = new Image();
+			let canvas = null;
+			try {
+				img.src = full;
+				await img.decode();
+				const w = img.naturalWidth, h = img.naturalHeight;
+				if (!w || !h || w <= PERSON_THUMB_W) return full;
+				canvas = document.createElement('canvas');
+				canvas.width = PERSON_THUMB_W;
+				canvas.height = Math.max(1, Math.round(h * PERSON_THUMB_W / w));
+				const ctx = canvas.getContext('2d');
+				ctx.imageSmoothingEnabled = true;
+				ctx.imageSmoothingQuality = 'high';
+				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+				const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+				if (!blob) return full;
+				URL.revokeObjectURL(full);
+				return URL.createObjectURL(blob);
+			} catch (e) {
+				return full;   // 読めない画像は今と同じく元の File の URL（壊れた画像の表示も今と同じ）
+			} finally {
+				img.removeAttribute('src');
+				if (canvas) canvas.width = canvas.height = 0;
+			}
+		}
+		function personThumb(file) {
+			let t = personThumbs.get(file);
+			if (!t) {
+				t = { url: '', dead: false };
+				t.ready = personThumbQueue = personThumbQueue.then(() => (t.dead ? '' : makePersonThumbUrl(file))).then((url) => {
+					if (t.dead) { if (url) URL.revokeObjectURL(url); return ''; }   // 作っている間に枠から消えた
+					t.url = url;
+					return url;
+				});
+				personThumbs.set(file, t);
+			}
+			return t;
+		}
+		// 縮小画像の img の HTML。できていれば src を付け、まだなら data-thumb（thumbFiles の番号）だけ付けて後で入れる（fillPersonThumbs）
+		function personThumbImgHtml(file, thumbFiles, attrs) {
+			const t = personThumb(file);
+			if (t.url) return '<img src="' + t.url + '"' + attrs + ' />';
+			thumbFiles.push(file);
+			return '<img data-thumb="' + (thumbFiles.length - 1) + '"' + attrs + ' />';
+		}
+		function fillPersonThumbs(container, thumbFiles) {
+			container.querySelectorAll('img[data-thumb]').forEach((img) => {
+				const file = thumbFiles[Number(img.getAttribute('data-thumb'))];
+				if (!file) return;
+				personThumb(file).ready.then((url) => {
+					if (url && img.isConnected) { img.src = url; img.removeAttribute('data-thumb'); }
+				});
+			});
+		}
+		// どの枠（persons[].files）にも無くなった File の縮小画像の URL を手放す（A4。消した画像・入れ替えた画像）
+		function releaseUnusedThumbs() {
+			const live = new Set();
+			persons.forEach((p) => p.files.forEach((f) => live.add(f)));
+			for (const [file, t] of personThumbs) {
+				if (live.has(file)) continue;
+				personThumbs.delete(file);
+				t.dead = true;
+				if (t.url) URL.revokeObjectURL(t.url);
+			}
+		}
+
 		function renderPersonImageList(personIdx) {
 			const container = document.querySelector('.person-image-list[data-person="' + personIdx + '"]');
 			const v = persons[personIdx].video;
 			const fromVideo = (v && !v.expanded) ? new Set(v.files) : null;
 			const shown = persons[personIdx].files.map((file, idx) => ({ file, idx })).filter(x => !(fromVideo && fromVideo.has(x.file)));
-			const tile = fromVideo ? videoTileHtml(personIdx, persons[personIdx].files.filter(f => fromVideo.has(f))) : '';
+			const thumbFiles = [];
+			const tile = fromVideo ? videoTileHtml(personIdx, persons[personIdx].files.filter(f => fromVideo.has(f)), thumbFiles) : '';
 			container.innerHTML = tile + shown.map(({ file, idx }) => `
 				<div class="group relative rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs">
-					<img src="${URL.createObjectURL(file)}" class="w-full h-14 object-cover" />
+					${personThumbImgHtml(file, thumbFiles, ' class="w-full h-14 object-cover"')}
 					<button type="button" onclick="removePersonImage(${personIdx}, ${idx})" class="person-image-remove absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
 						<i data-lucide="x" class="w-3 h-3"></i>
 					</button>
 				</div>
 			`).join('');
+			fillPersonThumbs(container, thumbFiles);
+			releaseUnusedThumbs();
 			if (window.lucide) lucide.createIcons();
 		}
 
@@ -5210,6 +5296,7 @@
 							done++;
 						}, withMarks, parts);
 						if (canvas) {
+							await stitchPngReady(canvas);   // PNG の object URL を作ってから出す。③と引き出しで同じ URL を使う（T133）
 							anyOutput = true;
 							anySuccess = true;
 							appendStitchResultBlock(container, set, canvas);
@@ -5249,6 +5336,7 @@
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
 				updateStitchRefreshUi();
+				sweepStitchPngUrls();   // 作り直して使われなくなった結合画像の URL を手放す（T133）
 			}
 		}
 
@@ -5310,8 +5398,39 @@
 			container.appendChild(div);
 		}
 
+		/* 結合画像の PNG（T133・決定 488・489）。数MB の data URL の文字列で持つのをやめ、toBlob の Blob と object URL にする
+		 * （iPhone の Safari で、ほかのアプリから戻ると再読み込みされるのを減らすため）。
+		 * - 同じ canvas からは1回だけ作り、③と引き出しの2つで同じ URL を使う（同じ PNG を2回作らない）。
+		 * - toBlob は非同期なので、appendStitchResultBlock の前に呼び出し元が待つ（画像が出るのは PNG を作り終えてから）。
+		 * - どの img も使わなくなった URL は sweepStitchPngUrls で手放す。結合の最中（stitchInProgress）は、作ったばかりで
+		 *   まだ画面に出していない URL を外さないよう何もしない（結合の処理の終わりで呼ぶ）。 */
+		const stitchPngUrls = new Set();
+		function stitchPngReady(canvas) {
+			if (!canvas._stitchPng) {
+				canvas._stitchPng = new Promise((resolve) => {
+					try { canvas.toBlob(resolve, 'image/png'); } catch (e) { resolve(null); }
+				}).then((blob) => {
+					if (!blob) return null;   // 作れなければ appendStitchResultBlock が今の data URL に倒す
+					const url = URL.createObjectURL(blob);
+					stitchPngUrls.add(url);
+					canvas._stitchPngNow = { blob, url };
+					return canvas._stitchPngNow;
+				});
+			}
+			return canvas._stitchPng;
+		}
+		function sweepStitchPngUrls() {
+			if (stitchInProgress) return;
+			const used = new Set(Array.from(document.querySelectorAll('img'), (img) => img.getAttribute('src')));
+			for (const url of stitchPngUrls) {
+				if (!used.has(url)) { URL.revokeObjectURL(url); stitchPngUrls.delete(url); }
+			}
+		}
+
 		function appendStitchResultBlock(container, set, canvas) {
-			const dataUrl = canvas.toDataURL('image/png');
+			// stitchPngReady を待ってから呼ぶ。PNG を作れなかった・待たずに呼ばれたときは今の data URL のまま
+			const png = canvas._stitchPngNow || null;
+			const pngUrl = png ? png.url : canvas.toDataURL('image/png');
 
 			const block = document.createElement('div');
 			block.className = 'rounded-xl border border-slate-200 bg-white/70 p-3 md:p-4';
@@ -5340,19 +5459,20 @@
 			// すでに結合画像であることを言っているので、「結合画像」を重ねて書かない。
 			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + '</p>';
 			const downloadLink = document.createElement('a');
-			downloadLink.href = dataUrl;
+			downloadLink.href = pngUrl;
 			// ファイル名は `YYMMDD_NNN_指定名称.png`。組み立てとイベントの張り方は js/stitch.js。
 			// 長押しやドラッグでの保存では click が飛ばないので、押した瞬間ではなく
 			// pointerdown で入れ直す作りになっている（stitchAttachSaveName のコメント参照）。
 			stitchAttachSaveName(downloadLink, currentStitchSaveName);
-			UmaStitchShare.attach(downloadLink); // スマホでは共有のシート（T122。stitchAttachSaveName の後に付ける）
+			// スマホでは共有のシート（T122。stitchAttachSaveName の後に付ける）。共有に渡すのは手元の Blob（T133。押したあと非同期を挟まない）
+			UmaStitchShare.attach(downloadLink, png ? () => png.blob : null);
 			downloadLink.className = 'uma-btn uma-btn--primary';
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
 			block.appendChild(header);
 
 			const img = document.createElement('img');
-			img.src = dataUrl;
+			img.src = pngUrl;
 			img.className = 'w-full rounded-lg border border-slate-200';
 			block.appendChild(img);
 

@@ -96,7 +96,7 @@ export async function register98(env) {
 			sum: sum ? sum.textContent.trim() : null,
 			box: !!box, afterClear: !!(box && clear && box.previousElementSibling === panel.querySelector('.video-howto-box') && panel.querySelector('.video-howto-box').previousElementSibling === clear),
 			head: blk ? (blk.querySelector('p.text-xs.font-bold') || {}).textContent : null,
-			png: blk ? (blk.querySelector('a') || { getAttribute() { return null; } }).getAttribute('aria-label') : null, dlSvg: !!(blk && blk.querySelector('a svg')), refresh: !!(blk && blk.querySelector('[data-video-refresh]')), img: !!(blk && blk.querySelector('img') && blk.querySelector('img').src.startsWith('data:image/png')),
+			png: blk ? (blk.querySelector('a') || { getAttribute() { return null; } }).getAttribute('aria-label') : null, dlSvg: !!(blk && blk.querySelector('a svg')), refresh: !!(blk && blk.querySelector('[data-video-refresh]')), img: !!(blk && blk.querySelector('img') && blk.querySelector('img').src.startsWith('blob:')), // T133: 結合画像は PNG の Blob の object URL（前は data URL）
 			warn: blk && blk.querySelector('.video-warn') ? blk.querySelector('.video-warn').textContent.trim() : null,
 			panelBorder: panel ? getComputedStyle(panel).borderTopColor : null, hasClass: !!(panel && panel.classList.contains('video-has-result')),
 			colsShown: !!(cols && cols.offsetParent !== null),
