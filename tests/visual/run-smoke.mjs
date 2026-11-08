@@ -14607,11 +14607,13 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 			const grid = panel.querySelector('.usd-roster-grid'); const nameCol = panel.querySelector('.usd-roster-gc--name');
 			const fs = Math.min(...Array.from(panel.querySelectorAll('.usd-roster-togglebtn')).map((b) => parseFloat(getComputedStyle(b).fontSize)));
 			const ghbtns = Array.from(panel.querySelectorAll('.usd-roster-ghbtn:not(.usd-roster-ghbtn--blank)')).map((b) => b.getBoundingClientRect());
-			const icons = Array.from(panel.querySelectorAll('.usd-ntab-btn, .usd-roster-clearbtn')).map((b) => b.getBoundingClientRect());
+			// T137: カードの × は C-187 から [data-usd-el="clear-card"]（.usd-roster-clearbtn は育成ウマ娘を選んだときだけ・タブの .usd-ntab-btn は C-235 で無い）。
+			// 古い名前だけでは0個で Math.min が Infinity になり素通りしていた。0個なら iconMin を null にして NG にする
+			const icons = Array.from(panel.querySelectorAll('.usd-ntab-btn, .usd-roster-clearbtn, [data-usd-el="clear-card"]')).map((b) => b.getBoundingClientRect());
 			return { oneLine: Math.abs(head.getBoundingClientRect().top - btns.getBoundingClientRect().top) < 4, headW: head.getBoundingClientRect().width, btnsW: btns.getBoundingClientRect().width, rowW: head.parentElement.getBoundingClientRect().width,
 				page: document.documentElement.scrollWidth - window.innerWidth, overflowRows: names.filter((n) => n.scrollWidth > n.clientWidth + 1).length, rows: names.length,
 				slotRows: new Set(slots).size, slotsPerRow: slots.filter((t) => t === slots[0]).length, nameRatio: nameCol.getBoundingClientRect().width / grid.getBoundingClientRect().width,
-				fontMin: fs, ghMin: Math.min(...ghbtns.map((r) => Math.min(r.width, r.height))), iconMin: Math.min(...icons.map((r) => Math.min(r.width, r.height))) };
+				fontMin: fs, ghMin: Math.min(...ghbtns.map((r) => Math.min(r.width, r.height))), iconMin: icons.length ? Math.min(...icons.map((r) => Math.min(r.width, r.height))) : null, iconN: icons.length };
 		});
 		assert(g.page <= 0, '段7(1): ' + w + 'px で横にはみ出さない', { page: g.page });
 		assert(g.fontMin >= 11 && g.ghMin >= (w <= 640 ? 24 : 28) && g.iconMin >= 28, '段7(13)(16)(6)→段7b→段7c: ' + w + 'px で、合計の行のボタンの文字は 11px 以上・列見出しの漏斗は ' + (w <= 640 ? 24 : 28) + 'px 以上（スマホはアイコンなので 24px を許す。段7c）・タブの ✎ ✓ ↩ ×とカードの × は 28px 以上', g);
