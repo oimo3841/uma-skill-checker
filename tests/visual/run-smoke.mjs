@@ -4805,8 +4805,10 @@ await noticeBlock('exam.html — 既定は新UI／切り替えの告知モーダ
  * ①（対象スキル）は一度整えたら触らず、以降はほぼ②（画像アップロード）から
  * 操作するので、次に開いたときは最後のタブから始める。
  * 保存が残るかどうかを見るので、まっさらな文脈を使う。
+ * 日付は NOTICE_FIXED_TIME に固定する（T127・決定 455）: 告知を閉じて既読にしてから「旧UI」の保存値で開き直す流れなので、
+ * 告知が自動で出ない日（UmaExam は 2026-11-11 から）には旧UIに入れず「新UIへ」が出ない。
  * ============================================================ */
-await block('exam.html — 最後に使ったステップのタブを覚える', async () => {
+await noticeBlock('exam.html — 最後に使ったステップのタブを覚える', async () => {
 {
 	const tabState = (page) => page.evaluate(() => ({
 		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),
