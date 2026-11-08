@@ -4177,7 +4177,10 @@
 		 * videoRestitch … セットごとの { parts, files }。OCR の前の②の画像があるときだけ持つ。
 		 * 押せる（'ready'）: 作ったときの設定と今の設定が違う。押せない: 'same' 設定が同じ／'stale' 画像の並びが変わった（案内を出す）／処理中。
 		 * UmaExam の OCR の前の結合画像（列見出しと3人の画像だけ）は、今ある設定（結合画像の表示）のどれにも左右されないので、設定は空（videoPreviewParts）で
-		 * いつも 'same'（押せない）。設定を足したときはここに足す（T139 の報告「決めてほしいこと」） */
+		 * いつも 'same'（押せない）。設定を足したときはここに足す。
+		 * おいもさんの決定 556（T139-2）: UmaExam では今は「画像を更新」とその案内を出さない（VIDEO_PREVIEW_REFRESH = false。適切な時期に導入する・時期は Chat で決める）。
+		 * 導入するときは true にすれば、ここの作り（UmaStar の T117 と同じ）がそのまま働く */
+		const VIDEO_PREVIEW_REFRESH = false;
 		var videoRestitch = [null, null];
 		var videoRefreshBusy = -1;
 		function videoPreviewParts() { return {}; }
@@ -4446,7 +4449,8 @@
 				const parts = videoPreviewParts();
 				const canvas = await buildVideoPreviewSetImage(setIdx, videoSetFiles(setIdx));
 				if (!canvas) return false;
-				showVideoResult(setIdx, canvas, videoRestitchState(setIdx, parts));
+				// 決定 556: 「画像を更新」を出さないあいだは restitch を渡さない（ボタンと案内を作らない）
+				showVideoResult(setIdx, canvas, VIDEO_PREVIEW_REFRESH ? videoRestitchState(setIdx, parts) : null);
 				return true;
 			} catch (e) {
 				// 失敗は②の中の帯で知らせる（コンソールには出さない）

@@ -4,7 +4,7 @@
 //  (1) 入口: タブの行の右端の「静止画｜動画α」・動画モードの見た目（「動画を選ぶ」・「追加」と「OCR処理を開始する」〔OCR だけ〕を隠す・一体のボタンの名前）・
 //      モードの保存（uma-exam-upload-mode）と再読み込み・静止画に戻すと今のまま・横スクロールなし／390・1280px × ライト・ダーク
 //  (2) 取り込み: 作り物の動画（blocks-80 の SYNTH）で3人の枠に入り、②に OCR の前の結合画像（列見出しと3人だけ。3人とも composePerson）・
-//      タブと②の枚数に動画の画は数えない・「画像を更新」は出るが押せない（UmaExam の OCR の前の画像は設定に左右されない）・セットをクリアで外れる
+//      タブと②の枚数に動画の画は数えない・OCR の前の②に「画像を更新」は出ない（決定 556）・セットをクリアで外れる
 //  (3) OCR: 動画モードの「OCR処理を開始する」で、OCR の前に整える画（persons[].video）が渡り、結合は composePerson・結果画像が引き出しと②の両方に出る。
 //      静止画で入れた画像の流れは今のまま（②に結合画像を出さない・stitchOnePerson）
 // OCR そのもの（Tesseract）は回さない（processPersonImages を差し替える）。本物の動画の OCR は tests/video/run-video-frames-local.mjs --exam が見る。
@@ -117,6 +117,7 @@ export async function register146(env) {
 			// src は長い data URL なので、長さと末尾だけ（ログが大きくならないように）
 			box: !!box, img: img ? img.src.slice(0, 22) : null, src: img ? img.src.length + ':' + img.src.slice(-32) : null, h: img ? img.naturalHeight : 0,
 			dl: !!(box && box.querySelector('.video-dl-btn')), head: box ? (box.querySelector('.video-result-head p') || null) === null : null,
+			note: !!(box && box.querySelector('.video-refresh-note')),
 			btn: !!btn, disabled: btn ? btn.disabled : null, state: btn ? btn.getAttribute('data-state') : null, label: btn ? btn.textContent.trim() : null,
 			showcols: !!(box && box.querySelector('.video-showcols')), colsHidden: cols ? cols.hidden : null,
 			video: persons.slice(0, 3).map((p) => !!p.video), files: persons.slice(0, 3).map((p) => p.files.length),
@@ -128,7 +129,7 @@ export async function register146(env) {
 	});
 
 	/* ── (2) 取り込み ── */
-	await block('T139(2) UmaExam の動画の取り込み: 3人の枠に入り、②に OCR の前の結合画像（3人とも composePerson）・枚数に数えない・「画像を更新」は押せない・セットをクリアで外れる', async () => {
+	await block('T139(2) UmaExam の動画の取り込み: 3人の枠に入り、②に OCR の前の結合画像（3人とも composePerson）・枚数に数えない・「画像を更新」は出ない・セットをクリアで外れる', async () => {
 		for (const w of [390, 1280]) {
 			const tag = `T139(2) ${w}px: `;
 			const sp = await openVideo(w);
@@ -140,7 +141,8 @@ export async function register146(env) {
 			assert(s.video.every(Boolean) && s.files.every((n) => n > 0) && s.tiles === 3, tag + '3人の枠に動画の画（「動画の画像」の1行）', s);
 			assert(s.n.select === 1 && s.n.compose === 3 && s.n.stitchOne === 0, tag + '取り込みは1回・3人とも composePerson', s.n);
 			assert(s.tab === '親Aセット' && s.badge === null, tag + 'タブと②の枚数に動画の画は数えない', { tab: s.tab, badge: s.badge });
-			assert(s.btn && s.disabled === true && s.state === 'same' && s.label === '画像を更新', tag + '「画像を更新」は出るが押せない（設定に左右されない）', s);
+			// 決定 556（T139-2）: UmaExam の OCR の前の②には「画像を更新」とその案内を出さない（前の期待値は「出るが押せない」）
+			assert(!s.btn && !s.note, tag + 'OCR の前の②に「画像を更新」とその案内は出ない（決定 556）', { btn: s.btn, note: s.note });
 			assert(s.showcols && s.colsHidden === true, tag + '3列は隠し「親ごとの画像を見る」で出せる', s);
 			assert(s.drawerImgs === 0, tag + '引き出しの中身は変えない', s);
 			const geo = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
