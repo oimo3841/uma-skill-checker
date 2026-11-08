@@ -40,6 +40,9 @@ const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-s
 const extendedSkills = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8'));
 // 検索に出してよい拡張スキルの id（C-163・2026-10-16）。製品の固定リストはやめ、データ側が規則で作ったファイルを読む
 const searchableExtendedIds = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/searchable-extended-ids.json'), 'utf8'));
+/** T143（決定 560）: 検索に出さないスキル（T130・決定 497。継承できない）の id。マスターのスキルも拡張スキルも、検索の母集団の期待から外す。
+ *  id を書き写さずにファイルから読む（一覧が増えても期待が追いつく）。分類・タグ・パッシブの数え方には使わない。 */
+const SEARCH_EXCLUDED = new Set(JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/search-excluded-skills.json'), 'utf8')).entries.map((e) => String(e.skillId)));
 /** 育成ウマ娘（C-91 の (3)「編成には検索に出さない拡張スキルも引き続き出る」を見るのに使う）。 */
 const trainingUmas = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/training-umamusume.json'), 'utf8'));
 /** レースの距離の一覧（C-97。目標のレースの距離の判定の材料。区分の境目も実在する距離もここから読む）。 */
@@ -419,7 +422,11 @@ const browser = await chromium.launch();
 	 * 材料が1種類増えただけ。マスター側だけを見たい検査（パッシブ67件・シナリオ27件など）は
 	 * `MASTER_POOL` / `master.skills` を使い続ける。
 	 * 仮のスキル（`seedProbes`）は各塊が自分で入れるので、そのつど +N して数える。 */
-	const MASTER_POOL = master.skills.filter(inPool);
+	/** 検索の母集団に入るか（パッシブでなく、検索に出さないスキルの一覧に無い。T143）。パッシブかどうかは inPool のまま見る */
+	const inSearch = (s) => inPool(s) && !SEARCH_EXCLUDED.has(String(s.id));
+	const MASTER_POOL = master.skills.filter(inSearch);
+	/** マスターのうちパッシブでないもの（データの数え。検索の除外の前） */
+	const MASTER_NONPASSIVE = master.skills.filter(inPool);
 	/* **C-91（2026-09-25）: 検索に出してよい拡張スキルは、名簿にあるものだけ。**
 	   2026-10-16（C-163）から名簿は `data/searchable-extended-ids.json`（データ側が規則で作る。10件）。
 	   **名簿は製品の core から読まずに、データのファイルから読む** ―― 製品の一覧を読むと、一覧から1件抜いて壊したときに
@@ -429,16 +436,19 @@ const browser = await chromium.launch();
 	const CATALOG_TAGGED_ALL = extendedSkills.entries.filter((e) => e.tags);
 	/** タグが付いた拡張スキルのうち、検索に出してよいもの（`tagsPending` の行は `tags` を持たないので自然に外れる）。 */
 	const CATALOG_TAGGED = CATALOG_TAGGED_ALL.filter((e) => SEARCHABLE_EXT_IDS.includes(e.id));
-	const CATALOG_POOL = CATALOG_TAGGED.filter(inPool);
+	const CATALOG_POOL = CATALOG_TAGGED.filter(inSearch);
 	const POOL = MASTER_POOL.concat(CATALOG_POOL);
 	/** 仕様どおりに絞った期待値（名前の配列）。f は { 軸キー: [値…] }。 */
 	const expectNames = (f) => {
 		const keys = Object.keys(f).filter((k) => (f[k] || []).length > 0);
 		return POOL.filter((s) => keys.every((k) => axisHit(s, k, f[k]))).map((s) => s.name);
 	};
-	assert(MASTER_POOL.length === 378 && master.skills.length - MASTER_POOL.length === 67,
-		'段8: マスターの母集団は 445 − パッシブ67 = 378件',
-		{ 母集団: MASTER_POOL.length, パッシブ: master.skills.length - MASTER_POOL.length });
+	assert(MASTER_NONPASSIVE.length === 378 && master.skills.length - MASTER_NONPASSIVE.length === 67,
+		'段8: マスターのパッシブでないものは 445 − パッシブ67 = 378件',
+		{ パッシブでない: MASTER_NONPASSIVE.length, パッシブ: master.skills.length - MASTER_NONPASSIVE.length });
+	// T143: 検索の母集団は、そこから検索に出さないスキル（data/search-excluded-skills.json のうちマスターのもの）を引いたもの
+	console.log('     [情報] マスターの検索の母集団は ' + MASTER_NONPASSIVE.length + ' − 検索に出さないもの '
+		+ (MASTER_NONPASSIVE.length - MASTER_POOL.length) + '件 = ' + MASTER_POOL.length + '件');
 	/* **拡張スキルのぶんが0件のときは、そう名乗る。** タグ付けは第2回の段3 なので、
 	   いまは「マスターだけの母集団」を見て通っている状態（F-56: 0件だから通る検査と、
 	   通ったことに意味がある検査を混ぜない）。 */
@@ -718,15 +728,17 @@ const browser = await chromium.launch();
 			{ 条件で検索: leakCond.slice(0, 3), 緑スキル: leakGreen.slice(0, 3), テキストで検索の選択: leakPaste, 名前を入れて探す: leakFinder.slice(0, 3) });
 
 		// (2) 名簿にある拡張スキルは、条件で検索（パッシブなし）か緑スキルを追加（パッシブあり）に出て、テキストで検索でも当たる
+		//     T143（決定 560）: 検索に出さないスキル（data/search-excluded-skills.json。T130）は名簿にあっても除く。出ないことは blocks-139 の T130(5) が見る
 		const isPassive = (e) => e.tags && (e.tags.passive || []).length > 0;
-		const notShown = listed.filter((e) => !(isPassive(e) ? inGreen.has(e.name) : inCondition.has(e.name))).map((e) => e.name);
-		const listedPaste = await pasteSelected(listed.map((e) => e.name));
-		const listedFinder = await finderHits(listed.map((e) => e.name), { searchableOnly: true });
-		assert(listed.length > 0 && notShown.length === 0,
-			'C-91(2): 名簿にある拡張スキル ' + listed.length + '件は、条件で検索か緑スキルを追加に出る', notShown);
-		assert(listedPaste === listed.length && listedFinder.length === listed.length,
-			'C-91(2): 名簿にある拡張スキルは、テキストで検索と名前を入れて探すでも当たる',
-			{ テキストで検索の選択: listedPaste, 名前を入れて探す: listedFinder.length, 名簿: listed.length });
+		const listedSearch = listed.filter((e) => !SEARCH_EXCLUDED.has(String(e.id)));
+		const notShown = listedSearch.filter((e) => !(isPassive(e) ? inGreen.has(e.name) : inCondition.has(e.name))).map((e) => e.name);
+		const listedPaste = await pasteSelected(listedSearch.map((e) => e.name));
+		const listedFinder = await finderHits(listedSearch.map((e) => e.name), { searchableOnly: true });
+		assert(listedSearch.length > 0 && notShown.length === 0,
+			'C-91(2): 名簿にある拡張スキル ' + listed.length + '件のうち、検索に出さないもの ' + (listed.length - listedSearch.length) + '件を除いた ' + listedSearch.length + '件は、条件で検索か緑スキルを追加に出る', notShown);
+		assert(listedPaste === listedSearch.length && listedFinder.length === listedSearch.length,
+			'C-91(2): 名簿にある拡張スキル（検索に出さないものを除く）は、テキストで検索と名前を入れて探すでも当たる',
+			{ テキストで検索の選択: listedPaste, 名前を入れて探す: listedFinder.length, 名簿: listedSearch.length });
 
 		// 既定の呼び方（収録データの入力ページ・Deck の OCR の受け取り口）は全件のまま
 		const defaultFinder = await finderHits(unlistedNames.slice(0, 20), undefined);
@@ -934,11 +946,13 @@ const browser = await chromium.launch();
 	const scenExpect = expectNames({ scenario: ['scenario'] });
 	assert(scenCount === scenExpect.length,
 		'⑧「シナリオスキル」で絞ると ' + scenExpect.length + '件（マスター・拡張スキルとも、パッシブを除く）', scenCount);
+	const scenMasterNonPassive = SCENARIO.filter((n) => MASTER_NONPASSIVE.some((s) => s.name === n));
+	assert(scenMasterNonPassive.length === 26, '段8: 27件のうち1件（レースの真髄・心）がパッシブになった', scenMasterNonPassive.length);
+	// T143: 検索の期待は、名簿の26件から検索に出さないスキル（data/search-excluded-skills.json）を除いたもの
 	const scenMasterExpect = SCENARIO.filter((n) => POOL.some((s) => s.name === n));
-	assert(scenMasterExpect.length === 26, '段8: 27件のうち1件（レースの真髄・心）がパッシブになった', scenMasterExpect.length);
 	const scenMaster = scenExpect.filter((n) => MASTER_POOL.some((s) => s.name === n));
 	assert(eq(scenMaster.slice().sort(), scenMasterExpect.slice().sort()),
-		'⑧シナリオスキルのうちマスター由来は名簿の26件と一致', scenMaster);
+		'⑧シナリオスキルのうちマスター由来は、名簿の26件から検索に出さないもの ' + (scenMasterNonPassive.length - scenMasterExpect.length) + '件を除いた ' + scenMasterExpect.length + '件と一致', scenMaster);
 	assert(eq(scenNames.slice().sort(), scenExpect.slice().sort()), '⑧シナリオスキルの内訳が一致', scenNames.length);
 
 	// 軸間ANDも壊れていないこと（シナリオ × 持久力回復）

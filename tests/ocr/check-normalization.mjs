@@ -232,7 +232,12 @@ for (const src of catalogSources) {
 	catalogWant[src.category] = json.entries || [];
 }
 
-const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) => {
+/* T143（決定 560）: 検索に出さないスキル（T130・決定 497。継承できない）の id。検索の母集団の期待から外す。
+   製品の一覧からではなく、データのファイルから読む（製品の読み込みを壊したときに期待も一緒に動かないように。test:master と同じ）。
+   id は書き写さない（一覧が増えても期待が追いつく）。母集団・緑スキルの一覧の検査だけに使い、カタログの中身・名前の解決の検査には使わない。 */
+const searchExcludedIds = (JSON.parse(await fs.readFile(path.join(ROOT, 'data', 'search-excluded-skills.json'), 'utf-8')).entries || []).map((e) => String(e.skillId));
+
+const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory, searchExcludedIds }) => {
 	const C = window.UmaSkillDeckCore;
 	const cat = C.getExtraCatalog();
 	const masterIdSet = new Set(masterIds);
@@ -301,7 +306,9 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 			const poolExcludedAxes = C.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
 			const excluded = (e) => poolExcludedAxes.some((k) => ((e.tags && e.tags[k]) || []).length > 0);
 			const searchableIds = new Set(C.getSearchableExtendedSkillIds());
-			const searchable = (e) => !C.isReferableSkillId(e.id) || searchableIds.has(e.id);
+			// T143: 検索に出さないスキルの一覧（data/search-excluded-skills.json）にあるものも、検索に出さない
+			const searchExcluded = new Set(searchExcludedIds);
+			const searchable = (e) => (!C.isReferableSkillId(e.id) || searchableIds.has(e.id)) && !searchExcluded.has(e.id);
 			return cat.filter((e) => {
 				const want = !!e.tags && !excluded(e) && searchable(e);
 				return want !== ids.has(e.id);
@@ -317,7 +324,8 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 			const poolExcludedAxes = C.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
 			const excluded = (e) => poolExcludedAxes.some((k) => ((e.tags && e.tags[k]) || []).length > 0);
 			const searchableIds = new Set(C.getSearchableExtendedSkillIds());
-			const searchable = (e) => !C.isReferableSkillId(e.id) || searchableIds.has(e.id);   // C-91
+			const searchExcluded = new Set(searchExcludedIds);   // T143
+			const searchable = (e) => (!C.isReferableSkillId(e.id) || searchableIds.has(e.id)) && !searchExcluded.has(e.id);   // C-91
 			const want = cat.filter((e) => !!e.tags && excluded(e) && searchable(e)).map((e) => e.id);
 			const notWanted = cat.filter((e) => !!e.tags && excluded(e) && !searchable(e)).map((e) => e.id);
 			C.openPassiveSkillPicker([], () => {});
@@ -331,7 +339,7 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 			return { カタログ: cat.length, タグ付き: tagged, タグ無し: cat.length - tagged };
 		})(),
 	};
-}, { masterIds: deckSkills.map((s) => s.id), wantByCategory: catalogWant });
+}, { masterIds: deckSkills.map((s) => s.id), wantByCategory: catalogWant, searchExcludedIds });
 
 /* core の組み込みの写し（フェッチできない環境で使う最後の砦）も、正本と突き合わせる。
    上の検査は http で読めた中身を見るので、写しがズレていても気づけない。 */

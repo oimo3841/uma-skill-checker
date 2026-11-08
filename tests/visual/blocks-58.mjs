@@ -27,7 +27,9 @@ export async function register58(env) {
 	MASTER.forEach((s) => TAGS.set(s.id, s.tags));
 	EXT.forEach((s) => { if (!TAGS.has(s.id)) TAGS.set(s.id, s.tags || {}); });
 	const isScenario = (id) => ((TAGS.get(id) || {}).scenario || []).includes('scenario');
-	const inPool = (id) => MASTER.some((s) => s.id === id) || (SEARCHABLE.has(id) && EXT.some((e) => e.id === id && !e.tagsPending));
+	// T143（決定 560）: 検索に出さないスキル（data/search-excluded-skills.json。T130・決定 497）は検索の母集団に無い。id は書き写さずにファイルから読む
+	const SEARCH_EXCLUDED = new Set(readJson('data/search-excluded-skills.json').entries.map((e) => String(e.skillId)));
+	const inPool = (id) => !SEARCH_EXCLUDED.has(String(id)) && (MASTER.some((s) => s.id === id) || (SEARCHABLE.has(id) && EXT.some((e) => e.id === id && !e.tagsPending)));
 	// 期待値（データから独立に）: サポカ外の一覧のうち、シナリオスキルでなく、検索の母集団にあるもの
 	// T108（294）: レース場の印を持つスキルも外す
 	const WANT_NS = NONSUP.entries.map((e) => e.skillId).filter((id) => !isScenario(id) && inPool(id) && !((TAGS.get(id) || {}).trackVenue || []).length);
