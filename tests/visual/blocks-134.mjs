@@ -1,10 +1,13 @@
 // T122（2026-11-07・Chat 419〜421）: 結合画像の保存をスマホでは共有のシートにする（js/stitch-share.js）の検査。
 // run-smoke.mjs の末尾から register134() で呼ばれる（塊の見出しはすべて「T122」で始まる。`npm run test:visual -- --only=T122` で回せる）。
 //
-//  - 419: スマホ（iOS・iPadOS・Android）は navigator.share で PNG のファイル1つ。ダウンロードは起きない。
+//  - 419: スマホ（iOS・iPadOS・Android。T147 で Android を外した）は navigator.share で PNG のファイル1つ。ダウンロードは起きない。
 //         PC（Windows〔タッチ・share あり〕・Mac・Linux）は今のダウンロード。share は呼ばれない。canShare が false のスマホも今のダウンロード。
 //  - 番号は1回押すごとに1つだけ進む（stitch.js の click の受け手を止めない）。
 //  - 420: 知らせは足さない。閉じただけ（AbortError）のときは何も出さない。
+// T147（2026-11-09・C-351・決定 590・592）: Android は元のダウンロードに戻した。シートは iOS・iPadOS だけ。
+//         Android（スマホ・タブレット・PC 版サイトの表示）はシートを出さず、click を止めずにダウンロード・番号は1回だけ進む。
+//         T147 の分の塊は見出しに「T147」も入れた（--only=T122 でも --only=T147 でも当たる）。
 // navigator の userAgent・platform・maxTouchPoints・share・canShare は検査の中で差し替える（実機の共有のシートは https の公開先でしか動かない）。
 // 押すのは本物のマウスの click（pointerdown → click）。ダウンロードは Playwright の download の事象で数える。
 import { reloadReady } from './lib/page-ready.mjs';
@@ -14,15 +17,18 @@ const UA = {
 	ipad: 'Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
 	mac: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
 	android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+	androidTab: 'Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
 	windows: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
 	linux: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
 };
-// 名前 → 端末。shareOk はシートが出る側
+// 名前 → 端末。shareOk はシートが出る側（T147 から iOS・iPadOS だけ）
 const DEVICES = {
 	iPhone: { ua: UA.iphone, platform: 'iPhone', touch: 5, shareOk: true },
 	iPad: { ua: UA.ipad, platform: 'iPad', touch: 5, shareOk: true },
 	'iPadOS（Mac の UA）': { ua: UA.mac, platform: 'MacIntel', touch: 5, shareOk: true },
-	Android: { ua: UA.android, platform: 'Linux armv81', touch: 5, shareOk: true },
+	Android: { ua: UA.android, platform: 'Linux armv81', touch: 5, shareOk: false },
+	'Android タブレット': { ua: UA.androidTab, platform: 'Linux aarch64', touch: 10, shareOk: false },
+	'Android（PC 版サイト）': { ua: UA.linux, platform: 'Linux armv81', touch: 5, shareOk: false },
 	'Windows（タッチ）': { ua: UA.windows, platform: 'Win32', touch: 10, shareOk: false },
 	Mac: { ua: UA.mac, platform: 'MacIntel', touch: 0, shareOk: false },
 	Linux: { ua: UA.linux, platform: 'Linux x86_64', touch: 0, shareOk: false },
@@ -75,6 +81,9 @@ export async function register134(env) {
 		g.fillStyle = '#c33'; g.fillRect(0, 0, 40, 30);
 		c._personMeta = []; c._stitchWarnings = [];
 		appendStitchResultBlock(host, PERSON_SETS[0], c);
+		// T147: click が止められたか（ほかの受け手のあと・泡の最後の window で読む）
+		if (!window.__t147Watch) { window.__t147Watch = true; window.addEventListener('click', (e) => { window.__t147Prevented = e.defaultPrevented; }); }
+		window.__t147Prevented = null;
 		return '#t122-host a[download]';
 	});
 	const setDevice = (page, dev, extra = {}) => page.evaluate((d) => { window.__dev = d; window.__shareCalls = []; window.__canShareCalls = 0; }, { ...dev, ...extra });
@@ -107,7 +116,7 @@ export async function register134(env) {
 	const cool = (page) => page.waitForTimeout(1050);
 
 	for (const file of ['special.html', 'exam.html']) {
-		await block('T122 ' + file + ' 端末ごとの保存（スマホは共有のシート・PC は今のダウンロード）', async () => {
+		await block('T122 T147 ' + file + ' 端末ごとの保存（iPhone・iPad は共有のシート・Android と PC は今のダウンロード）', async () => {
 			const sp = await open(file);
 			const { page, ctx, errors } = sp;
 			const sel = await makeLink(page);
@@ -127,6 +136,8 @@ export async function register134(env) {
 					assert(info.name === before.name, `T122 ${file} ${label}: ファイル名は今のダウンロードと同じ`, { got: info.name, want: before.name });
 					assert(sp.downloads.length === 0, `T122 ${file} ${label}: ダウンロードは起きない`, sp.downloads);
 				} else {
+					const prevented = await page.evaluate(() => window.__t147Prevented);
+					assert(prevented === false, `T122 ${file} ${label}: click を止めない（defaultPrevented でない）`, prevented);
 					assert(info.n === 0 && info.canShare === 0, `T122 ${file} ${label}: share は呼ばれない`, info);
 					assert(sp.downloads.length === 1 && sp.downloads[0] === before.name, `T122 ${file} ${label}: 今と同じ名前でダウンロードされる`, { got: sp.downloads, want: before.name });
 				}
@@ -212,7 +223,7 @@ export async function register134(env) {
 		});
 	}
 
-	await block('T122 special.html ③のアイコンのボタンと引き出しの結合画像', async () => {
+	await block('T122 T147 special.html ③のアイコンのボタンと引き出しの結合画像', async () => {
 		const sp = await open('special.html');
 		const { page, ctx, errors } = sp;
 		await page.evaluate(() => selectStepTab(2));
@@ -230,7 +241,7 @@ export async function register134(env) {
 		});
 		const sel = '.video-result a.video-dl-btn';
 		await page.locator(sel).first().scrollIntoViewIfNeeded();
-		for (const [label, dev] of [['iPhone', DEVICES.iPhone], ['Windows（タッチ）', DEVICES['Windows（タッチ）']]]) {
+		for (const [label, dev] of [['iPhone', DEVICES.iPhone], ['Android', DEVICES.Android], ['Windows（タッチ）', DEVICES['Windows（タッチ）']]]) {
 			await setDevice(page, dev);
 			await cool(page);
 			sp.downloads.length = 0;
@@ -267,18 +278,30 @@ export async function register134(env) {
 		await settle(page);
 		const info = await shareInfo(page, '#stitch-result-content a[download]');
 		assert(info.n === 1 && info.name === before.name, 'T122 引き出し iPhone: 共有のシートで今の名前のファイルを渡す', { info, want: before.name });
+		// T147: 引き出しの Android は今のダウンロード（シートを出さない・番号は1つだけ進む）
+		await setDevice(page, DEVICES.Android);
+		await cool(page);
+		sp.downloads.length = 0;
+		const beforeA = await expectName(page);
+		await page.evaluate(() => document.querySelector('#stitch-result-content a[download]').click());
+		await settle(page);
+		const infoA = await shareInfo(page, '#stitch-result-content a[download]');
+		assert(infoA.n === 0 && sp.downloads.length === 1 && sp.downloads[0] === beforeA.name, 'T147 引き出し Android: シートを出さず今の名前でダウンロード', { info: infoA, want: beforeA.name, dl: sp.downloads });
+		assert((await peek(page)) === beforeA.seq + 1, 'T147 引き出し Android: 番号は1つだけ進む');
 		assert(jsErrors(errors).length === 0, 'T122 ③: コンソールのエラーが無い', errors.slice(0, 3));
 		await ctx.close();
 	});
 
-	await block('T122 OS の見分け（pointer やタッチで分けない）', async () => {
+	await block('T122 T147 OS の見分け（pointer やタッチで分けない・シートは iOS・iPadOS だけ）', async () => {
 		const sp = await open('exam.html');
 		const { page, ctx } = sp;
-		const table = await page.evaluate((list) => list.map(([k, d]) => [k, UmaStitchShare.isMobileOs({ userAgent: d.ua, platform: d.platform, maxTouchPoints: d.touch })]), Object.entries(DEVICES));
-		for (const [k, v] of table) assert(v === DEVICES[k].shareOk, `T122 isMobileOs: ${k} は ${DEVICES[k].shareOk}`, v);
+		const table = await page.evaluate((list) => list.map(([k, d]) => [k, UmaStitchShare.isIosOrIpadOs({ userAgent: d.ua, platform: d.platform, maxTouchPoints: d.touch })]), Object.entries(DEVICES));
+		for (const [k, v] of table) assert(v === DEVICES[k].shareOk, `T147 isIosOrIpadOs: ${k} は ${DEVICES[k].shareOk}`, v);
 		// Windows はタッチ点がいくつあっても・Mac の UA でも platform が Win32 ならスマホにしない
-		const edge = await page.evaluate((ua) => [UmaStitchShare.isMobileOs({ userAgent: ua, platform: 'Win32', maxTouchPoints: 256 }), UmaStitchShare.isMobileOs({ userAgent: '', platform: '', maxTouchPoints: 0 })], UA.windows);
-		assert(edge[0] === false && edge[1] === false, 'T122 isMobileOs: Windows のタッチ256点・何も分からないときは PC の扱い', edge);
+		const edge = await page.evaluate((ua) => [UmaStitchShare.isIosOrIpadOs({ userAgent: ua, platform: 'Win32', maxTouchPoints: 256 }), UmaStitchShare.isIosOrIpadOs({ userAgent: '', platform: '', maxTouchPoints: 0 })], UA.windows);
+		assert(edge[0] === false && edge[1] === false, 'T122 isIosOrIpadOs: Windows のタッチ256点・何も分からないときは PC の扱い', edge);
+		// 古い名前は外に出さない（T147 で名前を中身に合わせた）
+		assert(await page.evaluate(() => !('isMobileOs' in UmaStitchShare)), 'T147 UmaStitchShare に古い名前 isMobileOs が残っていない');
 		const version = await page.evaluate(() => UmaStitchShare.version);
 		assert(/^\d{4}-\d{2}-\d{2}[a-z]$/.test(version), 'T122 部品の版が読める', version);
 		await ctx.close();

@@ -1,8 +1,9 @@
-/* 結合画像の保存をスマホでは共有のシートにする（T122）。special.html・exam.html の「PNGをダウンロード」が使う。
- * スマホ（iOS・iPadOS・Android）で押すと、今のダウンロードの代わりに navigator.share で PNG のファイルを渡す。
- * PC（Windows・Mac・Linux）と、共有のシートが使えない端末は、今の <a download> のまま（何もしない）。
+/* 結合画像の保存を iPhone・iPad では共有のシートにする（T122・T147）。special.html・exam.html の「PNGをダウンロード」が使う。
+ * iOS・iPadOS で押すと、今のダウンロードの代わりに navigator.share で PNG のファイルを渡す（シートの「画像を保存」で写真に入る）。
+ * Android（T147・C-351。共有のシートに保存の項目が無いことが多く、ダウンロードならギャラリーに出る）と
+ * PC（Windows・Mac・Linux）と、共有のシートが使えない端末は、元の <a download> のまま（何もしない）。
  *
- * - スマホかどうかは OS で分ける。タッチの有無や pointer: coarse では分けない（決定 325・419）。
+ * - 端末は OS で分ける。タッチの有無や pointer: coarse では分けない（決定 325・419）。
  *   Windows の Chrome は navigator.share を持っているので、タッチパネル付きの Surface でシートを出さない。
  * - ファイル名と番号は js/stitch.js の stitchAttachSaveName が決める。click の受け手を止めない（stopPropagation しない）。
  *   stitchAttachSaveName の後に attach を呼ぶと、ここが動くときには link.download が番号を進めた後の名前になっている。
@@ -14,13 +15,13 @@
  */
 (function () {
 	'use strict';
-	const STITCH_SHARE_JS_VERSION = '2026-11-08a';
+	const STITCH_SHARE_JS_VERSION = '2026-11-09a';
 	// 2度押しの2回目を捨てる間（シートが開くまでの間に押されたとき）。フラグにしないのは、share の結果が返らない端末でボタンが効かなくなるのを避けるため
 	const DOUBLE_PRESS_MS = 1000;
 
-	/** iOS・iPadOS・Android か。iPadOS の Safari は既定で Mac と同じ UA を名乗るので、MacIntel でタッチ点が複数あるものを iPad と見る（Mac にタッチの画面は無い）。 */
-	function isMobileOs(nav) {
-		if (/iPhone|iPad|iPod|Android/.test(String(nav.userAgent || ''))) return true;
+	/** iOS・iPadOS か（Android は含めない。T147）。iPadOS の Safari は既定で Mac と同じ UA を名乗るので、MacIntel でタッチ点が複数あるものを iPad と見る（Mac にタッチの画面は無い）。 */
+	function isIosOrIpadOs(nav) {
+		if (/iPhone|iPad|iPod/.test(String(nav.userAgent || ''))) return true;
 		return nav.platform === 'MacIntel' && nav.maxTouchPoints > 1;
 	}
 
@@ -48,7 +49,7 @@
 	function attach(link, getBlob) {
 		link.addEventListener('click', (e) => {
 			const nav = navigator;
-			if (!isMobileOs(nav) || !nav.share || !nav.canShare) return;
+			if (!isIosOrIpadOs(nav) ||!nav.share || !nav.canShare) return;
 			if (performance.now() - lastShareAt < DOUBLE_PRESS_MS) { e.preventDefault(); return; }
 			let file, shared;
 			try {
@@ -70,5 +71,5 @@
 		});
 	}
 
-	window.UmaStitchShare = Object.freeze({ version: STITCH_SHARE_JS_VERSION, isMobileOs, attach });
+	window.UmaStitchShare = Object.freeze({ version: STITCH_SHARE_JS_VERSION, isIosOrIpadOs, attach });
 })();
