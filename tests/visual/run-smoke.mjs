@@ -172,6 +172,7 @@ import { register152 } from './blocks-152.mjs';
 import { register156 } from './blocks-156.mjs';
 import { register157 } from './blocks-157.mjs';
 import { register162 } from './blocks-162.mjs';
+import { register160 } from './blocks-160.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15616,6 +15617,8 @@ await register156({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register157({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T159（2026-11-09）: 残りの枠のカードを選ぶ小窓で、グループのカードのメンバー全員を同じキャラクターとして扱う（見出しは「T159」）
 await register162({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T157（2026-11-09）: UmaStar 新UI の照合（◎と○を分ける・金を辞書から外す・同点の行を並びで決める。見出しは「T157」）
+await register160({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

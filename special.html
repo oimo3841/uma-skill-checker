@@ -1684,7 +1684,9 @@
 			factorOnlyList = [];
 			factorNormSet = new Set();
 			factorMarkByNorm = new Map();
-			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+			// T157（決定 630・631）: ◎ は因子の画面に出ないので照合の索引に入れない（○ と正規化が同じで、○ の行が ◎ でも出ていた）。
+			// リスト（skillList）には残す。◎ だけを書いたときは、○ の行は出ない
+			skillIndex = skillList.filter(raw => !isDoubleCircleSkillName(raw)).map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 
 			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個解析完了';
 			const badge = document.getElementById('skill-count-badge');
@@ -3089,6 +3091,8 @@
 				// 進化スキルを辞書から外すには進化の一覧が要るので、読めていなければ先に待つ（読めなくても照合は続ける＝外さないだけ）
 				allSkillNamesDict = null;
 				if (deckMode) { try { await UmaSkillDeckCore.loadSkillEvolutions(false); } catch (e) {} }
+				// T157: 金スキルを辞書から外すには skill-pt.json のレアリティが要る。起動時に読み始めているので、読み終えていなければ待つ
+				if (deckMode) { try { if (!UmaSkillDeckCore.getSkillPtData().meta.loaded) await UmaSkillDeckCore.loadSkillPtData(false); } catch (e) {} }
 
 				// T123（決定 406）: ％の分母は画像のある人数（前は6枠の数で、3人だと 33% で止まって見えた）。分子は先に済んだ人数
 				const ocrTotal = persons.filter(x => x.files.length > 0).length;
@@ -3572,6 +3576,11 @@
 				});
 				lines.push('      生存候補: ' + (u.survivors && u.survivors.length ? u.survivors.join(' / ') : 'なし'));
 				lines.push('      結果: ' + (u.resolved ? '「' + u.resolved + '」に確定' : '解決できず（曖昧のまま）'));
+			}
+			// T157: 照合のあとの並びでの拾い直し（pickTiedRowsByGameOrder）
+			if (u.byOrder) {
+				lines.push('      並び: 上 ' + (u.byOrder.up || 'なし') + ' / 下 ' + (u.byOrder.down || 'なし') + (u.byOrder.adjacent ? '' : '（となりの行でない）') + ' / 間の候補 ' + (u.byOrder.inRange.length ? u.byOrder.inRange.join(' / ') : 'なし')
+					+ ' → ' + (u.byOrder.picked ? '「' + u.byOrder.picked + '」に確定' : '決まらない'));
 			}
 			return lines.join('\n');
 		}
@@ -6356,17 +6365,124 @@
 		 *     （画面の文は足さない）。因子の絞り込み（applyFactorStrictMatch）はこのあと今までどおり掛かる。
 		 *   - 旧UI（deckMode でない）は今までどおり skillList だけで照合する。
 		 * ------------------------------------------------------------ */
+		/* ------------------------------------------------------------
+		 * T157（決定 630〜632。T150 の 453・544）
+		 *   - 因子の画面に ◎ のスキルと金スキルは出ない（継承できない。630）。③の照合の辞書から、名前に ◎ を含むものと
+		 *     金スキル（skill-pt.json の rarity が gold）を外す。②に ◎ だけを入れたときは、因子の ○ は「②に無い名前」として捨てる（631）。
+		 *   - ②の名簿では ◎ と ○ を別の項目として残す（重複の見方を「正規化＋◎の有無」にする）。common.js の
+		 *     buildSkillDictionary（凍結）は正規化が同じ名前を先の1件だけ残すので、②の名簿はこの関数で作る。
+		 *   - 同点で捨てた行は、同じ画のすぐ上・すぐ下（となりの行）の決まった行のスキルの並び（core の compareGameOrder）の間に
+		 *     入る候補が1つだけなら採る（632。pickTiedRowsByGameOrder）。決まらなければ今までどおり捨てる。
+		 * ------------------------------------------------------------ */
+		function isDoubleCircleSkillName(name) { return String(name || '').indexOf('◎') !== -1; }
+		function buildScopeSkillDictionary(skillNames) {
+			const list = [];
+			const index = [];
+			const seen = new Set();
+			(skillNames || []).forEach(name => {
+				const raw = String(name == null ? '' : name).trim();
+				if (!raw) return;
+				const norm = normalizeText(raw);
+				const key = norm + (isDoubleCircleSkillName(raw) ? '\u0000◎' : '');
+				if (!norm || seen.has(key)) return;
+				seen.add(key);
+				list.push(raw);
+				index.push({ raw: raw, norm: norm });
+			});
+			return { list: list, index: index };
+		}
+
 		let allSkillNamesDict = null;   // processImages が押すたびに null にし、最初の人の照合で作る
+		let allSkillIdByName = null;    // 同じときに作る。名前 → 独自ID（金の判定・並びの位置を引く）
 		function allSkillNamesDictionary() {
 			const names = skillList.slice();
-			try { UmaSkillDeckCore.getMasterSkills().forEach(s => names.push(s.name)); } catch (e) {}
-			try { UmaSkillDeckCore.getExtraCatalog().forEach(x => { if (!UmaSkillDeckCore.isEvolvedSkillId(x.id)) names.push(x.name); }); } catch (e) {}
-			return buildSkillDictionary(names);
+			const idByName = new Map();
+			const note = (name, id) => { if (name && id !== undefined && id !== null && !idByName.has(name)) idByName.set(name, String(id)); };
+			try { if (deckScope) UmaSkillDeckCore.getSkillEntries(deckScope.skillIds).forEach(e => note(e.name, e.id)); } catch (e) {}
+			try { UmaSkillDeckCore.getMasterSkills().forEach(s => { names.push(s.name); note(s.name, s.id); }); } catch (e) {}
+			try { UmaSkillDeckCore.getExtraCatalog().forEach(x => { note(x.name, x.id); if (!UmaSkillDeckCore.isEvolvedSkillId(x.id)) names.push(x.name); }); } catch (e) {}
+			allSkillIdByName = idByName;
+			let pt = null;
+			try { pt = UmaSkillDeckCore.getSkillPtData().skillPt; } catch (e) {}
+			const isGold = (name) => {
+				const id = idByName.get(name);
+				const row = (pt instanceof Map && id !== undefined) ? pt.get(id) : null;
+				return !!row && row.rarity === 'gold';
+			};
+			return buildSkillDictionary(names.filter(n => !isDoubleCircleSkillName(n) && !isGold(n)));
 		}
+
+		/** 並びの位置の比べ。一覧に無い（または並びを読めていない）なら null。core に位置を引く入口が無いので、
+		 *  compareGameOrder の「一覧に無いものは後ろ・その中は ID の順」を使い、どの ID よりも前に来る '0'（一覧に無い）と比べて見分ける */
+		function gameOrderKnown(id) {
+			try {
+				if (!UmaSkillDeckCore.getSkillDisplayOrderMeta().ok) return false;
+				return UmaSkillDeckCore.compareGameOrder(id, '0') < 0;
+			} catch (e) { return false; }
+		}
+		function pickTiedRowsByGameOrder(res, lines) {
+			const amb = res.devAmbiguous || [];
+			if (amb.length === 0 || !allSkillIdByName) return;
+			const idOf = (name) => { const id = allSkillIdByName.get(name); return (id !== undefined && gameOrderKnown(id)) ? id : null; };
+			const parseKey = (k) => { const m = /^(\d+):(\d+)$/.exec(String(k || '')); return m ? { img: Number(m[1]), row: Number(m[2]) } : null; };
+			// rowKey → その行で決まったスキル
+			const skillsAt = new Map();
+			Object.keys(res.skillSources || {}).forEach(name => {
+				(res.skillSources[name] || []).forEach(i => {
+					const k = lines[i] && lines[i].rowKey;
+					if (!k) return;
+					if (!skillsAt.has(k)) skillsAt.set(k, new Set());
+					skillsAt.get(k).add(name);
+				});
+			});
+			const done = new Set();
+			const picks = [];
+			amb.forEach(a => {
+				if (a.resolved || !a.rowKey || done.has(a.rowKey)) return;
+				done.add(a.rowKey);
+				if (skillsAt.has(a.rowKey)) return;   // 同じ行の別の読みで決まっている
+				const at = parseKey(a.rowKey);
+				if (!at) return;
+				let up = null, down = null;
+				skillsAt.forEach((set, k) => {
+					const p = parseKey(k);
+					if (!p || p.img !== at.img || set.size !== 1) return;
+					const name = set.values().next().value;
+					const id = idOf(name);
+					if (id === null) return;
+					if (p.row < at.row && (!up || p.row > up.row)) up = { row: p.row, name: name, id: id };
+					if (p.row > at.row && (!down || p.row < down.row)) down = { row: p.row, name: name, id: id };
+				});
+				const survivors = Array.from(new Set(a.survivors || []));
+				// 上下の決まった行は、同点の行の**となり**（行の番号 ±1）のときだけ使う。間に決まっていない行があると、
+				// その行が別のスキル（または別の列・別の人の行）のことがあり、並びの間を言い切れない（T157。3人分の結合画像を1人として読んだ素材で、
+				// 右の列の「右回り○」が、離れた上下の行の間の「小回り○」に決まった）
+				const adjacent = !!up && !!down && up.row === at.row - 1 && down.row === at.row + 1;
+				const inRange = !adjacent ? [] : survivors.filter(n => {
+					const id = idOf(n);
+					if (id === null) return false;
+					return UmaSkillDeckCore.compareGameOrder(up.id, id) < 0 && UmaSkillDeckCore.compareGameOrder(id, down.id) < 0;
+				});
+				a.byOrder = { up: up ? up.name : null, down: down ? down.name : null, adjacent: adjacent, inRange: inRange.slice(), picked: inRange.length === 1 ? inRange[0] : null };
+				if (inRange.length !== 1) return;
+				const index = lines.findIndex(l => l && l.rowKey === a.rowKey && normalizeText(l.text) === a.norm);
+				if (index !== -1) picks.push({ name: inRange[0], index: index });
+			});
+			// 先に全部の行で決めてから足す（足したものを次の行の上下に使わない）。すでに別の行で出ているスキルは触らない
+			picks.forEach(pk => {
+				if (res.detectedSkills.has(pk.name)) return;
+				res.detectedSkills.add(pk.name);
+				res.matchReasons[pk.name] = '推定（曖昧→並びで絞り込み）';
+				res.skillSources[pk.name] = [pk.index];
+				if (res.skillStars) res.skillStars[pk.name] = pickStarsFromSources([pk.index], lines);
+			});
+		}
+
 		function matchWithAllSkillNames(lines) {
 			if (!deckMode) return matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionary);
 			if (!allSkillNamesDict) allSkillNamesDict = allSkillNamesDictionary();
 			const res = matchAllSkillsWithStars(lines, allSkillNamesDict.list, allSkillNamesDict.index, ocrErrorDictionary);
+			pickTiedRowsByGameOrder(res, lines);
 			const inScope = new Set(skillList);
 			const outside = [];
 			Array.from(res.detectedSkills).forEach(name => {
@@ -6822,7 +6938,8 @@
 				if (scopes[s.key] !== true) return;
 				ocrFactorEntries(s).forEach(e => factorNames.push(e.name));
 			});
-			const dict = buildSkillDictionary(skillNames.concat(factorNames));
+			// T157（決定 630・631）: ◎ と ○ は正規化で同じ字になるが、②の名簿では別の項目として両方残す（buildScopeSkillDictionary）
+			const dict = buildScopeSkillDictionary(skillNames.concat(factorNames));
 			setActiveSkillDictionary(dict);
 			skillList = dict.list;
 			skillIndex = dict.index;
