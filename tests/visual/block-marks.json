@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-09",
 "numbering": "runtime",
-"count": 1069,
+"count": 1074,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1074,6 +1074,11 @@
   {"file":"tests/visual/blocks-160.mjs","title":"T157 (1) ◎と○（453）: ②に◎だけなら○を出さない・両方なら②の名簿に両方残り○だけが出る・③の辞書に◎が無い","ord":1,"marks":"ATSC","asserts":7},
   {"file":"tests/visual/blocks-160.mjs","title":"T157 (2) 金スキル（544）: ③の照合の辞書に金が無く、②に金を入れても金の名前の行は出ない","ord":1,"marks":"ATSC","asserts":5},
   {"file":"tests/visual/blocks-160.mjs","title":"T157 (3) 同点の行を並びで決める（544）: 上下の行が組の1つだけをはさめば採り、決まらなければ今までどおり捨てる","ord":1,"marks":"VASC","asserts":8},
-  {"file":"tests/visual/blocks-160.mjs","title":"T157 (4) 旧UI の◎と○（453）: 手入力のリストに◎だけなら○の行は出ない・両方なら○だけが出る（リストには両方残る）","ord":1,"marks":"AS","asserts":7}
+  {"file":"tests/visual/blocks-160.mjs","title":"T157 (4) 旧UI の◎と○（453）: 手入力のリストに◎だけなら○の行は出ない・両方なら○だけが出る（リストには両方残る）","ord":1,"marks":"AS","asserts":7},
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (1) 横画面の切り出しの出どころは、小さく描いた画が出す大きさの画を縮めた画と同じ（取り込みも同じ部品）。縦画面の切り取りは今のまま","ord":1,"marks":"VAC","asserts":6,"review":"名前で分けられない assert が 50%"},
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (2) 取り込みの頭と終わりの「パネルが見つからない区間」を切り落とす（matchSpan・trimSource）。始めから終わりまで見つかっていれば切らない","ord":1,"marks":"V","asserts":3,"review":"名前で分けられない assert が 67%"},
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (3) カーソルを消す処理: 横画面では一覧の左の動かない所を探す範囲から外し、カーソルを消す。主のスレッドを長くふさがない。縦画面の印の出どころでは今のまま（左端 0）","ord":1,"marks":"VTC","asserts":5,"review":"名前で分けられない assert が 40%"},
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) special.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2},
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) exam.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2}
 ]
 }

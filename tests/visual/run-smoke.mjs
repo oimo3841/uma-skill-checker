@@ -173,6 +173,7 @@ import { register156 } from './blocks-156.mjs';
 import { register157 } from './blocks-157.mjs';
 import { register162 } from './blocks-162.mjs';
 import { register160 } from './blocks-160.mjs';
+import { register159 } from './blocks-159.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15619,6 +15620,8 @@ await register157({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register162({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T157（2026-11-09）: UmaStar 新UI の照合（◎と○を分ける・金を辞書から外す・同点の行を並びで決める。見出しは「T157」）
 await register160({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T156（2026-11-10）: DMM版の横画面の直し（取り込みの切り落とし・切り出しの描き方・カーソル）。tests/visual/blocks-159.mjs
+await register159({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

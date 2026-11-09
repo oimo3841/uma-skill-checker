@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-09a';
+	const PC_CAPTURE_JS_VERSION = '2026-11-10a';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -150,18 +150,16 @@
 	function cropSource(base, rect) {
 		const x = Math.max(0, rect.x), y = Math.max(0, rect.y);
 		const w = Math.min(rect.w, base.width - x), h = Math.min(rect.h, base.height - y);
-		const ow = rect.outW || w, oh = rect.outW ? Math.round(h * rect.outW / w) : h;
+		// 横画面のパネル（T145）は録画と同じ切り出し（js/landscape-panel.js の cropSource。どの大きさで頼まれても出す大きさに描いてから写す。T156）
+		if (rect.outW && window.UmaLandscape) return UmaLandscape.cropSource(base, { x, y, w, h, outW: rect.outW, outH: Math.round(h * rect.outW / w) });
 		return UmaVideoFrames.canvasSource({
-			kind: 'crop:' + base.kind, exact: !!base.exact, width: ow, height: oh, duration: base.duration,
+			kind: 'crop:' + base.kind, exact: !!base.exact, width: w, height: h, duration: base.duration,
 			async draw(t, ctx, dw, dh, how) {
 				const sx = dw / w, sy = dh / h;
 				ctx.save();
 				ctx.beginPath(); ctx.rect(0, 0, dw, dh); ctx.clip();
-				// 横画面のパネルの拡大・縮小は静止画・動画と同じやり方（js/landscape-panel.js の setSmoothing・finishDraw）
-				if (rect.outW && window.UmaLandscape) UmaLandscape.setSmoothing(ctx);
 				ctx.translate(-x * sx, -y * sy);
 				try { await base.drawAt(t, ctx, base.width * sx, base.height * sy, null, how); } finally { ctx.restore(); }
-				if (rect.outW && window.UmaLandscape) UmaLandscape.finishDraw(ctx, dw, dh, sx, sy);
 			},
 			close() { base.close(); }
 		});
@@ -240,7 +238,7 @@
 	 * 比べる相手が足りない区画・相手どうしが合わない区画は、塗らずに残す（壊すほうを避ける）。
 	 * iPhone の動画（カーソルが無い）の流れに入れないよう、ここ（取り込みの側）に置く。js/video-frames.js の選ぶ処理は変えない。
 	 */
-	const POINTER = { poolMax: 40, BH: 16, BW: 16, minD: 80, sep: 60, sepVote: 16, refine: 10, extraMax: 16, extraRefine: 120, alignNear: 16, alignMax: 9, alignRatio: 1.2, maxW: 96, maxH: 128, learnMax: 8, spriteMinPx: 40, spriteMax: 32, spriteSure: 12, spriteVisible: 0.5, pad: 3, ring: 12, ringMean: 10, ringHot: 0.03, hot: 40, hotCount: 4, meanMax: 10 };
+	const POINTER = { poolMax: 40, BH: 16, BW: 16, minD: 80, sep: 60, sepVote: 16, refine: 10, extraMax: 16, extraRefine: 120, alignNear: 16, alignMax: 9, alignRatio: 1.2, maxW: 96, maxH: 128, learnMax: 8, spriteMinPx: 40, spriteMax: 32, spriteSure: 12, spriteVisible: 0.5, pad: 3, ring: 12, ringMean: 10, ringHot: 0.03, hot: 40, hotCount: 4, meanMax: 10, maxHits: 4, sliceMs: 24 };
 	/*
 	 * 行の右の余白（スクロールバーの辺り）のカーソルを消す（T118。スクロールバーを引っ張って撮るとカーソルが残った。決定は C-327）。
 	 * 上の消し方は「中身と一緒に動く所」でしか使えない（スクロールバーは中身と一緒に動かない）ので、そこを探す範囲からも覚える範囲からも外してあり、
@@ -276,6 +274,46 @@
 			}
 		}
 		return null;
+	}
+	/* 中身が動く列の左端（半分の幅の画で。T156）。DMM版の横画面のパネルの切り出し（js/landscape-panel.js）では、一覧の左にパネルの縁と
+	 * ゲームの背景が入る。そこは中身と一緒に動かないので、下のカーソルの消し方（中身と一緒に動かない所を探す）で、背景の縦長の帯を
+	 * カーソルの形と覚えてしまい（7×94px）、1枚に何百か所も当たって、1枚に数分かかっていた（ページが動かなくなった）。
+	 * 左から見て、上から下まで散らばって変わる列（findMarginStart と同じ数え方）が初めて出る所。幅の 30% までに無ければ 0 */
+	function findContentStart(halves, hw, cH) {
+		const S = SCROLLBAR, pairs = halves.length - 1;
+		if (pairs < 1) return 0;
+		const need = Math.max(1, pairs * S.share);
+		for (let x = 0; x < Math.floor(hw * 0.3); x++) {
+			let moving = 0;
+			for (let i = 0; i < pairs; i++) {
+				const a = halves[i], b = halves[i + 1], hit = new Uint8Array(S.bins);
+				for (let y = 0; y < cH; y++) {
+					const p = (y * hw + x) * 4;
+					if ((Math.abs(a[p] - b[p]) + Math.abs(a[p + 1] - b[p + 1]) + Math.abs(a[p + 2] - b[p + 2])) / 3 > S.moved) hit[Math.floor(y * S.bins / cH)] = 1;
+				}
+				if (hit.reduce((u, v) => u + v, 0) >= S.binsNeed) moving++;
+			}
+			if (moving >= need) return Math.max(0, x - S.pad);
+		}
+		return 0;
+	}
+	// 重い繰り返しの途中で、ページに手番を返す（T156。カーソルを消す処理が主のスレッドを数分ふさいで、ページが動かなくなった）。
+	// setTimeout(0) は裏のタブで間引かれるので MessageChannel で（js/video-frames.js の yieldNow と同じ）
+	let yieldChannel = null;
+	const yieldWaiters = [];
+	function yieldNow() {
+		if (typeof MessageChannel === 'undefined') return new Promise((r) => setTimeout(r, 0));
+		if (!yieldChannel) { yieldChannel = new MessageChannel(); yieldChannel.port1.onmessage = () => { const r = yieldWaiters.shift(); if (r) r(); }; }
+		return new Promise((r) => { yieldWaiters.push(r); yieldChannel.port2.postMessage(0); });
+	}
+	function makeBreather(signal, sliceMs) {
+		let last = performance.now();
+		return async () => {
+			if (performance.now() - last < sliceMs) return;
+			await yieldNow();
+			last = performance.now();
+			if (signal && signal.aborted) throw Object.assign(new Error('取り消し'), { name: 'AbortError' });
+		};
 	}
 	// 余白の地（RGB を並べた配列）。frames は余白の部分の RGBA（どれも mW×cH）
 	function marginBackground(frames, mW, cH) {
@@ -411,7 +449,10 @@
 	async function removePointer(src, sel, track, signal) {
 		const W = src.width, H = src.height, { headerEnd: hE, contentH: cH } = sel.header;
 		const hw = Math.round(W / 2), P = POINTER;
-		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null };
+		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0 };
+		const breathe = makeBreather(signal, P.sliceMs), rp0 = performance.now();
+		// DMM版の横画面の切り出し（kind に landscape: が入る。T145）だけ、一覧の左の動かない所を探す範囲から外す（縦画面は今のまま）
+		const landscape = /landscape:/.test(src.kind || '');
 		const known = track.filter((f) => f.pos != null).sort((a, b) => a.t - b.t);
 		if (!known.length) return stat;
 		const posAt = (t) => { let best = known[0]; for (const f of known) if (Math.abs(f.t - t) < Math.abs(best.t - t)) best = f; return best.pos; };
@@ -449,6 +490,9 @@
 			stat.margin = { x: mX, thumb: margin.thumb ? [mX + margin.thumb.x0, mX + margin.thumb.x1 + 1] : null, len: margin.thumb ? margin.thumb.len : 0, frames: 0, cells: 0, boxes: [], rowCells: 0, rowSelf: 0, rowLeft: 0 };
 		}
 		const xLimit = margin ? margin.start : hw; // 上の消し方（別のフレームの画素で置き換える）はここより左だけ
+		const xStart = landscape ? findContentStart(pool.map((q) => q.half), hw, cH) : 0; // ここより右だけ（T156）
+		const x0s = Math.ceil(xStart / P.BW) * P.BW; // 区画の左端の始まり（縦画面は 0）
+		stat.xStart = xStart;
 		// a の行 ya〜 と b の行 yb〜 の区画の差（RGB の差の平均の平均と、差の大きい画素の数）
 		const cellDiff = (a, ya, b, yb, x0, bw, n) => {
 			let s = 0, hot = 0;
@@ -486,9 +530,10 @@
 			dx.drawImage(img, 0, 0);
 			return halfOf(draw);
 		};
-		const candsOf = (me, t) => {
+		const candsOf = async (me, t) => {
 			const list = [], myPos = posAt(t);
 			for (const q of pool) {
+				await breathe();
 				const d0 = q.pos - myPos;
 				if (Math.abs(d0) < P.minD) continue;
 				let d = align(me, q.half, d0);
@@ -515,6 +560,7 @@
 			wanted.sort((u, v) => u.t - v.t);
 			const list = [];
 			for (const w of wanted) {
+				await breathe();
 				await src.drawAt(w.t, dx2d, W, H, signal);
 				const qh = halfOf(extraCanvas);
 				const d = align(me, qh, Math.round(w.g), P.extraRefine);
@@ -526,15 +572,17 @@
 			stat.extra += list.length;
 			return list;
 		};
-		const learnFrom = (me, t, cands) => {
+		const learnFrom = async (me, t, cands) => {
 			const odd = new Set();
 			for (let y = 0; y + P.BH <= cH; y += P.BH) {
+				await breathe();
 				const av = cands.filter((c) => rowsOk(c, y, P.BH));
 				if (!av.length) continue;
-				for (let x0 = 0; x0 + 6 <= xEnd; x0 += P.BW) if (!av.some((c) => cell(me, y, c.q.half, y - c.d, x0))) odd.add(y + ':' + x0);
+				for (let x0 = x0s; x0 + 6 <= xEnd; x0 += P.BW) if (!av.some((c) => cell(me, y, c.q.half, y - c.d, x0))) odd.add(y + ':' + x0);
 			}
 			const seen = new Set();
 			for (const k of odd) {
+				await breathe();
 				if (seen.has(k)) continue;
 				seen.add(k);
 				const list = [], st = [k];
@@ -548,7 +596,7 @@
 				if (x1 - x0 > P.maxW || y1 - y0 > P.maxH) continue;
 				const inner = new Set(list.map((c) => c.y + ':' + c.x)), ring = [];
 				const ry0 = Math.max(0, y0 - P.BH), ry1 = Math.min(cH, y1 + P.BH);
-				for (let y = ry0; y + P.BH <= ry1; y += P.BH) for (let x = Math.max(0, x0 - P.BW); x + 6 <= Math.min(xEnd, x1 + P.BW); x += P.BW) if (!inner.has(y + ':' + x)) ring.push({ y, x });
+				for (let y = ry0; y + P.BH <= ry1; y += P.BH) for (let x = Math.max(x0s, x0 - P.BW); x + 6 <= Math.min(xEnd, x1 + P.BW); x += P.BW) if (!inner.has(y + ':' + x)) ring.push({ y, x });
 				const ok = cands.filter((c) => rowsOk(c, ry0, ry1 - ry0) && ring.every((r) => cell(me, r.y, c.q.half, r.y - c.d, r.x)));
 				let donor = null;
 				for (let u = 0; u < ok.length && !donor; u++) for (let v = u + 1; v < ok.length; v++) if (Math.abs(ok[u].d - ok[v].d) >= P.sep && list.every((c) => cell(ok[u].q.half, c.y - ok[u].d, ok[v].q.half, c.y - ok[v].d, c.x))) { donor = ok[u]; break; }
@@ -574,7 +622,7 @@
 		};
 		for (const file of uniq) {
 			const t = timeOf(file), me = await loadFile(file);
-			learnFrom(me, t, candsOf(me, t));
+			await learnFrom(me, t, await candsOf(me, t));
 		}
 		// 余白の塊からも覚える（スクロールバーを引っ張る間、カーソルは行の上に来ない）。塊が余白の左端で切れているものは形が欠けているので使わない
 		if (!pickSprite().sprite && margin) {
@@ -596,7 +644,7 @@
 			for (const file of uniq.slice(0, P.learnMax)) {
 				const t = timeOf(file), me = await loadFile(file);
 				const extra = await extrasFor(me, t, () => true);
-				learnFrom(me, t, candsOf(me, t).concat(extra));
+				await learnFrom(me, t, (await candsOf(me, t)).concat(extra));
 				for (const c of extra) { c.q.band.width = c.q.band.height = 0; }
 				if (pickSprite().sprite) break;
 			}
@@ -623,7 +671,7 @@
 				}
 				return n > 0 && s / n <= P.ringMean * 1.6 && hot / n <= P.ringHot * 2.56 && !donorHasBlob(c.q, Y0 - c.d, Y1 - c.d);
 			};
-			let c = candsOf(me, t).find(good);
+			let c = (await candsOf(me, t)).find(good);
 			if (!c) c = (await extrasFor(me, t, (g) => Y0 - g >= 0 && Y1 - g <= cH)).find(good);
 			if (!c) {
 				// 相手が無い（一覧の先頭と末尾は1枚にしか写らない）: 行は等間隔で右端に文字が無いので、同じ画の中の別の行の右端を写す。まわりがはっきり合う所だけ。
@@ -662,6 +710,7 @@
 			return true;
 		};
 		let fixBySprite = null;
+		const findAsync = async (list, pred) => { for (const c of list) if (await pred(c)) return c; return undefined; };
 		if (sprite) {
 			// 2. 画の中でカーソルの形を探す（帯の端で一部だけ写っていてもよい）
 			const fits = (img, ox, oy) => {
@@ -675,14 +724,17 @@
 				}
 				return n >= sprite.px.length * P.spriteVisible ? s / n : Infinity;
 			};
-			const findAll = (img, xa, xb, ya, yb) => {
+			const findAll = async (img, xa, xb, ya, yb) => {
 				const hits = [];
-				for (let oy = ya; oy < yb; oy++) for (let ox = xa; ox < xb; ox++) {
+				for (let oy = ya; oy < yb; oy++) {
+					await breathe();
+					for (let ox = xa; ox < xb; ox++) {
 					const m = fits(img, ox, oy);
 					if (m > P.spriteMax) continue;
 					const near = hits.find((h) => Math.abs(h.x - ox) < sprite.w && Math.abs(h.y - oy) < sprite.h);
 					if (!near) hits.push({ x: ox, y: oy, m });
 					else if (m < near.m) { near.x = ox; near.y = oy; near.m = m; }
+					}
 				}
 				return hits;
 			};
@@ -705,9 +757,11 @@
 			};
 			fixBySprite = async (file, t, me) => {
 				// 行の右端にかかるカーソルも探す。右へ抜けた所は余白のほうで塗る
-				const hits = findAll(me, 0, Math.max(xEnd - (sprite.w >> 1), margin ? xLimit : 0), -(sprite.h >> 1), cH - (sprite.h >> 1));
+				const hits = await findAll(me, Math.max(0, xStart - (sprite.w >> 1)), Math.max(xEnd - (sprite.w >> 1), margin ? xLimit : 0), -(sprite.h >> 1), cH - (sprite.h >> 1));
 				if (!hits.length) return 0;
-				const cands = candsOf(me, t);
+				// カーソルは1枚に1つ。何か所にも当たるなら、覚えた形はカーソルではない（一覧の縦線・背景の帯など）。置き換えない（T156）
+				if (hits.length > P.maxHits) { stat.manyHits++; return 0; }
+				const cands = await candsOf(me, t);
 				let extra = null, done = 0;
 				const fetchExtra = () => extrasFor(me, t, (g) => hits.some((h) => h.y - P.pad - g >= 0 && h.y + sprite.h + P.pad - g <= cH));
 				// 3. カーソルのまわりまで自分と合い（位置が確か）、その場所にカーソルが写っていない相手の画素で、カーソルの所だけを置き換える
@@ -715,7 +769,7 @@
 					const X0 = Math.max(0, h.x - P.pad), X1 = Math.min(xLimit, h.x + sprite.w + P.pad), Y0 = Math.max(0, h.y - P.pad), Y1 = Math.min(cH, h.y + sprite.h + P.pad);
 					if (X1 <= X0) continue;
 					const RY0 = Math.max(0, Y0 - P.ring), RY1 = Math.min(cH, Y1 + P.ring), RX0 = Math.max(0, X0 - P.ring), RX1 = Math.min(xEnd, xLimit, X1 + P.ring);
-					const good = (c) => {
+					const good = async (c) => {
 						if (!rowsOk(c, RY0, RY1 - RY0)) { why.rows++; return false; }
 						let s = 0, n = 0, hot = 0;
 						for (let y = RY0; y < RY1; y++) for (let x = RX0; x < RX1; x++) {
@@ -727,13 +781,13 @@
 						// 形がはっきり合う（まず間違いなくカーソル）ときは、動いている画の圧縮の崩れを見込んで少しゆるめる
 						const loose = h.m < P.spriteSure ? 1.6 : 1;
 						if (!n || s / n > P.ringMean * loose || hot / n > P.ringHot * loose * loose) { why.ring.push([c.d, +(s / n).toFixed(1), +(hot / n).toFixed(3)]); return false; }
-						if (findAll(c.q.half, Math.max(0, X0 - sprite.w), Math.min(hw - 1, X1), Math.max(0, Y0 - c.d - sprite.h), Math.min(cH, Y1 - c.d)).length) { why.sprite.push(c.d); return false; }
+						if ((await findAll(c.q.half, Math.max(0, X0 - sprite.w), Math.min(hw - 1, X1), Math.max(0, Y0 - c.d - sprite.h), Math.min(cH, Y1 - c.d))).length) { why.sprite.push(c.d); return false; }
 						return true;
 					};
 					const why = { rows: 0, ring: [], sprite: [] };
-					let c = cands.find(good);
-					if (!c) { if (!extra) extra = await fetchExtra(); c = extra.find(good); }
-					if (!c) c = (await pickDonors(sel.files.indexOf(file))).find(good);
+					let c = await findAsync(cands, good);
+					if (!c) { if (!extra) extra = await fetchExtra(); c = await findAsync(extra, good); }
+					if (!c) c = await findAsync(await pickDonors(sel.files.indexOf(file)), good);
 					if (!c) { stat.leftCells++; stat.leftBoxes.push([+t.toFixed(2), h.x, h.y, +h.m.toFixed(1), why]); continue; }
 					const sx = Math.round(X0 * W / hw), sw = Math.round(X1 * W / hw) - sx;
 					dx.drawImage(c.q.band, sx, Y0 - c.d, sw, Y1 - Y0, sx, hE + Y0, sw, Y1 - Y0);
@@ -757,6 +811,18 @@
 					stat.margin.boxes.push({ t: +t.toFixed(2), x: box.x, y: box.y, px: b.pts.length });
 				}
 				if (blobs.length) stat.margin.frames++;
+				// DMM版の横画面（T156）: 余白（一覧の右の、中身と一緒に動かない所。スクロールバーの溝とゲームの背景）は、全部を余白の地
+				// （同じ場所の多数のフレームの中央値）で塗る。拡大したパネルではカーソルがつまみより大きく、つまみを引っ張る間はカーソルが
+				// つまみに乗ったまま動くので、つまみの色がカーソルの色になり（小さいウィンドウの録画で 121,200,111）、カーソルとつまみが
+				// 1つの縦長の塊になって大きさの上限で外れ、カーソルが残った。余白には読む中身が無いので、つまみごと塗る（縦画面は今のまま）
+				if (landscape) {
+					if (!margin.bgImage) {
+						margin.bgImage = dx.createImageData(margin.mW, cH);
+						for (let i = 0, k = 0, q = 0; i < margin.mW * cH; i++, k += 3, q += 4) { margin.bgImage.data[q] = margin.bg[k]; margin.bgImage.data[q + 1] = margin.bg[k + 1]; margin.bgImage.data[q + 2] = margin.bg[k + 2]; margin.bgImage.data[q + 3] = 255; }
+					}
+					dx.putImageData(margin.bgImage, margin.mX, hE);
+					stat.margin.whole = (stat.margin.whole || 0) + 1; done++;
+				}
 			}
 			if (done) {
 				stat.frames++;
@@ -767,6 +833,9 @@
 		for (const q of pool) { q.band.width = q.band.height = 0; q.half = null; }
 		extraCanvas.width = extraCanvas.height = 0; draw.width = draw.height = 0; half.width = half.height = 0;
 		for (const p of sel.persons) p.files = p.files.map((f) => out.get(f) || f);
+		devLog('[動画] カーソル: ' + Math.round(performance.now() - rp0) + 'ms・形 ' + (stat.sprite ? stat.sprite.w + 'x' + stat.sprite.h + '（' + stat.sprite.seen + '回）' : 'なし')
+			+ '・置き換え ' + stat.cells + '・残し ' + stat.leftCells + '・余白 ' + (stat.margin ? stat.margin.cells + (stat.margin.whole ? '（全体を塗った画 ' + stat.margin.whole + '）' : '') : '—') + '・直した画 ' + stat.frames
+			+ (landscape ? '・中身の左端 ' + stat.xStart : '') + (stat.manyHits ? '・当たりが多く使わなかった画 ' + stat.manyHits : ''));
 		return stat;
 	}
 
@@ -895,7 +964,36 @@
 	 * 戻り値 { stream, stop(), open(signal), dispose() }。open は止まったあとに呼び、結合の流れへ渡す出どころを返す。見つからないときは capFail の付いたエラーを投げる */
 	const config = { limitSec: 180, detectMs: 700 };
 	const DISPLAY_OPTIONS = { video: { displaySurface: 'window', frameRate: { ideal: 30, max: 30 }, resizeMode: 'none', cursor: 'never' }, audio: false, selfBrowserSurface: 'exclude', monitorTypeSurfaces: 'exclude', surfaceSwitching: 'exclude', systemAudio: 'exclude' };
+	/* 取り込みの前後で、ゲームの画面（パネル）が見つからなかった区間を切り落とす（T156）。
+	 * ウィンドウを選んでからゲームへ戻るまでの間（全画面のゲームは、ブラウザに切り替えている間に別の画になることがある）が動画の頭に入ると、
+	 * 選ぶ側（selectFrames）は最初の画を「同じ画面」の基準にするので、因子の画面の部分を使えず「因子の画面を見つけられませんでした」になりうる。
+	 * 窓を調べた結果（0.7秒ごと）のうち、まとめた矩形と同じ（±2px）結果が出た最初と最後の時刻の間だけを使う。差が TRIM.min 秒未満なら切らない
+	 * （始めから終わりまで見つかっていれば、最初の結果は 0 秒・最後の結果は終わりの 0.7 秒以内なので切らない。今までどおり）。
+	 * T156 の作り物（全画面の録画の前に 1.5秒の別の画）で、切らないと「本文の帯が想定の範囲の外」（band）・切ると 3人に分かれることを確かめた */
+	const TRIM = { min: 0.5 };
+	function matchSpan(list, a, duration) {
+		const ts = list.filter((r) => r.ok && r.at != null && Math.abs(r.x - a.x) <= 2 && Math.abs(r.y - a.y) <= 2 && Math.abs(r.w - a.w) <= 2 && Math.abs(r.h - a.h) <= 2).map((r) => r.at);
+		if (!ts.length) return null;
+		const t0 = Math.max(0, Math.min(...ts)), t1 = Math.min(duration, Math.max(...ts) + config.detectMs / 1000);
+		return t1 - t0 >= 1 ? { t0, t1 } : null;   // 1秒も残らないなら切らない（今の案内のまま）
+	}
+	function trimSource(base, t0, t1) {
+		return UmaVideoFrames.canvasSource({
+			kind: 'trim:' + base.kind, exact: !!base.exact, width: base.width, height: base.height, duration: t1 - t0,
+			draw(t, ctx, dw, dh, how) { return base.drawAt(t0 + t, ctx, dw, dh, null, how); },
+			close() { base.close(); }
+		});
+	}
 	const capFail = (kind, msg) => Object.assign(new Error(msg || kind), { capFail: kind });
+	// 開発ログ（T156。おいもさんの環境での取り込みの様子を後から読めるように。js/landscape-panel.js の [横画面] の行と同じ出し方）
+	function devLog(s) { try { if (typeof devGeometry !== 'undefined' && devGeometry && devGeometry.push) devGeometry.push(s); } catch (e) { /* 何もしない */ } }
+	// 窓を調べた結果のまとめ（大きさ・横画面と判定したか・パネルの見つけ方の結果・かかった時間）
+	function describeDetect(w, h, st, a) {
+		const kinds = Object.keys(st.kinds).map((k) => k + ' ' + st.kinds[k]).join('／') || 'なし';
+		const res = !a ? '結果なし' : a.ok ? '矩形 ' + a.x + ',' + a.y + ' ' + a.w + 'x' + a.h + (a.outW ? ' → ' + a.outW + 'x' + a.outH : '') + '（' + a.how + '・' + a.agree + '/' + a.samples + ' 枚で一致）'
+			: '見つからない（' + a.reason + (a.agree != null ? '・' + a.agree + '/' + a.samples : '') + '）';
+		return '取り込み ' + w + 'x' + h + '・調べた ' + st.n + ' 回（平均 ' + (st.n ? Math.round(st.ms / st.n) : 0) + 'ms・最大 ' + Math.round(st.max) + 'ms）・判定 ' + kinds + ' → ' + res;
+	}
 	const AREA_FAIL = { blank: 'blank', none: 'blank', aspect: 'aspect', unstable: 'unstable', 'too-small-image': 'small' };
 	async function begin(hooks) {
 		const stream = await navigator.mediaDevices.getDisplayMedia(DISPLAY_OPTIONS);
@@ -905,6 +1003,7 @@
 		const reader = new MediaStreamTrackProcessor({ track: tap }).readable.getReader();
 		const c = { w: 0, h: 0, begun: false, lastUs: -1, started: 0 };
 		let running = true, reason = '', areas = [], area = null, dc = null, dx = null, tick = 0, stopped = null;
+		let dstat = { n: 0, ms: 0, max: 0, kinds: {} };
 		const stopStream = () => { stream.getTracks().forEach((t) => t.stop()); tap.stop(); };
 		function stop(why) {
 			if (!running) return;
@@ -917,10 +1016,16 @@
 			})();
 			if (hooks.onStop) hooks.onStop(reason);
 		}
-		function detectFrom(frame, w, h) {
+		function detectFrom(frame, w, h, us) {
+			const t0 = performance.now();
 			if (!dc || dc.width !== w || dc.height !== h) { dc = new OffscreenCanvas(w, h); dx = dc.getContext('2d', { willReadFrequently: true }); }
 			dx.drawImage(frame, 0, 0, w, h);
-			areas.push(detectOne(dx.getImageData(0, 0, w, h)));
+			const r = detectOne(dx.getImageData(0, 0, w, h));
+			const k = r.ok ? r.how : r.reason + (r.landscape ? ':' + r.landscape : '');
+			const ms = performance.now() - t0;
+			dstat.n++; dstat.ms += ms; dstat.max = Math.max(dstat.max, ms); dstat.kinds[k] = (dstat.kinds[k] || 0) + 1;
+			r.at = (us - c.us0) / 1e6;   // 圧縮した動画の中の時刻（秒）
+			areas.push(r);
 			if (areas.length > 300) areas.shift();
 			area = consensus(areas);
 		}
@@ -936,11 +1041,12 @@
 					const us = Math.max(c.lastUs + 1, f.timestamp - baseUs); c.lastUs = us;
 					if (c.w !== w || c.h !== h) {
 						// 共有を始めた直後は大きさが落ち着かないことがある。そのあとで変わったら、そこまでの映像では結合できない
-						if (c.w && wall - c.started >= 2000) { stop('resize'); break; }
-						c.w = w; c.h = h; areas = []; area = null; c.begun = false;
-						await sink.begin(w, h); c.begun = true;
+						if (c.w && wall - c.started >= 2000) { devLog('[横画面] 取り込みの途中で大きさが変わった: ' + c.w + 'x' + c.h + ' → ' + w + 'x' + h); stop('resize'); break; }
+						if (c.w) devLog('[横画面] 取り込みの始めに大きさが変わった: ' + c.w + 'x' + c.h + ' → ' + w + 'x' + h);
+						c.w = w; c.h = h; areas = []; area = null; c.begun = false; dstat = { n: 0, ms: 0, max: 0, kinds: {} };
+						await sink.begin(w, h); c.begun = true; c.us0 = us;
 					}
-					if (wall - lastDetect >= config.detectMs) { lastDetect = wall; detectFrom(f, w, h); }
+					if (wall - lastDetect >= config.detectMs) { lastDetect = wall; detectFrom(f, w, h, us); }
 					sink.frame(f, us);
 				} finally { f.close(); }
 			}
@@ -960,16 +1066,26 @@
 				if (reason === 'error') throw new Error('取り込みの読み取りの失敗');
 				if (!c.begun) throw capFail('blank');
 				const a = area || consensus(areas);
+				// 横画面と判定した回が1回でもあれば [横画面]、なければ [取り込み] の行にする
+				const tag = Object.keys(dstat.kinds).some((k) => /landscape|no-band|panel-cut/.test(k)) ? '[横画面] ' : '[取り込み] ';
+				devLog(tag + describeDetect(c.w, c.h, dstat, a));
 				if (!a.ok) throw capFail(AREA_FAIL[a.reason] || 'aspect');
 				if (a.warns && a.warns.includes('small')) throw capFail('small');
 				if (a.warns && a.warns.includes('large')) throw capFail('large');
 				const base = await UmaVideoFrames.untilAbort(sink.end(c.lastUs + 33333), signal);
-				const src = cropSource(base, a);
-				try { return (await steadySource(src, signal)).src; } catch (e) { src.close(); throw e; }
+				const span = matchSpan(areas, a, base.duration);
+				const cut = span && (span.t0 >= TRIM.min || span.t1 <= base.duration - TRIM.min);
+				if (cut) devLog(tag + 'パネルが見つかった区間だけを使う: ' + span.t0.toFixed(1) + '〜' + span.t1.toFixed(1) + '秒（全体 ' + base.duration.toFixed(1) + '秒）');
+				const src = cropSource(cut ? trimSource(base, span.t0, span.t1) : base, a);
+				try {
+					const t1 = performance.now(), st = await steadySource(src, signal);
+					devLog(tag + '切り出し ' + src.width + 'x' + src.height + '・動く帯 ' + (st.band ? st.band.top + '〜' + st.band.bottom : 'なし') + '（' + Math.round(performance.now() - t1) + 'ms）');
+					return st.src;
+				} catch (e) { src.close(); throw e; }
 			},
 			dispose() { if (running) { running = false; reason = 'stop'; clearInterval(tick); reader.cancel().catch(() => {}); } stopStream(); sink.close(); }
 		};
 	}
 
-	window.UmaPcCapture = { VERSION: PC_CAPTURE_JS_VERSION, config, SIDE, shouldOffer, begin, sideLayout, detectOne, consensus, cropSource, findMovingBand, steadySource, BAND, removePointer, findMarginStart, muxMp4, encodeSink };
+	window.UmaPcCapture = { VERSION: PC_CAPTURE_JS_VERSION, config, SIDE, shouldOffer, begin, sideLayout, detectOne, consensus, cropSource, findMovingBand, steadySource, BAND, removePointer, findMarginStart, findContentStart, matchSpan, trimSource, muxMp4, encodeSink };
 })();

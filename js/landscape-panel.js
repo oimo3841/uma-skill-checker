@@ -18,7 +18,7 @@
 (function (global) {
 	'use strict';
 
-	const LANDSCAPE_PANEL_JS_VERSION = '2026-11-09a';
+	const LANDSCAPE_PANEL_JS_VERSION = '2026-11-10a';
 
 	const OPT = {
 		landscapeMin: 1.15,   // 幅 / 高さ がこれ以上なら横画面として調べる
@@ -215,21 +215,40 @@
 		return Object.assign({}, pick, { ok: best.length / list.length >= 0.6, reason: best.length / list.length >= 0.6 ? '' : 'unstable', samples: list.length, agree: best.length });
 	}
 
-	/** 出どころ（source）の矩形を切り出し、拡大・縮小した出どころ。drawAt は (0,0)-(dw,dh) に切り出した所だけを描く */
+	/**
+	 * 出どころ（source）の矩形を切り出し、拡大・縮小した出どころ。drawAt は (0,0)-(dw,dh) に切り出した所だけを描く。
+	 * どの大きさで頼まれても、いったん出す大きさ（outW×outH）に描いて（拡大ならアンシャープマスクも）から、その画を頼まれた大きさに写す（T156）。
+	 * 前は小さく頼まれたら元の動画から直接小さく描いていた。選ぶ側（js/video-frames.js の selectFrames）は、小さく描いた画と、
+	 * 等倍で描いた画を縮めた画が同じかで取り直しの確かさを見るので、描き方の違いで全部の画が「合わない」（不一致 約6%）になり、
+	 * 測り直しが厳しい基準になって、正しい継ぎ目まで「確かでない」と出ていた（全画面の録画の親）。同じ時刻の画は1枚だけ覚えておく。
+	 */
 	function cropSource(base, rect) {
-		const x = rect.x, y = rect.y, w = rect.w, h = rect.h;
+		const x = rect.x, y = rect.y, w = rect.w, h = rect.h, OW = rect.outW, OH = rect.outH;
+		let full = null, fctx = null, fullKey = null;
+		// sharp: アンシャープマスクをかけるか。かけるのは出す大きさで頼まれたとき（取り直し・結合・OCR に使う画）だけ。
+		// 小さく頼まれた画（選ぶ側の縮小画）は、かけずに出す大きさに描いて縮める（かけても縮めるとほぼ消える。1枚 約160ms かかり、選ぶ側は何百枚も描く）
+		async function render(t, how, sharp) {
+			if (!full) { full = document.createElement('canvas'); full.width = OW; full.height = OH; fctx = full.getContext('2d', { willReadFrequently: true }); }
+			// 覚えた画は、待ちを頼まれない描き直しにだけ使う（waitFrame などの頼みは出どころへそのまま渡す）
+			const key = t + (sharp ? 's' : '');
+			if (fullKey === key && !how) return;
+			fullKey = null;
+			const sx = OW / w, sy = OH / h;
+			fctx.save();
+			fctx.clearRect(0, 0, OW, OH);
+			setSmoothing(fctx);
+			fctx.translate(-x * sx, -y * sy);
+			try { await base.drawAt(t, fctx, base.width * sx, base.height * sy, null, how); } finally { fctx.restore(); }
+			if (sharp) finishDraw(fctx, OW, OH, sx, sy);
+			fullKey = key;
+		}
 		return global.UmaVideoFrames.canvasSource({
-			kind: 'landscape:' + base.kind, exact: !!base.exact, width: rect.outW, height: rect.outH, duration: base.duration,
+			kind: 'landscape:' + base.kind, exact: !!base.exact, width: OW, height: OH, duration: base.duration,
 			async draw(t, ctx, dw, dh, how) {
-				const sx = dw / w, sy = dh / h;
-				ctx.save();
-				ctx.beginPath(); ctx.rect(0, 0, dw, dh); ctx.clip();
-				setSmoothing(ctx);
-				ctx.translate(-x * sx, -y * sy);
-				try { await base.drawAt(t, ctx, base.width * sx, base.height * sy, null, how); } finally { ctx.restore(); }
-				finishDraw(ctx, dw, dh, sx, sy);
+				await render(t, how, dw === OW && dh === OH);
+				ctx.drawImage(full, 0, 0, OW, OH, 0, 0, dw, dh);
 			},
-			close() { base.close(); }
+			close() { if (full) { full.width = full.height = 0; full = null; } base.close(); }
 		});
 	}
 

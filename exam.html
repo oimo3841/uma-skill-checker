@@ -43,9 +43,9 @@
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（T139。special.html と共有。②の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-08d"></script>
 	<!-- PC のウィンドウの取り込み（T139。special.html と共有。②の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
-	<script src="js/pc-capture.js?v=2026-11-09a"></script>
+	<script src="js/pc-capture.js?v=2026-11-10a"></script>
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。special.html と共有。②の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
-	<script src="js/landscape-panel.js?v=2026-11-09a"></script>
+	<script src="js/landscape-panel.js?v=2026-11-10a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -4438,11 +4438,12 @@
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
 				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
 				// タッチのエフェクトの置き換え（effectVote）は iPhone の動画のためのもの。取り込みでは切る
-				const debug = {};
-				if (capture) { selOpts.debug = debug; selOpts.effectVote = false; }
+				// DMM版の横画面の録画（wrapSource が切り出した出どころ。PC で撮ったのでカーソルが写る）も取り込みと同じに扱う（T156・決定 637）
+				const debug = {}, pcVideo = capture || !!src.landscape;
+				if (pcVideo) { selOpts.debug = debug; selOpts.effectVote = false; }
 				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
 				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
-				if (capture) await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal);
+				if (pcVideo && window.UmaPcCapture) await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal);
 				sel.persons.forEach((p, r) => {
 					const idx = setIdx * 3 + r;
 					const frames = p.files.slice();

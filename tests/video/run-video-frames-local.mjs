@@ -63,9 +63,11 @@ const VIDEOS = [
 	// 3本とも 4〜6秒で3人をスクロールする速い録画で、速い動画の調べ直し（1/16秒おき）が要る。それは出どころが WebCodecs のときだけなので、
 	// この既定の流れ（video 要素の出どころ）では 9 の祖2・11 の区切りが取れない（9 は祖2 が 463、11 は2人）。製品は PC の Chrome・Edge で WebCodecs の流れ。
 	// そこで既定の流れでは横画面の3本を回さない（elementSkip）
-	{ no: 9, name: 'dmm-landscape-195520-full.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1692, 1883, 1633], tol: 2, picks: null, counts: [5, 5, 3] },
-	{ no: 10, name: 'dmm-landscape-200318-window.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1696, 1886, 1636], tol: 2, picks: null, counts: [6, 5, 3] },
-	{ no: 11, name: 'dmm-landscape-200434-window-small.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1699, 1889, 1639], tol: 2, picks: null, counts: [5, 5, 3] }
+	// T156（2026-11-10・決定 637・638）: 横画面の切り出しの描き方をそろえ（小さく描く画も出す大きさの画から）、録画もカーソルを消す流れ（エフェクトの置き換えを切る）にしたので、
+	// 人ごとの枚数が 5／5／3・6／5／3・5／5／3 から下の値に変わった（高さは同じ ±2。確かでない継ぎ目は3本とも 0 に）
+	{ no: 9, name: 'dmm-landscape-195520-full.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1692, 1883, 1633], tol: 2, picks: null, counts: [5, 6, 3] },
+	{ no: 10, name: 'dmm-landscape-200318-window.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1696, 1886, 1636], tol: 2, picks: null, counts: [4, 5, 3] },
+	{ no: 11, name: 'dmm-landscape-200434-window-small.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1699, 1889, 1639], tol: 2, picks: null, counts: [4, 5, 3] }
 ];
 /** 高さの期待値に合うか（null は見ない。tol は許す差） */
 const heightOk = (v, j, h, tol) => v.heights[j] == null || (h != null && Math.abs(h - v.heights[j]) <= tol);
@@ -112,7 +114,8 @@ async function runSpecial(v) {
 	await page.waitForSelector('#personset-A-wrap .video-result, #video-error', { timeout: 600000 });
 	const importS = (Date.now() - t0) / 1000;
 	const imp = await page.evaluate(() => ({ n: persons.slice(0, 3).map((p) => p.files.length), err: (document.getElementById('video-error') || {}).textContent || null,
-		sum: persons.slice(0, 3).map((p) => p.files.length).join('／'), unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1) }));
+		sum: persons.slice(0, 3).map((p) => p.files.length).join('／'), unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1),
+		cursor: devGeometry.find((l) => l.startsWith('[動画] カーソル')) || null }));
 	if (v.counts) check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／') + '（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
 	else check(!imp.err && imp.n.length === 3 && imp.n.every((x) => x > 0), '3人に分かれる（知らせ: ' + (imp.sum || '').slice(0, 40) + '…）', imp.err || imp.n.join('／'));
 	const t1 = Date.now();
@@ -128,6 +131,9 @@ async function runSpecial(v) {
 	check(st.img && st.lines.length === 3 && hs.length === 3 && hs.every((h, i) => h != null && heightOk(v, i, h, 2)), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + '（±2）', hs.join('／'));
 	console.log('  人ごとの枚数 ' + imp.n.join('／') + '・高さ ' + hs.join('／'));
 	console.log('  取り込み ' + importS.toFixed(1) + '秒・結合（OCRしない）' + stitchS.toFixed(1) + '秒・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
+	// T156（決定 637・638）: 横画面の録画は「ずれているかもしれません」が出ない・カーソルを消す処理を通る
+	if (v.landscape) { check(!st.warn && imp.unc.every((n) => n === 0), '横画面の録画: 確かでない継ぎ目 0・「ずれているかもしれません」が出ない', st.warn || imp.unc.join('／')); check(!!imp.cursor, '横画面の録画: カーソルを消す処理を通る（' + imp.cursor + '）', imp.cursor); }
+	else check(!imp.cursor, '縦画面の動画: カーソルを消す処理を通らない', imp.cursor);
 	await ctx.close();
 }
 /** exam.html の②の流れを通す（T139）: 入口 → 「動画を選ぶ」→ ファイルの選択に動画を渡す → ②に結合画像（OCR の前の1枚）が出るまで →
@@ -154,7 +160,7 @@ async function runExam(v) {
 	const heightsOf = (lines) => lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
 	const imp = await page.evaluate(() => ({ n: persons.slice(0, 3).map((p) => p.files.length), err: (document.getElementById('video-error') || {}).textContent || null,
 		lines: devGeometry.filter((l) => /^\[動画\].*composePerson/.test(l)), unc: persons.slice(0, 3).map((p) => p.video ? p.video.uncertain.filter(Boolean).length : -1),
-		preview: !!document.querySelector('#personset-A-wrap .video-result img') }));
+		preview: !!document.querySelector('#personset-A-wrap .video-result img'), cursor: devGeometry.find((l) => l.startsWith('[動画] カーソル')) || null }));
 	if (v.counts) check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／'), imp.err || imp.n.join('／'));
 	else check(!imp.err && imp.n.length === 3 && imp.n.every((x) => x > 0), '3人に分かれる', imp.err || imp.n.join('／'));
 	const hp = heightsOf(imp.lines);
@@ -173,46 +179,104 @@ async function runExam(v) {
 	check(st.inPanel, 'OCR のあとの結合画像が②にも出る');
 	console.log('  人ごとの枚数 ' + imp.n.join('／') + '・高さ（OCR の前）' + hp.join('／') + '・（OCR のあと）' + hs.join('／'));
 	console.log('  取り込み＋②の画像 ' + importS.toFixed(1) + '秒・OCR＋結合 ' + ocrS.toFixed(1) + '秒・検出 ' + st.detected.join('／') + '・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
+	if (v.landscape) { check(!st.warn && imp.unc.every((n) => n === 0), '横画面の録画: 確かでない継ぎ目 0・「ずれているかもしれません」が出ない', st.warn || imp.unc.join('／')); check(!!imp.cursor, '横画面の録画: カーソルを消す処理を通る（' + imp.cursor + '）', imp.cursor); }
+	else check(!imp.cursor, '縦画面の動画: カーソルを消す処理を通らない', imp.cursor);
 	await ctx.close();
 }
-/** --capture（T145）: 横画面の録画のフレームを「ウィンドウから取り込む」の画の代わりに流す。録画の 7か所の画を pc-capture.js の detectOne に渡して
- *  consensus で矩形を決め、cropSource（取り込みの切り取り）で selectFrames・composePerson に通す。比べる相手は、同じ録画を製品の動画の流れ
- *  （openSource → UmaLandscape.wrapSource）に通したもの。矩形（±2px）と人ごとの高さ（±2）が同じこと */
+/** --capture（T145・T156）: 横画面の録画のフレームを「ウィンドウから取り込む」の画に変えて、製品の取り込みと同じ流れに通す:
+ *  画を窓の形に描く（条件ごとに縮める・枠とタイトルバーを足す・頭に別の画を足す）→ 0.7秒ごとに detectOne → consensus → 圧縮（encodeSink）→
+ *  前後の切り落とし（matchSpan・trimSource）→ cropSource → steadySource → selectFrames（取り込みと同じ設定）→ removePointer → composePerson。
+ *  比べる相手は、同じ録画を製品の動画の流れ（openSource → wrapSource → 同じ設定で selectFrames → removePointer）に通したもの。
+ *  見ること: 横画面と判定・幅 1170px／3人に分かれる／確かでない継ぎ目が0（「ずれているかもしれません」が出ない）／人ごとの高さが動画の流れと ±3／
+ *  カーソルを消す処理の間に主のスレッドを 1.5秒以上ふさがない（T156 の前は1枚に数分ふさいでいた）。--save で人ごとの結合画像を保存 */
+const CAPTURE_CONDS = {
+	// T156 の 1・2（おいもさんの確かめ）と同じ形の画: 全画面のゲームの窓（そのまま・2880×1800 に収まるよう縮めた・頭に 1.5秒の別の画）、ウィンドウ（枠1px・タイトルバー32px）、縮めたウィンドウ
+	9: [{ name: '全画面の窓', s: 1 }, { name: '全画面の窓を 2880×1800 に縮めた画', s: 'fit1800' }, { name: '全画面の窓・頭に 1.5秒の別の画', s: 1, pre: 1.5 }],
+	10: [{ name: 'ウィンドウ（枠・タイトルバー）', s: 1, b: 1, tb: 32 }],
+	11: [{ name: '小さいウィンドウ（枠・タイトルバー）', s: 1, b: 1, tb: 32 }, { name: '小さいウィンドウを 0.75倍', s: 0.75, b: 1, tb: 32 }]
+};
 async function runCapture(v) {
-	console.log('\n=== 動画' + v.no + '（ウィンドウから取り込むの切り出し）===');
+	console.log('\n=== 動画' + v.no + '（ウィンドウから取り込むの流れ）===');
 	const page = await browser.newPage();
+	page.setDefaultTimeout(900000);
 	page.on('pageerror', (e) => console.log('[page error]', String(e)));
 	await page.route(base + '/__video-frames-local.html', (r) => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: HOST }));
 	await page.goto(base + '/__video-frames-local.html');
-	const res = await page.evaluate(async ({ url, LABELS }) => {
+	const res = await page.evaluate(async ({ url, LABELS, conds, save }) => {
 		const blob = await (await fetch(url)).blob();
-		const heightsOf = async (src) => {
-			const sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS });
-			const hs = [];
-			for (const p of sel.persons) hs.push((await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still })).height);
-			return hs;
+		const long = [];
+		new PerformanceObserver((l) => { for (const e of l.getEntries()) long.push({ s: e.startTime, d: e.duration }); }).observe({ type: 'longtask' });
+		const finish = async (src) => {
+			// 製品（取り込み・横画面の録画）と同じ: エフェクトの置き換えを切り、軌跡を取ってカーソルを消す
+			const debug = {};
+			const sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS, debug, effectVote: false });
+			const t0 = performance.now();
+			const st = await UmaPcCapture.removePointer(src, sel, debug.track || []);
+			const t1 = performance.now();
+			await new Promise((r) => setTimeout(r, 50));
+			const rpLong = Math.round(Math.max(0, ...long.filter((e) => e.s >= t0 && e.s < t1).map((e) => e.d)));
+			const persons = [];
+			for (const p of sel.persons) {
+				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still });
+				persons.push({ h: c.height, n: p.files.length, unc: p.uncertain.filter(Boolean).length, png: save ? c.toDataURL('image/png') : null });
+			}
+			return { persons, rpMs: Math.round(t1 - t0), rpLong, cells: st.cells, margin: st.margin ? st.margin.cells : 0, manyHits: st.manyHits, xStart: st.xStart };
 		};
-		const a = await UmaLandscape.wrapSource(await UmaVideoFrames.openSource(blob));
-		let film;
-		try { film = { rect: a.landscape.rect, w: a.width, h: a.height, hs: await heightsOf(a) }; } finally { a.close(); }
-		const base = await UmaVideoFrames.openSource(blob);
-		try {
-			const c = document.createElement('canvas'); c.width = base.width; c.height = base.height;
-			const ctx = c.getContext('2d', { willReadFrequently: true });
-			const list = [];
-			for (let k = 0; k < 7; k++) { await base.drawAt(base.duration * (0.05 + 0.9 * k / 6), ctx, c.width, c.height); list.push(UmaPcCapture.detectOne(ctx.getImageData(0, 0, c.width, c.height))); }
-			const area = UmaPcCapture.consensus(list);
-			// 製品の open() と同じく、切り取りのあとに動かない部分をそろえる出どころ（steadySource）を通す
-			const src = (await UmaPcCapture.steadySource(UmaPcCapture.cropSource(base, area))).src;
-			return { film, cap: { ok: area.ok, how: area.how, agree: area.agree, rect: { x: area.x, y: area.y, w: area.w, h: area.h }, w: src.width, h: src.height, hs: await heightsOf(src) } };
-		} finally { base.close(); }
-	}, { url: base + '/assets/' + encodeURIComponent(v.name), LABELS });
+		const film = await (async () => { const a = await UmaLandscape.wrapSource(await UmaVideoFrames.openSource(blob)); try { return Object.assign({ rect: a.landscape.rect }, await finish(a)); } finally { a.close(); } })();
+		const caps = [];
+		for (const C of conds) {
+			const raw = await UmaVideoFrames.openSource(blob);
+			const s = C.s === 'fit1800' ? Math.min(1, 2880 / raw.width, 1800 / raw.height) : C.s, b = C.b || 0, tb = C.tb || 0, pre = C.pre || 0;
+			const gw = Math.round(raw.width * s), gh = Math.round(raw.height * s);
+			const W = (gw + b * 2) & ~1, H = (gh + b * 2 + tb) & ~1;
+			const cv = new OffscreenCanvas(W, H), cx = cv.getContext('2d', { willReadFrequently: true });
+			const sink = UmaPcCapture.encodeSink({});
+			await sink.begin(W, H);
+			const areas = [];
+			let n = 0;
+			for (let t = 0; t < raw.duration + pre - 0.02; t += 1 / 30, n++) {
+				cx.fillStyle = 'rgb(58,58,58)'; cx.fillRect(0, 0, W, H);
+				if (tb) { cx.fillStyle = 'rgb(243,243,243)'; cx.fillRect(b, b, W - b * 2, tb); }
+				cx.save(); cx.translate(b, b + tb); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'medium';
+				// 頭の別の画（全画面のゲームへ戻る間の画の代わり）: 一様でない色の画
+				if (t < pre) { cx.fillStyle = 'rgb(122,138,112)'; cx.fillRect(0, 0, gw, gh); cx.fillStyle = '#fff'; cx.font = '60px sans-serif'; cx.fillText('loading ' + t.toFixed(1), 200 + t * 100, 400); }
+				else await raw.drawAt(t - pre, cx, gw, gh);
+				cx.restore();
+				if (n % 21 === 0) { const r = UmaPcCapture.detectOne(cx.getImageData(0, 0, W, H)); r.at = t; areas.push(r); }
+				while (!sink.frame(cv, Math.round(t * 1e6))) await new Promise((r) => setTimeout(r, 5));
+			}
+			raw.close();
+			const area = UmaPcCapture.consensus(areas);
+			const out = { name: C.name, W, H, ok: area.ok, how: area.how, agree: area.agree, samples: area.samples, outW: area.outW };
+			if (!area.ok) { caps.push(out); continue; }
+			let enc = await sink.end(Math.round((raw.duration + pre) * 1e6));
+			const span = UmaPcCapture.matchSpan(areas, area, enc.duration);
+			if (span && (span.t0 >= 0.5 || span.t1 <= enc.duration - 0.5)) { out.trim = [+span.t0.toFixed(2), +span.t1.toFixed(2)]; enc = UmaPcCapture.trimSource(enc, span.t0, span.t1); }
+			const src = (await UmaPcCapture.steadySource(UmaPcCapture.cropSource(enc, area))).src;
+			try { caps.push(Object.assign(out, { w: src.width }, await finish(src))); }
+			catch (e) { caps.push(Object.assign(out, { err: (e.code || '') + ' ' + e.message })); }
+			finally { src.close(); }
+		}
+		return { film, caps };
+	}, { url: base + '/assets/' + encodeURIComponent(v.name), LABELS, conds: CAPTURE_CONDS[v.no] || [], save });
 	await page.close();
-	const f = res.film, c = res.cap;
-	check(c.ok && c.how === 'landscape' && c.w === 1170, '取り込みの切り出し: how=landscape・幅 1170px（' + c.agree + '/7 枚で一致）', JSON.stringify(c));
-	check(['x', 'y', 'w', 'h'].every((k) => Math.abs(c.rect[k] - f.rect[k]) <= 2), '取り込みの矩形が動画の流れの矩形と同じ（±2px）', JSON.stringify([c.rect, f.rect]));
-	check(c.hs.length === 3 && f.hs.length === 3 && c.hs.every((h, j) => Math.abs(h - f.hs[j]) <= 2), '人ごとの高さが動画の流れと同じ（±2）', c.hs.join('／') + ' と ' + f.hs.join('／'));
-	console.log('  矩形 ' + JSON.stringify(c.rect) + '・高さ（取り込み）' + c.hs.join('／') + '・（動画の流れ）' + f.hs.join('／'));
+	const f = res.film;
+	const tag = (p) => p.map((x) => x.h + '(' + x.n + '枚・確かでない ' + x.unc + ')').join('／');
+	const savePngs = (key, persons) => { if (save) persons.forEach((p, j) => { if (p.png) fs.writeFileSync(path.join(outDir, 'capture-v' + v.no + '-' + key + '-' + LABELS[j] + '.png'), Buffer.from(p.png.split(',')[1], 'base64')); }); };
+	savePngs('動画', f.persons);
+	check(f.persons.length === 3 && f.persons.every((p) => p.unc === 0), '動画の流れ: 3人・確かでない継ぎ目 0', tag(f.persons));
+	check(f.rpLong < 1500, '動画の流れ: カーソルを消す処理の間に 1.5秒以上ふさがない（' + f.rpMs + 'ms・最長 ' + f.rpLong + 'ms）', f.rpLong);
+	console.log('  動画の流れ: ' + tag(f.persons) + '・カーソル 置き換え ' + f.cells + '・余白 ' + f.margin + '・左端 ' + f.xStart + (f.manyHits ? '・当たりが多い画 ' + f.manyHits : ''));
+	res.caps.forEach((c, k) => {
+		console.log('  -- ' + c.name + '（' + c.W + '×' + c.H + (c.trim ? '・切り落とし ' + c.trim.join('〜') + '秒' : '') + '）');
+		check(c.ok && c.how === 'landscape' && c.w === 1170, '取り込み: 横画面と判定・幅 1170px（' + c.agree + '/' + c.samples + ' 回で一致）', JSON.stringify(c).slice(0, 300));
+		if (!c.persons) { check(false, '取り込み: 3人に分かれる', c.err || 'persons なし'); return; }
+		savePngs('cond' + k, c.persons);
+		check(c.persons.length === 3 && c.persons.every((p) => p.unc === 0), '取り込み: 3人・確かでない継ぎ目 0', tag(c.persons));
+		check(c.persons.length === 3 && c.persons.every((p, j) => f.persons[j] && Math.abs(p.h - f.persons[j].h) <= 3), '取り込み: 人ごとの高さが動画の流れと ±3', tag(c.persons) + ' と ' + tag(f.persons));
+		check(c.rpLong < 1500, '取り込み: カーソルを消す処理の間に 1.5秒以上ふさがない（' + c.rpMs + 'ms・最長 ' + c.rpLong + 'ms）', c.rpLong);
+		console.log('     カーソル 置き換え ' + c.cells + '・余白 ' + c.margin + '・左端 ' + c.xStart + (c.manyHits ? '・当たりが多い画 ' + c.manyHits : ''));
+	});
 }
 const exam = process.argv.includes('--exam');
 const capture = process.argv.includes('--capture');
