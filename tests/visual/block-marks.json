@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-09",
 "numbering": "runtime",
-"count": 1060,
+"count": 1065,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1065,6 +1065,11 @@
   {"file":"tests/visual/blocks-157.mjs","title":"T154 (4) 2列の組み立て（通常・全部入り）: 親は上の欄つき・小窓の端で切る・祖は同じ縮小率で親の高さに・3列目は親の列と同じ幅・人の間の線・脚注は左詰めで上の線なし・集計条件は描かない","ord":1,"marks":"VC","asserts":10},
   {"file":"tests/visual/blocks-157.mjs","title":"T154 (5) 2列の見出しと3列目: 検出数カードとシナリオ因子・遺伝子が両方 OFF なら見出しなし／印＋凡例だけなら凡例を1・2列目の下に（3列目なし）／印も OFF なら3列目なし／効率を指定はいつも見出し・帯の高さをそろえない","ord":1,"marks":"VATC","asserts":8},
   {"file":"tests/visual/blocks-157.mjs","title":"T154 (6) 2列: 小窓の帯が見つからない人は切らず上の欄も足さない／人が欠けたセット（祖1 なし・親なし）／親B のセット／画素数が 1,600万を超えたら全体を縮める","ord":1,"marks":"VTC","asserts":5},
-  {"file":"tests/visual/blocks-157.mjs","title":"T154 (7) OCR の前の②の結合画像（動画の取り込みのあと）も「3列｜2列」に従う: 2列は見出しなし・3列目なし／画像を更新の比べる設定に形が入る","ord":1,"marks":"VT","asserts":4}
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (7) OCR の前の②の結合画像（動画の取り込みのあと）も「3列｜2列」に従う: 2列は見出しなし・3列目なし／画像を更新の比べる設定に形が入る","ord":1,"marks":"VT","asserts":4},
+  {"file":"tests/visual/blocks-162.mjs","title":"T159 (0) 前提: データから、メンバーの重なるグループのカード2枚・そのメンバーのカード・代表者のカード・ほかのメンバーのカード・重ならないグループのカード・グループでないカード3枚が選べる","ord":1,"marks":"A","asserts":2},
+  {"file":"tests/visual/blocks-162.mjs","title":"T159 (1) グループのカードを指定 → メンバー（代表者でない）のカードは「同じキャラクターが入っています」で選べない・代表者のカードも選べない・関係の無いカードとメンバーの重ならないグループのカードは選べる","ord":1,"marks":"VA","asserts":8},
+  {"file":"tests/visual/blocks-162.mjs","title":"T159 (2) メンバーのカードを指定 → そのメンバーを含むグループのカード（2枚とも）は選べない・グループのほかのメンバーのカードは選べる","ord":1,"marks":"VA","asserts":5},
+  {"file":"tests/visual/blocks-162.mjs","title":"T159 (3) メンバーの重なるグループのカードどうし: どちらを先に指定しても、もう一方は選べない","ord":1,"marks":"VA","asserts":2},
+  {"file":"tests/visual/blocks-162.mjs","title":"T159 (4) グループでないカードどうし（今までと同じ）: 同じキャラクターの別のカードは選べない・別のキャラクターは選べる・指定済みは「この編成に入っています」・グループのカードは重なるときだけ選べない","ord":1,"marks":"VA","asserts":6}
 ]
 }

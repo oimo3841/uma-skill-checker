@@ -171,6 +171,7 @@ import { register148 } from './blocks-148.mjs';
 import { register152 } from './blocks-152.mjs';
 import { register156 } from './blocks-156.mjs';
 import { register157 } from './blocks-157.mjs';
+import { register162 } from './blocks-162.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15613,6 +15614,8 @@ await register152({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register156({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T154（2026-11-09）: UmaExam の結合画像の2列（「3列｜2列」・カードの横並び・3列の帯の下の線を消す。見出しは「T154」）
 await register157({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T159（2026-11-09）: 残りの枠のカードを選ぶ小窓で、グループのカードのメンバー全員を同じキャラクターとして扱う（見出しは「T159」）
+await register162({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

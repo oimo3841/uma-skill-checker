@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-09b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-09c';
 
 	/* ============================================================
 	 * 定数
@@ -17214,12 +17214,15 @@
 		/**
 		 * 残りの枠のカードを選ぶ（段13・C1）。①のカード選択の小窓（rosterOutsideSink.pickCard）を、この小窓の上に出す。
 		 * 選んだカードは枠の順に指定へ足し（セットに保存）、計算し直す。指定済みのカードと、同じキャラクターのカードは選べない。
+		 * T159（決定 640）: 同じキャラクターはグループのカードのメンバー全員で見る（②のパネルの pickFactorCard と同じ。members: true）。
+		 * グループでないカードどうしは charaName の1人どうしの比べのまま
 		 */
 		function outsidePickPinned(btn) {
 			if (!rosterOutsideSink || typeof rosterOutsideSink.pickCard !== 'function') return;
 			const cur = outsideOptionsOf(rosterOutsideSink.getRoster()).pinned;
-			const charas = cur.map(id => { const c = findCard(id); return c ? c.charaName : null; }).filter(Boolean);
-			rosterOutsideSink.pickCard({ used: cur, charas: charas, onPick: (id) => {
+			const charas = [];
+			cur.forEach(id => outsideCharasOfCard(findCard(id)).forEach(n => { if (charas.indexOf(n) === -1) charas.push(n); }));
+			rosterOutsideSink.pickCard({ used: cur, charas: charas, members: true, onPick: (id) => {
 				const now = outsideOptionsOf(rosterOutsideSink.getRoster());
 				if (now.pinned.indexOf(id) !== -1 || now.pinned.length >= ROSTER_CARD_SLOTS - now.count) return;
 				if (!outsidePinsSurviveOrToast({ pinned: now.pinned.concat([id]) })) return;
