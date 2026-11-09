@@ -43,7 +43,9 @@
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（T139。special.html と共有。②の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-08d"></script>
 	<!-- PC のウィンドウの取り込み（T139。special.html と共有。②の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
-	<script src="js/pc-capture.js?v=2026-11-07b"></script>
+	<script src="js/pc-capture.js?v=2026-11-09a"></script>
+	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。special.html と共有。②の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
+	<script src="js/landscape-panel.js?v=2026-11-09a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -4390,6 +4392,8 @@
 			try {
 				src = capture ? await UmaVideoFrames.untilAbort(input.open(ctrl.signal), ctrl.signal)
 					: (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.openSource(input, { signal: ctrl.signal });
+				// T145: DMM版の横画面の録画は、パネルを切り出した出どころにする（縦長の動画はそのまま。取り込みは pc-capture.js が切り出す）
+				if (!capture && src !== input && window.UmaLandscape) src = await UmaVideoFrames.untilAbort(UmaLandscape.wrapSource(src, { signal: ctrl.signal }), ctrl.signal);
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
 				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
@@ -4653,14 +4657,36 @@
 
 		function addPersonFiles(personIdx, files) {
 			const list = persons[personIdx].files;
+			const added = [];
 			files.forEach(f => {
-				const dup = list.some(u => u.name === f.name && u.size === f.size);
-				if (!dup) list.push(f);
+				const dup = list.some(u => u.name === f.name && (u.size === f.size || (u._landscape && u._landscape.srcSize === f.size)));
+				if (!dup) { list.push(f); added.push(f); }
 			});
 			videoTouched(personIdx);
 			renderPersonImageList(personIdx);
 			updateProcessBtn();
+			cropLandscapeFiles(personIdx, added);
 		}
+
+		/* DMM版の横画面の画像（T145）: 入れた画像のうち横長でパネルが見つかったものを、パネルを切り出した画像に置き換える（js/landscape-panel.js）。
+		 * 縦長の画像は先頭のバイトで大きさを見るだけで、何も変えない。置き換えは入れたあとに非同期で行い、OCR・結合はその終わりを待つ（landscapeReady） */
+		let landscapePending = Promise.resolve(), landscapeBusy = 0;
+		function cropLandscapeFiles(personIdx, files) {
+			if (!window.UmaLandscape || !files.length) return;
+			landscapeBusy++;
+			landscapePending = landscapePending.then(async () => {
+				let changed = false;
+				for (const f of files) {
+					const g = await UmaLandscape.cropFile(f);
+					if (g === f) continue;
+					g._landscape.srcSize = f.size;
+					const list = persons[personIdx].files, i = list.indexOf(f);
+					if (i >= 0) { list[i] = g; changed = true; }
+				}
+				if (changed) renderPersonImageList(personIdx);
+			}).catch(() => {}).finally(() => { landscapeBusy--; });
+		}
+		async function landscapeReady() { while (landscapeBusy > 0) await landscapePending; }
 
 		function removePersonImage(personIdx, fileIdx) {
 			persons[personIdx].files.splice(fileIdx, 1);
@@ -5075,6 +5101,7 @@
 		// opts.run … 押した時点のスナップショット（captureRun）。省略時はここで控える。
 		//            画像・対象スキル・シナリオ因子はこの run から読み、処理中の画面の変更は効かせない。
 		async function processImages(opts) {
+			if (landscapeBusy && !(opts && opts.run)) await landscapeReady();   // T145: 横画面の画像の切り出しを待つ
 			const run = (opts && opts.run) || captureRun();
 			const anyFiles = run.files.some(files => files.length > 0);
 			// 呼び出し元（processImagesAndStitch）が「判定できたか」を見て開くタブを決めるので、真偽を返す
@@ -8967,6 +8994,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			startBtnBusy('process-stitch-btn');
 			try {
 				// 押した時点の設定と画像で OCR も合成も行う（処理中に画面を触っても、この回には効かせない）
+				if (landscapeBusy) await landscapeReady();   // T145: 横画面の画像の切り出しを待つ
 				const run = captureRun();
 				const judged = await processImages({ keepClosed: true, run: run });
 				const made = await runImageStitching(run);
@@ -8986,6 +9014,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// opts.progress … false なら進捗バーを出さない（段2）。「画像を更新」は引き出しの中の操作で、
 		//                 バーは本文側にあって引き出しの裏に隠れる。あちらは自前の「更新中…」を持つ。
 		async function runImageStitching(run, opts) {
+			if (landscapeBusy && !run) await landscapeReady();   // T145: 横画面の画像の切り出しを待つ
 			run = run || captureRun();
 			const withProgress = !(opts && opts.progress === false);
 			const container = document.getElementById('stitch-result-content');

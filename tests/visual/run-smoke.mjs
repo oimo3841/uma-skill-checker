@@ -168,6 +168,7 @@ import { register147 } from './blocks-147.mjs';
 import { register146 } from './blocks-146.mjs';
 import { register151 } from './blocks-151.mjs';
 import { register148 } from './blocks-148.mjs';
+import { register152 } from './blocks-152.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15604,6 +15605,8 @@ await register146({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register151({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T142（2026-11-09）: UmaExam のつまみで行が落ちる件（T141 と同じ直しを exam.html に。見出しは「T142examつまみと★」）
 await register148({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T145（2026-11-09）: DMM版の横画面の画からパネルを切り出して、今の流れ（行の検出・OCR・結合）へ渡す（js/landscape-panel.js。見出しは「T145横画面」）
+await register152({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

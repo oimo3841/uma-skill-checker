@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-07b';
+	const PC_CAPTURE_JS_VERSION = '2026-11-09a';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -78,6 +78,13 @@
 		const top0 = blackRun(atT, edgeInset(atT, maxY), Math.floor(H * 0.3));
 		const w = W - left - right;
 		if (w < 32) return { ok: false, reason: 'aspect', warns };
+		// DMM版の横画面（T145）: 枠と黒い帯を除いた所が横長なら、その中の「ウマ娘詳細」のパネルを js/landscape-panel.js で見つけ、
+		// パネルを切り出す矩形（縦画面の DMM版の画と同じ形。outW・outH に拡大・縮小する）を返す。見つからなければ今までどおり 'aspect'
+		if (window.UmaLandscape && UmaLandscape.isLandscapeSize(w, H - bottom - top0)) {
+			const p = UmaLandscape.findPanel(img, { x: left, y: top0, w, h: H - bottom - top0 });
+			if (!p.ok) return { ok: false, reason: 'aspect', warns, landscape: p.reason };
+			return { ok: true, reason: '', x: p.x, y: p.y, w: p.w, h: p.h, outW: p.outW, outH: p.outH, aspect: +(p.h / p.w).toFixed(3), title: 0, how: 'landscape', warns };
+		}
 		// タイトルバー
 		const atRow = (y) => grayLine(img, true, y, left + Math.floor(w * 0.02), W - right - Math.floor(w * 0.02));
 		let titleEnd = top0;
@@ -132,22 +139,29 @@
 		const med = (k) => best.map((r) => r[k]).sort((p, q) => p - q)[best.length >> 1];
 		const out = { ok: best.length / use.length >= 0.6, reason: '', x: med('x'), y: med('y'), w: med('w'), h: med('h'), samples: use.length, agree: best.length, how: best[0].how, warns: best[0].warns, title: med('title') };
 		out.aspect = +(out.h / out.w).toFixed(3);
+		// 横画面（T145）: 切り出した画の幅は detectOne と同じ（outW）。高さは中央値の矩形の縦横比で
+		if (best[0].outW) { out.outW = best[0].outW; out.outH = Math.round(out.h * out.outW / out.w); }
 		if (!out.ok) out.reason = 'unstable';
 		return out;
 	}
 	/* ── 切り取りの出どころ ─────────────────────────────
 	 * どの出どころにもかぶせられるように、描く先の座標を動かす（source.drawAt は (0,0)-(dw,dh) に描くので、拡大して左上へずらし、はみ出しを切る）。 */
+	// rect.outW があれば、切り取った所をその幅（高さは同じ比）に拡大・縮小した出どころにする（横画面のパネル。T145）
 	function cropSource(base, rect) {
 		const x = Math.max(0, rect.x), y = Math.max(0, rect.y);
 		const w = Math.min(rect.w, base.width - x), h = Math.min(rect.h, base.height - y);
+		const ow = rect.outW || w, oh = rect.outW ? Math.round(h * rect.outW / w) : h;
 		return UmaVideoFrames.canvasSource({
-			kind: 'crop:' + base.kind, exact: !!base.exact, width: w, height: h, duration: base.duration,
+			kind: 'crop:' + base.kind, exact: !!base.exact, width: ow, height: oh, duration: base.duration,
 			async draw(t, ctx, dw, dh, how) {
 				const sx = dw / w, sy = dh / h;
 				ctx.save();
 				ctx.beginPath(); ctx.rect(0, 0, dw, dh); ctx.clip();
+				// 横画面のパネルの拡大・縮小は静止画・動画と同じやり方（js/landscape-panel.js の setSmoothing・finishDraw）
+				if (rect.outW && window.UmaLandscape) UmaLandscape.setSmoothing(ctx);
 				ctx.translate(-x * sx, -y * sy);
 				try { await base.drawAt(t, ctx, base.width * sx, base.height * sy, null, how); } finally { ctx.restore(); }
+				if (rect.outW && window.UmaLandscape) UmaLandscape.finishDraw(ctx, dw, dh, sx, sy);
 			},
 			close() { base.close(); }
 		});

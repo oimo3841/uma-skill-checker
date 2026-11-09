@@ -8,6 +8,7 @@
 //   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存
 //   npm run test:video-local -- --special    … special.html の③の流れを通す（T59・動画V1-2）: 入口 → 小窓の「動画を選ぶ」→ ファイルの選択に動画を渡す →
 //                                               「動画から N枚」が入るまで → 「画像を結合する（OCRしない）」で結合画像ができるまで。人ごとの枚数と高さを見る
+//   npm run test:video-local -- --capture    … 横画面の録画（動画9〜11。T145）のフレームを「ウィンドウから取り込む」の画の代わりに流し、矩形と人ごとの高さを動画の流れと比べる
 //   npm run test:video-local -- --exam       … exam.html の②の流れを通す（T139）: 動画モード →「動画を選ぶ」→ ②の結合画像（OCR の前）→「OCR処理を開始する」で
 //                                               OCR と結合。人ごとの枚数・高さ（OCR の前とあとの両方）・検出が0でないことを見る（runExam）
 //
@@ -54,7 +55,17 @@ const VIDEOS = [
 	// T134（2026-11-08）: 育成を終えてすぐの画面（窓の外に紙吹雪）から撮った7.5秒の動画。撮り始めの約1.2秒は一覧が止まっていて、
 	// 直す前は本文の帯の下端が窓の下の紙吹雪（2520）まで伸び、「継承の画面が見つからない」（band）で止まっていた。親は別の人で、祖1・祖2 は動画3〜5 と同じ。
 	// 期待値は「3人に分かれる」と人ごとの高さ（確かめた値 1805／1902／1649 を目安に ±2）。区切りの時刻・選ぶ枚数は期待値にしない
-	{ no: 8, name: 'ScreenRecording_11-08-2026 13-19-49_1.MP4', anchors: null, heights: [1805, 1902, 1649], tol: 2, picks: null, counts: null }
+	{ no: 8, name: 'ScreenRecording_11-08-2026 13-19-49_1.MP4', anchors: null, heights: [1805, 1902, 1649], tol: 2, picks: null, counts: null },
+	// T145（2026-11-09・決定 576〜582）: DMM版の横画面を Windows の Snipping Tool で録画した3本（同じ3人）。9 は全画面（2880×1920・上下に黒い帯）、
+	// 10 はウィンドウ（2780×1564）、11 は小さいウィンドウ（1998×1124。切り出すと幅 632px なので 880px に拡大）。
+	// landscape: js/landscape-panel.js の wrapSource でパネルを切り出した出どころにする（製品の流れ〔--special・--exam〕は onVideoChosen が同じことをする）。
+	// 切り出しはどれも幅 1170px にそろうので、人ごとの高さは3本でほぼ同じ（確かめた値 ±2。--special・--exam・--capture）。
+	// 3本とも 4〜6秒で3人をスクロールする速い録画で、速い動画の調べ直し（1/16秒おき）が要る。それは出どころが WebCodecs のときだけなので、
+	// この既定の流れ（video 要素の出どころ）では 9 の祖2・11 の区切りが取れない（9 は祖2 が 463、11 は2人）。製品は PC の Chrome・Edge で WebCodecs の流れ。
+	// そこで既定の流れでは横画面の3本を回さない（elementSkip）
+	{ no: 9, name: 'dmm-landscape-195520-full.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1692, 1883, 1633], tol: 2, picks: null, counts: [5, 5, 3] },
+	{ no: 10, name: 'dmm-landscape-200318-window.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1696, 1886, 1636], tol: 2, picks: null, counts: [6, 5, 3] },
+	{ no: 11, name: 'dmm-landscape-200434-window-small.mp4', landscape: true, elementSkip: true, anchors: null, heights: [1699, 1889, 1639], tol: 2, picks: null, counts: [5, 5, 3] }
 ];
 /** 高さの期待値に合うか（null は見ない。tol は許す差） */
 const heightOk = (v, j, h, tol) => v.heights[j] == null || (h != null && Math.abs(h - v.heights[j]) <= tol);
@@ -71,7 +82,7 @@ if (!targets.length) { console.log('回す動画がありません'); process.ex
 
 const HOST = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>video-frames local</title>'
 	+ '<script>var devGeometry = [];</script><script src="/js/common.js"></script><script src="/js/stitch.js"></script>'
-	+ '<script src="/js/video-frames.js"></script></head><body></body></html>';
+	+ '<script src="/js/video-frames.js"></script><script src="/js/pc-capture.js"></script><script src="/js/landscape-panel.js"></script></head><body></body></html>';
 
 const outDir = path.join(REPO_ROOT, 'output', 'scratch', 't42-video');
 fs.mkdirSync(outDir, { recursive: true });
@@ -164,11 +175,53 @@ async function runExam(v) {
 	console.log('  取り込み＋②の画像 ' + importS.toFixed(1) + '秒・OCR＋結合 ' + ocrS.toFixed(1) + '秒・検出 ' + st.detected.join('／') + '・確かでない継ぎ目 ' + imp.unc.join('／') + (st.warn ? '・警告: ' + st.warn : '・警告なし'));
 	await ctx.close();
 }
+/** --capture（T145）: 横画面の録画のフレームを「ウィンドウから取り込む」の画の代わりに流す。録画の 7か所の画を pc-capture.js の detectOne に渡して
+ *  consensus で矩形を決め、cropSource（取り込みの切り取り）で selectFrames・composePerson に通す。比べる相手は、同じ録画を製品の動画の流れ
+ *  （openSource → UmaLandscape.wrapSource）に通したもの。矩形（±2px）と人ごとの高さ（±2）が同じこと */
+async function runCapture(v) {
+	console.log('\n=== 動画' + v.no + '（ウィンドウから取り込むの切り出し）===');
+	const page = await browser.newPage();
+	page.on('pageerror', (e) => console.log('[page error]', String(e)));
+	await page.route(base + '/__video-frames-local.html', (r) => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: HOST }));
+	await page.goto(base + '/__video-frames-local.html');
+	const res = await page.evaluate(async ({ url, LABELS }) => {
+		const blob = await (await fetch(url)).blob();
+		const heightsOf = async (src) => {
+			const sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS });
+			const hs = [];
+			for (const p of sel.persons) hs.push((await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still })).height);
+			return hs;
+		};
+		const a = await UmaLandscape.wrapSource(await UmaVideoFrames.openSource(blob));
+		let film;
+		try { film = { rect: a.landscape.rect, w: a.width, h: a.height, hs: await heightsOf(a) }; } finally { a.close(); }
+		const base = await UmaVideoFrames.openSource(blob);
+		try {
+			const c = document.createElement('canvas'); c.width = base.width; c.height = base.height;
+			const ctx = c.getContext('2d', { willReadFrequently: true });
+			const list = [];
+			for (let k = 0; k < 7; k++) { await base.drawAt(base.duration * (0.05 + 0.9 * k / 6), ctx, c.width, c.height); list.push(UmaPcCapture.detectOne(ctx.getImageData(0, 0, c.width, c.height))); }
+			const area = UmaPcCapture.consensus(list);
+			// 製品の open() と同じく、切り取りのあとに動かない部分をそろえる出どころ（steadySource）を通す
+			const src = (await UmaPcCapture.steadySource(UmaPcCapture.cropSource(base, area))).src;
+			return { film, cap: { ok: area.ok, how: area.how, agree: area.agree, rect: { x: area.x, y: area.y, w: area.w, h: area.h }, w: src.width, h: src.height, hs: await heightsOf(src) } };
+		} finally { base.close(); }
+	}, { url: base + '/assets/' + encodeURIComponent(v.name), LABELS });
+	await page.close();
+	const f = res.film, c = res.cap;
+	check(c.ok && c.how === 'landscape' && c.w === 1170, '取り込みの切り出し: how=landscape・幅 1170px（' + c.agree + '/7 枚で一致）', JSON.stringify(c));
+	check(['x', 'y', 'w', 'h'].every((k) => Math.abs(c.rect[k] - f.rect[k]) <= 2), '取り込みの矩形が動画の流れの矩形と同じ（±2px）', JSON.stringify([c.rect, f.rect]));
+	check(c.hs.length === 3 && f.hs.length === 3 && c.hs.every((h, j) => Math.abs(h - f.hs[j]) <= 2), '人ごとの高さが動画の流れと同じ（±2）', c.hs.join('／') + ' と ' + f.hs.join('／'));
+	console.log('  矩形 ' + JSON.stringify(c.rect) + '・高さ（取り込み）' + c.hs.join('／') + '・（動画の流れ）' + f.hs.join('／'));
+}
 const exam = process.argv.includes('--exam');
+const capture = process.argv.includes('--capture');
 try {
 	if (special) for (const v of targets) await runSpecial(v);
 	if (exam) for (const v of targets) await runExam(v);
-	for (const v of (special || exam) ? [] : targets) {
+	if (capture) for (const v of targets.filter((x) => x.landscape)) await runCapture(v);
+	for (const v of (special || exam || capture) ? [] : targets) {
+		if (v.elementSkip) { console.log('\n[飛ばした] 動画' + v.no + '（横画面の速い録画。video 要素の出どころでは区切りが取れない。--special・--exam・--capture で見る）'); continue; }
 		console.log('\n=== 動画' + v.no + '（CPU ' + cpu + '倍）===');
 		const page = await browser.newPage();
 		page.on('pageerror', (e) => console.log('[page error]', String(e)));
@@ -183,10 +236,11 @@ try {
 			busy = false;
 		}, 100);
 		const url = base + '/assets/' + encodeURIComponent(v.name);
-		const res = await page.evaluate(async ({ url, LABELS, compare, save }) => {
+		const res = await page.evaluate(async ({ url, LABELS, compare, save, landscape }) => {
 			const blob = await (await fetch(url)).blob();
 			const t0 = performance.now();
-			const src = await UmaVideoFrames.videoSource(blob);
+			let src = await UmaVideoFrames.videoSource(blob);
+			if (landscape) src = await UmaLandscape.wrapSource(src);
 			let sel;
 			try { sel = await UmaVideoFrames.selectFrames(src, { labels: LABELS }); } finally { src.close(); }
 			const selectMs = performance.now() - t0;
@@ -221,7 +275,7 @@ try {
 			const pngs = save ? canvases.map((c) => c.toDataURL('image/png')) : [];
 			return { selectMs, composeMs, anchors: sel.anchors, picks: sel.picks.length, header: sel.header, stats: sel.stats, tm: sel.tm, seams: sel.seams, persons, pngs,
 				personSeams: sel.persons.map((p) => p.frameIndexes.slice(0, -1).map((k) => sel.seams[k])) };
-		}, { url, LABELS, compare, save });
+		}, { url, LABELS, compare, save, landscape: !!v.landscape });
 		clearInterval(poll);
 		await page.close();
 		const tag = 'v' + v.no + '-cpu' + cpu;

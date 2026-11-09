@@ -67,7 +67,7 @@ function grabQuery(sources) {
 }
 
 const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html', 'card-event-input.html',
-	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'];
+	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'];
 // 15セッション目: exam.html を「変更してはいけないファイル」から外し、
 // special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
 const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
@@ -136,6 +136,8 @@ const announceVer = /ANNOUNCE_JS_VERSION = '([^']+)'/.exec(read('js/announce.js'
 const videoFramesVer = /VIDEO_FRAMES_JS_VERSION = '([^']+)'/.exec(read('js/video-frames.js'))[1];
 // T105: PC のウィンドウの取り込みの部品 js/pc-capture.js も同じ運用（special.html が読む）
 const pcCaptureVer = /PC_CAPTURE_JS_VERSION = '([^']+)'/.exec(read('js/pc-capture.js'))[1];
+// T145: DMM版の横画面の画からパネルを切り出す部品 js/landscape-panel.js も同じ運用（special.html・exam.html が読む）
+const landscapeVer = /LANDSCAPE_PANEL_JS_VERSION = '([^']+)'/.exec(read('js/landscape-panel.js'))[1];
 // T122: 結合画像の保存をスマホでは共有のシートにする部品 js/stitch-share.js も同じ運用（special.html・exam.html が読む）
 const stitchShareVer = /STITCH_SHARE_JS_VERSION = '([^']+)'/.exec(read('js/stitch-share.js'))[1];
 // T126: 人ごとの結合画像を Deck α の登録の画面へ渡す部品 js/deck-alpha-images.js も同じ運用（special.html・exam.html・deck-alpha-register.html が読む）
@@ -187,6 +189,9 @@ for (const [p, pat, ver, name] of [
 	// T139（決定 402・519〜522）: UmaExam にも動画の入口を置いた。exam.html も1か所ずつ読む
 	['exam.html', /js\/video-frames\.js\?v=([0-9a-z-]+)/g, videoFramesVer, 'video-frames.js'],
 	['exam.html', /js\/pc-capture\.js\?v=([0-9a-z-]+)/g, pcCaptureVer, 'pc-capture.js'],
+	// T145: 横画面のパネルの切り出し。special / exam が1か所ずつ読む
+	['special.html', /js\/landscape-panel\.js\?v=([0-9a-z-]+)/g, landscapeVer, 'landscape-panel.js'],
+	['exam.html', /js\/landscape-panel\.js\?v=([0-9a-z-]+)/g, landscapeVer, 'landscape-panel.js'],
 	['special.html', /js\/stitch-share\.js\?v=([0-9a-z-]+)/g, stitchShareVer, 'stitch-share.js'],
 	['exam.html', /js\/stitch-share\.js\?v=([0-9a-z-]+)/g, stitchShareVer, 'stitch-share.js'],
 	['special.html', /js\/deck-alpha-images\.js\?v=([0-9a-z-]+)/g, deckImagesVer, 'deck-alpha-images.js'],
@@ -272,6 +277,7 @@ const VERSIONED = [
 	['js/announce.js', announceVer, /ANNOUNCE_JS_VERSION = '([^']+)'/],
 	['js/video-frames.js', videoFramesVer, /VIDEO_FRAMES_JS_VERSION = '([^']+)'/],
 	['js/pc-capture.js', pcCaptureVer, /PC_CAPTURE_JS_VERSION = '([^']+)'/],
+	['js/landscape-panel.js', landscapeVer, /LANDSCAPE_PANEL_JS_VERSION = '([^']+)'/],
 	['js/stitch-share.js', stitchShareVer, /STITCH_SHARE_JS_VERSION = '([^']+)'/],
 	['js/deck-alpha-images.js', deckImagesVer, /DECK_ALPHA_IMAGES_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
@@ -530,8 +536,8 @@ console.log('\n=== 4. 消したclassがJSに掴まれていないか ===');
 // classList/className は「JSが既に参照を持つ要素」にしか作用しないので同ページ内のみ危険。
 // querySelector 系は文書全体を探すのでファイル横断で危険。
 const SIBLINGS = {
-	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
-	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
+	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
+	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
 	'uma-skill-deck.html': ['uma-skill-deck.html', 'js/uma-skill-deck.js', 'js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck-core.js': ['js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck.js': ['js/uma-skill-deck.js'],
@@ -563,7 +569,7 @@ for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleg
 		check(r.status === 0, `${p} の<script>#${i} が構文エラーなし`, (r.stderr || '').slice(0, 160));
 	});
 }
-for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/stitch-share.js', 'js/deck-alpha-images.js']) {
+for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js']) {
 	const r = spawnSync(process.execPath, ['--check', path.join(REPO_ROOT, p)], { encoding: 'utf8' });
 	check(r.status === 0, p + ' が構文エラーなし', (r.stderr || '').slice(0, 160));
 }

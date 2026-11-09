@@ -63,7 +63,9 @@
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-08d"></script>
 	<!-- PC のウィンドウの取り込み（T105。③の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
-	<script src="js/pc-capture.js?v=2026-11-07b"></script>
+	<script src="js/pc-capture.js?v=2026-11-09a"></script>
+	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。exam.html と共有。③の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
+	<script src="js/landscape-panel.js?v=2026-11-09a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-01a"></script>
 	<style>
@@ -2355,6 +2357,8 @@
 				// 出どころは openSource（T90。MP4 を分解して WebCodecs で復号。使えなければ video 要素のシークに倒す）
 				src = capture ? await UmaVideoFrames.untilAbort(input.open(ctrl.signal), ctrl.signal)
 					: (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.openSource(input, { signal: ctrl.signal });
+				// T145: DMM版の横画面の録画は、パネルを切り出した出どころにする（縦長の動画はそのまま。取り込みは pc-capture.js が切り出す）
+				if (!capture && src !== input && window.UmaLandscape) src = await UmaVideoFrames.untilAbort(UmaLandscape.wrapSource(src, { signal: ctrl.signal }), ctrl.signal);
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
 				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
@@ -2451,14 +2455,36 @@
 
 		function addPersonFiles(personIdx, files) {
 			const list = persons[personIdx].files;
+			const added = [];
 			files.forEach(f => {
-				const dup = list.some(u => u.name === f.name && u.size === f.size);
-				if (!dup) list.push(f);
+				const dup = list.some(u => u.name === f.name && (u.size === f.size || (u._landscape && u._landscape.srcSize === f.size)));
+				if (!dup) { list.push(f); added.push(f); }
 			});
 			videoTouched(personIdx);
 			renderPersonImageList(personIdx);
 			updateProcessBtn();
+			cropLandscapeFiles(personIdx, added);
 		}
+
+		/* DMM版の横画面の画像（T145）: 入れた画像のうち横長でパネルが見つかったものを、パネルを切り出した画像に置き換える（js/landscape-panel.js）。
+		 * 縦長の画像は先頭のバイトで大きさを見るだけで、何も変えない。置き換えは入れたあとに非同期で行い、OCR・結合はその終わりを待つ（landscapeReady） */
+		let landscapePending = Promise.resolve(), landscapeBusy = 0;
+		function cropLandscapeFiles(personIdx, files) {
+			if (!window.UmaLandscape || !files.length) return;
+			landscapeBusy++;
+			landscapePending = landscapePending.then(async () => {
+				let changed = false;
+				for (const f of files) {
+					const g = await UmaLandscape.cropFile(f);
+					if (g === f) continue;
+					g._landscape.srcSize = f.size;
+					const list = persons[personIdx].files, i = list.indexOf(f);
+					if (i >= 0) { list[i] = g; changed = true; }
+				}
+				if (changed) renderPersonImageList(personIdx);
+			}).catch(() => {}).finally(() => { landscapeBusy--; });
+		}
+		async function landscapeReady() { while (landscapeBusy > 0) await landscapePending; }
 
 		function removePersonImage(personIdx, fileIdx) {
 			persons[personIdx].files.splice(fileIdx, 1);
@@ -3008,7 +3034,8 @@
 		// opts.quiet      … 完了のトーストを出さない（同上。まとめて1回だけ知らせる）
 		// 戻り値: 判定まで進めたか（true / false）。呼び出し元が開き先を決めるのに使う。
 		async function processImages(opts) {
-			// T60: 対象の遺伝子は押した時点の①の距離・脚質・バ場の指定で決める（辞書をここで作り直す。結合画像の写しの geneNames も同じ時点）
+			if (landscapeBusy) await landscapeReady();   // T145: 横画面の画像の切り出しを待つ
+			// T60:対象の遺伝子は押した時点の①の距離・脚質・バ場の指定で決める（辞書をここで作り直す。結合画像の写しの geneNames も同じ時点）
 			if (deckMode && deckTemplateManager) onDeckScopeSelected(deckTemplateManager.getSelection());
 			if (skillList.length === 0) {
 				// 足りないのは①側なので、案内だけ出して放置せずタブごと連れて行く
@@ -5343,6 +5370,7 @@
 		//   ボタンの名前どおりの動きにするための既定値で、印がほしいときは一体のボタンを押す。
 		// 戻り値: { anyOutput, anySuccess, anyFailure }。呼び出し元が文面と開き先を決めるのに使う。
 		async function runImageStitching(opts) {
+			if (landscapeBusy) await landscapeReady();   // T145: 横画面の画像の切り出しを待つ
 			const quiet = !!(opts && opts.quiet);
 			const keepClosed = !!(opts && opts.keepClosed);
 			const withMarks = !!(opts && opts.withMarks);
