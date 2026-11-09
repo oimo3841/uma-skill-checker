@@ -51,7 +51,10 @@ export async function register105(env) {
 				const master = UmaSkillDeckCore.getMasterSkills().map((s) => s.name);
 				const cat = UmaSkillDeckCore.getExtraCatalog();
 				const evolved = cat.filter((x) => UmaSkillDeckCore.isEvolvedSkillId(x.id)).map((x) => normalizeText(x.name));
-				const kept = cat.filter((x) => !UmaSkillDeckCore.isEvolvedSkillId(x.id)).map((x) => normalizeText(x.name));
+				// T157（決定 630）: ◎ と金スキルは因子の画面に出ないので辞書に入れない（blocks-160 が見る）。ここではそれを除いた全部が入るかを見る
+				const pt = UmaSkillDeckCore.getSkillPtData().skillPt;
+				const t157Out = (x) => x.name.indexOf('◎') !== -1 || (pt instanceof Map && pt.get(x.id) && pt.get(x.id).rarity === 'gold');
+				const kept = cat.filter((x) => !UmaSkillDeckCore.isEvolvedSkillId(x.id) && !t157Out(x)).map((x) => normalizeText(x.name));
 				const custom = 'T95にしか無い名前';
 				// ②はマスターの末尾の名前と、どこにも無い名前（カスタムスキルの代わり）
 				T.setScope([master[master.length - 1], custom]);
@@ -69,7 +72,7 @@ export async function register105(env) {
 				};
 			});
 			assert(r.head.join('|') === r.expectHead.join('|') && r.dup === 1, '②の名前が先頭に、その表記のまま1つだけ入る（②にしか無い名前も入る）', [r.head, r.dup]);
-			assert(r.masterAll && r.keptAll, 'マスターの全部と、追加カタログの進化スキルでない全部が入る', [r.masterAll, r.keptAll, r.size]);
+			assert(r.masterAll && r.keptAll, 'マスターの全部と、追加カタログの進化スキルでない全部（◎・金を除く。T157）が入る', [r.masterAll, r.keptAll, r.size]);
 			assert(r.evolved > 0 && r.evolvedOut, '進化スキルの名前は入らない（進化の一覧 ' + r.evolved + '件）', [r.evolved, r.evolvedOut]);
 			assert(r.size > r.master && r.size < r.master + r.cat + 2, '辞書の大きさはマスター＋②の分より大きく、追加カタログの全部を足した数より小さい（進化スキルを外したぶん）', [r.size, r.master, r.cat]);
 		} finally { await sp.page.context().close(); }
