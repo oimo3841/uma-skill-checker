@@ -37,7 +37,7 @@
  *   try {
  *     const sel = await UmaVideoFrames.selectFrames(src, { signal, onProgress });
  *     for (const p of sel.persons) {
- *       const canvas = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, label, { signal, still: p.still });
+ *       const canvas = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, label, { signal, still: p.still, ages: p.ages });
  *       // canvas は stitchOnePerson の戻り値と同じ形（_stitchWarnings・_sourcePlacements・_profileHeader）
  *     }
  *   } finally { src.close(); }
@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-08d';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-10a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -1600,7 +1600,10 @@
 				shifts: sm.map((x) => (x.overlap != null ? cH - x.overlap : cH)),
 				weak: sm.map((x) => x.weak),
 				uncertain: sm.map((x) => x.uncertain),
-				still: fi.map((k) => !!picks[k].still)   // 止まっている区間の画か（組み立てで、その画素を優先する。T90）
+				still: fi.map((k) => !!picks[k].still),   // 止まっている区間の画か（組み立てで、その画素を優先する。T90）
+				// はじいてからの秒数（T158・決定 629。速い動画〔はじき始めが分かる〕だけ。はじく前の画は 99）。速い動画でなければ null
+				// （組み立てで、重なる所に時間のたった画の画素を残すのに使う）
+				ages: releaseTs.length ? fi.map((k) => +Math.min(99, ageOf(picks[k])).toFixed(3)) : null
 			};
 		});
 		tm.totalMs = performance.now() - T0;
@@ -1632,6 +1635,8 @@
 	 * o.still[i] が真の画（止まっている区間の画。タッチのエフェクトが写っていない）は、本文の帯を全部描いて、重なる所では
 	 * 動いている画の画素を上書きする（T90）。動いている画の画素が残るのは、止まっている画どうしの間で見えていない所だけ。
 	 * o.anchorY（persons[j].anchorY）を渡すと、1枚目の区切りの頭が帯の上のほうに無くても、その位置の頭から描く（T105）。
+	 * o.ages（persons[j].ages。速い動画だけ・はじいてからの秒数）を渡すと、止まっている画の描き直しの継ぎ目を「いちばん合う値＋1.5 以内の
+	 * いちばん上の行」に置き、動いている画どうしの重なりでは、はじいてから時間のたった画の画素を残す（T158・決定 629）。無ければ今までどおり。
 	 */
 	function findPanelNear(canvas, y, win = 12) {
 		const x = Math.floor(canvas.width * 0.3), y0 = Math.max(0, y - win), n = Math.min(canvas.height - y0, win * 2 + 1);
@@ -1721,6 +1726,31 @@
 		// 止まっている画の画素を優先する（T90）: 止まっている画は本文の帯を全部描き直し、動いている画と重なる所を上書きする。
 		// 出力の行ごとにどの画の画素かを持ち直して、_sourcePlacements（結合画像の上の枠の置き場所の表引き）も合わせる
 		const still = (o.still || []).map(Boolean);
+		// 速い動画（o.ages＝selectFrames の persons[].ages。はじいてからの秒数が分かる）のときだけ、下の (1)(2) をする（T158・決定 629 の案5′）。
+		// ふだんの動画（ages が無い・全部 99）は今までと同じ（結合画像はバイトまで同じ）
+		const ages = Array.isArray(o.ages) && o.ages.length === canvases.length && o.ages.some((a) => a < 99) ? o.ages.map(Number) : null;
+		const SEAM_TOL = 1.5, AGE_GAP = 0.05;
+		// 出力の行 y0 から span 行の、いま描いてある画と画 i の行ごとの違い（横 4px おき・RGB の差の平均）
+		const rowDiffs = (i, y0, span) => {
+			const a = octx.getImageData(0, y0, w0, span).data, b = canvases[i].getContext('2d').getImageData(0, headerEnd + (y0 - tops[i]), w0, span).data;
+			const ds = [];
+			for (let y = 0; y < span; y++) {
+				let s = 0, n = 0;
+				for (let x = 0; x < w0; x += 4) { const q = (y * w0 + x) * 4; s += Math.abs(a[q] - b[q]) + Math.abs(a[q + 1] - b[q + 1]) + Math.abs(a[q + 2] - b[q + 2]); n += 3; }
+				ds.push(s / n);
+			}
+			return ds;
+		};
+		const placementsOf = (owner) => {
+			const pl = [];
+			for (let y = 0; y < out.height;) {
+				const f = owner[y]; let e = y + 1;
+				while (e < out.height && owner[e] === f) e++;
+				pl.push({ fileIndex: f, srcY0: headerEnd + (y - tops[f]), srcY1: headerEnd + (e - tops[f]), outY0: y });
+				y = e;
+			}
+			return pl;
+		};
 		if (still.some(Boolean) && canvases.length > 1) {
 			const owner = new Int16Array(out.height);
 			for (const p of placements) for (let y = p.outY0; y < p.outY0 + (p.srcY1 - p.srcY0) && y < out.height; y++) owner[y] = p.fileIndex;
@@ -1732,17 +1762,15 @@
 				if (y1 <= y0) continue;
 				// 描き直しの上端（継ぎ目）は、上端から 160行の中で、いま描いてある画とこの画がいちばん合う行に置く（継ぎ目のずれが 1px あっても、
 				// 段の切れ目など平らな所なら目立たない）。先頭の画（0番）の行は動かさない
+				// (1) 速い動画では、いちばん合う値＋SEAM_TOL 以内の、いちばん上の行に置く（エフェクトの写った行は合わないので、いちばん合う行は
+				// エフェクトの下に来て、エフェクトが動いている画の側に残っていた。T150 の 550・A-2 の親）
 				{
 					const span = Math.min(160, y1 - y0);
 					if (span > 8 && y0 > 0) {
-						const a = octx.getImageData(0, y0, w0, span).data, b = canvases[i].getContext('2d').getImageData(0, headerEnd + (y0 - tops[i]), w0, span).data;
+						const ds = rowDiffs(i, y0, span);
 						let best = y0, bestD = Infinity;
-						for (let y = 0; y < span; y++) {
-							let s = 0, n = 0;
-							for (let x = 0; x < w0; x += 4) { const q = (y * w0 + x) * 4; s += Math.abs(a[q] - b[q]) + Math.abs(a[q + 1] - b[q + 1]) + Math.abs(a[q + 2] - b[q + 2]); n += 3; }
-							const d = s / n;
-							if (d < bestD - 0.05) { bestD = d; best = y0 + y; }
-						}
+						for (let y = 0; y < span; y++) if (ds[y] < bestD - 0.05) { bestD = ds[y]; best = y0 + y; }
+						if (ages) best = y0 + ds.findIndex((d) => d <= bestD + SEAM_TOL);
 						y0 = best;
 					}
 				}
@@ -1753,14 +1781,42 @@
 				redrawn++;
 			}
 			if (redrawn) {
-				placements = [];
-				for (let y = 0; y < out.height;) {
-					const f = owner[y]; let e = y + 1;
-					while (e < out.height && owner[e] === f) e++;
-					placements.push({ fileIndex: f, srcY0: headerEnd + (y - tops[f]), srcY1: headerEnd + (e - tops[f]), outY0: y });
+				placements = placementsOf(owner);
+				stitchLog(groupLabel + ': 止まっている画の画素を優先（' + redrawn + '枚を描き直し・動いている画の画素が残る区間 ' + placements.filter((p) => !still[p.fileIndex]).length + '）');
+			}
+		}
+		// (2) 速い動画では、動いている画どうしの重なりで、はじいてから時間のたった画（AGE_GAP 秒以上たったもの）の画素を残す（T158・決定 629）。
+		// 今までは先の画を残すので、後ろに時間のたった画があっても、はじいた直後の画（エフェクトが写る）が残っていた（T150 の 550・動画8 の祖1）。
+		// 止まっている画の行には触らない。描き直しの上端は (1) と同じ決め方。若い画から順に描くので、いちばん時間のたった画が残る。枠は描き直したあとの持ち主で引き直す
+		if (ages && canvases.length > 1) {
+			const owner = new Int16Array(out.height);
+			for (const p of placements) for (let y = p.outY0; y < p.outY0 + (p.srcY1 - p.srcY0) && y < out.height; y++) owner[y] = p.fileIndex;
+			const movers = canvases.map((_, i) => i).filter((i) => i > 0 && !still[i]).sort((a, b) => ages[a] - ages[b]);
+			let redrawn = 0;
+			for (const i of movers) {
+				const y1 = Math.min(out.height, tops[i] + contentHeight);
+				const older = (y) => !still[owner[y]] && ages[i] > ages[owner[y]] + AGE_GAP;
+				for (let y = Math.max(0, tops[i]); y < y1;) {
+					if (!older(y)) { y++; continue; }
+					let a = y, e = y;
+					while (e < y1 && older(e)) e++;
+					const span = Math.min(160, e - a);
+					if (span > 8 && a > 0) {
+						const ds = rowDiffs(i, a, span);
+						const bestD = Math.min(...ds);
+						a += ds.findIndex((d) => d <= bestD + SEAM_TOL);
+					}
+					if (e > a) {
+						octx.drawImage(canvases[i], 0, headerEnd + (a - tops[i]), w0, e - a, 0, a, w0, e - a);
+						for (let q = a; q < e; q++) owner[q] = i;
+						redrawn++;
+					}
 					y = e;
 				}
-				stitchLog(groupLabel + ': 止まっている画の画素を優先（' + redrawn + '枚を描き直し・動いている画の画素が残る区間 ' + placements.filter((p) => !still[p.fileIndex]).length + '）');
+			}
+			if (redrawn) {
+				placements = placementsOf(owner);
+				stitchLog(groupLabel + ': 速い動画: 動いている画どうしの重なりで、はじいてから時間のたった画の画素を残す（' + redrawn + '区間を描き直し・ages=' + ages.join(',') + '）');
 			}
 		}
 		await pause();

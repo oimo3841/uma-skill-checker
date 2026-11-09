@@ -228,7 +228,8 @@ export async function register122(env) {
 		const of = (s) => (/\tfunction shouldOffer\(\) \{[\s\S]*?\n\t\}\n/.exec(s) || [''])[0];
 		const a = of(read('js/pc-capture.js'));
 		assert(a.length > 100 && a === of(read('lab/pc-capture-mock.html')), 'T105 PC取り込み(29) shouldOffer が今の文のまま（325）', a.length);
-		assert(/composePerson\(files, v\.shifts, v\.uncertain, label, \{ still: v\.still, anchorY: v\.anchorY \}\)/.test(read('special.html')), 'T105 PC取り込み(29) composePerson に anchorY を渡す（304）');
+		// T158（決定 629）で速い動画の ages も同じ所で渡すようになった（, ages: v.ages）
+		assert(/composePerson\(files, v\.shifts, v\.uncertain, label, \{ still: v\.still, anchorY: v\.anchorY(, ages: v\.ages)? \}\)/.test(read('special.html')), 'T105 PC取り込み(29) composePerson に anchorY を渡す（304）');
 		await sp.ctx.close();
 	});
 

@@ -105,7 +105,8 @@ window.__synth145 = (function () {
 		for (let k = 0; k < a.length; k += 4) if (a[k] > 200 && a[k + 1] < 90 && a[k + 2] > 200) magenta++;
 		return { h, expectH, badRows, badAt, magenta };
 	}
-	async function run(slow, extra, noEffect) {
+	// withAges: 組み立てに selectFrames の persons[].ages を渡す（T158・blocks-161 の (4)。ここの塊は渡さない＝今までどおり）
+	async function run(slow, extra, noEffect, withAges) {
 		const s = make(slow, noEffect);
 		const debug = {};
 		let sel;
@@ -113,8 +114,8 @@ window.__synth145 = (function () {
 		const persons = [];
 		for (let j = 0; j < sel.persons.length; j++) {
 			const p = sel.persons[j];
-			const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still, anchorY: p.anchorY });
-			persons.push(Object.assign({ label: p.label, n: p.files.length, times: p.times, still: p.still }, compare(c, Math.min(j, heads.length - 1))));
+			const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, Object.assign({ still: p.still, anchorY: p.anchorY }, withAges ? { ages: p.ages } : {}));
+			persons.push(Object.assign({ label: p.label, n: p.files.length, times: p.times, still: p.still, ages: p.ages === undefined ? 'なし' : p.ages }, compare(c, Math.min(j, heads.length - 1))));
 		}
 		// 軌跡の位置と本当の位置の差（1枚目の位置をそろえて）
 		const tr = (debug.track || []).filter((e) => e.pos != null);

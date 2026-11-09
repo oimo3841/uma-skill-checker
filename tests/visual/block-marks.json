@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-09",
 "numbering": "runtime",
-"count": 1074,
+"count": 1079,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1079,6 +1079,11 @@
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (2) 取り込みの頭と終わりの「パネルが見つからない区間」を切り落とす（matchSpan・trimSource）。始めから終わりまで見つかっていれば切らない","ord":1,"marks":"V","asserts":3,"review":"名前で分けられない assert が 67%"},
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (3) カーソルを消す処理: 横画面では一覧の左の動かない所を探す範囲から外し、カーソルを消す。主のスレッドを長くふさがない。縦画面の印の出どころでは今のまま（左端 0）","ord":1,"marks":"VTC","asserts":5,"review":"名前で分けられない assert が 40%"},
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) special.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2},
-  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) exam.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2}
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) exam.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2},
+  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(1) 動いている画どうしの重なりは、はじいてから時間のたった画の画素を残す（速い動画だけ）","ord":1,"marks":"VASC","asserts":7},
+  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(2) 止まっている画で描き直すときの継ぎ目は、いちばん合う値＋1.5 以内のいちばん上の行（速い動画だけ）","ord":1,"marks":"VSC","asserts":5},
+  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(3) 速い動画でないとき（ages が無い・null・全部 99・数が合わない）は、結合画像と枠が同じ","ord":1,"marks":"VC","asserts":3},
+  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(4) 作り物の速い動画: selectFrames が ages を返し（速い動画だけ）、ages を渡して組み立てても3人とも一覧と合う","ord":1,"marks":"VC","asserts":5},
+  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(5) UmaStar ③・UmaExam ②: 動画から来た人の記録に ages を持ち、composePerson に渡す","ord":1,"marks":"A","asserts":4,"review":"名前で分けられない assert が 50%"}
 ]
 }

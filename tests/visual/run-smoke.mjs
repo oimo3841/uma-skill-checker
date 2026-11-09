@@ -174,6 +174,7 @@ import { register157 } from './blocks-157.mjs';
 import { register162 } from './blocks-162.mjs';
 import { register160 } from './blocks-160.mjs';
 import { register159 } from './blocks-159.mjs';
+import { register161 } from './blocks-161.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15622,6 +15623,8 @@ await register162({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register160({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T156（2026-11-10）: DMM版の横画面の直し（取り込みの切り落とし・切り出しの描き方・カーソル）。tests/visual/blocks-159.mjs
 await register159({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T158（2026-11-10）: 速い動画で残る濃いエフェクトの直し（composePerson の継ぎ目を上へ・時間のたった画の画素。見出しは「T158速い動画の組み立て」）
+await register161({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
