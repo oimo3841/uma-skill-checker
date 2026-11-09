@@ -12,6 +12,7 @@
 // 期待値は製品の値を読まずに書く（文は決定の原文・塗りの色はトークンを当てた見本の要素と比べる）。スキル名は書かない（恒久ルール1）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 
 export async function register135(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -344,12 +345,12 @@ export async function register135(env) {
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });
 		// 新しいモードでは帯に合計を出さない（C-309）ので、②のカードの枠がそろうのを待つ
 		await sp.page.waitForSelector(T + '[data-usd-el="factor-card-slots"] [data-usd-el="factor-card-tile"][data-card-id]', { timeout: 20000 });
-		await sp.page.waitForTimeout(400);
+		await settle(sp.page);
 		return sp;
 	};
 	const setView = async (page, want) => {
 		const cur = () => page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-view"]'); return b ? b.getAttribute('data-usd-view') : null; });
-		for (let i = 0; i < 3 && (await cur()) !== want; i++) { await page.click(T + '[data-usd-el="factor-view"]'); await page.waitForTimeout(300); }
+		for (let i = 0; i < 3 && (await cur()) !== want; i++) { await page.click(T + '[data-usd-el="factor-view"]'); await settle(page); }
 	};
 
 	await block('T123(3) ②因子周回のカードの枠に SR のバッジを出さない（決定 447）・①の本育成編成の枠には今までどおり出す（C-187）／375・1280px × ライト・ダーク', async () => {

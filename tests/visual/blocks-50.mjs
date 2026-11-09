@@ -1,5 +1,6 @@
 import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 // 段G（2026-10-22・C-191）の検査。run-smoke.mjs の末尾から register50() で呼ばれる（塊の見出しはすべて「段G」で始まる。`npm run test:visual -- --only=段G` で回せる）。
 //
 // (4) 削除: 「削除」を選んでいる間、②の各スキルのパネルの右に×（押せる範囲44px・aria-label「<スキル名>を削除」）。パネルの点線の枠・赤い取り消し線は無い。パネルを押しても削除できる。削除のボタンは(6)の「選択中」の見た目。
@@ -44,10 +45,10 @@ export async function register50(env) {
 		}, { roster: o.roster || ORFE, tab: o.tab === undefined ? 0 : o.tab, draft: o.draft || null, theme: o.theme });
 		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
-		await sleep(sp.page, 600);
+		await settle(sp.page);
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false)).catch(() => {});
 		await sp.page.evaluate(() => UmaSkillDeckCore.loadSkillPtData(false)).catch(() => {});
-		await sleep(sp.page, 900);
+		await settle(sp.page);
 		return sp;
 	};
 	/** 色のトークンを、いまのテーマで解いた色（rgb）にして返す */
@@ -242,12 +243,12 @@ export async function register50(env) {
 			const uma0 = await look(p, '#deck-roster-panel .usd-roster-umabox');
 			assert(uma0.bw === '1px' && stageOf(uma0, tk) === 'normal' && JSON.stringify(rgb(uma0.bg)) === JSON.stringify(rgb(tk.surface)), tag + '育成ウマ娘のタイルも細い枠（1px）・濃い塗りではない（地は通常の地）', uma0);
 			// 選んでいる枠だけ太くなる（カードの選択の窓を開く）
-			await p.click('#deck-roster-panel [data-usd-el="pick-card"][data-index="1"]'); await sleep(p, 400);
+			await p.click('#deck-roster-panel [data-usd-el="pick-card"][data-index="1"]'); await settle(p);
 			const t1 = await tiles();
 			assert(t1.filter((t) => t.pinned).map((t) => t.i).join() === '1' && t1.find((t) => t.i === '1').bw === '2px' && JSON.stringify(rgb(t1.find((t) => t.i === '1').bc)) === JSON.stringify(rgb(tk.sel)) && t1.filter((t) => t.i !== '1').every((t) => t.bw === '1px'), tag + 'カードの選択の窓を開くと、その枠のタイルだけ 2px（選択中の枠の色）・ほかは 1px', t1);
-			await p.keyboard.press('Escape'); await sleep(p, 200);
-			if (await p.$('[data-usd-act="cancel-pick"]')) { await p.click('button[data-usd-act="cancel-pick"]').catch(() => {}); await sleep(p, 300); }
-			await p.click('#deck-roster-panel [data-usd-act="pick-uma"]'); await sleep(p, 400);
+			await p.keyboard.press('Escape'); await settle(p);
+			if (await p.$('[data-usd-act="cancel-pick"]')) { await p.click('button[data-usd-act="cancel-pick"]').catch(() => {}); await settle(p); }
+			await p.click('#deck-roster-panel [data-usd-act="pick-uma"]'); await settle(p);
 			const uma1 = await look(p, '#deck-roster-panel .usd-roster-umabox');
 			assert(stageOf(uma1, tk) === 'selected', tag + '育成ウマ娘の選択の窓を開くと、育成ウマ娘のタイルが 2px（選択中）', uma1);
 			await sp.ctx.close();
@@ -256,7 +257,7 @@ export async function register50(env) {
 			const q = sp2.page;
 			const st0 = await look(q, '#deck-roster-panel [data-usd-act="pt-status"]');
 			assert(stageOf(st0, tk) === 'normal', tag + '勉強家（押していない）は通常（1px・通常の地）', st0);
-			await q.click('#deck-roster-panel [data-usd-act="pt-status"]'); await sleep(q, 300);
+			await q.click('#deck-roster-panel [data-usd-act="pt-status"]'); await settle(q);
 			const st1 = await look(q, '#deck-roster-panel [data-usd-act="pt-status"]');
 			assert(stageOf(st1, tk) === 'selected' && JSON.stringify(rgb(st1.bg)) === JSON.stringify(rgb(tk.surface)) && st1.h === st0.h && st1.w === st0.w, tag + '勉強家を押すと選択中（2px の枠・塗りつぶしではない）。大きさは変わらない', { st0, st1 });
 			const flt = await look(q, '#deck-roster-panel .usd-roster-filtersel--on');

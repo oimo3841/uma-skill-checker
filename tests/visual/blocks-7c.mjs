@@ -1,4 +1,5 @@
 import { reloadReady } from './lib/page-ready.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 import { pickEntry } from './lib/entry-search.mjs';
@@ -87,7 +88,7 @@ export async function register7c(env) {
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate((t) => selectStepTab(t), o.tab || 0);
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
-		await sp.page.waitForTimeout(150);
+		await settle(sp.page);
 		return sp;
 	};
 	const P = '#deck-roster-panel ';
@@ -623,7 +624,7 @@ export async function register7c(env) {
 			for (const withPrev of [false, true]) {
 				const tag = '段7c(P)(6) ' + w + '×' + h + (withPrev ? '（前段あり）' : '（前段なし）') + ': ';
 				const sp = await open({ w, h, routes: { stepDoc: withPrev ? undefined : stepEmpty }, roster: { umaId: umaLv7.id, cardIds: [cA.id, cB.id, null, null, null, null] } });
-				await sp.page.waitForTimeout(250);
+				await settle(sp.page);
 				const m = await measure(sp.page);
 				const share = Math.round(1000 * m.grid.h / m.vh) / 10;
 				phone.push({ w, h, withPrev, share, header: m.header.h, step: m.step.h, top: m.top.h, lower: m.lower.h, sum: m.sum.h, filter: m.filter.h, grid: m.grid.h, rowH: m.rowH, docH: m.docH, fab: m.fabOverlapRatio });
@@ -661,7 +662,7 @@ export async function register7c(env) {
 			const tag = '段7c(P)(7) ' + w + '×' + h + ': ';
 			const sp = await open({ w, h, roster: { umaId: umaLv7.id, cardIds: [cA.id, cB.id, null, null, null, null] } });
 			await sp.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-			await sp.page.waitForTimeout(300);
+			await settle(sp.page);
 			const m = await measure(sp.page);
 			// C-235: タイトルの行と帯が上に残るので、表の高さはその高さ（--usd-sticky-top。PC は 56＋39＝95px）も引く。見える行はそのぶん減る（900px で 18→16 行）
 			const stickTop = await sp.page.evaluate(() => parseFloat(document.documentElement.style.getPropertyValue('--usd-sticky-top')) || 0);
@@ -693,10 +694,10 @@ export async function register7c(env) {
 				const run = async (label, sel, act) => {
 					// 対象を画面の途中に置く（ページをスクロールしてから測る）
 					await sp.page.evaluate((sel) => { const e = document.querySelector(sel); e.scrollIntoView({ block: 'center' }); }, sel);
-					await sp.page.waitForTimeout(120);
+					await settle(sp.page);
 					const a = await meas(sel);
 					await act();
-					await sp.page.waitForTimeout(250);
+					await settle(sp.page);
 					const b = await meas(sel);
 					const ok = !!a && !!b && Math.abs(b.y - a.y) <= 2 && Math.abs(b.top - a.top) <= 2;
 					rows.push({ label: w + 'px ' + label, dy: b ? b.y - a.y : null, dtop: b ? Math.round(b.top - a.top) : null, ok });
@@ -708,19 +709,19 @@ export async function register7c(env) {
 				// 小窓の中の選択肢（ページの位置と小窓の中の位置が変わらない）
 				const before = await sp.page.evaluate(() => ({ y: window.scrollY, l: (document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-pane-events"]') || {}).scrollTop || 0 }));
 				await sp.page.click('[data-usd-el="event-choice"][data-event-key="scenario:トレセン軒#0"][data-choice="1"]');
-				await sp.page.waitForTimeout(250);
+				await settle(sp.page);
 				const after = await sp.page.evaluate(() => ({ y: window.scrollY, l: (document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-pane-events"]') || {}).scrollTop || 0 }));
 				rows.push({ label: w + 'px 小窓の中の選択肢', dy: after.y - before.y, dtop: after.l - before.l, ok: after.y === before.y && after.l === before.l });
 				await sp.page.keyboard.press('Escape');
-				await sp.page.waitForTimeout(200);
+				await settle(sp.page);
 				// （?）の「すべて取得に戻す」
 				await sp.page.click(ROW(W[2]));
 				await sp.page.evaluate((sel) => document.querySelector(sel).scrollIntoView({ block: 'center' }), P + '[data-usd-el="pt-help-btn"]');
-				await sp.page.waitForTimeout(100);
+				await settle(sp.page);
 				const y0 = await sp.page.evaluate(() => window.scrollY);
 				await sp.page.click(P + '[data-usd-el="roster-reset"]');
 				await sp.page.click('[data-usd-el="roster-reset-off"]');
-				await sp.page.waitForTimeout(250);
+				await settle(sp.page);
 				const y1 = await sp.page.evaluate(() => window.scrollY);
 				rows.push({ label: w + 'px リセットのシートの「取得しないスキルを戻す」', dy: y1 - y0, dtop: 0, ok: Math.abs(y1 - y0) <= 2 });
 				// 段8（C-120）で②の「本育成編成」のボタンと一覧の小窓を無くしたので、その2行（小窓を開く・編成を選ぶ）は外した

@@ -1,6 +1,7 @@
 import { reloadReady } from './lib/page-ready.mjs';
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 // ①の「既定と違う選択」の点（2026-10-21・C-179）の検査。run-smoke.mjs の末尾から register41() で呼ばれる
 // （塊の見出しはすべて「C-179」で始まる。`npm run test:visual -- --only=C-179` で回せる）。
 //
@@ -39,12 +40,12 @@ export async function register41(env) {
 		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForSelector(P + '[data-usd-el="col-menu-btn"][data-member-key="0"]', { timeout: 15000 });   // 2026-10-26: 育成ウマ娘の列もメニューのボタン
-		await sp.page.waitForTimeout(700);
+		await settle(sp.page);
 		return sp;
 	};
 	const members = (page) => page.evaluate((P) => Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"], ' + P + '[data-usd-el="col-menu-btn"]')).map((b) => ({ key: b.getAttribute('data-member-key'), dot: !!b.querySelector('[data-usd-el="result-dot"]'), text: b.textContent, un: b.getAttribute('data-unselected') })), P);
-	const openPop = async (page, key) => { await clickEvents(page, P, key); await page.waitForTimeout(400); };
-	const closePop = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); };
+	const openPop = async (page, key) => { await clickEvents(page, P, key); await settle(page); };
+	const closePop = async (page) => { await page.keyboard.press('Escape'); await settle(page); };
 	const rowDots = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="event-nondefault-dot"]')).map((d) => { const box = d.parentElement.closest('[data-usd-el^="event"]'); return box ? box.getAttribute('data-event-key') : null; }));
 	/** 全ての列について、列見出しの点の有無と、小窓の点のある行の件数を取る */
 	const scan = async (page) => {
@@ -102,17 +103,17 @@ export async function register41(env) {
 		assert(box.hidden === 'true' && box.sr === '（既定と違う選択）' && box.dotText === '', 'C-179(a) 点は aria-hidden・中に字なし。読み上げは見出しの中の視覚的に隠した文「（既定と違う選択）」', box);
 		// 結果1に戻すと、その行の点だけが消える。選んだ選択肢が結果を持たなくても（効いていない切り替えでも）、点は残る（決定4）
 		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + K_CHOICE + '"][data-result="0"]');
-		await sp.page.waitForTimeout(350);
+		await settle(sp.page);
 		assert((await rowDots(sp.page)).length === 0, 'C-179(a) 結果1に戻すと、小窓の行の点が消える（作り直されても保たれ、消えるべきときに消える）', await rowDots(sp.page));
 		assert(!(await members(sp.page)).find((m) => m.key === '0').dot, 'C-179(a) 結果1に戻すと、列見出しの点も消える', null);
 		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + K_CHOICE + '"][data-result="1"]');
-		await sp.page.waitForTimeout(350);
+		await settle(sp.page);
 		assert((await rowDots(sp.page)).includes(K_CHOICE), 'C-179(a) 結果2に切り替えると、その行に点が付く（小窓を開いたまま作り直しても保たれる）', await rowDots(sp.page));
 		// 選択肢を押し替えても（結果を持たない選択肢を選んでも）保存値が結果2のままなら点は残る
 		const n0 = await sp.page.evaluate((k) => document.querySelectorAll('[data-usd-el="event"][data-event-key="' + k + '"] [data-usd-el="event-choice"]').length, K_CHOICE);
 		for (let ci = 0; ci < n0; ci++) {
 			await sp.page.click('[data-usd-el="event-choice"][data-event-key="' + K_CHOICE + '"][data-choice="' + ci + '"]');
-			await sp.page.waitForTimeout(300);
+			await settle(sp.page);
 			const r = await draftR(sp.page);
 			const rows = await rowDots(sp.page);
 			assert(rows.includes(K_CHOICE) === (r.resultPicks[K_CHOICE] === 1), 'C-179(a) 選択肢' + (ci + 1) + 'を選んだあとも、点の有無は保存値（結果2）と一致する（効いていない切り替えも点）', { rows, picks: r.resultPicks });

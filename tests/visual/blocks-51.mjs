@@ -12,6 +12,7 @@
 // 2026-11-01（T55・C-260 の (b)(c)）: 古いお知らせ（exam の target・layout／special の catalog・alpha・layout）を外し、special に (c)（stitch 11/01）を足した。
 // 合成の状態の履歴は各ツール2件（exam ＝ scenario 10/24・edition 10/11／special ＝ stitch 11/01・scenario 10/24）、実データは各1件。n / N は「/ 2」、日付の塊は各ツールの最新の日から数える。
 import { reloadReady } from './lib/page-ready.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 import { setScenarioPendingOn, withNoticeClock, NOTICE_FIXED_TIME } from './lib/fixtures.mjs';
 
 export async function register51(env) {
@@ -54,7 +55,9 @@ async function register51Body(env) {
 			await page.evaluate((s) => { try { localStorage.clear(); Object.keys(s).forEach((k) => localStorage.setItem(k, s[k])); } catch (e) {} }, store);
 			await reloadReady(page);
 		}
-		await page.waitForTimeout(o.wait || 1500);
+		// T148: o.wait === 'settle' は条件待ち（開く側を確かめるときだけ。「出ない」を確かめるときは固定の待ちのまま）
+		if (o.wait === 'settle') await settle(page);
+		else await page.waitForTimeout(o.wait || 1500);
 		return r;
 	};
 	/** すべて既読の保存値（告知のIDはページの定数から読む）。except に種類を渡すと、その種類だけ未読 */
@@ -87,10 +90,10 @@ async function register51Body(env) {
 			headFirst: (() => { const h = d.querySelector('.notice-head'); return !!h && h === d.querySelector('.notice-body').firstElementChild; })(),
 		};
 	});
-	const nav = async (page, which) => { await page.click('[data-notice-nav="' + which + '"]'); await page.waitForTimeout(150); };
+	const nav = async (page, which) => { await page.click('[data-notice-nav="' + which + '"]'); await settle(page); };
 	/** › で古い側へめくって、その種類を出す（special の新シナリオは2件目） */
 	const toKind = async (page, kind) => { for (let i = 0; i < N && (await page.evaluate(() => uiNoticeKind)) !== kind; i++) await nav(page, 'older'); };
-	const menuOpen = async (page) => { await page.click('#tool-dropdown-btn'); await page.waitForTimeout(200); };
+	const menuOpen = async (page) => { await page.click('#tool-dropdown-btn'); await settle(page); };
 	const menuDescs = (page) => page.evaluate(() => {
 		const menu = document.getElementById('tool-dropdown-menu');
 		const out = {};
@@ -160,14 +163,14 @@ async function register51Body(env) {
 		for (const t of TOOLS) {
 			// 初めての人: 最新の1件で開き、閉じると履歴の3件（と古い告知）が既読
 			for (const how of ['ok', 'x', 'backdrop', 'esc']) {
-				const r = await open(t);
+				const r = await open(t, { wait: 'settle' });
 				const d = await dlg(r.page);
 				assert(d.open && d.kind === HIST[t.name][0][0] && d.count === '1 / ' + N, `履歴(4) ${t.name}/${how}: 初めての人にも最新の1件（${HIST[t.name][0][0]}）で開く`, JSON.stringify({ open: d.open, kind: d.kind, count: d.count }));
 				if (how === 'ok') await r.page.click('#ui-notice-ok');
 				else if (how === 'x') await r.page.click('#ui-notice .notice-close');
 				else if (how === 'backdrop') await r.page.evaluate(() => document.getElementById('ui-notice-backdrop').click());
 				else await r.page.keyboard.press('Escape');
-				await r.page.waitForTimeout(250);
+				await settle(r.page);
 				const keys = await allKeys(r.page);
 				const want = await seenStore(t);
 				const ok = Object.keys(want).filter((k) => !/ui-mode/.test(k)).every((k) => keys[k] === want[k]);
@@ -182,14 +185,14 @@ async function register51Body(env) {
 			assert(!(await noticeOpen(r2.page)), `履歴(4) ${t.name}: すべて既読の人には自動で出ない`, '');
 			await r2.ctx.close();
 			// 新シナリオだけ未読: 最新の1件で開く（special の最新は stitch。新シナリオは › の先）
-			const r3 = await open(t, { store: await seenStore(t, true) });
+			const r3 = await open(t, { store: await seenStore(t, true), wait: 'settle' });
 			const d3 = await dlg(r3.page);
 			assert(d3.open && d3.kind === HIST[t.name][0][0] && d3.count === '1 / ' + N, `履歴(4) ${t.name}: 履歴のうち新シナリオだけ未読でも、最新の1件で開く`, JSON.stringify(d3));
 			await r3.ctx.close();
 			// 履歴のうち古い側（最後の件）だけが未読でも開く（30日以内の未読があれば開く）
 			const s4 = await seenStore(t);
 			delete s4[t.kindKey[HIST[t.name][N - 1][0]]];
-			const r4 = await open(t, { store: s4 });
+			const r4 = await open(t, { store: s4, wait: 'settle' });
 			const d4 = await dlg(r4.page);
 			assert(d4.open && d4.kind === HIST[t.name][0][0], `履歴(4) ${t.name}: 古い側の告知だけ未読でも、最新の1件で開く`, JSON.stringify(d4));
 			await r4.ctx.close();
@@ -278,7 +281,7 @@ async function register51Body(env) {
 			for (const w of [360, 390, 1280]) {
 				for (const theme of ['light', 'dark']) {
 					const tag = `${t.name}/${w}/${theme}`;
-					const r = await open(t, { w, theme, store: await seenStore(t, true) });
+					const r = await open(t, { w, theme, store: await seenStore(t, true), wait: 'settle' });
 					for (let i = 0; i < N; i++) {
 						const m = await r.page.evaluate(() => {
 							const d = document.getElementById('ui-notice');

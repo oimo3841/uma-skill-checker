@@ -5,6 +5,7 @@
 // 数値は special.html を実際に開いて読む（セット名の文字サイズなど）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 export async function register20d(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -13,10 +14,10 @@ export async function register20d(env) {
 		const page = r.page;
 		if (theme) await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} }, theme);
 		if (theme) await reloadReady(page);
-		await page.waitForTimeout(700);
+		await settle(page);
 		if (which === 'special') { if (await page.isVisible('#ui-notice')) { try { await page.click('[data-act="notice-ok"]'); } catch (e) {} } }
 		else if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
-		await page.waitForTimeout(300);
+		await settle(page);
 		return r;
 	};
 	const probe = (page) => page.evaluate(() => {

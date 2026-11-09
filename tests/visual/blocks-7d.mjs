@@ -1,4 +1,5 @@
 import { reloadReady } from './lib/page-ready.mjs';
+import { settle } from './lib/settle.mjs';   // T148: 固定の待ちを条件待ちに（検査の速度 (d)③）
 import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 import { setBandStep } from './lib/band-step.mjs';
@@ -84,7 +85,7 @@ export async function register7d(env) {
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate((t) => selectStepTab(t, { noSave: true }), o.tab || 0);
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
-		await sp.page.waitForTimeout(200);
+		await settle(sp.page);
 		return sp;
 	};
 	const P = '#deck-roster-panel ';
@@ -378,21 +379,21 @@ export async function register7d(env) {
 			let st = await draftScope(sp.page);
 			assert(!('inheritedUnique' in (st || {})), tag + '触っていないときは inheritedUnique を保存しない', st);
 			await setBandStep(sp.page, T, 'uniq-count', 3);
-			await sp.page.waitForTimeout(150);
+			await settle(sp.page);
 			n = await readNeed(sp.page);
 			assert(n.uniq.n === UNIQ(3, 3, 'kire') && n.total.n === X + UNIQ(3, 3, 'kire') + base6 && tiersSum() === base6, tag + '種類を 3種 にすると、継承固有は 3種ぶん（' + fmt(UNIQ(3, 3, 'kire')) + ' Pt）。ランクのチップは変わらない', { uniq: n.uniq.n, total: n.total.n });
 			await setBandStep(sp.page, T, 'uniq-level', 5);
-			await sp.page.waitForTimeout(150);
+			await settle(sp.page);
 			n = await readNeed(sp.page);
 			assert(n.uniq.n === UNIQ(3, 5, 'kire') && n.total.n === X + UNIQ(3, 5, 'kire') + base6, tag + 'ヒントLv を Lv5 にすると、Lv5 の割引（' + fmt(UNIQ(3, 5, 'kire')) + ' Pt）', { uniq: n.uniq.n, total: n.total.n });
 			st = await draftScope(sp.page);
 			assert(JSON.stringify(st.inheritedUnique) === JSON.stringify({ count: 3, hintLevel: 5 }), tag + '保存はセットごと（inheritedUnique: { count, hintLevel }）', st.inheritedUnique);
 			await setBandStep(sp.page, T, 'uniq-count', 6);
-			await sp.page.waitForTimeout(100);
+			await settle(sp.page);
 			st = await draftScope(sp.page);
 			assert(JSON.stringify(st.inheritedUnique) === JSON.stringify({ hintLevel: 5 }), tag + '既定値（6種）に戻した側は書かない', st.inheritedUnique);
 			await setBandStep(sp.page, T, 'uniq-level', 3);
-			await sp.page.waitForTimeout(100);
+			await settle(sp.page);
 			st = await draftScope(sp.page);
 			assert(!('inheritedUnique' in st), tag + 'どちらも既定に戻すと項目ごと消える', st);
 			// 「種」には数えない（段8: 「追加済みスキル（N種）」は無くなったので、分類のタブの数の合計で見る）
@@ -424,12 +425,12 @@ export async function register7d(env) {
 			rows = await read();
 			assert(rows.length === 2 && rows.find((r) => r.id === W[4]).pt === pay(160, 5, 'kire') + ' Pt', '通常の分類だった行も同じ（' + pay(160, 5, 'kire') + ' Pt）', rows);
 			await setBandStep(sp.page, T, 'pt-parent-level', 3);
-			await sp.page.waitForTimeout(150);
+			await settle(sp.page);
 			rows = await read();
 			assert(rows.find((r) => r.id === W[4]).pt === pay(160, 3, 'kire') + ' Pt', '親由来のレベルを 3 にすると行の Pt も変わる（' + pay(160, 3, 'kire') + ' Pt）', rows);
 			const n = await readNeed(sp.page);
 			await sp.page.click(T + '.usd-panel[data-skill-id="' + W[4] + '"] .usd-panel-namebtn');   // 段9: 分類ごとのタブは無く、2行とも並ぶ。W4 の行の名前を押す
-			await sp.page.waitForTimeout(250);
+			await settle(sp.page);
 			const pv = await sp.page.evaluate(() => { const pop = document.querySelector('[data-usd-el="info-pop"]'); return pop && !pop.hidden ? pop.querySelector('.uma-popover-title').textContent.trim() : null; });
 			assert(pv === nameOf(W[4]), '名前（button）を押すと説明の小窓（段6のもの）が開く', pv);
 			await sp.page.keyboard.press('Escape');
@@ -440,7 +441,7 @@ export async function register7d(env) {
 			await sp.page.waitForTimeout(800);
 			const openedByHold = await sp.page.evaluate(() => { const pop = document.querySelector('[data-usd-el="info-pop"]'); return !!pop && !pop.hidden; });
 			await sp.page.mouse.up();
-			await sp.page.waitForTimeout(150);
+			await settle(sp.page);
 			await sp.page.keyboard.press('Escape');
 			assert(!openedByHold, '名前を長押ししても小窓は開かない（長押しはやめた。離したときのクリックで開く）');
 			assert(rows.every((r) => r.h <= 40), '行の高さは増えない（Pt を添えても ' + Math.max(...rows.map((r) => r.h)) + 'px）', rows);
@@ -492,7 +493,7 @@ export async function register7d(env) {
 		const UD = baseUser({ rosters: STS.map((s, i) => mkRoster(i, null, { name: '編成' + s.label, pt: { umaHintLevel: 3, status: s.id } })),
 			templates: USER_DATA.templates.concat(STS.map((s, i) => ({ templateId: 'tpl_7da_' + s.id, name: '編成' + s.label, skillIds: scope.skillIds.slice(), tiers: Object.assign({}, scope.tiers), baseRosterId: 'r7d' + i, createdAt: '2026-10-03T00:00:00.000Z', updatedAt: '2026-10-03T00:00:00.000Z' }))) });
 		const own = (st) => [pay(180, 5, st), pay(160, 5, st), pay(140, 5, st) + pay(90, 5, st)];   // 超優先・優先・通常（親由来のレベル 5）
-		const selectSet = async (page, id) => { await page.evaluate((id) => deckTemplateManager.setSelectedId(id), id); await page.waitForTimeout(300); };
+		const selectSet = async (page, id) => { await page.evaluate((id) => deckTemplateManager.setSelectedId(id), id); await settle(page); };
 		for (const w of [375, 1280]) {
 			const tag = '段7d追加(A) ' + w + 'px: ';
 			const sp = await open({ w, h: w === 375 ? 812 : 900, tab: 1, userData: UD, roster: { umaId: '', cardIds: [null, null, null, null, null, null] }, routes: { stepDoc: stepNone, ptDoc: ptX }, scope });
@@ -522,7 +523,7 @@ export async function register7d(env) {
 				for (const [cnt, lv] of [[2, 1], [4, 2], [5, 5]]) {
 					await setBandStep(sp.page, T, 'uniq-count', cnt);
 					await setBandStep(sp.page, T, 'uniq-level', lv);
-					await sp.page.waitForTimeout(100);
+					await settle(sp.page);
 					n = await readNeed(sp.page);
 					o = own(st);
 					assert(n.uniq.n === UNIQ(cnt, lv, st) && n.total.n === X + UNIQ(cnt, lv, st) + o[0] + o[1] + o[2],
