@@ -191,9 +191,27 @@ import { installReadyProbe, setReadyHook, reloadReady } from './lib/page-ready.m
 let fails = 0;
 let okCount = 0;   // 計器: OK の件数（塊ごとの差分を記録する）
 let ngCount = 0;   // 計器: assert の NG の件数
+let noticeCount = 0;   // 案D（T155）: OK の詳細に Infinity・-Infinity・NaN があった件数
+let EMPTY_PROBE = null; // 案B（T155）: 全体の実行のときだけ lib/empty-probe.mjs を入れる（下の「空の判定」）
+/* 案D（T155・決定 621）: OK のときに、詳細（第3引数）の中に Infinity・-Infinity・NaN があれば [注意] を出す（NG にはしない）。
+ *   空の集まりの Math.min／Math.max（±Infinity）や 0 での割り算の結果が、判定に届いていないかを見る（C-340 の段7 の iconMin の形）。
+ *   JSON.stringify は Infinity・NaN を null にしてしまうので、値をたどって探す。 */
+function findNonFinite(v, depth = 0, seen = new Set()) {
+	if (typeof v === 'number') return Number.isNaN(v) ? 'NaN' : v === Infinity ? 'Infinity' : v === -Infinity ? '-Infinity' : null;
+	if (!v || typeof v !== 'object' || depth > 6 || seen.has(v)) return null;
+	seen.add(v);
+	const vals = Array.isArray(v) ? v.slice(0, 500) : Object.values(v).slice(0, 500);
+	for (const x of vals) { const r = findNonFinite(x, depth + 1, seen); if (r) return r; }
+	return null;
+}
 function assert(cond, label, extra) {
 	if (!cond) { fails++; ngCount++; } else okCount++;
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (extra !== undefined ? '  ' + JSON.stringify(extra) : ''));
+	if (cond && extra !== undefined) {
+		const bad = findNonFinite(extra);
+		if (bad) { noticeCount++; console.log('[注意] ' + label + ': OK だが、詳細に ' + bad + ' がある（空の集まりの Math.min／Math.max や 0 での割り算の結果が判定に入っていないか）'); }
+	}
+	if (EMPTY_PROBE) EMPTY_PROBE.noteAssert(label, !!cond);
 }
 
 /* ------------------------------------------------------------
@@ -332,6 +350,7 @@ async function block(title, fn) {
 	const t0 = performance.now();
 	const ok0 = okCount, ng0 = ngCount;
 	curStats = newStats();
+	if (EMPTY_PROBE) EMPTY_PROBE.beginBlock(no, title);
 	let threw = false;
 	try {
 		await fn();
@@ -354,6 +373,8 @@ async function block(title, fn) {
 			fs.mkdirSync(path.dirname(TIMES_FILE), { recursive: true });
 			fs.appendFileSync(TIMES_FILE, JSON.stringify(rec) + '\n');
 		} catch (e2) { /* 記録に失敗しても検査は続ける */ }
+		// 案B（T155）: この塊で空の集まりで判定した所を [空] の行で出す（許す一覧の分は数えるだけ）
+		if (EMPTY_PROBE) EMPTY_PROBE.endBlock();
 		// 並列の起動側が進み具合を数える・手で見て進み具合が分かる目印
 		console.log('[T] #' + no + ' ' + rec.sec.toFixed(1) + '秒 ' + title);
 	}
@@ -369,6 +390,17 @@ if (SHARD) console.log('--shard=' + SHARD.k + '/' + SHARD.n + ': ' + (SHARD_PLAN
 	? '時間で均した割り振り（重み ' + (SHARD_PLAN.source || '—') + '）のうちシャード' + SHARD.k + 'の ' + Object.values(SHARD_PLAN.assign).filter((k) => k === SHARD.k).length + '塊・重みの合計 ' + SHARD_PLAN.loads[SHARD.k - 1] + '秒'
 	: '通し番号 (番号−1) mod ' + SHARD.n + ' = ' + (SHARD.k - 1) + ' の塊だけを回す（重みのファイルが無い・読めない）') + '\n');
 
+/* ■ 空の判定（案B。T155・決定 621〜623）
+ *   --only の無い全体の実行（単独の全体・並列の全体〔起動側が UMA_EMPTY_PROBE=1 を渡す〕）のときだけ、lib/empty-probe.mjs を入れる。
+ *   検査のコードが Math.min()／Math.max() を引数0個で、または長さ0の配列で every を呼んだら、塊ごとに [空] の行を出し、最後に件数をまとめる。
+ *   NG にはしない。空でよい所は lib/empty-allow.mjs（許す一覧）に足す。部分実行では入れない（時間が数％増えるため）。 */
+{
+	const { emptyProbeWanted, installEmptyProbe } = await import('./lib/empty-probe.mjs');
+	if (emptyProbeWanted({ only: ONLY, shard: SHARD, listOnly: LIST_ONLY })) {
+		EMPTY_PROBE = installEmptyProbe({ repoRoot: REPO_ROOT, browserTypes: [chromium] });
+		console.log('空の判定の見張り: 入れた（' + (ONLY.length === 0 && !SHARD ? '全体の実行' : 'UMA_EMPTY_PROBE=1（並列の全体のシャード、または手で入れた）') + '。[空] の行と最後の件数を見る）\n');
+	}
+}
 const { base, close } = await startServer();
 const browser = await chromium.launch();
 // 前回開いていたタブ（段7d の ③）。special は保存値が無いと①「本育成編成」を開くようになったが、段7c より前の検査は
@@ -8277,8 +8309,10 @@ await block('因子を照合の対象に含める（C-2b）', async () => {
 	assert(res.diamond.length + res.heart.length === nFactor && res.tierMarked > 0,
 		'C-2b: 因子の行には印、スキルの行には自動のマーカー（左の同じ欄。C-226 で◎○▲から置き換え）',
 		{ diamond: res.diamond.length, heart: res.heart.length, tier: res.tierMarked });
-	assert(res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.every(g => g === res.wantHeartD),
-		'段I-5(special): シナリオ因子は◆の文字・遺伝子は白抜きの菱形の SVG（塗り方で分かれている）',
+	// T155（2026-11-09）: ここは遺伝子を対象から外した状態なので遺伝子の行が0件で、heartGlyphs の every が空で真になっていた（T149 の (4)）。
+	//   ここでは◆が1件以上あり、遺伝子の行が0件であることを見る。遺伝子の白抜きの菱形の SVG は、下の「◆と白抜きの◇が同じ表に並び」（両方 ON・遺伝子2行）で見ている
+	assert(res.diamondGlyphs.length > 0 && res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.length === 0,
+		'段I-5(special): シナリオ因子は◆の文字・遺伝子は白抜きの菱形の SVG（塗り方で分かれている。ここは遺伝子を外した状態で遺伝子の行は0。SVG は下の両方 ON で見る）',
 		{ diamond: res.diamondGlyphs.slice(0, 3), heart: res.heartGlyphs.slice(0, 1) });
 	assert(res.copyLines === off.skills + nFactor,
 		'C-2b: コピー用データには因子の行も入る（表と同じ並び）', { copyLines: res.copyLines, expect: off.skills + nFactor });
@@ -15654,6 +15688,11 @@ if (ONLY.length > 0 && ranCount === 0 && !SHARD) {
 	console.log('');
 	formatSummary(doneRecords, { wallSec: wallSec, label: SHARD ? 'シャード ' + SHARD.k + '/' + SHARD.n : '' }).forEach((l) => console.log(l));
 	console.log('記録: ' + path.relative(REPO_ROOT, TIMES_FILE).split(path.sep).join('/'));
+	// 案D（T155）: OK の詳細に Infinity・NaN があった件数（0件なら出さない）
+	if (noticeCount > 0) console.log('[注意] の件数: ' + noticeCount + '件（OK の詳細に Infinity・-Infinity・NaN）');
+	console.log('NOTICE_SUMMARY ' + JSON.stringify({ notice: noticeCount }));
+	// 案B（T155）: 空の判定の件数（全体の実行のときだけ）
+	if (EMPTY_PROBE) EMPTY_PROBE.finish();
 	// 並列の起動側が読む1行（塊の数・回した数・OK／NG・実時間）
 	console.log('SHARD_SUMMARY ' + JSON.stringify({ shard: SHARD ? SHARD.k : null, n: SHARD ? SHARD.n : null, blockCount: blockCount, ran: ranCount, ok: okCount, ng: ngCount, fails: fails, wallSec: Math.round(wallSec * 10) / 10 }));
 }

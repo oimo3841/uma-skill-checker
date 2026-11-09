@@ -284,7 +284,9 @@ export async function register43(env) {
 			assert((await toastText(sp.page)) === reasons[r.reason], 'C-184 グレーの行（' + nameOf(r.id) + '）を押すと「' + reasons[r.reason] + '」', await toastText(sp.page));
 		}
 		m = await readModal(sp.page);
-		assert(m.head === head0 && await modalOpen(sp.page) && rowsOf(m, 'green').filter((r) => r.state === 'gray').every((r) => !r.checked), 'C-184 押しても、チェックは外れたまま・追加の種数・合計は変わらず・小窓は閉じない', { head0, head: m.head });
+		// T155（2026-11-09）: チェックを見る行を、緑スキルの欄のグレーの行（C-223 で0件になり、空振りしていた。T149 の (4)）から、いま押したグレーの行（斜行1・バーニングソウル。全部の欄から）に替えた
+		const graysAfter = m.secs.reduce((a, s) => a.concat(s.rows.filter((r) => r.state === 'gray')), []);
+		assert(m.head === head0 && await modalOpen(sp.page) && graysAfter.length === grays.length && graysAfter.length > 0 && graysAfter.every((r) => !r.checked), 'C-184 押しても、チェックは外れたまま（グレーの ' + graysAfter.length + '行）・追加の種数・合計は変わらず・小窓は閉じない', { head0, head: m.head, grays: graysAfter.map((r) => [r.id, r.checked]) });
 		await sp.ctx.close();
 		// ②に追加済み: 緑スキルを1つ手で足すと、その行がグレー（理由は②に追加済み）
 		const sp2 = await openSp();

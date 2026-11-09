@@ -195,7 +195,9 @@ export async function register60(env) {
 			assert(valid.length === c.ids.length && valid.every((r) => r.panel && r.hasPt) && JSON.stringify(valid.map((r) => r.id).sort()) === JSON.stringify(c.ids.slice().sort()),
 				'②星取表(2) ' + c.k + ' 金・無効の行を除いた行は②のスキルと同じ顔ぶれ（各行に Pt の欄）', valid.map((r) => r.id).slice(0, 5));
 			const extra = t.rows.filter((r) => r.gold || r.off);
-			assert(extra.every((r) => !r.hasPt && !r.panel && b.sel.indexOf(r.id) === -1), '②星取表(2) ' + c.k + ' 金の行・無効の行は Pt を持たず、②の id（getSelection）に入らない', extra.slice(0, 3));
+			// T155（2026-11-09）: ①なしの場合は金の行・無効の行が0件で、every が空で真になっていた（T149 の (4)）。①ありの3つは1件以上あることも見て、①なしは0件であることを見る
+			assert(c.roster === null ? extra.length === 0 : (extra.length > 0 && extra.every((r) => !r.hasPt && !r.panel && b.sel.indexOf(r.id) === -1)),
+				'②星取表(2) ' + c.k + (c.roster === null ? ' ①なしでは金の行・無効の行は無い' : ' 金の行・無効の行（' + extra.length + '件）は Pt を持たず、②の id（getSelection）に入らない'), extra.slice(0, 3));
 			// 無効の行は有効の行（金の行を含む）より下にまとまる
 			const firstOff = t.rows.findIndex((r) => r.off);
 			assert(firstOff === -1 || t.rows.slice(firstOff).every((r) => r.off), '②星取表(2) ' + c.k + ' 無効の行は最下段にまとまる', firstOff);

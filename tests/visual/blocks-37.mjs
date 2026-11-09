@@ -18,8 +18,10 @@ export async function register37(env) {
 	const LOW_IDS = new Set(EL.entries.filter((e) => e.maxStage !== null && RANK.get(e.maxStage) <= EL.lowEffectMax.rank).map((e) => e.skillId));
 	const NULL_IDS = new Set(EL.entries.filter((e) => e.maxStage === null).map((e) => e.skillId));
 
-	const openSp = async (w = 390) => {
+	// prep（T155）: 再読み込みの前に page.route などを足す（作り物のデータで確かめるとき）
+	const openSp = async (w = 390, prep = null) => {
 		const sp = await openPage(browser, base, 'special.html', { width: w, height: 900 }, EMPTY);
+		if (prep) await prep(sp.page);
 		await sp.page.evaluate(() => { localStorage.setItem('umaSkillDeck:stepTab', '1'); });
 		await reloadReady(sp.page);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
@@ -76,8 +78,24 @@ export async function register37(env) {
 		assert(on.checked === true && on.ids.every((id) => !LOW_IDS.has(id)) && on.ids.length === off.ids.length - lowOff.length && on.count === on.ids.length + '件',
 			'低効果トグル(2) ONでは低効果の行が一覧から消え、絞り込み結果の件数が減る（OFFのとき ' + off.count + ' → ' + on.count + '）', { off: off.ids.length, on: on.ids.length, low: lowOff.length });
 		assert(on.text === off.text, '低効果トグル(2) 文に添える件数は、ON／OFFで変わらない（押す前の件数）', { off: off.text, on: on.text });
+		// T155（2026-11-09）: 実データでは短距離の一覧に効果量の分からないスキル（maxStage が null）が1件も無く（データ全体で2件）、
+		//   この確かめが空振りしていた（T149 の (4)）。作り物のデータ（一覧に出る低効果のスキル3件の maxStage を null にした skill-effect-levels.json）で確かめる
 		const nullInOff = off.ids.filter((id) => NULL_IDS.has(id));
-		assert(nullInOff.every((id) => on.ids.includes(id)), '低効果トグル(2) 効果量が分からないスキル（maxStage が null）は、ONでも外さない', { nullInOff });
+		const FAKE_NULL = lowOff.slice(0, 3);
+		const spN = await openSp(390, (page) => page.route('**/data/skill-effect-levels.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
+			body: JSON.stringify(Object.assign({}, EL, { entries: EL.entries.map((e) => (FAKE_NULL.includes(e.skillId) ? Object.assign({}, e, { maxStage: null }) : e)) })) })));
+		await open(spN.page);
+		await filterBy(spN.page, 'distance', 'short');
+		const offN = await read(spN.page);
+		await spN.page.click('[data-usd-act="picker-low-effect"]');
+		await spN.page.waitForTimeout(300);
+		const onN = await read(spN.page);
+		await spN.ctx.close();
+		const lowN = offN.ids.filter((id) => LOW_IDS.has(id) && !FAKE_NULL.includes(id));
+		assert(FAKE_NULL.length === 3 && FAKE_NULL.every((id) => offN.ids.includes(id) && onN.ids.includes(id)) && lowN.length > 0 && lowN.every((id) => !onN.ids.includes(id))
+			&& nullInOff.filter((id) => !on.ids.includes(id)).length === 0,
+			'低効果トグル(2) 効果量が分からないスキル（maxStage が null）は、ONでも外さない（作り物のデータで低効果の ' + FAKE_NULL.length + '件を null にして確かめる。ほかの低効果 ' + lowN.length + '件は外れる。実データの一覧には ' + nullInOff.length + '件）',
+			{ FAKE_NULL, kept: FAKE_NULL.filter((id) => onN.ids.includes(id)), lowN: lowN.length, nullInOff });
 		// 表示中を全て選択の対象は、ONのときの一覧と一致
 		await sp.page.click('[data-usd-act="picker-select-all"]');
 		await sp.page.waitForTimeout(300);

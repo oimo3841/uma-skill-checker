@@ -90,7 +90,19 @@ export async function register74(env) {
 			const order = await sp.page.evaluate(() => UmaSkillDeckCore.outside.heldProblem().result.skills.map((s) => s.skillId));
 			assert(r0.length > 10 && r0.every((x) => x.h === BEFORE.rowH && x.weight === BEFORE.weight && x.bg === BEFORE.bg) && JSON.stringify(r0.map((x) => x.id)) === JSON.stringify(order)
 				&& r0.every((x) => !x.pinned && x.pin !== 'true'), 'ピン画面(1) ' + theme + ': ピンが空のとき、行の高さ ' + BEFORE.rowH + 'px・名前の太さ 400・行の地は透明・並びは計算のまま（変更の前と同じ）', r0.slice(0, 3));
-			assert(r0.filter((x) => !x.added).every((x) => x.pin === 'false') && r0.filter((x) => x.added).every((x) => x.pin === null && x.spacer), 'ピン画面(1) ' + theme + ': 追加済みでない行には未のピン・追加済みの行にはピンが無い（空き）', r0.filter((x) => x.added).length);
+			// T155（2026-11-09）: ②が空なので追加済みの行が0件で、「追加済みの行にはピンが無い」が空振りしていた（T149 の (4)）。
+			//   ここでは追加済みの行が無いことを見て、追加済みの行は、一覧の1行を②に足して開き直した画面で見る
+			assert(r0.filter((x) => !x.added).length > 0 && r0.filter((x) => !x.added).every((x) => x.pin === 'false') && r0.filter((x) => x.added).length === 0, 'ピン画面(1) ' + theme + ': 追加済みでない行には未のピン（②が空なので追加済みの行は無い）', r0.filter((x) => x.added).length);
+			{
+				const addId = r0[1].id;
+				const spA = await openSp({ theme, scope: { skillIds: [addId] } });
+				await openModal(spA.page);
+				const rA = await rowsOf(spA.page);
+				await spA.ctx.close();
+				const addedA = rA.filter((x) => x.added);
+				assert(addedA.length > 0 && addedA.some((x) => x.id === addId) && addedA.every((x) => x.pin === null && x.spacer) && rA.filter((x) => !x.added).every((x) => x.pin === 'false'),
+					'ピン画面(1) ' + theme + ': 追加済みの行にはピンが無い（空き）（一覧の1行を②に足して開き直す。追加済みの行 ' + addedA.length + '行）', addedA.slice(0, 3));
+			}
 			const c0 = await sp.page.evaluate(colorProbe);
 			assert(c0.off && c0.off.fill === 'none' && c0.off.transform !== 'none' && c0.off.hitW === '44px' && c0.off.hitH === '44px' && c0.off.w === 20 && c0.off.h === 16 && mono(c0.off.color, c0.tokOff),
 				'ピン画面(1) ' + theme + ': 未のピンは線だけ（塗りなし）・斜め（回転）・ベースの補助の文字色（新しい色なし・緑なし）・見た目 20×16・押せる範囲 44×44', c0);

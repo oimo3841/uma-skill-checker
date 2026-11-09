@@ -96,8 +96,22 @@ export async function register23(env) {
 
 	await block('育成イベント段2B ●は skillIds に入り、△は入らない。選んだ選択肢の成功側が●になり、選ばなかった側にだけあるスキルは出ない', async () => {
 		// 選択肢が2つ以上で、スキルが一部の選択肢にしか無いイベントのある衣装
-		const pickUma = EVDOC.entries.find((e) => e.events.some((ev) => { const s = ev.choices.map(successOf); return s.length >= 2 && s[0].length > 0 && s.some((x) => x.length === 0); }));
-		const idx = pickUma.events.findIndex((ev) => { const s = ev.choices.map(successOf); return s.length >= 2 && s[0].length > 0 && s.some((x) => x.length === 0); });
+		// T155（2026-11-09）: さらに「選ばなかった側にだけあり、ほかのイベントにも無いスキル」（下の others）が1つ以上あるイベントを選ぶ。
+		//   それまでは最初に当たる衣装（uma-0270 の #0）を選んでいて、others が0件のまま「●にならない」の確かめが空振りしていた（T149 の (4)）
+		//   初期スキル・覚醒スキル（data/training-umamusume.json の initialSkills・awakeningSkills）にあるスキルは「最初から」●なので除く
+		const UMA_DOC = new Map(readJson('data/training-umamusume.json').entries.map((u) => [u.id, u]));
+		const strsOf = (v) => (typeof v === 'string' ? [v] : Array.isArray(v) ? v.flatMap(strsOf) : v && typeof v === 'object' ? Object.values(v).flatMap(strsOf) : []);
+		const ownIdsOf = (umaId) => { const u = UMA_DOC.get(umaId) || {}; return new Set(strsOf(u.initialSkills).concat(strsOf(u.awakeningSkills))); };
+		const onlyOthersOf = (e, idx) => {
+			const s = e.events[idx].choices.map(successOf);
+			const firstIds = s[0].map((x) => x.skillId);
+			const own = ownIdsOf(e.umaId);
+			return s.slice(1).flat().map((x) => x.skillId).filter((id) => !firstIds.includes(id) && !own.has(id))
+				.filter((id) => !e.events.some((ev, j) => j !== idx && ev.choices.some((c) => successOf(c).some((x) => x.skillId === id))));
+		};
+		const evOk = (ev) => { const s = ev.choices.map(successOf); return s.length >= 2 && s[0].length > 0 && s.some((x) => x.length === 0); };
+		const pickUma = EVDOC.entries.find((e) => e.events.some((ev, i) => evOk(ev) && onlyOthersOf(e, i).length > 0));
+		const idx = pickUma.events.findIndex((ev, i) => evOk(ev) && onlyOthersOf(pickUma, i).length > 0);
 		const sides = pickUma.events[idx].choices.map(successOf);
 		const sp = await openSp();
 		const r = await sp.page.evaluate(({ umaId, key, choice }) => {
@@ -112,8 +126,8 @@ export async function register23(env) {
 		const emptyOnly = sides.slice(1).flat().map((x) => x.skillId).filter((id) => !first.includes(id));
 		assert(first.every((id) => !r.noneSure.includes(id)) || sides.every((s) => s.some((x) => first.includes(x.skillId))), '育成イベント段2B 選ぶ前: 一部の選択肢にしかないスキルは●（skillIds）に入らない', first);
 		assert(first.every((id) => r.pickedSure.includes(id)), '育成イベント段2B 選択肢1を選ぶと、その成功側のスキルがすべて●（skillIds）に入る', { first, got: r.pickedSure.filter((id) => first.includes(id)) });
-		const others = emptyOnly.filter((id) => !EVDOC.entries.find((e) => e.umaId === pickUma.umaId).events.some((ev, j) => j !== idx && ev.choices.some((c) => successOf(c).some((x) => x.skillId === id))));
-		assert(others.every((id) => !r.pickedItems.some((i) => i.id === id && i.sure)), '育成イベント段2B 選ばなかった側にだけあるスキルは●にならない', others);
+		const others = onlyOthersOf(pickUma, idx);
+		assert(others.length > 0 && others.every((id) => !r.pickedItems.some((i) => i.id === id && i.sure)), '育成イベント段2B 選ばなかった側にだけあるスキルは●にならない（' + others.length + '件）', others);
 		assert(r.ev.length === 1 && r.ev[0].chosen === null && r.evPicked.length === 1 && r.evPicked[0].chosen === 0 && r.evPicked[0].pending === false, '育成イベント段2B 選択の状態（未選択→選択肢1）が events に出る', { ev: r.ev, evPicked: r.evPicked });
 		assert(jsErrors(sp.errors).length === 0, '育成イベント段2B コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();

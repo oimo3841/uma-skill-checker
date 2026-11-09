@@ -67,10 +67,11 @@ const planArgs = [];
 const shards = [];
 for (let k = 1; k <= N; k++) {
 	const logPath = path.join(REPO_ROOT, 'output', 'scratch', 'parallel-' + stamp + '-s' + k + 'of' + N + '.log');
-	const sh = { k, logPath, log: fs.createWriteStream(logPath), buf: '', ng: [], done: 0, summary: null, finalLine: '', code: null, signal: null, exited: false };
+	const sh = { k, logPath, log: fs.createWriteStream(logPath), buf: '', ng: [], empty: [], notice: [], emptySum: null, noticeSum: null, done: 0, summary: null, finalLine: '', code: null, signal: null, exited: false };
 	sh.child = spawn(process.execPath, [SMOKE, '--shard=' + k + '/' + N, '--times-stamp=' + stamp, ...planArgs, ...pass], {
 		cwd: REPO_ROOT,
-		env: { ...process.env, UMA_TEST_LOCK_PARENT: String(process.pid) },
+		// 空の判定（案B。T155・決定 623）: --only の無い全体のときだけ、子に見張りを入れさせる（UMA_EMPTY_PROBE=0 が渡されていれば入れない）
+		env: { ...process.env, UMA_TEST_LOCK_PARENT: String(process.pid), ...(!hasOnly && process.env.UMA_EMPTY_PROBE !== '0' ? { UMA_EMPTY_PROBE: '1' } : {}) },
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	const onData = (chunk) => {
@@ -82,6 +83,10 @@ for (let k = 1; k <= N; k++) {
 			sh.buf = sh.buf.slice(i + 1);
 			if (line.startsWith('[NG]')) sh.ng.push(line);
 			else if (line.startsWith('[T] ')) sh.done++;
+			else if (line.startsWith('[空] ')) sh.empty.push(line);
+			else if (line.startsWith('[注意] ') && !line.startsWith('[注意] の件数')) sh.notice.push(line);
+			else if (line.startsWith('EMPTY_SUMMARY ')) { try { sh.emptySum = JSON.parse(line.slice('EMPTY_SUMMARY '.length)); } catch (e) { /* 壊れた行は無視 */ } }
+			else if (line.startsWith('NOTICE_SUMMARY ')) { try { sh.noticeSum = JSON.parse(line.slice('NOTICE_SUMMARY '.length)); } catch (e) { /* 壊れた行は無視 */ } }
 			else if (line.startsWith('SHARD_SUMMARY ')) { try { sh.summary = JSON.parse(line.slice('SHARD_SUMMARY '.length)); } catch (e) { /* 壊れた行は無視 */ } }
 			else if (line.startsWith('=== スモークテスト')) sh.finalLine = line;
 		}
@@ -120,6 +125,20 @@ shards.forEach((s) => {
 const allNg = [];
 shards.forEach((s) => s.ng.forEach((l) => allNg.push('[s' + s.k + '] ' + l)));
 if (allNg.length > 0) { console.log('\n=== [NG] の行（' + allNg.length + '件） ==='); allNg.forEach((l) => console.log(l)); }
+// 案D（T155）: OK の詳細に Infinity・-Infinity・NaN があった行（NG にはしない）
+const allNotice = [];
+shards.forEach((s) => s.notice.forEach((l) => allNotice.push('[s' + s.k + '] ' + l)));
+if (allNotice.length > 0) { console.log('\n=== [注意] の行（' + allNotice.length + '件・NG にはしない） ==='); allNotice.forEach((l) => console.log(l)); }
+// 案B（T155）: 空の判定（全体のときだけ。NG にはしない。許す一覧は lib/empty-allow.mjs）
+const emptySums = shards.map((s) => s.emptySum).filter(Boolean);
+if (emptySums.length > 0) {
+	const allEmpty = [];
+	shards.forEach((s) => s.empty.forEach((l) => allEmpty.push('[s' + s.k + '] ' + l)));
+	const warnSites = new Set(emptySums.flatMap((x) => x.warnSites)), allowedSites = new Set(emptySums.flatMap((x) => x.allowedSites));
+	const warnBlocks = emptySums.reduce((a, x) => a + x.warnBlocks, 0), allowedBlocks = emptySums.reduce((a, x) => a + x.allowedBlocks, 0);
+	console.log('\n=== 空の判定（' + emptySums.length + '/' + N + 'シャード）: 許す一覧の外 ' + warnSites.size + 'か所（' + warnBlocks + '塊）・許す一覧に当たった分 ' + allowedSites.size + 'か所（' + allowedBlocks + '塊） ===');
+	allEmpty.forEach((l) => console.log(l));
+}
 
 const sums = shards.map((s) => s.summary).filter(Boolean);
 const totalBlocks = sums.length > 0 ? sums[0].blockCount : 0;

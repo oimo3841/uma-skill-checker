@@ -524,14 +524,33 @@ export async function register12(env) {
 		const after = await nums();
 		// （②のタブの脇の「N種」〔badge〕は比べない。②に足して「元に戻す」で空にすると、special が古い値のまま出し続ける〔C-130 より前からの挙動。手で足して戻しても同じ〕ため）
 		// 2026-10-17: ①の合計は、レースの距離（2200m）に当たらない限定を持つスキルが外れた分だけ変わる（レースで固定した距離を判定に渡すようにした）。②の合計は変わらない。
-		const exp = await sp.page.evaluate(({ FULL, R0 }) => {
+		// T155（2026-11-09）: FULL の①には距離の限定を持つスキルが無く、外れたスキル（dropped）が0件のまま「限定を持つスキルが外れた分だけ減る」が空振りしていた（T149 の (4)）。
+		//   FULL では外れるスキルが0件（合計は変わらない）であることを見て、「外れた分だけ減る」は、FULL の6枚目を、R0 の距離に当たらない限定（raceDistance）を持つ白を
+		//   ヒントに持つ SSR のカードに替えた編成（DROP_CANDS から、外れるスキルが出る最初のもの。データから選ぶ）で、core の計算として確かめる
+		const MASTER12 = readJson('uma-skill-deck-skills.json').skills;
+		const missesR0 = (rd) => { if (!rd || rd.scope !== 'all') return false; const d = R0.distance; if (typeof rd.standardDistance === 'boolean' && rd.min == null && rd.max == null) return (d % 400 === 0) !== rd.standardDistance; return (rd.min != null && d < rd.min) || (rd.max != null && d > rd.max); };
+		const MISS_IDS = new Set(MASTER12.filter((s) => missesR0(s.raceDistance)).map((s) => s.id));
+		const DROP_CANDS = readJson('data/support-cards.json').entries.filter((c) => c.rarity === 'SSR' && !c.isGroup && !CARDS6.includes(c.id) && (c.hintSkills || []).some((h) => MISS_IDS.has(h.skillId))).map((c) => c.id);
+		const exp = await sp.page.evaluate(({ FULL, R0, DROP_CANDS }) => {
 			const C = UmaSkillDeckCore, fmt = (n) => n.toLocaleString('en-US');
-			const a = C.getRosterPtDetail(FULL), b = C.getRosterPtDetail(Object.assign({}, FULL, { race: R0 }));
-			const va = C.getRosterVisiblePart(FULL).visibleIds, vb = C.getRosterVisiblePart(Object.assign({}, FULL, { race: R0 })).visibleIds;
-			const dropped = va.filter((id) => vb.indexOf(id) === -1), added = vb.filter((id) => va.indexOf(id) === -1);
-			return { a: [fmt(a.total), String(a.kinds)], b: [fmt(b.total), String(b.kinds)], dropped, added, limited: dropped.every((id) => { const s = C.findSkill(id); return !!s && !!s.raceDistance && s.raceDistance.scope === 'all'; }) };
-		}, { FULL, R0 });
-		assert(auto === 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(exp.a.map(String)) && JSON.stringify(after.r) === JSON.stringify(exp.b) && exp.added.length === 0 && exp.limited,
+			const isLimited = (id) => { const s = C.findSkill(id); return !!s && !!s.raceDistance && s.raceDistance.scope === 'all'; };
+			const diff = (R) => {
+				const a = C.getRosterPtDetail(R), b = C.getRosterPtDetail(Object.assign({}, R, { race: R0 }));
+				const va = C.getRosterVisiblePart(R).visibleIds, vb = C.getRosterVisiblePart(Object.assign({}, R, { race: R0 })).visibleIds;
+				return { a, b, dropped: va.filter((id) => vb.indexOf(id) === -1), added: vb.filter((id) => va.indexOf(id) === -1) };
+			};
+			const f = diff(FULL);
+			let alt = null;
+			for (const cid of DROP_CANDS) {
+				const R = Object.assign({}, FULL, { cardIds: FULL.cardIds.slice(0, 5).concat([cid]) });
+				const d = diff(R);
+				if (d.dropped.length > 0) { alt = { card: cid, dropped: d.dropped, added: d.added, a: [d.a.total, d.a.kinds], b: [d.b.total, d.b.kinds], limited: d.dropped.every(isLimited) }; break; }
+			}
+			return { a: [fmt(f.a.total), String(f.a.kinds)], b: [fmt(f.b.total), String(f.b.kinds)], dropped: f.dropped, added: f.added, alt };
+		}, { FULL, R0, DROP_CANDS });
+		assert(!!exp.alt && exp.alt.limited && exp.alt.added.length === 0 && exp.alt.b[0] < exp.alt.a[0] && exp.alt.b[1] === exp.alt.a[1] - exp.alt.dropped.length,
+			'オススメサポ④段9 ①に R0 の距離に当たらない限定を持つスキルがある編成（FULL の6枚目を替えた）では、レースを選ぶとそのスキルが外れ、①の合計がその分だけ減る（外れた ' + (exp.alt ? exp.alt.dropped.length : 0) + '種。core の計算）', exp.alt);
+		assert(auto === 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(exp.a.map(String)) && JSON.stringify(after.r) === JSON.stringify(exp.b) && exp.added.length === 0 && exp.dropped.length === 0,
 			'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計は変わらない。①の合計は、レースの距離に当たらない限定を持つスキルが外れた分だけ減る（母集団の規則はオススメサポにだけ効く。レースを選んでも②には自動で足さない＝' + auto + '種）', { before, after, auto, exp });
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
 		// C-222: 条件で検索では、①の絞り込み（FULL は R0 と同じ距離・バ場）に合わない行がレースを選ぶ前から選べない。レースを選ぶと、その行の理由が

@@ -125,8 +125,11 @@ export async function register57(env) {
 			const sum = a.rows.reduce((s, r) => s + rowPtNum(r.pt), 0);
 			if (k !== 'S3') assert(sum === a.commonPt, '②◎(1) ' + k + ' 共通スキルの Pt ＝ ②の行の Pt の和（◎の行は合算）', { sum, common: a.commonPt });
 			// 候補は独立な導出（○のうち上の段の白がちょうど1つ）の部分集合で、◎は②・①に無い
-			const okCand = a.circles.candidates.every(([o, up]) => upOf(o) === up && c.ids.indexOf(up) === -1);
-			assert(okCand, '②◎(1) ' + k + ' 候補は「上の段の白がちょうど1つ」の○で、◎は②に無い', a.circles.candidates.slice(0, 5));
+			// T155（2026-11-09）: S3 は見積もりで候補0件（fx.cand）。0件の場合は every が空で真になり何も見ていなかったので（T149 の (4)）、
+			//   候補のある場合（S1・S2・S4）だけ中身を見て、候補0件の場合は0件であることを見る
+			const okCand = fx.cand === 0 ? a.circles.candidates.length === 0
+				: a.circles.candidates.length > 0 && a.circles.candidates.every(([o, up]) => upOf(o) === up && c.ids.indexOf(up) === -1);
+			assert(okCand, '②◎(1) ' + k + (fx.cand === 0 ? ' 候補は0件（見積もりのとおり）' : ' 候補は「上の段の白がちょうど1つ」の○で、◎は②に無い（' + a.circles.candidates.length + '件）'), a.circles.candidates.slice(0, 5));
 			// ③・コピー・Deck の記録へ渡す id（getSelection）は○のまま
 			assert(JSON.stringify(a.sel) === JSON.stringify(c.ids), '②◎(1) ' + k + ' ②の id（③・コピー・Deck の記録へ渡すもの）は○のまま・足した順のまま', a.sel && a.sel.slice(0, 5));
 		}

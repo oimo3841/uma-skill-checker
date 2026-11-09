@@ -28,6 +28,11 @@ export async function register59(env) {
 	const PREV = new Map(STEPDOC.map((e) => [e.skillId, e.prevSkillIds || []]));
 	const PAIRS = readJson('data/recommended-skills.json').equivalentPairs.map((p) => p.skillIds);
 	const rarity = (id) => (PT.get(id) || {}).rarity;
+	// T155: ○ → ◎ の独立な導出（blocks-57 と同じ書き方）: 白のうち、前段にその白を持つ白（上の段）がちょうど1つあるもの
+	const NEXT = new Map();
+	PREV.forEach((prevs, id) => prevs.forEach((p) => { if (!NEXT.has(p)) NEXT.set(p, []); NEXT.get(p).push(id); }));
+	const upOf = (id) => { if (rarity(id) !== 'white') return null; const ups = (NEXT.get(id) || []).filter((u) => rarity(u) === 'white'); return ups.length === 1 ? ups[0] : null; };
+	const WHITES_WITH_UP = Array.from(PT.keys()).filter((id) => !!upOf(id)).sort();
 	const ptOf = (b, level, statusId) => {
 		const hint = level > 0 ? RULES.hintDiscountPercent[Math.min(level, RULES.hintDiscountPercent.length) - 1] : 0;
 		const st = (RULES.statuses.find((s) => s.id === statusId) || { percent: 0 }).percent;
@@ -127,6 +132,7 @@ export async function register59(env) {
 	});
 
 	await block('ヒントLv(2) 検査の編成 R1・R2・A40・M: ①の Lv0〜2 の白を全部②に入れると、見出しは測った値（①の帯は不変・種は変わらない）／行の和＝②の帯／単独の根の行は独立の式の差', async () => {
+		let lowWithUpTotal = 0;   // T155: 下の (ア) の確かめの前提
 		for (const [k, roster] of Object.entries({ R1, R2, A40, M })) {
 			const fx = FIX[k];
 			let sp = await openSp({ roster });
@@ -154,8 +160,22 @@ export async function register59(env) {
 				if (!r || signedPt(r.pt) !== want) bad.push([id, r && r.pt, want]);
 			});
 			assert(bad.length === 0, 'ヒントLv(2) ' + k + ' 系列の無い白の行は「Lv(L＋5) の Pt − Lv L の Pt」（独立の式）', bad.slice(0, 5));
-			assert(b.circles.candidates.every(([o]) => low.indexOf(o) === -1), 'ヒントLv(2) ' + k + ' ①で取得する○は②の◎の候補にしない（(ア)）', b.circles.candidates.slice(0, 5));
+			// T155（2026-11-09）: ②が①の低い白だけだと候補は0件で、「候補にしない」の確かめが空振りしていた（T149 の (4)。4編成とも0件）。
+			//   ②に、①に無い白 X（上の段の白がちょうど1つで、その上の段も①・②に無いもの。データから選ぶ）を1つ足して開き直し、
+			//   X は◎の候補になり（候補が1件以上ある）、①の低い白（low・1件以上）はどれも候補にならないことを見る
+			const takenOrHidden = new Set(a.sure.map((x) => x.id).concat(a.hidden || []));
+			const X = WHITES_WITH_UP.find((id) => !takenOrHidden.has(id) && !takenOrHidden.has(upOf(id)) && !low.includes(id) && !low.includes(upOf(id)));
+			sp = await openSp({ roster, ids: low.concat([X]) });
+			const c2 = await read(sp.page, roster);
+			await sp.ctx.close();
+			const candIds = c2.circles.candidates.map(([o]) => o);
+			lowWithUpTotal += low.filter((o) => !!upOf(o)).length;
+			assert(!!X && candIds.includes(X) && low.length > 0 && low.every((o) => !candIds.includes(o)),
+				'ヒントLv(2) ' + k + ' ①で取得する○は②の◎の候補にしない（(ア)。②に①の低い白 ' + low.length + '件（うち上の段がある白 ' + low.filter((o) => !!upOf(o)).length + '件）と、①に無い白1件 → 候補はその1件側だけ）',
+				{ X, cand: c2.circles.candidates.slice(0, 5), low });
 		}
+		// ①の低い白のうち、上の段の白がちょうど1つあるもの（決まり (ア) が無ければ候補になりうるもの）が、4編成のどこかにあること（上の確かめが中身を持つ前提）
+		assert(lowWithUpTotal > 0, 'ヒントLv(2) 前提: ①の低い白のうち上の段の白があるものが、4編成で1件以上（' + lowWithUpTotal + '件）', lowWithUpTotal);
 	});
 
 	await block('ヒントLv(3) 選べないまま: Lv3 以上（練習のヒント・初期／覚醒を含む）・金は選べない／C-131 の組の相手は①のスキルと同じ扱い', async () => {

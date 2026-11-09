@@ -121,13 +121,18 @@ export async function register58(env) {
 		await filterBy(sp.page, 'scenario', 'non_support', false);
 		const c = await readRows(sp.page);
 		assert(c.rows.length === SCENARIO_POOL.length && c.rows.every((r) => SCENARIO_POOL.includes(r.id)), '検索小窓(1) サポカ外を外すと、シナリオスキルだけ（今までどおり）', { n: c.rows.length });
-		// 他の軸と AND: 効果タイプ（持久力回復）を足すと、サポカ外のうちその効果を持つものだけ
+		// 他の軸と AND: 効果タイプを足すと、サポカ外のうちその効果を持つものだけ
+		// T155（2026-11-09）: それまでは「持久力回復」で見ていたが、サポカ外には持久力回復のスキルが1件も無く、0件＝0件だけを比べて空振りしていた（T149 の (4)）。
+		//   サポカ外の期待（WANT_NS）の中で、持つスキルが1件以上・全部より少ない効果タイプのうち、いちばん件数の少ないもの（同数なら値の名前の順）を選ぶ（データから選ぶ）
+		const effCount = new Map();
+		WANT_NS.forEach((id) => ((TAGS.get(id) || {}).effect || []).forEach((v) => effCount.set(v, (effCount.get(v) || 0) + 1)));
+		const EFF = Array.from(effCount.entries()).filter(([, n]) => n > 0 && n < WANT_NS.length).sort((x, y) => x[1] - y[1] || (x[0] < y[0] ? -1 : 1)).map(([v]) => v)[0];
 		await filterBy(sp.page, 'scenario', 'scenario', false);
 		await filterBy(sp.page, 'scenario', 'non_support');
-		await filterBy(sp.page, 'effect', 'stamina');
+		await filterBy(sp.page, 'effect', EFF);
 		const d = await readRows(sp.page);
-		const wantAnd = WANT_NS.filter((id) => ((TAGS.get(id) || {}).effect || []).includes('stamina'));
-		assert(d.rows.length === wantAnd.length && d.rows.every((r) => wantAnd.includes(r.id)), '検索小窓(1) 効果タイプ（持久力回復）と AND（' + wantAnd.length + '件）', { got: d.rows.map((r) => r.id), want: wantAnd });
+		const wantAnd = WANT_NS.filter((id) => ((TAGS.get(id) || {}).effect || []).includes(EFF));
+		assert(wantAnd.length > 0 && d.rows.length === wantAnd.length && d.rows.every((r) => wantAnd.includes(r.id)), '検索小窓(1) 効果タイプ（' + EFF + '）と AND（' + wantAnd.length + '件。サポカ外 ' + WANT_NS.length + '件のうち）', { got: d.rows.map((r) => r.id), want: wantAnd });
 		assert(jsErrors(sp.errors).length === 0, '検索小窓(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		// 保存データに書かない（絞り込みはページの中だけ）
 		const saved = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData') || '');

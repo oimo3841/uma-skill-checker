@@ -344,7 +344,9 @@ export async function register10(env) {
 		const none = await solve(sp.page, { roster: {}, count: 5, excludedCardIds: onlyOf(['syn-c20']) });
 		const byNone = Object.fromEntries(none.skills.map((s) => [s.skillId, s]));
 		assert(none.score === 2 && none.cards[0].cardId === 'syn-c20' && byNone[W[10]] && byNone[W[10]].hint && !byNone[W[10]].event
-			&& byNone[W[11]] && byNone[W[11]].event && !byNone[W[11]].hint && none.cards[0].picks.every((p) => p.scope === 'chara'),
+			// T155（2026-11-09）: 選んだ選択肢（picks）は0件で、「picks がどれもキャラクター共通（chara）」の every が空で真になっていた（T149 の (4)）。
+			//   テストZ の共通イベントは選択肢が1つ（●）なので選ぶものが無く、連続イベントは none なので、picks は0件が正しい。件数で見る（共通イベントの pick の scope は上の com で見ている）
+			&& byNone[W[11]] && byNone[W[11]].event && !byNone[W[11]].hint && none.cards[0].picks.length === 0,
 			'段10(B) 連続イベントの行が none のカード（c20。T20）は、連続イベントのスキル0件として、ヒント（W10）と共通イベント（W11）だけを数える', brief(none));
 		const added = await solve(sp.page, { roster: {}, count: 5, excludedCardIds: onlyOf(['syn-c01']), addedSkillIds: [W[0]] });
 		assert(added.score === 2 && added.skills.find((s) => s.skillId === W[0]).added === true && added.counts.added === 1, '段10(B) すでに②にあるスキルは結果に残り、追加済みの印が付き、点数にも数える', brief(added));

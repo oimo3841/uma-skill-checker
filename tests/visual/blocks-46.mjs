@@ -157,7 +157,13 @@ export async function register46(env) {
 
 	await block('C-187(b3) レアリティの印: ①のカードに SSR の印は出ない／SR のカードを置いたときだけ SR の印が出る。②のオススメサポの小窓では SSR・SR の両方が出る', async () => {
 		const sr = [SAME_IDS[0], SAME_IDS[1], SAME_IDS[2], SAME_IDS[3], SAME_IDS[4], SR_CARD.id];
-		const sp = await openSp({ roster: { umaId: 'uma-0179', cardIds: sr, skillFilter: FILTER, outsideOptions: { count: 4 } } });
+		// T155（2026-11-09）: 今のデータでは、この編成のオススメサポの結果に SR のカードが1枚も入らず、下の「SR のカードに SR の印」が空振りしていた（T149 の (4)）。
+		//   オススメサポの残りの枠に SR のカードを1枚指定して（outsideOptions.pinned。指定したカードは結果の先頭に出る）、SR の印を確かめる。
+		//   指定する SR は、①の6枚・育成ウマ娘と同じキャラクターでないもの（データから選ぶ。名前は書かない）
+		const UMA_CHARA = (readJson('data/training-umamusume.json').entries.find((u) => u.id === 'uma-0179') || {}).charaName;
+		const usedCharas = new Set(sr.map((id) => (CARDS.find((c) => c.id === id) || {}).charaName).concat([UMA_CHARA]));
+		const SR_PIN = CARDS.find((c) => c.rarity === 'SR' && !c.isGroup && !usedCharas.has(c.charaName));
+		const sp = await openSp({ roster: { umaId: 'uma-0179', cardIds: sr, skillFilter: FILTER, outsideOptions: { count: 4, pinned: [SR_PIN.id] } } });
 		const m = await measure(sp.page);
 		// T67: カードは種別の順→ID の降順に並ぶので、SR のカードの枠は位置ではなく二つ名で探す
 		const srTile = m.tiles.find((t) => t.nickText === '[' + SR_CARD.title + ']');
@@ -174,7 +180,7 @@ export async function register46(env) {
 		const tiles = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] .usd-out-card')).map((t) => ({ id: t.getAttribute('data-card-id'), rar: t.getAttribute('data-rarity'), icon: (t.querySelector('[data-usd-el="card-rarity-icon"]') || {}).alt || null })));
 		const ssr = tiles.filter((t) => t.rar === 'SSR'), srs = tiles.filter((t) => t.rar === 'SR');
 		assert(ssr.length > 0 && ssr.every((t) => t.icon === 'SSR'), 'C-187(b3) ②のオススメサポの小窓では、SSR のカードに SSR の印が出る（' + ssr.length + '枚）', tiles);
-		assert(srs.every((t) => t.icon === 'SR'), 'C-187(b3) ②のオススメサポの小窓では、SR のカードに SR の印が出る（' + srs.length + '枚）', tiles);
+		assert(srs.length > 0 && srs.some((t) => t.id === SR_PIN.id) && srs.every((t) => t.icon === 'SR'), 'C-187(b3) ②のオススメサポの小窓では、SR のカードに SR の印が出る（' + srs.length + '枚。指定した SR のカードを含む）', tiles);
 		await sp.ctx.close();
 	});
 
@@ -351,11 +357,13 @@ export async function register46(env) {
 			assert(rows.length > 10 && rows.every((r) => r.rar !== 'SSR'), tag + '候補の行に SSR の印は出ない（' + rows.length + '件）', rows.filter((r) => r.rar === 'SSR').slice(0, 3));
 			// 2026-10-27（セッションJ・作業3）: ①の小窓は SSR だけになったので、SR を名前で絞っても出ない（SR の印は②のオススメサポから開いた窓で見る＝blocks-45 の C-186）
 			const labelOf = (c) => (c.title ? '[' + c.title + ']' : '') + (c.isGroup && c.groupName ? c.groupName : c.charaName);
-			await sp.page.fill('[data-usd-el="find"]', labelOf(SR_CARD));
+			// T155（2026-11-09）: 二つ名つきの名前で絞ると0件になり、「出た行に印が無い」の確かめが空振りしていた（T149 の (4)）。
+			//   キャラクターの名前で絞る（同じキャラクターの SSR は出て、SR は出ない。SSR が1件以上出ることも見る）
+			await sp.page.fill('[data-usd-el="find"]', SR_CARD.charaName);
 			await sleep(sp.page, 400);
 			const srRows = await read();
 			const hit = srRows.find((r) => r.label === labelOf(SR_CARD));
-			assert(!hit && srRows.every((r) => r.rar === null), tag + 'SR のカード（' + labelOf(SR_CARD) + '）は①の候補に出ない（SSR だけ）', srRows.slice(0, 3));
+			assert(!hit && srRows.length > 0 && srRows.every((r) => r.rar === null), tag + 'SR のカード（' + labelOf(SR_CARD) + '）は①の候補に出ない（SSR だけ。同じキャラクターで絞ると SSR の ' + srRows.length + '件だけが印なしで出る）', srRows.slice(0, 3));
 			assert(await sp.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), tag + '横スクロールなし', true);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
