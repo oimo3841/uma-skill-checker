@@ -187,6 +187,7 @@ import { acquireOrExit, isAlive } from './lib/lock.mjs';
 import { timeStamp, timesFilePath, readRecords, formatSummary } from './lib/block-times.mjs';
 import { onlyMatches, loadWeights, buildPlan, listBlocks } from './lib/shard-plan.mjs';
 import { installReadyProbe, setReadyHook, reloadReady } from './lib/page-ready.mjs';
+import { NOTICE_ALLOW } from './lib/empty-allow.mjs';
 
 let fails = 0;
 let okCount = 0;   // 計器: OK の件数（塊ごとの差分を記録する）
@@ -196,20 +197,27 @@ let EMPTY_PROBE = null; // 案B（T155）: 全体の実行のときだけ lib/em
 /* 案D（T155・決定 621）: OK のときに、詳細（第3引数）の中に Infinity・-Infinity・NaN があれば [注意] を出す（NG にはしない）。
  *   空の集まりの Math.min／Math.max（±Infinity）や 0 での割り算の結果が、判定に届いていないかを見る（C-340 の段7 の iconMin の形）。
  *   JSON.stringify は Infinity・NaN を null にしてしまうので、値をたどって探す。 */
-function findNonFinite(v, depth = 0, seen = new Set()) {
-	if (typeof v === 'number') return Number.isNaN(v) ? 'NaN' : v === Infinity ? 'Infinity' : v === -Infinity ? '-Infinity' : null;
-	if (!v || typeof v !== 'object' || depth > 6 || seen.has(v)) return null;
+/*   製品が意図して返す Infinity などは、許す一覧（lib/empty-allow.mjs の NOTICE_ALLOW。確かめの見出しとキーの名前）に当たれば出さない（決定 644）。
+ *   見つけた値はキーの名前つきで全部集め（上限 50）、許す一覧に当たらないものが1つでもあれば [注意] を出す。 */
+function findNonFinite(v, key = '', depth = 0, seen = new Set(), out = []) {
+	if (out.length >= 50) return out;
+	if (typeof v === 'number') {
+		const k = Number.isNaN(v) ? 'NaN' : v === Infinity ? 'Infinity' : v === -Infinity ? '-Infinity' : null;
+		if (k) out.push({ kind: k, key });
+		return out;
+	}
+	if (!v || typeof v !== 'object' || depth > 6 || seen.has(v)) return out;
 	seen.add(v);
-	const vals = Array.isArray(v) ? v.slice(0, 500) : Object.values(v).slice(0, 500);
-	for (const x of vals) { const r = findNonFinite(x, depth + 1, seen); if (r) return r; }
-	return null;
+	const ents = Array.isArray(v) ? v.slice(0, 500).map((x) => [key, x]) : Object.entries(v).slice(0, 500);
+	for (const [k, x] of ents) findNonFinite(x, k, depth + 1, seen, out);
+	return out;
 }
 function assert(cond, label, extra) {
 	if (!cond) { fails++; ngCount++; } else okCount++;
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (extra !== undefined ? '  ' + JSON.stringify(extra) : ''));
 	if (cond && extra !== undefined) {
-		const bad = findNonFinite(extra);
-		if (bad) { noticeCount++; console.log('[注意] ' + label + ': OK だが、詳細に ' + bad + ' がある（空の集まりの Math.min／Math.max や 0 での割り算の結果が判定に入っていないか）'); }
+		const bad = findNonFinite(extra).filter((h) => !NOTICE_ALLOW.some((a) => String(label).includes(a.title) && a.key === h.key));
+		if (bad.length > 0) { noticeCount++; console.log('[注意] ' + label + ': OK だが、詳細に ' + bad[0].kind + (bad[0].key ? '（' + bad[0].key + '）' : '') + ' がある（空の集まりの Math.min／Math.max や 0 での割り算の結果が判定に入っていないか）'); }
 	}
 	if (EMPTY_PROBE) EMPTY_PROBE.noteAssert(label, !!cond);
 }

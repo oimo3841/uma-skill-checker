@@ -44,6 +44,7 @@ export async function register58(env) {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 844 }, EMPTY);
 		if (o.scheme) await sp.page.emulateMedia({ colorScheme: o.scheme });
 		if (o.nonSupport) await sp.page.route('**/data/non-support-skills.json*', (r) => r.fulfill(json(o.nonSupport)));
+		if (o.prep) await o.prep(sp.page);   // T155: 作り物のデータ（route）を再読み込みの前に足す
 		await sp.page.evaluate(({ roster, tab }) => {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
@@ -121,23 +122,31 @@ export async function register58(env) {
 		await filterBy(sp.page, 'scenario', 'non_support', false);
 		const c = await readRows(sp.page);
 		assert(c.rows.length === SCENARIO_POOL.length && c.rows.every((r) => SCENARIO_POOL.includes(r.id)), '検索小窓(1) サポカ外を外すと、シナリオスキルだけ（今までどおり）', { n: c.rows.length });
-		// 他の軸と AND: 効果タイプを足すと、サポカ外のうちその効果を持つものだけ
-		// T155（2026-11-09）: それまでは「持久力回復」で見ていたが、サポカ外には持久力回復のスキルが1件も無く、0件＝0件だけを比べて空振りしていた（T149 の (4)）。
-		//   サポカ外の期待（WANT_NS）の中で、持つスキルが1件以上・全部より少ない効果タイプのうち、いちばん件数の少ないもの（同数なら値の名前の順）を選ぶ（データから選ぶ）
-		const effCount = new Map();
-		WANT_NS.forEach((id) => ((TAGS.get(id) || {}).effect || []).forEach((v) => effCount.set(v, (effCount.get(v) || 0) + 1)));
-		const EFF = Array.from(effCount.entries()).filter(([, n]) => n > 0 && n < WANT_NS.length).sort((x, y) => x[1] - y[1] || (x[0] < y[0] ? -1 : 1)).map(([v]) => v)[0];
-		await filterBy(sp.page, 'scenario', 'scenario', false);
-		await filterBy(sp.page, 'scenario', 'non_support');
-		await filterBy(sp.page, 'effect', EFF);
-		const d = await readRows(sp.page);
-		const wantAnd = WANT_NS.filter((id) => ((TAGS.get(id) || {}).effect || []).includes(EFF));
-		assert(wantAnd.length > 0 && d.rows.length === wantAnd.length && d.rows.every((r) => wantAnd.includes(r.id)), '検索小窓(1) 効果タイプ（' + EFF + '）と AND（' + wantAnd.length + '件。サポカ外 ' + WANT_NS.length + '件のうち）', { got: d.rows.map((r) => r.id), want: wantAnd });
 		assert(jsErrors(sp.errors).length === 0, '検索小窓(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		// 保存データに書かない（絞り込みはページの中だけ）
 		const saved = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData') || '');
 		assert(!/non_support/.test(saved), '検索小窓(1) 保存データに「サポカ外」の値が入らない');
 		await sp.ctx.close();
+		// 他の軸と AND: 効果タイプ（持久力回復）を足すと、サポカ外のうちその効果を持つものだけ
+		// T155（決定 645）: サポカ外には持久力回復のスキルが1件も無く、0件＝0件だけを比べて空振りしていた（T149 の (4)）。
+		//   作り物のデータで確かめる: サポカ外の期待（WANT_NS）のうち、持久力回復を持たないスキル1つ（FAKE_ST。データから選ぶ）の tags.effect に stamina を足した
+		//   マスター（uma-skill-deck-skills.json）または拡張スキル（data/extended-skills.json）を route で返す（タグを持つほうのファイルだけ差し替える）
+		const FAKE_ST = WANT_NS.find((id) => !((TAGS.get(id) || {}).effect || []).includes('stamina'));
+		const inMaster = MASTER.some((s) => s.id === FAKE_ST);
+		const addStamina = (s) => (s.id === FAKE_ST ? Object.assign({}, s, { tags: Object.assign({}, s.tags, { effect: ((s.tags || {}).effect || []).concat(['stamina']) }) }) : s);
+		const spA = await openSp({ roster: { umaId: 'uma-0001', cardIds: [null, null, null, null, null, null] }, prep: (page) => (inMaster
+			? page.route('**/uma-skill-deck-skills.json*', (r) => r.fulfill(json(Object.assign({}, readJson('uma-skill-deck-skills.json'), { skills: MASTER.map(addStamina) }))))
+			: page.route('**/data/extended-skills.json*', (r) => r.fulfill(json(Object.assign({}, readJson('data/extended-skills.json'), { entries: EXT.map(addStamina) }))))) });
+		await openFilter(spA.page);
+		await filterBy(spA.page, 'scenario', 'non_support');
+		await filterBy(spA.page, 'effect', 'stamina');
+		const d = await readRows(spA.page);
+		const effLabel = await spA.page.evaluate(() => { const c = document.querySelector('[data-usd-el="filter-check"][data-axis="effect"][data-value="stamina"]'); return c ? ((c.closest('label') || c.parentElement).textContent || '').trim() : null; });
+		const wantAnd = WANT_NS.filter((id) => id === FAKE_ST || ((TAGS.get(id) || {}).effect || []).includes('stamina'));
+		assert(!!FAKE_ST && effLabel === '持久力回復' && wantAnd.length > 0 && d.rows.length === wantAnd.length && d.rows.every((r) => wantAnd.includes(r.id)),
+			'検索小窓(1) 効果タイプ（' + effLabel + '）と AND（' + wantAnd.length + '件。作り物のデータで、サポカ外のスキル1つに持久力回復のタグを足して確かめる）', { got: d.rows.map((r) => r.id), want: wantAnd, fake: FAKE_ST, file: inMaster ? 'master' : 'extended' });
+		assert(jsErrors(spA.errors).length === 0, '検索小窓(1) 作り物のデータでもコンソールのエラー0', jsErrors(spA.errors).slice(0, 3));
+		await spA.ctx.close();
 		// 破壊確認: 一覧にシナリオスキルを1件混ぜても、出ない（混ぜなければ出ない＝外しているのはシナリオスキルの判定）
 		const sc = SCENARIO_POOL[0];
 		const broken = JSON.parse(JSON.stringify(NONSUP));

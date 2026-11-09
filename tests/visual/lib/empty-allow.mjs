@@ -45,3 +45,16 @@ export const EMPTY_ALLOW = [
 	{ title: '', file: 'tests/catalog/check-catalog.mjs', line: "e.tags[k].every(isStr)",
 		why: 'check:catalog の型の確かめ。タグの配列が空でも「文字列の配列」であることは正しい' }
 ];
+
+// 案D（run-smoke.mjs の assert の [注意]）で、製品が意図して返す Infinity・NaN を出さない一覧（T155・決定 644）
+// 1項目 = { title, key, why }
+//   title: 確かめの見出し（assert の第2引数）に含まれる文字
+//   key  : 詳細の中で Infinity などを持つキーの名前（配列の中なら、その配列を持つキーの名前）
+//   why  : 意図した値である理由
+// 見出しが当たっても、ほかのキーに Infinity などがあれば [注意] は出る。
+export const NOTICE_ALLOW = [
+	{ title: '結合画像の構成(6):', key: 'freeBelow',
+		why: 'special.html のアイコンの範囲を見つける関数が、アイコンの下の空きに限りが無いときに Infinity を返す（意図した値。3件: 合成の画像・継承画面・自分の画面）' },
+	{ title: 'T51(6):', key: 'room',
+		why: '検査が「右の端に限りが無い」場合として stitchDrawPersonGenes に Infinity を渡し、製品がそれを room として返す（意図した値）' }
+];

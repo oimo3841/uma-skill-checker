@@ -174,7 +174,8 @@ export async function register114(env) {
 			const { ctx, page, errs } = await open(375, 812, theme, 'ab');
 			const m = await probe(page);
 			await shot(page, 'exam-375-' + theme + '-ab');
-			assert(m.colWidths.length === 7 && m.colWidths.slice(0, 6).every((x) => x === 30) && m.colWidths[6] === 34 && !m.overflow, theme + ' 7列が狭い列で横スクロールなし', { w: m.colWidths, o: m.overflow });
+			// T155（決定 643）: 全体の並列の負荷で幅が 29.99998・30.000015px になって揺れたので、30px の比べだけ 0.01px 以内の差を同じとみなす
+			assert(m.colWidths.length === 7 && m.colWidths.slice(0, 6).every((x) => Math.abs(x - 30) <= 0.01) && m.colWidths[6] === 34 && !m.overflow, theme + ' 7列が狭い列で横スクロールなし', { w: m.colWidths, o: m.overflow });
 			assert(m.heads.every((x) => x.fits && x.oneLine && x.fs === '10px'), theme + ' 見出しが 10px で1行に収まる', m.heads);
 			assert(m.minVisible >= 7, theme + ' スキル名の列に7文字以上見える', m.minVisible);
 			checkCells(theme, m, theme);
