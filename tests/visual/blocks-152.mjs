@@ -31,17 +31,19 @@ export async function register152(env) {
 			window.__t145 = {
 				isTitleGreen: (r, g, b) => g >= 150 && b <= 70 && g - r >= 35 && g - b >= 110,
 				async portrait() { return createImageBitmap(await (await fetch('/test-images/' + dir + '/' + name)).blob()); },
-				// 縦画面のスクショの見出しの帯の左端・上端（同じ緑の判定で、上から最初に幅 50% 以上緑の行）
+				// 縦画面のスクショの見出しの帯（同じ緑の判定）: 上から最初に幅 50% 以上緑の行が続く所の上端と、その真ん中の行の緑の左端・右端
 				band(bmp) {
 					const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
 					const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
-					const d = g.getImageData(0, 0, c.width, Math.round(c.height * 0.2)).data;
-					for (let y = 0; y < c.height * 0.2; y++) {
-						let x0 = -1, n = 0;
-						for (let x = 0; x < c.width; x++) { const p = (y * c.width + x) * 4; if (this.isTitleGreen(d[p], d[p + 1], d[p + 2])) { n++; if (x0 < 0) x0 = x; } }
-						if (n > c.width * 0.5) return { x: x0, y };
-					}
-					return null;
+					const H2 = Math.round(c.height * 0.2), d = g.getImageData(0, 0, c.width, H2).data;
+					const rowOf = (y) => { let x0 = -1, x1 = -1, n = 0; for (let x = 0; x < c.width; x++) { const p = (y * c.width + x) * 4; if (this.isTitleGreen(d[p], d[p + 1], d[p + 2])) { n++; if (x0 < 0) x0 = x; x1 = x; } } return { x0, x1, n }; };
+					let y0 = -1;
+					for (let y = 0; y < H2; y++) if (rowOf(y).n > c.width * 0.5) { y0 = y; break; }
+					if (y0 < 0) return null;
+					let y1 = y0;
+					while (y1 + 1 < H2 && rowOf(y1 + 1).n > c.width * 0.5) y1++;
+					const m = rowOf((y0 + y1) >> 1);
+					return { x: m.x0, x1: m.x1, y: y0 };
 				},
 				// 横長の画: 黒い帯・ゲームの地・右側のぼかしたメニューの帯（青が強い緑。見出しと取り違えない確かめ）・左の小さな緑の四角（全画面のボタン）、
 				// その中に縦画面のスクショを、パネルの左端が px・幅が pw になる大きさで置く
@@ -53,7 +55,7 @@ export async function register152(env) {
 					g.fillStyle = 'rgb(205,220,195)'; g.fillRect(0, gy, s.W, gh);
 					g.fillStyle = 'rgb(185,228,115)'; g.fillRect(Math.round(s.W * 0.54), gy + Math.round(gh * 0.01), Math.round(s.W * 0.33), Math.round(gh * 0.05));
 					g.fillStyle = 'rgb(110,200,20)'; g.fillRect(Math.round(s.W * 0.02), gy + Math.round(gh * 0.04), Math.round(s.W * 0.03), Math.round(s.W * 0.03));
-					const b = o.band, k = s.pw / (bmp.width - 2 * b.x);
+					const b = o.band, k = s.pw / (b.x1 - b.x + 1);
 					const dx = s.px - b.x * k, dy = gy;
 					if (!(o && o.noPanel)) g.drawImage(bmp, dx, dy, bmp.width * k, bmp.height * k);
 					return { c, k, dx, dy, panelTop: dy + b.y * k };
@@ -80,7 +82,7 @@ export async function register152(env) {
 				}
 				return { band, out };
 			}, SIZES);
-			assert(r.band && r.band.x > 0 && r.band.x < 30, '前提: 縦画面のスクショの見出しの帯の左端が分かる', r.band);
+			assert(r.band && r.band.x > 0 && r.band.x < 30 && r.band.x1 > 940, '前提: 縦画面のスクショの見出しの帯の左端・右端が分かる', r.band);
 			r.out.forEach((o, i) => {
 				const s = SIZES[i];
 				assert(o.ok && Math.abs(o.panel.x - s.px) <= 3 && Math.abs(o.panel.w - s.pw) <= 4 && Math.abs(o.panel.y - o.panelTop) <= 3,
@@ -125,7 +127,14 @@ export async function register152(env) {
 				const T = window.__t145, bmp = await T.portrait(), band = T.band(bmp);
 				const pc = document.createElement('canvas'); pc.width = bmp.width; pc.height = bmp.height; pc.getContext('2d').drawImage(bmp, 0, 0);
 				const worker = { recognize: async () => ({ data: { text: '', lines: [] } }) };
-				const rowsOf = async (file) => { const res = await processPersonImages(worker, [file], '親', true, true, false, null); return res.geometry[0] && res.geometry[0].rows ? res.geometry[0].rows.length : 0; };
+				// 鮮明度の足切りは別に見る（下の sharp）。作り物の小さいウィンドウは、縦画面のスクショをなめらかに縮めて置いたので、本物の録画より柔らかい
+				// （T145 の実測: 本物の小さいウィンドウの切り出しは 157〜194、作り物は 115）。行の数の比べでは足切りを通す（blocks-148 と同じ）
+				const keepQ = window.assessImageQuality;
+				const rowsOf = async (file) => {
+					window.assessImageQuality = (cv) => Object.assign(keepQ(cv), { ok: true, reasons: [], rejectKinds: [] });
+					try { const res = await processPersonImages(worker, [file], '親', true, true, false, null); return res.geometry[0] && res.geometry[0].rows ? res.geometry[0].rows.length : 0; }
+					finally { window.assessImageQuality = keepQ; }
+				};
 				const base = detectSkillRows(pc, []);
 				const out = { base: base ? base.rows.length : 0, baseProc: await rowsOf(await T.file(pc, 'p.png')), sizes: [] };
 				for (const s of SIZES) {
@@ -134,7 +143,8 @@ export async function register152(env) {
 					const b2 = await createImageBitmap(f);
 					const cc = document.createElement('canvas'); cc.width = b2.width; cc.height = b2.height; cc.getContext('2d').drawImage(b2, 0, 0);
 					const det = detectSkillRows(cc, []);
-					out.sizes.push({ name: s.name, w: cc.width, rows: det ? det.rows.length : 0, proc: await rowsOf(f), cols: det ? det.columnXs.map((x) => +(x / cc.width).toFixed(2)) : null });
+					out.sizes.push({ name: s.name, w: cc.width, rows: det ? det.rows.length : 0, proc: await rowsOf(f), cols: det ? det.columnXs.map((x) => +(x / cc.width).toFixed(2)) : null,
+						sharp: Math.round(assessImageQuality(cc).sharpness), L: Math.round(sharpnessScore(toGray(L.c.getContext('2d').getImageData(0, 0, s.W, s.H)), s.W, s.H)) });
 				}
 				out.baseCols = base ? base.columnXs.map((x) => +(x / pc.width).toFixed(2)) : null;
 				return out;
@@ -142,6 +152,7 @@ export async function register152(env) {
 			assert(r.base >= 10 && r.baseProc === r.base, '前提: 縦画面のスクショで行が取れる', [r.base, r.baseProc]);
 			r.sizes.forEach((o) => {
 				assert(o.w === 1170 && o.rows === r.base && o.proc === r.base, '(3) ' + o.name + ': 切り出した画の行の数が縦画面と同じ（' + r.base + '）', o);
+				if (!/小さい/.test(o.name)) assert(o.sharp >= 120, '(3) ' + o.name + ': 切り出した画の鮮明度スコアが足切り 120 以上（拡大のあとのアンシャープマスク）', o.sharp);
 				assert(o.cols && o.cols.length === r.baseCols.length && o.cols.every((x, i) => Math.abs(x - r.baseCols[i]) <= 0.02), '(3) ' + o.name + ': 列の位置（幅に対する割合）も縦画面と同じ（±0.02）', [o.cols, r.baseCols]);
 			});
 		} finally { await sp.page.context().close(); }

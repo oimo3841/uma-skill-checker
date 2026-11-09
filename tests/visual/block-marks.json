@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-09",
 "numbering": "runtime",
-"count": 1043,
+"count": 1050,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1048,6 +1048,13 @@
   {"file":"tests/visual/blocks-148.mjs","title":"T142examつまみと★ ―― (1b) 行が取れない画（画全体を OCR する道）は、つまみを塗る前の画に戻して読む","ord":1,"marks":"VAC","asserts":3},
   {"file":"tests/visual/blocks-148.mjs","title":"T142examつまみと★ ―― (2) 人の最後の段の下に次の人の青・赤の段がある画で、★を数え過ぎない（次の文字帯が遠い行は、すきまの中央値まで）","ord":1,"marks":"VT","asserts":4},
   {"file":"tests/visual/blocks-148.mjs","title":"T142examつまみと★ ―― (3) 縁の切れた★（星の縁の1列が 2列のすきまで離れる）を1つと数えない","ord":1,"marks":"V","asserts":4,"review":"名前で分けられない assert が 75%"},
-  {"file":"tests/visual/blocks-148.mjs","title":"T142examつまみと★ ―― 呼び出し元: processPersonImages は塗ってから detectSkillRows・★は computeRowStarCountsExam で数える","ord":1,"marks":"C","asserts":2,"review":"名前で分けられない assert が 50%"}
+  {"file":"tests/visual/blocks-148.mjs","title":"T142examつまみと★ ―― 呼び出し元: processPersonImages は塗ってから detectSkillRows・★は computeRowStarCountsExam で数える","ord":1,"marks":"C","asserts":2,"review":"名前で分けられない assert が 50%"},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (1) 3つの大きさの横長の画で、パネルを素材と同じ位置に見つけ、幅 1170px の縦画面の形に切り出す（メニューの帯・小さな緑は取らない）","ord":1,"marks":"VT","asserts":4},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (2) 縦長の画像は切り出さない（PNG は開かずに元の File・JPEG も元の File）。パネルの無い横長の画も元の File","ord":1,"marks":"VAT","asserts":5,"review":"名前で分けられない assert が 60%"},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (3) 切り出した画は、縦画面のスクショと同じ行が取れる（detectSkillRows・processPersonImages の行の数が同じ）","ord":1,"marks":"VC","asserts":5,"review":"名前で分けられない assert が 40%"},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (4) exam.html: 画像の枠に入れた横画面の画像はパネルを切り出した画像に置き換わり、縦長の画像はそのまま（同じ横画面の画像を入れ直しても増えない）","ord":1,"marks":"VT","asserts":6,"review":"名前で分けられない assert が 50%"},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (4) special.html: 画像の枠に入れた横画面の画像はパネルを切り出した画像に置き換わり、縦長の画像はそのまま（同じ横画面の画像を入れ直しても増えない）","ord":1,"marks":"VT","asserts":6,"review":"名前で分けられない assert が 50%"},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (5) ウィンドウの取り込み（pc-capture.js の detectOne）: 横長の窓（タイトルバー・枠つき）でパネルの矩形と幅 1170px を返し、静止画と同じ切り出しになる。縦長の窓は今のまま","ord":1,"marks":"V","asserts":5},
+  {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (6) 動画の出どころ（wrapSource）: 横長ならパネルを切り出した 1170px 幅の出どころ、縦長なら同じ出どころを返す","ord":1,"marks":"VAC","asserts":6,"review":"名前で分けられない assert が 50%"}
 ]
 }
