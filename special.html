@@ -3583,6 +3583,12 @@
 				lines.push('      並び: 上 ' + (u.byOrder.up || 'なし') + ' / 下 ' + (u.byOrder.down || 'なし') + (u.byOrder.adjacent ? '' : '（となりの行でない）') + ' / 間の候補 ' + (u.byOrder.inRange.length ? u.byOrder.inRange.join(' / ') : 'なし')
 					+ ' → ' + (u.byOrder.picked ? '「' + u.byOrder.picked + '」に確定' : '決まらない'));
 			}
+			// T162: 並びで決まらないときの字の形（pickTiedByLastCharShape）
+			if (u.byShape) {
+				lines.push('      字の形: 最後の字 ' + (u.byShape.last || 'なし') + ' → 候補 ' + (u.byShape.matched.length ? u.byShape.matched.join(' / ') : 'なし')
+					+ '（' + (u.byShape.candidates.length ? u.byShape.candidates.join(' / ') : 'なし') + ' の中）'
+					+ ' → ' + (u.byShape.picked ? '「' + u.byShape.picked + '」に確定' : '決まらない'));
+			}
 			return lines.join('\n');
 		}
 
@@ -6424,6 +6430,44 @@
 				return UmaSkillDeckCore.compareGameOrder(id, '0') < 0;
 			} catch (e) { return false; }
 		}
+		/* ------------------------------------------------------------
+		 * T162（決定 660。T150 の字の形の案）
+		 *   - 同点で捨てた行のうち、並び（pickTiedRowsByGameOrder）でも決まらなかった行で、生存候補が「最後の1字だけが違う組」
+		 *     （正規化した名前の長さが同じで、最後の字の前までが同じ。レースの真髄・○、アオハル点火・○ など。組はデータの名前から見る）
+		 *     のときだけ、読みの最後の字の形で決める。形が当たる候補がちょうど1つのときだけ採り、0・2つ以上なら今までどおり捨てる。
+		 *   - 表は小さく保つ（T150 の案の字だけ）。貝のつく字 → 賢、辶のつく字 → 速。
+		 * ------------------------------------------------------------ */
+		const TIED_LAST_CHAR_SHAPES = {
+			'買': '賢', '貴': '賢', '賞': '賢', '質': '賢', '費': '賢',
+			'返': '速', '逢': '速', '遥': '速', '通': '速', '途': '速', '連': '速'
+		};
+		/** 文字列の最後の字（文字・数字。・や < などの区切り・記号・空白は飛ばす） */
+		function lastLetterOf(text) {
+			const chars = Array.from(String(text || '').normalize('NFKC'));
+			for (let i = chars.length - 1; i >= 0; i--) {
+				if (/[\p{L}\p{N}]/u.test(chars[i])) return chars[i];
+			}
+			return '';
+		}
+		/** 名前の組が「最後の1字だけが違う組」か（正規化した名前で見る） */
+		function isLastCharOnlyGroup(names) {
+			if (!names || names.length < 2) return false;
+			const norms = names.map(n => Array.from(normalizeText(n)));
+			const len = norms[0].length;
+			if (len < 2 || norms.some(c => c.length !== len)) return false;
+			const head = norms[0].slice(0, -1).join('');
+			if (norms.some(c => c.slice(0, -1).join('') !== head)) return false;
+			return new Set(norms.map(c => c[len - 1])).size === norms.length;
+		}
+		/** 読みの最後の字の形で候補を絞る。生存候補が組でなければ null（使わない）。
+		 *  candidates は絞る相手（となりの行が決まっていれば並びの間の候補・そうでなければ生存候補） */
+		function pickTiedByLastCharShape(text, survivors, candidates) {
+			if (!isLastCharOnlyGroup(survivors)) return null;
+			const last = lastLetterOf(text);
+			const target = Object.prototype.hasOwnProperty.call(TIED_LAST_CHAR_SHAPES, last) ? TIED_LAST_CHAR_SHAPES[last] : null;
+			const matched = target ? (candidates || []).filter(n => lastLetterOf(n) === target) : [];
+			return { last: last, candidates: (candidates || []).slice(), matched: matched, picked: matched.length === 1 ? matched[0] : null };
+		}
 		function pickTiedRowsByGameOrder(res, lines) {
 			const amb = res.devAmbiguous || [];
 			if (amb.length === 0 || !allSkillIdByName) return;
@@ -6468,15 +6512,21 @@
 					return UmaSkillDeckCore.compareGameOrder(up.id, id) < 0 && UmaSkillDeckCore.compareGameOrder(id, down.id) < 0;
 				});
 				a.byOrder = { up: up ? up.name : null, down: down ? down.name : null, adjacent: adjacent, inRange: inRange.slice(), picked: inRange.length === 1 ? inRange[0] : null };
-				if (inRange.length !== 1) return;
+				let picked = inRange.length === 1 ? inRange[0] : null;
+				if (!picked) {
+					// T162（660）: 並びで決まらないときだけ、読みの最後の字の形で決める。となりの行が決まっていれば、並びの間の候補の中だけで
+					a.byShape = pickTiedByLastCharShape(a.text, survivors, adjacent ? inRange : survivors);
+					if (a.byShape && a.byShape.picked) picked = a.byShape.picked;
+				}
+				if (!picked) return;
 				const index = lines.findIndex(l => l && l.rowKey === a.rowKey && normalizeText(l.text) === a.norm);
-				if (index !== -1) picks.push({ name: inRange[0], index: index });
+				if (index !== -1) picks.push({ name: picked, index: index, how: a.byOrder.picked ? '並び' : '字の形' });
 			});
 			// 先に全部の行で決めてから足す（足したものを次の行の上下に使わない）。すでに別の行で出ているスキルは触らない
 			picks.forEach(pk => {
 				if (res.detectedSkills.has(pk.name)) return;
 				res.detectedSkills.add(pk.name);
-				res.matchReasons[pk.name] = '推定（曖昧→並びで絞り込み）';
+				res.matchReasons[pk.name] = '推定（曖昧→' + pk.how + 'で絞り込み）';
 				res.skillSources[pk.name] = [pk.index];
 				if (res.skillStars) res.skillStars[pk.name] = pickStarsFromSources([pk.index], lines);
 			});

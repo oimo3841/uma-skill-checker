@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-09",
+"generated": "2026-11-10",
 "numbering": "runtime",
-"count": 1084,
+"count": 1088,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1089,6 +1089,10 @@
   {"file":"tests/visual/blocks-163.mjs","title":"T160 (2) 親のいないセットの2列: 祖1｜祖2 を縮めずに横に並べる（UmaExam・UmaStar）・祖が1人なら1列目・親がいれば今のまま","ord":1,"marks":"V","asserts":11},
   {"file":"tests/visual/blocks-163.mjs","title":"T160 (3) 印＋凡例だけ: 1・2列目の下の帯に上の区切り線が無い・字は 40px（通常・めろっぷ拡張）","ord":1,"marks":"V","asserts":3},
   {"file":"tests/visual/blocks-163.mjs","title":"T160 (4) OCR の前の②に「画像を更新」: 出す（VIDEO_PREVIEW_REFRESH）・2列｜3列を切り替えると押せる・押すと取り込み直さずに②の画が今の形に作り直される","ord":1,"marks":"VA","asserts":7},
-  {"file":"tests/visual/blocks-163.mjs","title":"T160 (5) 3列の画は直す前と画素まで同じ（通常・めろっぷ拡張・効率を指定。作り物の画像）","ord":1,"marks":"V","asserts":2}
+  {"file":"tests/visual/blocks-163.mjs","title":"T160 (5) 3列の画は直す前と画素まで同じ（通常・めろっぷ拡張・効率を指定。作り物の画像）","ord":1,"marks":"V","asserts":2},
+  {"file":"tests/visual/blocks-165.mjs","title":"T162 (1) 並びで決まらない同点は、読みの最後の字の形（表の字）で、その先の字で終わる候補を採る","ord":1,"marks":"VAS","asserts":10,"review":"名前で分けられない assert が 40%"},
+  {"file":"tests/visual/blocks-165.mjs","title":"T162 (2) 形が当たる候補が0（表に無い字・当たる候補が別の行で出ている）・2つ以上なら採らない","ord":1,"marks":"VAC","asserts":10},
+  {"file":"tests/visual/blocks-165.mjs","title":"T162 (3) 最後の1字だけが違う組でない同点には、字の形を使わない","ord":1,"marks":"VAT","asserts":6,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-165.mjs","title":"T162 (4) 並びで決まる行は今までどおり並びで決まる（字の形が別の候補を指しても並びが先）","ord":1,"marks":"VAS","asserts":6}
 ]
 }
