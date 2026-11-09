@@ -165,6 +165,10 @@ export async function register117(env) {
 	});
 
 	/* ── 通しの流れ・(8)(9)(10) ── */
+	// T143（決定 574）: 「OCR処理を開始する」のあと結果を待つ上限。180秒では並列 N=3 の負荷で切れた（T139-check-2 の 328塊）。
+	// 実測（2026-11-09）: 単独 390px 85.5秒・1280px 90.9秒／並列 N=3（8塊）105.1・112.0秒／並列 N=3（T139・T59動画・T76画像アップロードと同時の27塊）192.4・208.7秒。
+	// いちばん遅い 208.7秒の約2倍にした。かかった秒数は [計測] の行に出す
+	const OCR_WAIT_MS = 420000;
 	for (const [w, h] of [[390, 844], [1280, 900]]) {
 		await block(`T106(3)(8)(9)(10) ${w}px 通し: 動画を選ぶ → 結合 → ③に結合画像（知らせ・枚数・見出しは無し・「画像を更新」あり〔T117〕・ダウンロードは控えめなアイコン）→ OCR処理を開始する → 引き出し`, async () => {
 			const sp = await open({ w, h, mode: 'video', data: true });
@@ -190,8 +194,10 @@ export async function register117(env) {
 			assert(l === '親A,祖A1,祖A2', `T106(5) ${w}px 「親ごとの画像を見る」で出した3列には誰の列かの字を残す`, l);
 			await sp.page.click('#personset-A-wrap .video-showcols');
 			// OCR処理を開始する → 引き出し（結合画像のタブには今までどおりの見出しとダウンロード）
+			const ocrT0 = Date.now();
 			await sp.page.click('#process-stitch-btn');
-			await sp.page.waitForFunction(() => !combinedInProgress && document.querySelector('#stitch-result-content img'), null, { timeout: 180000 });
+			await sp.page.waitForFunction(() => !combinedInProgress && document.querySelector('#stitch-result-content img'), null, { timeout: OCR_WAIT_MS });
+			console.log(`     [計測] T106 ${w}px OCR処理を開始する → 結果まで ${((Date.now() - ocrT0) / 1000).toFixed(1)}秒（待ちの上限 ${OCR_WAIT_MS / 1000}秒）`);
 			await sp.page.waitForTimeout(400);
 			const d = await sp.page.evaluate(() => { const a = document.querySelector('#stitch-result-content a.uma-btn'); return { open: !!openDrawerKey, step3: !!document.querySelector('#personset-A-wrap .video-result img'), dl: a && a.textContent.trim(), primary: a && a.classList.contains('uma-btn--primary'), head: (document.querySelector('#stitch-result-content p.text-xs.font-bold') || {}).textContent }; });
 			assert(d.open && d.step3, `T106 ${w}px OCR のあと引き出しが開き、③にも結合画像がある`, d);

@@ -439,9 +439,16 @@ const browser = await chromium.launch();
 	const CATALOG_POOL = CATALOG_TAGGED.filter(inSearch);
 	const POOL = MASTER_POOL.concat(CATALOG_POOL);
 	/** 仕様どおりに絞った期待値（名前の配列）。f は { 軸キー: [値…] }。 */
+	/* T143（決定 572）: T108（決定 293）「シナリオスキルを選ぶとパッシブでも出す」。その他の軸で「シナリオスキル」を選んでいるときは、
+	   その値を持つパッシブ（マスター＋検索に出してよい拡張スキル。検索に出さないスキルの一覧のものは除く）も、ほかの軸と AND で期待に入る。
+	   仕様の値（その他の軸の scenario）は検査の側に書く（製品の印 showsPoolExcluded からは読まない。印を外して壊したときに期待が一緒に動かないように）。 */
+	const POOL_OPT_IN = { scenario: ['scenario'] };
+	const PASSIVE_SEARCH = master.skills.concat(CATALOG_TAGGED).filter((s) => !inPool(s) && !SEARCH_EXCLUDED.has(String(s.id)));
+	const optedIn = (s, f) => Object.keys(POOL_OPT_IN).some((k) => POOL_OPT_IN[k].some((v) => (f[k] || []).includes(v) && axisValues(s, k).includes(v)));
 	const expectNames = (f) => {
 		const keys = Object.keys(f).filter((k) => (f[k] || []).length > 0);
-		return POOL.filter((s) => keys.every((k) => axisHit(s, k, f[k]))).map((s) => s.name);
+		return POOL.concat(PASSIVE_SEARCH.filter((s) => optedIn(s, f)))
+			.filter((s) => keys.every((k) => axisHit(s, k, f[k]))).map((s) => s.name);
 	};
 	assert(MASTER_NONPASSIVE.length === 378 && master.skills.length - MASTER_NONPASSIVE.length === 67,
 		'段8: マスターのパッシブでないものは 445 − パッシブ67 = 378件',
@@ -945,7 +952,7 @@ const browser = await chromium.launch();
 	   「具体的にどれが出るか」の検査は失わない。 */
 	const scenExpect = expectNames({ scenario: ['scenario'] });
 	assert(scenCount === scenExpect.length,
-		'⑧「シナリオスキル」で絞ると ' + scenExpect.length + '件（マスター・拡張スキルとも、パッシブを除く）', scenCount);
+		'⑧「シナリオスキル」で絞ると ' + scenExpect.length + '件（マスター・拡張スキルとも。パッシブのシナリオスキル ' + PASSIVE_SEARCH.filter((s) => optedIn(s, { scenario: ['scenario'] })).length + '件を含む〔T108・決定 293〕）', scenCount);
 	const scenMasterNonPassive = SCENARIO.filter((n) => MASTER_NONPASSIVE.some((s) => s.name === n));
 	assert(scenMasterNonPassive.length === 26, '段8: 27件のうち1件（レースの真髄・心）がパッシブになった', scenMasterNonPassive.length);
 	// T143: 検索の期待は、名簿の26件から検索に出さないスキル（data/search-excluded-skills.json）を除いたもの
@@ -1161,7 +1168,8 @@ const browser = await chromium.launch();
 		   **上で入れた仮のスキル**（途中でパッシブの印を足したもの）で見る。 */
 		const probe3 = await page.evaluate((id) => {
 			UmaSkillDeckCore.openPassiveSkillPicker([], () => {});
-			const names = [...document.querySelectorAll('[data-usd-el="passive-results"] .usd-row span')]
+			// T143（決定 572）: C-238（18c3cd3）で名前は説明の小窓を開くボタン（[data-usd-info]）になった。その文字を読む
+			const names = [...document.querySelectorAll('[data-usd-el="passive-results"] .usd-row [data-usd-info]')]
 				.map((el) => el.textContent);
 			const c = UmaSkillDeckCore.getMasterSkills().find((x) => x.id === id);
 			return { listed: names.includes(c.name), fromHelper: UmaSkillDeckCore.getPoolExcludedSkills().some((s) => s.id === id) };
@@ -1489,11 +1497,20 @@ console.log('\n=== 4. コースの形の条件（小回り・直線コース） 
 	for (const [label, g] of groups) assert(g.bad.length === 0, label + '（' + g.n + '通り。○と◎が同じ扱い）', g.bad.slice(0, 3));
 	console.log('     [件数] 判定した例 ' + cases.length + '通り × 4スキル');
 	// ほかのタグのスキル（レース環境の小回り・直線コースを持たないもの）は、この条件では外れない
+	// T143（決定 572）: T144（C-348・決定 568〜571）の「タグに無いレース場の限定」の表（core の getSkillVenueLimits。id は書き写さない）に載ったスキルも、
+	// レース場で外れうるものとして「外れない」側から除き、表のとおり（京都が表に無ければ外れる）に外れることを別に見る
+	const VENUE_LIMITS = await page.evaluate(() => UmaSkillDeckCore.getSkillVenueLimits());
 	const other = await page.evaluate(({ ids }) => {
 		const r ={ id: 'race-x', name: 'x', venue: 'track_kyoto', surface: 'turf', distance: 2200 };
 		return ids.filter((id) => UmaSkillDeckCore.raceRejectsSkill(UmaSkillDeckCore.findSkill(id), r));
-	}, { ids: master.skills.filter((s) => !((s.tags.environment || []).some((v) => v === 'small_track' || v === 'straight_course')) && !(s.tags.trackVenue || []).length && !(s.tags.environment || []).length).map((s) => s.id) });
-	assert(other.length === 0, '小回り・直線コース・レース場・レース環境のタグを持たないマスターのスキルは、京都 芝2200m で外れない', other.slice(0, 5));
+	}, { ids: master.skills.filter((s) => !((s.tags.environment || []).some((v) => v === 'small_track' || v === 'straight_course')) && !(s.tags.trackVenue || []).length && !(s.tags.environment || []).length && !VENUE_LIMITS[s.id]).map((s) => s.id) });
+	assert(other.length === 0, '小回り・直線コース・レース場・レース環境のタグを持たないマスターのスキル（タグに無いレース場の限定の表に載ったものを除く）は、京都 芝2200m で外れない', other.slice(0, 5));
+	const limitedMaster = master.skills.filter((s) => VENUE_LIMITS[s.id]).map((s) => s.id);
+	const limitedBad = await page.evaluate(({ ids, lim }) => {
+		const r = { id: 'race-x', name: 'x', venue: 'track_kyoto', surface: 'turf', distance: 2200 };
+		return ids.filter((id) => UmaSkillDeckCore.raceRejectsSkill(UmaSkillDeckCore.findSkill(id), r) !== !lim[id].includes('track_kyoto'));
+	}, { ids: limitedMaster, lim: VENUE_LIMITS });
+	assert(limitedMaster.length > 0 && limitedBad.length === 0, 'タグに無いレース場の限定の表に載ったマスターのスキル（' + limitedMaster.length + '件）は、京都 芝2200m で表のとおりに外れる（T144）', { 表: limitedMaster, 食い違い: limitedBad });
 	// 小窓の1行（表から作る。新潟・中山の制限はそのまま書く）
 	const texts = await page.evaluate(({ a, b }) => [UmaSkillDeckCore.courseConditionText(UmaSkillDeckCore.findSkill(a)), UmaSkillDeckCore.courseConditionText(UmaSkillDeckCore.findSkill(b)), UmaSkillDeckCore.courseConditionText(UmaSkillDeckCore.findSkill('1'))], { a: SMALL[0], b: STRAIGHT[0] });
 	assert(texts[0] === '対象レース場: 札幌・函館・福島・小倉・川崎・船橋・サンタアニタパーク・デルマー・新潟・中山（新潟は芝1200m・1400m・2000m・2200m・2400m、ダート1200m・1800m／中山は芝1800m・2000m・2500m・3600m、ダート1200m・1800m）',
