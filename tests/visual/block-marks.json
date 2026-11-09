@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-09",
 "numbering": "runtime",
-"count": 1053,
+"count": 1060,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1058,6 +1058,13 @@
   {"file":"tests/visual/blocks-152.mjs","title":"T145横画面 ―― (6) 動画の出どころ（wrapSource）: 横長ならパネルを切り出した 1170px 幅の出どころ、縦長なら同じ出どころを返す","ord":1,"marks":"VAC","asserts":6,"review":"名前で分けられない assert が 50%"},
   {"file":"tests/visual/blocks-156.mjs","title":"T153 (1) グループのカード5枚をそれぞれ残りの枠に指定（オススメ 2・4・5枚＝合わせて 3・5・6枚）: engineScore と score が一致し、指定したカードのスキルはメンバー全員の共通イベントを含む","ord":1,"marks":"C","asserts":4},
   {"file":"tests/visual/blocks-156.mjs","title":"T153 (2) チーム＜シリウス＞を指定: 代表者でないメンバーの共通イベントだけで得られるスキル（データから選ぶ）が結果の一覧に入る","ord":1,"marks":"C","asserts":3,"review":"名前で分けられない assert が 33%"},
-  {"file":"tests/visual/blocks-156.mjs","title":"T153 (3) グループでないカードを指定したとき・何も指定しないとき: engineScore と score が一致し、どのカードも charaName の1人ぶんの共通イベントで数える（今までと同じ）","ord":1,"marks":"AC","asserts":4}
+  {"file":"tests/visual/blocks-156.mjs","title":"T153 (3) グループでないカードを指定したとき・何も指定しないとき: engineScore と score が一致し、どのカードも charaName の1人ぶんの共通イベントで数える（今までと同じ）","ord":1,"marks":"AC","asserts":4},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (1) 「結合画像の設定」の「3列｜2列」: 既定は3列・選んだ形を保存して開き直しても残る・2列の間は「集計条件」のチェックを隠し、3列に戻すと元の状態で出る","ord":1,"marks":"VASC","asserts":10},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (2) 帯: 通常・めろっぷ拡張のカードはラベルの右に数字（右寄せ）・高さは元の 0.72 倍／帯の下の線は opts.rule のときだけ（3モード）","ord":1,"marks":"VTC","asserts":5},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (3) 3列の結合画像: 人ごとに帯の高さが違っても帯の下に線が無い（3モード）・カードは横並び・集計条件は今のまま描く","ord":1,"marks":"VC","asserts":4},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (4) 2列の組み立て（通常・全部入り）: 親は上の欄つき・小窓の端で切る・祖は同じ縮小率で親の高さに・3列目は親の列と同じ幅・人の間の線・脚注は左詰めで上の線なし・集計条件は描かない","ord":1,"marks":"VC","asserts":10},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (5) 2列の見出しと3列目: 検出数カードとシナリオ因子・遺伝子が両方 OFF なら見出しなし／印＋凡例だけなら凡例を1・2列目の下に（3列目なし）／印も OFF なら3列目なし／効率を指定はいつも見出し・帯の高さをそろえない","ord":1,"marks":"VATC","asserts":8},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (6) 2列: 小窓の帯が見つからない人は切らず上の欄も足さない／人が欠けたセット（祖1 なし・親なし）／親B のセット／画素数が 1,600万を超えたら全体を縮める","ord":1,"marks":"VTC","asserts":5},
+  {"file":"tests/visual/blocks-157.mjs","title":"T154 (7) OCR の前の②の結合画像（動画の取り込みのあと）も「3列｜2列」に従う: 2列は見出しなし・3列目なし／画像を更新の比べる設定に形が入る","ord":1,"marks":"VT","asserts":4}
 ]
 }

@@ -284,7 +284,8 @@
 		.stitch-wire-sheet > div { border-radius: 2px; }
 		.stitch-wire-head { padding: 2px 2px 3px; border-bottom: 1px solid var(--uma-border); font-weight: 700; color: var(--uma-text); }
 		.stitch-wire-banner { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 1px 0 2px; }
-		.stitch-wire-card { display: flex; flex-direction: column; gap: 2px; padding: 3px; border: 1px solid; border-radius: 3px; }
+		/* T154（決定 603）: 結合画像のカードは「検出」「sp70緑」の右に数字を置く横並び。模式図も同じ向きにする */
+		.stitch-wire-card { display: flex; align-items: center; justify-content: space-between; gap: 2px; padding: 3px; border: 1px solid; border-radius: 3px; }
 		.stitch-wire-card--a { background: #f5f8ff; border-color: #cfe0fb; color: #3c5a99; }
 		.stitch-wire-card--b { background: #fffaf0; border-color: #f5dfae; color: #a9720b; }
 		.stitch-wire-card b { display: block; width: 40%; height: 7px; border-radius: 2px; background: currentColor; }
@@ -313,6 +314,35 @@
 		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
 		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの青＝装飾） */
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-deco); }
+		/* 形の2択「3列｜2列」（T154・決定 586。UmaStar の .stitch-cols〔T98〕と同じ作り）: 2つ並べたボタン・選んだほうを反転の塗り */
+		.stitch-cols { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 var(--uma-sp-1-5); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-cols-btn { min-height: 40px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+			display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+		.stitch-cols-btn + .stitch-cols-btn { border-left: 1px solid var(--uma-border-strong); }
+		.stitch-cols-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
+		.stitch-cols-btn[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+		.stitch-cols-btn i { display: inline-flex; gap: 2px; }
+		.stitch-cols-btn i b { display: block; width: 5px; height: 12px; border-radius: 1px; background: currentColor; }
+		.stitch-cols-btn i b.is-wide { width: 8px; }
+		/* 2列の模式図（T154）: 左に［親（上の欄＋画像）｜祖1 の下に祖2］、右（3列目）に人ごとの帯を 親→祖1→祖2 の順に縦に並べ、その下に脚注・凡例（線なし）。
+		   幅の割合は実際の2列の画（親 1153・祖 約960・3列目 1153）に合わせて 35：29：35 */
+		.stitch-wire-2 { display: flex; gap: 3px; align-items: flex-start; }
+		.stitch-wire-2l { flex: 0 0 66%; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+		.stitch-wire-2p { display: flex; gap: 3px; align-items: flex-start; }
+		.stitch-wire-2p > .stitch-wire-shots { flex: 0 0 54%; }
+		.stitch-wire-2g { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+		.stitch-wire-sheet--2 .stitch-wire-shots { grid-template-columns: 1fr; gap: 2px; padding: 2px; }
+		.stitch-wire-2top { display: block; height: 14px; margin: -2px -2px 0; background: var(--uma-border); }
+		.stitch-wire-2r { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+		.stitch-wire-2r .stitch-wire-head { padding: 1px 1px 2px; }
+		.stitch-wire-2r .stitch-wire-banner { gap: 2px; padding: 0; }
+		.stitch-wire-2r .stitch-wire-card { padding: 2px; }
+		.stitch-wire-2r .stitch-wire-card small { display: none; }
+		.stitch-wire-2r .stitch-wire-card b { width: 60%; height: 4px; margin-left: auto; }
+		.stitch-wire-2block + .stitch-wire-2block { border-top: 1px solid var(--uma-border); padding-top: 2px; }
+		.stitch-wire-2notes { display: flex; flex-direction: column; gap: 3px; padding: 3px 1px 1px; }
+		.stitch-wire-2notes .stitch-wire-line b { width: 80%; }
+		.stitch-wire-2under { padding: 2px 2px 1px; border-top: 1px solid var(--uma-border-strong); }
 
 		/* ============================================================
 		 * ハイライトの「人物のまとまり」の中のカードの段組み
@@ -4178,14 +4208,14 @@
 		/* OCR の前の②の「画像を更新」（special.html の T117 と同じ作り）。取り込みの自動の結合で作った②の画像を、取り込み直さずに今の設定で作り直す。
 		 * videoRestitch … セットごとの { parts, files }。OCR の前の②の画像があるときだけ持つ。
 		 * 押せる（'ready'）: 作ったときの設定と今の設定が違う。押せない: 'same' 設定が同じ／'stale' 画像の並びが変わった（案内を出す）／処理中。
-		 * UmaExam の OCR の前の結合画像（列見出しと3人の画像だけ）は、今ある設定（結合画像の表示）のどれにも左右されないので、設定は空（videoPreviewParts）で
-		 * いつも 'same'（押せない）。設定を足したときはここに足す。
+		 * UmaExam の OCR の前の結合画像（列見出しと3人の画像だけ）が左右される設定は、形「3列｜2列」（T154）だけ（videoPreviewParts）。設定を足したときはここに足す。
 		 * おいもさんの決定 556（T139-2）: UmaExam では今は「画像を更新」とその案内を出さない（VIDEO_PREVIEW_REFRESH = false。適切な時期に導入する・時期は Chat で決める）。
 		 * 導入するときは true にすれば、ここの作り（UmaStar の T117 と同じ）がそのまま働く */
 		const VIDEO_PREVIEW_REFRESH = false;
 		var videoRestitch = [null, null];
 		var videoRefreshBusy = -1;
-		function videoPreviewParts() { return {}; }
+		// T154: 形「3列｜2列」は OCR の前の結合画像にも効くので、ここに足した
+		function videoPreviewParts() { return { cols: stitchCols }; }
 		function sameVideoPreviewParts(a, b) { return !!a && !!b && JSON.stringify(a) === JSON.stringify(b); }
 		function videoSetFiles(setIdx) {
 			return [0, 1, 2].map(r => persons[setIdx * 3 + r].files);
@@ -4344,8 +4374,10 @@
 
 		// OCR の前の②の結合画像（T139）。列見出し（親A など。結合画像の表示の「検出数カード」「シナリオ因子・遺伝子」が OFF のときと同じ帯）と3人の画像だけ。
 		// OCR の結果を使うもの（検出数・印・凡例・集計条件）は描かない（UmaStar の「画像を結合する（OCRしない）」と同じ考え方）。files … 3人の画像の並び（そのセットの分）
+		// 2列（T154）を選んでいるときは2列で組む。帯は見出しだけ（検出数カード・シナリオ因子・遺伝子がどちらも無い）なので、2列では見出しを出さず3列目も置かない（決定 596・615）
 		async function buildVideoPreviewSetImage(setIdx, files) {
-			const banners = [], contents = [], warnings = [], videoWarnLabels = [];
+			const banners = [], contents = [], warnings = [], videoWarnLabels = [], wides = [];
+			const twoCol = stitchCols === 2;
 			for (let r = 0; r < 3; r++) {
 				const idx = setIdx * 3 + r;
 				if (!files[r] || !files[r].length) continue;
@@ -4356,8 +4388,16 @@
 				else if (c._stitchWarnings && c._stitchWarnings.length) warnings.push(...c._stitchWarnings);
 				banners.push(stitchDrawPersonBanner(c.width, label, 0, 0, null, null, { cards: false, factors: false }));
 				contents.push(c);
+				if (twoCol) wides.push({ r: r, canvas: await stitchTwoColPerson(c, files[r], r === 0) });
 			}
 			if (!contents.length) return null;
+			if (twoCol) {
+				const parent = wides.find(w => w.r === 0);
+				const out = stitchComposeTwoCol({ parent: parent ? parent.canvas : null, grands: wides.filter(w => w.r !== 0).map(w => w.canvas), col3: [], col3W: 0, under: null });
+				out._stitchWarnings = warnings;
+				out._videoWarnLabels = videoWarnLabels;
+				return out;
+			}
 			const bannerRow = banners.length === 1 ? banners[0] : stitchConcatHorizontallyTopAligned(banners);
 			const contentRow = contents.length === 1 ? contents[0] : stitchConcatHorizontallyTopAligned(contents);
 			const out = document.createElement('canvas');
@@ -7288,12 +7328,17 @@
 			conditions: 'uma-exam-stitch-conditions'
 		};
 		const stitchShow = { banner: true, scenario: true, legend: true, conditions: true };
+		// 形「3列｜2列」（T154・決定 586。UmaStar の T98 と同じ2択）。既定は3列。保存値が '2' のときだけ2列（無い・壊れた値は3列）。
+		// 2列の間は「集計条件」を描かず、チェックも隠す（決定 596・604。保存値は残し、3列に戻せばそのまま効く）
+		const STITCH_COLS_STORAGE_KEY = 'uma-exam-stitch-cols';
+		let stitchCols = 3;
 
 		function restoreStitchShow() {
 			Object.keys(STITCH_SHOW_STORAGE_KEYS).forEach(key => {
 				const v = readStored(STITCH_SHOW_STORAGE_KEYS[key]);
 				stitchShow[key] = (v === null) ? true : v === '1';
 			});
+			stitchCols = readStored(STITCH_COLS_STORAGE_KEY) === '2' ? 2 : 3;
 			// 「シナリオ因子」は「集計バナー」から分けた項目。保存値が無ければバナー（いまは検出数カード）の
 			// 保存値を引き継ぐ（分割前にバナーを OFF にしていた人の見た目が変わらないように）。
 			if (readStored(STITCH_SHOW_STORAGE_KEYS.scenario) === null) stitchShow.scenario = stitchShow.banner;
@@ -7304,6 +7349,11 @@
 			if (!Object.prototype.hasOwnProperty.call(STITCH_SHOW_STORAGE_KEYS, key)) return;
 			stitchShow[key] = !!on;
 			writeStored(STITCH_SHOW_STORAGE_KEYS[key], stitchShow[key] ? '1' : '0');
+			syncStitchShowUi();
+		}
+		function setStitchCols(n) {
+			stitchCols = Number(n) === 2 ? 2 : 3;
+			writeStored(STITCH_COLS_STORAGE_KEY, String(stitchCols));
 			syncStitchShowUi();
 		}
 
@@ -7318,13 +7368,17 @@
 			// 効率を指定（C-136・改善2）: 印の代わりに蹄鉄（「蹄鉄（効率の区間）」のチェック。印とは別に記憶する）を描き、
 			// 凡例は出さない（区間まとめパネルが凡例に当たる）
 			const eff = (run ? run.scope : targetScopeMode) === 'efficiency';
+			// 形（T154）。run に cols が無い（古い形の run）ときは3列
+			const cols = (run ? run.cols : stitchCols) === 2 ? 2 : 3;
 			return {
+				cols: cols,
 				banner: !!show.banner,
 				scenario: !!show.scenario && (factorCount + geneCount) > 0,
 				legend: !eff && !!show.legend && !!marks,
 				// 効率を指定では「集計条件」を出さない（最下段の「検出したシナリオ因子・遺伝子」の行も置かない。改善3）。
 				// 追加／除外スキルは効率を指定には無く、因子・遺伝子の検出は各人の帯の紫の行が受け持つ
-				conditions: !eff && !!show.conditions,
+				// 2列では描かない（決定 596）
+				conditions: !eff && !!show.conditions && cols !== 2,
 				// 効率を指定のときだけ真偽値（蹄鉄を描くか）。それ以外は null
 				shoes: eff ? (run ? run.effShoes !== false : effShoesEnabled) : null
 			};
@@ -7357,6 +7411,7 @@
 			return {
 				id: ++runSeq,
 				show: Object.assign({}, stitchShow),
+				cols: stitchCols,
 				attrIcons: attrIconsEnabled,
 				effShoes: effShoesEnabled,
 				scope: targetScopeMode,
@@ -7430,7 +7485,7 @@
 				JSON.stringify(cur.eff) !== JSON.stringify(lastOcrRun.eff)) return 'stale';
 			const now = stitchShowEffective(cur);
 			const shown = stitchShowEffective(lastStitchRun);
-			const same = now.banner === shown.banner && now.scenario === shown.scenario && now.legend === shown.legend &&
+			const same = now.cols === shown.cols && now.banner === shown.banner && now.scenario === shown.scenario && now.legend === shown.legend &&
 				now.conditions === shown.conditions && cur.attrIcons === lastStitchRun.attrIcons &&
 				// 効率を指定のときは蹄鉄のチェック（印とは別）の変更も「更新できる」変更に数える
 				now.shoes === shown.shoes;
@@ -7469,6 +7524,7 @@
 			try {
 				const run = Object.assign({}, lastOcrRun, {
 					show: Object.assign({}, stitchShow),
+					cols: stitchCols,
 					attrIcons: attrIconsEnabled,
 					effShoes: effShoesEnabled
 				});
@@ -7541,6 +7597,10 @@
 					'<span data-stitch-marks-sub>（★●◆◇✕）</span>') +
 				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
 				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子・遺伝子一覧）');
+			// 形の2択「3列｜2列」（T154・決定 586。UmaStar の T98 と同じ見た目: 2つ並べたボタン・選んだほうを反転の塗り）。押された状態は syncStitchShowUi が入れる
+			const colsBtn = (n, bars) => '<button type="button" class="stitch-cols-btn" data-stitch-cols="' + n + '" aria-pressed="false" onclick="setStitchCols(' + n + ')">' +
+				'<i aria-hidden="true">' + bars + '</i><span>' + n + '列</span></button>';
+			const seg = '<div class="stitch-cols" role="group">' + colsBtn(3, '<b></b><b></b><b></b>') + colsBtn(2, '<b class="is-wide"></b><b></b>') + '</div>';
 
 			// 模式図。スクショの段は「左右2列 × 4段」で、印の色は区分ごと（順は結果画像で目にする頻度）。
 			// 段H で遺伝子を足したが、**升目は8つのまま**にした（2列 × 4段の形を崩さないため）。
@@ -7548,8 +7608,44 @@
 			const shotRow = (kind) => '<span class="stitch-wire-row"><i class="stitch-wire-mark" data-stitch-mark="' + kind + '" data-stitch-part="marks"></i><b></b></span>';
 			const shotKinds = ['sp70', 'green', 'plain', 'factor', 'gene', 'removed', 'sp70', 'plain'];
 			const legendMark = (kind) => '<i class="stitch-wire-mark is-on" data-stitch-mark="' + kind + '"></i>';
+			// 2列の模式図（T154）: 左に［親（上の欄＋画像）｜祖1 の下に祖2］、3列目に人ごとの帯（見出し・カード・因子）を3人ぶん縦に並べ、その下に脚注・凡例（線なし）。
+			// 見出しが出ないとき（data-stitch-wire-heads）は3列目ごと消し、凡例は1・2列目の下（data-stitch-wire-under）に置く（決定 596・615・618）
+			const shots2 = (kinds) => '<div class="stitch-wire-shots" data-stitch-part="shots">' + kinds.map(shotRow).join('') + '</div>';
+			const block2 = (label) =>
+				'<div class="stitch-wire-2block">' +
+					'<div class="stitch-wire-head"><span>' + label + '</span></div>' +
+					'<div class="stitch-wire-banner" data-stitch-part="banner">' +
+						'<span class="stitch-wire-card stitch-wire-card--a"><small>検出</small><b></b></span>' +
+						'<span class="stitch-wire-card stitch-wire-card--b"><small>sp70緑</small><b></b></span>' +
+					'</div>' +
+					'<div class="stitch-wire-factors" data-stitch-part="scenario">' +
+						'<span class="stitch-wire-factor"></span>' +
+						'<span class="stitch-wire-factor stitch-wire-factor--gene"></span>' +
+					'</div>' +
+				'</div>';
+			const wire2 =
+				'<div class="stitch-wire-sheet stitch-wire-sheet--2" data-stitch-wire-cols="2">' +
+					'<div class="stitch-wire-2">' +
+						'<div class="stitch-wire-2l">' +
+							'<div class="stitch-wire-2p">' +
+								'<div class="stitch-wire-shots" data-stitch-part="shots"><span class="stitch-wire-2top"></span>' + ['sp70', 'green', 'plain', 'factor', 'gene', 'plain'].map(shotRow).join('') + '</div>' +
+								'<div class="stitch-wire-2g">' + shots2(['green', 'sp70', 'plain', 'removed']) + shots2(['plain', 'factor', 'sp70', 'plain']) + '</div>' +
+							'</div>' +
+							'<div class="stitch-wire-2under" data-stitch-wire-under>' +
+								'<span class="stitch-wire-line" data-stitch-part="legend">' + legendMark('sp70') + legendMark('green') + legendMark('factor') + legendMark('gene') + '<b></b></span>' +
+							'</div>' +
+						'</div>' +
+						'<div class="stitch-wire-2r" data-stitch-wire-heads>' +
+							['親A', '祖A1', '祖A2'].map(block2).join('') +
+							'<div class="stitch-wire-2notes">' +
+								'<span class="stitch-wire-line" data-stitch-wire-countnote><b></b></span>' +
+								'<span class="stitch-wire-line" data-stitch-part="legend">' + legendMark('sp70') + legendMark('green') + '<b></b></span>' +
+							'</div>' +
+						'</div>' +
+					'</div>' +
+				'</div>';
 			const wire =
-				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet">' +
+				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet" data-stitch-wire-cols="3">' +
 					'<div class="stitch-wire-head" data-stitch-part="header"><span>親A</span></div>' +
 					'<div class="stitch-wire-banner" data-stitch-part="banner">' +
 						'<span class="stitch-wire-card stitch-wire-card--a"><small>検出</small><b></b></span>' +
@@ -7566,12 +7662,13 @@
 						'<span class="stitch-wire-line" data-stitch-part="conditions"><b style="width:92%"></b></span>' +
 						'<span class="stitch-wire-line" data-stitch-part="conditions"><b style="width:74%"></b></span>' +
 					'</div>' +
-				'</div></div>';
+				'</div>' + wire2 + '</div>';
 
 			container.innerHTML =
 				'<div class="stitch-show' + (withWire ? '' : ' stitch-show--plain') + '" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
 						(withTitle ? '<p class="stitch-show-title"><i data-lucide="sliders-horizontal"></i><span>結合画像の設定</span></p>' : '') +
+						seg +
 						'<div class="stitch-show-list">' + list + '</div>' +
 					'</div>' +
 					(withWire ? wire : '') +
@@ -7602,9 +7699,17 @@
 					if (label) label.classList.toggle('is-off', off);
 					// 効率を指定では「凡例」のチェックは出さない（入れ子の字下げごと）
 					if (label && key === 'legend') label.hidden = effMode;
-					// 同じく「集計条件」のチェックも出さない（改善3）
-					if (label && key === 'conditions') label.hidden = effMode;
+					// 同じく「集計条件」のチェックも出さない（改善3）。2列の間も出さない（T154・決定 604。薄くせずに隠す）
+					if (label && key === 'conditions') label.hidden = effMode || eff.cols === 2;
 				});
+				panel.querySelectorAll('[data-stitch-cols]').forEach(b => { b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-stitch-cols')) === eff.cols)); });
+				panel.querySelectorAll('[data-stitch-wire-cols]').forEach(el => { el.hidden = Number(el.getAttribute('data-stitch-wire-cols')) !== eff.cols; });
+				// 2列の模式図（T154）: 見出し（人ごとの帯）は、効率を指定ではいつも・ほかは検出数カードかシナリオ因子・遺伝子が ON のとき（決定 596・605）。
+				// 出ないときは3列目ごと消し、凡例は1・2列目の下に（決定 615・618）
+				const heads2 = effMode || eff.banner || eff.scenario;
+				panel.querySelectorAll('[data-stitch-wire-heads]').forEach(el => { el.hidden = !heads2; });
+				panel.querySelectorAll('[data-stitch-wire-under]').forEach(el => { el.hidden = heads2 || !eff.legend; });
+				panel.querySelectorAll('[data-stitch-wire-countnote]').forEach(el => { el.hidden = !(effMode || eff.banner); });
 				const setHidden = (part, hidden) =>
 					panel.querySelectorAll('[data-stitch-part="' + part + '"]').forEach(el => { el.hidden = hidden; });
 				setHidden('banner', !eff.banner);
@@ -8283,7 +8388,19 @@
 			return { rows: rows, lab: lab, num: num, labelW: labelW, gap: gap, inset: inset, innerW: innerW, need: need, lab0: lab0, num0: num0 };
 		}
 
-		// opts … { cards, factors, effPanel, totalLines, totalReserve, purpleMinLines }（totalLines は合計の帯の2行の文字。totalReserve は、合計を出さない人でも高さだけ確保する＝同じセットの全員の帯の高さをそろえる）。purpleMinLines は、同じセットの全員で紫の行数をそろえる
+		// 通常・めろっぷ拡張の「検出」「sp70緑」のカードの高さ（元の高さ cardH に対する割合。T154・決定 596・613。数字の字〔cardH×0.56〕の約 1.29 倍）
+		const STITCH_CARD_BOX_K = 0.72;
+		// 帯の下の線（色 #e2e2e2・太さ 2。元は帯がいつも y＝高さ−1 に引いていた線）。T154 から opts.rule のときだけ（2列の3列目の人と人の間。決定 619・620）
+		function stitchDrawBannerRule(ctx, width, barHeight) {
+			ctx.strokeStyle = '#e2e2e2';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(0, barHeight - 1);
+			ctx.lineTo(width, barHeight - 1);
+			ctx.stroke();
+		}
+
+		// opts … { cards, factors, effPanel, totalLines, totalReserve, purpleMinLines, rule }（totalLines は合計の帯の2行の文字。totalReserve は、合計を出さない人でも高さだけ確保する＝同じセットの全員の帯の高さをそろえる。rule は帯の下の線〔T154〕）。purpleMinLines は、同じセットの全員で紫の行数をそろえる
 		// （帯の高さがそろい、スクショの上端がずれない）
 		function stitchDrawEffPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const B = EFF_BANNER;
@@ -8311,12 +8428,8 @@
 			const ctx = c.getContext('2d');
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, width, barHeight);
-			ctx.strokeStyle = '#e2e2e2';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.moveTo(0, barHeight - 1);
-			ctx.lineTo(width, barHeight - 1);
-			ctx.stroke();
+			// 帯の下の線は opts.rule のときだけ（T154・決定 619・620: 3列では引かない〔人ごとに帯の高さが違うと階段になる〕。2列の3列目で人と人の間にだけ引く）
+			if (opts && opts.rule) stitchDrawBannerRule(ctx, width, barHeight);
 
 			let y = U(B.topPad);
 			const headMid = y + headContentH / 2;
@@ -8462,12 +8575,17 @@
 		// opts.factors … false なら因子・遺伝子の行をまとめて省く（「シナリオ因子・遺伝子」OFF のとき）。
 		//   見出し（親A など）は両方 OFF でも常に出す。カード OFF・一覧 ON なら、見出しの下に一覧の行だけを
 		//   詰めて置く（行数は同じ run の中で全員同じなので、セット内の帯の高さは揃う）。
+		// opts.rule    … true なら帯の下に線を引く（2列の3列目の人と人の間だけ。T154・決定 619・620）。
+		// T154（決定 596・603・613）: カードはラベル（「検出」「sp70緑」）を左・数字を右（カードの右の内側に右寄せ）に1行で置き、
+		//   カードの高さを元の値（cardH＝幅の 0.185）の STITCH_CARD_BOX_K 倍にした。字の大きさ（ラベル cardH×0.28・数字 cardH×0.56・因子 cardH×0.26）は元のまま。
+		//   ラベルと数字は同じベースライン（数字の高さの中心をカードの中心に。効率を指定の合計の箱と同じ置き方）。モック lab/exam-2col-mock.js の drawPersonBannerV2 と同じ
 		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const withCards = !(opts && opts.cards === false);
 			const withFactors = !(opts && opts.factors === false);
 			const pad = Math.round(width * 0.03);
 			const titleH = Math.round(width * 0.065);
 			const cardH = Math.round(width * 0.185);
+			const cardBoxH = Math.round(cardH * STITCH_CARD_BOX_K);
 			const gapY = Math.round(width * 0.02);
 			// 「他」は行を増やさず、その区分の最後の行の右端に添える（画面のハイライトと同じ形）。
 			// 区分ごとに1つのまとまりにして、色とトークンをそのまとまりが持つ。
@@ -8487,7 +8605,7 @@
 			const totalText = (opts && opts.totalText) || null;
 			const totalFont = listFont;
 			const totalH = totalText ? Math.round(totalFont * 2) : 0;
-			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0)
+			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardBoxH : 0)
 				+ (totalText ? gapY + totalH : 0) + listBlockH;
 
 			const c = document.createElement('canvas');
@@ -8497,12 +8615,7 @@
 
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, width, barHeight);
-			ctx.strokeStyle = '#e2e2e2';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.moveTo(0, barHeight - 1);
-			ctx.lineTo(width, barHeight - 1);
-			ctx.stroke();
+			if (opts && opts.rule) stitchDrawBannerRule(ctx, width, barHeight);
 
 			let y = pad;
 
@@ -8510,63 +8623,43 @@
 			ctx.font = 'bold ' + titleH + 'px sans-serif';
 			ctx.textBaseline = 'top';
 			ctx.fillText(groupLabel, pad, y);
-			if (!withCards && !listLineCount && !totalText) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
+			if (!withCards && !listLineCount && !totalText) return c; // 見出しだけの帯
 			y += titleH + gapY;
 
 			if (withCards) {
-				const roundRect = (x, yy, w, h, r) => {
-					ctx.beginPath();
-					ctx.moveTo(x + r, yy);
-					ctx.arcTo(x + w, yy, x + w, yy + h, r);
-					ctx.arcTo(x + w, yy + h, x, yy + h, r);
-					ctx.arcTo(x, yy + h, x, yy, r);
-					ctx.arcTo(x, yy, x + w, yy, r);
-					ctx.closePath();
-				};
-
 				const cardGap = Math.round(width * 0.03);
 				const cardW = (width - pad * 2 - cardGap) / 2;
 				const radius = Math.round(width * 0.02);
-
-				const x1 = pad;
-				roundRect(x1, y, cardW, cardH, radius);
-				ctx.fillStyle = '#f5f8ff';
-				ctx.fill();
-				ctx.strokeStyle = '#cfe0fb';
-				ctx.lineWidth = 2;
-				ctx.stroke();
-
-				ctx.fillStyle = '#3c5a99';
-				ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
-				ctx.textBaseline = 'top';
-				ctx.fillText('検出', x1 + cardW * 0.08, y + cardH * 0.10);
-
-				ctx.fillStyle = '#0f3fc9';
-				ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
-				ctx.fillText(String(totalDetected), x1 + cardW * 0.08, y + cardH * 0.36);
-
-				const x2 = x1 + cardW + cardGap;
-				roundRect(x2, y, cardW, cardH, radius);
-				ctx.fillStyle = '#fffaf0';
-				ctx.fill();
-				ctx.strokeStyle = '#f5dfae';
-				ctx.lineWidth = 2;
-				ctx.stroke();
-
-				ctx.fillStyle = '#a9720b';
-				ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
-				ctx.textBaseline = 'top';
-				ctx.fillText('sp70緑', x2 + cardW * 0.08, y + cardH * 0.10);
-
-				ctx.fillStyle = '#c96a00';
-				ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
-				ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
+				const labelFont = Math.round(cardH * 0.28), valueFont = Math.round(cardH * 0.56);
+				const base = Math.round(y + cardBoxH / 2 + valueFont * 0.36);
+				[
+					{ x: pad, label: '検出', value: String(totalDetected), bg: '#f5f8ff', border: '#cfe0fb', lc: '#3c5a99', vc: '#0f3fc9' },
+					{ x: pad + cardW + cardGap, label: 'sp70緑', value: String(sp70Count), bg: '#fffaf0', border: '#f5dfae', lc: '#a9720b', vc: '#c96a00' }
+				].forEach(d => {
+					stitchRoundRectPath(ctx, d.x, y, cardW, cardBoxH, radius);
+					ctx.fillStyle = d.bg;
+					ctx.fill();
+					ctx.strokeStyle = d.border;
+					ctx.lineWidth = 2;
+					ctx.stroke();
+					ctx.textBaseline = 'alphabetic';
+					ctx.textAlign = 'left';
+					ctx.fillStyle = d.lc;
+					ctx.font = 'bold ' + labelFont + 'px sans-serif';
+					ctx.fillText(d.label, d.x + cardW * 0.08, base);
+					ctx.textAlign = 'right';
+					ctx.fillStyle = d.vc;
+					ctx.font = 'bold ' + valueFont + 'px sans-serif';
+					ctx.fillText(d.value, d.x + cardW * 0.92, base);
+					ctx.textAlign = 'left';
+					ctx.textBaseline = 'top';
+				});
 			}
 
 			// 拡張モードの合計（C-136・段5）。カードがあればその下、無ければ見出しのすぐ下
 			let cardsPassed = false;
 			if (totalText) {
-				if (withCards) y += cardH + gapY;
+				if (withCards) y += cardBoxH + gapY;
 				cardsPassed = true;
 				const rr = (x, yy, w, h, r) => {
 					ctx.beginPath();
@@ -8594,7 +8687,7 @@
 
 			if (listLineCount) {
 				// カードがあればその下、無ければ見出しのすぐ下（y は見出しの下端＋余白のまま）
-				if (withCards && !cardsPassed) y += cardH + gapY;
+				if (withCards && !cardsPassed) y += cardBoxH + gapY;
 				// 幅に収まらない行があれば、**全部のまとまりをまとめて**縮めて桁を揃える
 				// （区分ごとに大きさを決めると、因子と遺伝子で字の大きさが変わってしまう）。
 				// 各まとまりの最後の行は、右端の「他」と重ならないようそのぶん狭い幅で見る。
@@ -8818,6 +8911,207 @@
 		}
 
 		/* ============================================================
+		 * 2列の結合画像（T154。決定 583〜588・596〜620。モック lab/exam-2col-mock.html の「596版」）
+		 *
+		 *  ┌ 親（1枚目の上の欄＋画像）│ 祖1          │ 親A の帯（見出し・カード・因子）── 線
+		 *  │                          │（同じ縮小率） │ 祖A1 の帯                      ── 線
+		 *  │                          │ 祖2          │ 祖A2 の帯（下の線なし）
+		 *  │                          │              │ 脚注（左詰め・上の線なし）
+		 *  │                          │              │ 凡例・印の断り（脚注との間は行の高さの半分）
+		 *  └ （印＋凡例だけのときは、凡例を1・2列目の下に幅いっぱいで。3列目は置かない＝決定 618）
+		 *
+		 *  ・UmaStar の2列（special.html の composeFamilyImage2・T98）と同じ決まり: 人の画像は小窓の左右の端で切る（両側を削らない）／
+		 *    親（セットの1人目）だけ1枚目の上の欄（小窓の上端の帯〜結合の描き始めの行）を先頭に足す／祖2人は同じ縮小率で、2人の高さの合計を
+		 *    1列目の高さにそろえる（拡大しない・間は空けない）／画素数が上限を超えるときは全体を同じ割合で縮める。
+		 *    小窓の帯が見つからない人は、切らず・上の欄も足さない。
+		 *  ・3列目は人の上端から・幅は親の列と同じ（決定 598）。列の間は 8px（3列の人の間と同じ）・外の余白なし。右の列が長ければ画は縦に伸びる（決定 600）。
+		 *  ・人の画像に見出しは付けない（決定 601）。帯（見出し）は、通常・めろっぷ拡張では検出数カードかシナリオ因子・遺伝子が ON のときだけ、
+		 *    効率を指定ではいつも（決定 596・605）。効率を指定の3人の帯の高さはそろえない（決定 612）。集計条件は描かない（決定 596）。
+		 *  ・3列目に描くものが無いときは3列目を置かない（決定 615）。
+		 * ------------------------------------------------------------ */
+		const STITCH_TWO_COL_MAX_PIXELS = 16000000;   // special.html の STITCH_LAYOUT.maxPixels と同じ（iOS の Canvas の面積）
+		const STITCH_TWO_COL_GAP = 8;                 // 列の間（stitchConcatHorizontallyTopAligned の既定と同じ）
+		const STITCH_MODAL_GREEN_MIN = 0.7;           // 小窓の上端の緑の帯（「ウマ娘詳細」）とみなす横幅の割合（special.html と同じ）
+		/** 画の上半分で、横幅の 70% 超が緑の最初の行（小窓の上端の帯）と、その帯の左右の端（小窓の左右の端）。無ければ null（special.html の stitchModalBand と同じ） */
+		function stitchModalBand(canvas) {
+			const W = canvas.width, H = Math.floor(canvas.height * 0.5);
+			if (W < 10 || H < 2) return null;
+			const d = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+			const green = (i) => d[i + 1] > 150 && d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 60;
+			for (let y = 0; y < H; y++) {
+				let n = 0;
+				for (let x = 0; x < W; x += 2) if (green((y * W + x) * 4)) n++;
+				if (n * 2 <= W * STITCH_MODAL_GREEN_MIN) continue;
+				const my = Math.min(H - 1, y + Math.round(W * 0.03));
+				let lx = W, rx = -1;
+				for (let x = 0; x < W; x++) if (green((my * W + x) * 4)) { if (x < lx) lx = x; rx = x; }
+				if (rx < 0 || rx + 1 - lx < W * 0.6) return null;
+				return { top: y, L: lx, R: rx + 1 };
+			}
+			return null;
+		}
+		async function stitchFileCanvas(f) {
+			const img = await loadImage(f);
+			const c = document.createElement('canvas');
+			c.width = img.naturalWidth || img.width;
+			c.height = img.naturalHeight || img.height;
+			c.getContext('2d').drawImage(img, 0, 0);
+			return c;
+		}
+		/**
+		 * 2列に置く1人分（印を描いた後の結合画像から）。左右は小窓の端で切る。withTop なら親の1枚目の上の欄
+		 * （小窓の上端の帯〜結合画像の描き始めの行）を先頭に足す。小窓の帯が見つからなければ、切らず・足さない。
+		 * 静止画（stitchOnePerson）も動画（UmaVideoFrames.composePerson）も _sourcePlacements の1つ目（どの画の何行目から描き始めたか）で読む。
+		 * 返す Canvas に _twoCol（{ band, topH, srcW }）を添える（special.html の stitchTwoColPerson と同じ）
+		 */
+		async function stitchTwoColPerson(canvas, files, withTop) {
+			const pl = (canvas._sourcePlacements || [])[0];
+			let band = null, src = null;
+			if (pl && files && files[pl.fileIndex]) {
+				try { src = await stitchFileCanvas(files[pl.fileIndex]); band = stitchModalBand(src); } catch (e) { band = null; }
+			}
+			if (band && src.width !== canvas.width) band = null;
+			const topH = (band && withTop && pl.srcY0 > band.top) ? pl.srcY0 - band.top : 0;
+			const L0 = band ? band.L : 0, R0 = band ? band.R : canvas.width;
+			const out = document.createElement('canvas');
+			out.width = R0 - L0;
+			out.height = topH + canvas.height;
+			const ctx = out.getContext('2d');
+			if (topH) ctx.drawImage(src, L0, band.top, out.width, topH, 0, 0, out.width, topH);
+			ctx.drawImage(canvas, L0, 0, out.width, canvas.height, 0, topH, out.width, canvas.height);
+			out._twoCol = { band: band, topH: topH, srcW: canvas.width };
+			return out;
+		}
+
+		/* 2列の3列目の補助の帯。stitchDrawSharedNoteBar と同じ字の大きさ（数え方の脚注の1行が列の幅に入る大きさ。決定 599）・行の中身・行の順・折り返し方で、次だけ違う:
+		   上の区切り線を引かない（決定 596・606）／脚注（通常・めろっぷ拡張は数え方の脚注〔検出数カードが ON のとき〕・効率を指定は2つの脚注）を先頭に左詰め／
+		   集計条件の行は描かない（決定 596）。脚注のまとまりと、凡例・印の断りのまとまりの間は、線の代わりに行の高さの半分を空ける（決定 616）。
+		   書くことが無ければ null。markInfo は stitchDrawSharedNoteBar と同じ形。show は stitchShowEffective の値 */
+		const STITCH_TWO_COL_NOTE_TOP = 0.6;     // 帯の上の余白（行の高さに対する割合）
+		const STITCH_TWO_COL_GROUP_GAP = 0.5;    // 脚注と凡例の間（行の高さに対する割合）
+		function stitchDrawTwoColNoteBar(width, referenceWidth, markInfo, show) {
+			const ctx = document.createElement('canvas').getContext('2d');
+			const m = stitchNoteMetrics(ctx, width, referenceWidth, STITCH_COUNT_NOTE);
+			const maxW = m.maxTextWidth;
+			const info = markInfo || {};
+			const effNote = !!info.effNote;
+			const groups = [];
+			const head = [];
+			if (show.banner && !effNote) stitchWrapText(ctx, STITCH_COUNT_NOTE, maxW).forEach(l => head.push(stitchNoteTextRow(ctx, l)));
+			if (effNote) {
+				let lines = stitchWrapText(ctx, EFF_COUNT_NOTE, maxW);
+				if (lines.length > 1) { lines = []; EFF_COUNT_NOTE.split('。').filter(Boolean).forEach(s => stitchWrapText(ctx, s + '。', maxW).forEach(l => lines.push(l))); }
+				lines.concat(effWrapAtPunct(ctx, EFF_STAR_NOTE, maxW)).forEach(l => head.push(stitchNoteTextRow(ctx, l)));
+			}
+			if (head.length) groups.push(head);
+			const tail = [];
+			const colors = (show.legend && info.kinds && info.kinds.length) ? attrMarkColors() : null;
+			if (colors) {
+				buildMarkLegendLines(ctx, info.kinds, maxW, m.fontSize).forEach(segs => tail.push(segs.map(it => (it.type === 'mark'
+					? { type: 'mark', w: it.w, draw: (c2, cx, cy, d) => drawSkillMark(c2, it.kind, cx, cy, d, colors) } : it))));
+				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxW).forEach(l => tail.push(stitchNoteTextRow(ctx, l)));
+			}
+			((show.legend || effNote) ? (info.suppressed || []) : []).slice()
+				.sort((a, b) => MARK_SUPPRESSED_ORDER.indexOf(a) - MARK_SUPPRESSED_ORDER.indexOf(b))
+				.forEach(r => { if (MARK_SUPPRESSED_NOTE[r]) stitchWrapText(ctx, MARK_SUPPRESSED_NOTE[r], maxW).forEach(l => tail.push(stitchNoteTextRow(ctx, l))); });
+			if (tail.length) groups.push(tail);
+			if (!groups.length) return null;
+			const lineH = m.lineH, top = Math.round(lineH * STITCH_TWO_COL_NOTE_TOP), gap = Math.round(lineH * STITCH_TWO_COL_GROUP_GAP);
+			const nRows = groups.reduce((s, x) => s + x.length, 0);
+			const c = document.createElement('canvas');
+			c.width = width;
+			c.height = top + lineH * nRows + gap * (groups.length - 1) + Math.round(lineH * 0.3);
+			const g = c.getContext('2d');
+			g.fillStyle = '#ffffff';
+			g.fillRect(0, 0, c.width, c.height);
+			g.font = 'bold ' + m.fontSize + 'px sans-serif';
+			g.textBaseline = 'top';
+			g.textAlign = 'left';
+			let rowTop = top;
+			groups.forEach((rows, gi) => {
+				if (gi) rowTop += gap;
+				rows.forEach(segs => {
+					const yy = Math.round(rowTop + lineH * 0.15);
+					let x = m.pad;
+					segs.forEach(it => {
+						if (it.type === 'mark') it.draw(g, x + it.w / 2, yy + m.fontSize * 0.5, m.fontSize * 0.95);
+						else { g.fillStyle = STITCH_NOTE_COLOR; g.fillText(it.text, x, yy); }
+						x += it.w;
+					});
+					rowTop += lineH;
+				});
+			});
+			c._fontSize = m.fontSize;
+			return c;
+		}
+
+		/**
+		 * 2列の1枚を組み立てる（同期。検査はここを直接呼べる）。
+		 * p.parent … 親の列の Canvas（stitchTwoColPerson。無ければ null）／p.grands … 祖の Canvas の並び（祖1・祖2 の順。無い人は除く）
+		 * p.col3 … 3列目に縦に並べる部品の並び（null は飛ばす。空なら3列目を置かない）／p.col3W … 3列目の幅
+		 * p.under … (spanW) => Canvas|null。1・2列目の下に幅いっぱいで置く帯（印＋凡例だけのとき。決定 618）
+		 * 返す Canvas に _layout を添える
+		 */
+		function stitchComposeTwoCol(p) {
+			const GAP = STITCH_TWO_COL_GAP;
+			const parent = p.parent || null;
+			const grands = (p.grands || []).filter(Boolean);
+			const sumGH = grands.reduce((s, c) => s + c.height, 0);
+			const colH = parent ? parent.height : sumGH;
+			const gScale = (parent && grands.length) ? Math.min(1, colH / sumGH) : 1;
+			const gs = grands.map(c => ({ c: c, w: Math.max(1, Math.round(c.width * gScale)), h: Math.max(1, Math.round(c.height * gScale)) }));
+			// 縮めたときは丸めのずれを最後の人で吸収し、合計を1列目の高さにぴったりそろえる（special.html と同じ）
+			if (gScale < 1) gs[gs.length - 1].h = Math.max(1, colH - gs.slice(0, -1).reduce((a, g) => a + g.h, 0));
+			const col1W = parent ? parent.width : 0;
+			const col2W = gs.length ? Math.max.apply(null, gs.map(g => g.w)) : 0;
+			const spanW = col1W + (parent && gs.length ? GAP : 0) + col2W;
+			const under = p.under ? p.under(spanW) : null;
+			const col3Parts = (p.col3 || []).filter(Boolean);
+			const col3W = col3Parts.length ? p.col3W : 0;
+			const col3H = col3Parts.reduce((s, c) => s + c.height, 0);
+			const leftBottom = colH + (under ? under.height : 0);
+			const W0 = spanW + (col3W ? GAP + col3W : 0);
+			const H0 = Math.max(leftBottom, col3H);
+			const scale = W0 * H0 > STITCH_TWO_COL_MAX_PIXELS ? Math.sqrt(STITCH_TWO_COL_MAX_PIXELS / (W0 * H0)) : 1;
+			const out = document.createElement('canvas');
+			out.width = Math.max(1, Math.floor(W0 * scale));
+			out.height = Math.max(1, Math.floor(H0 * scale));
+			const ctx = out.getContext('2d');
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, out.width, out.height);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			if (scale !== 1) ctx.scale(scale, scale);
+			const layout = { cols: 2, width: out.width, height: out.height, scale: scale, logical: { width: W0, height: H0 },
+				colH: colH, grandScale: gScale, parent: null, grands: [], under: null, col3: null };
+			let x = 0;
+			if (parent) {
+				ctx.drawImage(parent, 0, 0);
+				layout.parent = { x: 0, y: 0, w: parent.width, h: parent.height, topH: parent._twoCol ? parent._twoCol.topH : 0, band: !!(parent._twoCol && parent._twoCol.band) };
+				x = parent.width + (gs.length ? GAP : 0);
+			}
+			let gy = 0;
+			gs.forEach(g => {
+				ctx.drawImage(g.c, x, gy, g.w, g.h);
+				layout.grands.push({ x: x, y: gy, w: g.w, h: g.h, scale: gScale, band: !!(g.c._twoCol && g.c._twoCol.band) });
+				gy += g.h;
+			});
+			if (under) {
+				ctx.drawImage(under, 0, colH);
+				layout.under = { x: 0, y: colH, w: under.width, h: under.height };
+			}
+			if (col3W) {
+				const x3 = spanW + GAP;
+				let y3 = 0;
+				const parts = [];
+				col3Parts.forEach(c => { ctx.drawImage(c, x3, y3); parts.push({ y: y3, h: c.height }); y3 += c.height; });
+				layout.col3 = { x: x3, y: 0, w: col3W, h: col3H, parts: parts };
+			}
+			out._layout = layout;
+			return out;
+		}
+
+		/* ============================================================
 		 * セット単位（親A+祖A1+祖A2 / 親B+祖B1+祖B2）のオーケストレーション
 		 * ============================================================ */
 
@@ -8843,13 +9137,16 @@
 
 			const bannerCanvases = [];
 			const effBannerSpecs = []; // 効率を指定の帯は、同じセットの全員で紫の行数をそろえるため、全員ぶんをそろえてから描く
+			const bannerSpecs = [];    // 2列（T154）の3列目の帯は幅が親の列の幅なので、全員ぶんをそろえてから描く（通常・めろっぷ拡張も）
 			const contentCanvases = [];
+			const wideCanvases = [];   // 2列（T154）に置く人（stitchTwoColPerson。印を描いた後・小窓の端で切ったもの）
 			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
 
 			const allWarnings = [];
 			const videoWarnLabels = [];   // 確かでない継ぎ目のある、動画から来た人（人の単位の警告。T139。special.html と同じ）
 			// 何を焼き込むか（検出数カード／シナリオ因子／凡例／集計条件）。印は drawAttrIconsOnPerson が run から見る
 			const show = stitchShowEffective(run);
+			const twoCol = show.cols === 2;   // 2列（T154）
 			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
 			const usedMarkKinds = new Set();
 			const markSuppressed = new Set();
@@ -8905,7 +9202,13 @@
 				}
 				// 検出数カード・「シナリオ因子・遺伝子」は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
 				const factorHl = scenarioFactorHighlight(idx, run), geneHl = aptitudeGeneHighlight(idx, run);
-				if (effOn) {
+				bannerSpecs.push({ label: label, detected: detected, sp70Count: sp70Count, factors: factorHl, genes: geneHl,
+					opts: effOn ? { cards: show.banner, factors: show.scenario, effPanel: effPanel, totalLines: totalLines }
+						: { cards: show.banner, factors: show.scenario, totalText: totalText } });
+				if (twoCol) {
+					// 2列（T154）: 印を描いた後の画像を小窓の端で切る。親（セットの1人目）だけ1枚目の上の欄を足す（決定 585）。帯は下で3列目の幅で描く
+					wideCanvases.push({ idx: idx, canvas: await stitchTwoColPerson(contentCanvas, run.files[idx], idx === baseIdx) });
+				} else if (effOn) {
 					// 効率を指定: 情報領域を縦に詰めた専用の帯（stitchDrawEffPersonBanner）。全員ぶんをそろえてから描く
 					effBannerSpecs.push({ slot: bannerCanvases.length, width: contentCanvas.width, label: label, detected: detected, sp70Count: sp70Count,
 						factors: factorHl, genes: geneHl, opts: { cards: show.banner, factors: show.scenario, effPanel: effPanel, totalLines: totalLines } });
@@ -8919,6 +9222,46 @@
 			}
 
 			if (contentCanvases.length === 0) return null;
+
+			const markInfo = {
+				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
+				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r)),
+				effNote: effOn
+			};
+			if (twoCol) {
+				// 2列（T154）。3列目の幅は親の列と同じ（決定 598。親がいなければ最初の人の列の幅）
+				const parentWide = wideCanvases.find(w => w.idx === baseIdx);
+				const grandWides = wideCanvases.filter(w => w.idx !== baseIdx).map(w => w.canvas);
+				const col3W = (parentWide || wideCanvases[0]).canvas.width;
+				// 見出し（＝帯）を出すか（決定 596・605）
+				const headings = effOn || show.banner || show.scenario;
+				// 帯は 親→祖1→祖2 の順。人と人の間にだけ線（決定 620）。効率を指定の3人の帯の高さはそろえない（決定 612）
+				const banners2 = headings ? bannerSpecs.map((sp, i) => {
+					const opts = Object.assign({}, sp.opts, { rule: i < bannerSpecs.length - 1 });
+					return effOn
+						? stitchDrawEffPersonBanner(col3W, sp.label, sp.detected, sp.sp70Count, sp.factors, sp.genes, opts)
+						: stitchDrawPersonBanner(col3W, sp.label, sp.detected, sp.sp70Count, sp.factors, sp.genes, opts);
+				}) : [];
+				const notes2 = stitchDrawTwoColNoteBar(col3W, col3W, markInfo, show);
+				// 印＋凡例だけのとき（見出しが出ない）は、3列目を置かず、凡例を1・2列目の下に幅いっぱいの帯で置く
+				// （3列のときの補助の帯と同じ関数・同じ字の大きさ・同じ左の余白。決定 618）
+				const legendUnder = !headings && !!notes2;
+				const out = stitchComposeTwoCol({
+					parent: parentWide ? parentWide.canvas : null,
+					grands: grandWides,
+					col3: headings ? banners2.concat([notes2]) : [],
+					col3W: col3W,
+					under: legendUnder ? (spanW) => stitchDrawSharedNoteBar(spanW, contentCanvases[0].width, markInfo,
+						{ legend: show.legend, conditions: false }, run, personMeta.map(p => p.idx)) : null
+				});
+				out._layout.headings = headings;
+				out._layout.noteFont = notes2 && !legendUnder ? notes2._fontSize : 0;
+				out._personMeta = personMeta;
+				out._stitchWarnings = allWarnings;
+				out._videoWarnLabels = videoWarnLabels;
+				out._effMarks = effMarks;
+				return out;
+			}
 
 			// 効率を指定の帯: 紫の行数を全員でそろえて（帯の高さをそろえて）描く
 			if (effBannerSpecs.length) {
@@ -8943,12 +9286,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			// シナリオ因子の ON/OFF には関わらない）
 			// 効率を指定は、この脚注を補助テキストの帯の先頭へ移した（常に出すため。stitchDrawSharedNoteBar の effNote）
 			const countNoteBar = (show.banner && !effOn) ? stitchDrawCountNoteBar(rowWidth, contentCanvases[0].width) : null;
-			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
-				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
-				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r)),
-				effNote: effOn
-			}, { legend: show.legend, conditions: show.conditions }, run,
-				personMeta.map(p => p.idx));
+			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, markInfo,
+				{ legend: show.legend, conditions: show.conditions }, run, personMeta.map(p => p.idx));
 
 			const totalWidth = Math.max(bannerRow.width, rowWidth,
 				countNoteBar ? countNoteBar.width : 0,

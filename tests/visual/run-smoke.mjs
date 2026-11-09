@@ -170,6 +170,7 @@ import { register151 } from './blocks-151.mjs';
 import { register148 } from './blocks-148.mjs';
 import { register152 } from './blocks-152.mjs';
 import { register156 } from './blocks-156.mjs';
+import { register157 } from './blocks-157.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -6107,8 +6108,8 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
 			// 段H: 1つのチェックが因子と遺伝子の両方を持つので、呼び名も両方を名乗る
 			scenarioLabel: q('scenario').closest('.stitch-show-item').querySelector('.stitch-show-text').textContent,
 			marksLabel: q('marks').closest('.stitch-show-item').querySelector('.stitch-show-text').textContent,
-			// 模式図の帯は因子・遺伝子の2本
-			scenarioBars: Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="scenario"] .stitch-wire-factor'))
+			// 模式図の帯は因子・遺伝子の2本（T154: 2列の模式図〔人ごとに3つ〕も同じパネルにあるので、3列の模式図の中で数える）
+			scenarioBars: Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-wire-cols="3"] [data-stitch-part="scenario"] .stitch-wire-factor'))
 				.map((el) => getComputedStyle(el).backgroundColor),
 			order: Array.from(document.querySelectorAll('#stitch-show-panel input[data-stitch-show]')).map((i) => i.getAttribute('data-stitch-show')).join(','),
 			legendDisabled: q('legend').disabled,
@@ -15610,6 +15611,8 @@ await register148({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register152({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T153（2026-11-09）: 残りの枠にグループのカードを指定したとき、結果の組み立てでメンバー全員の共通イベントを数える（見出しは「T153」）
 await register156({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T154（2026-11-09）: UmaExam の結合画像の2列（「3列｜2列」・カードの横並び・3列の帯の下の線を消す。見出しは「T154」）
+await register157({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
