@@ -175,6 +175,7 @@ import { register162 } from './blocks-162.mjs';
 import { register160 } from './blocks-160.mjs';
 import { register159 } from './blocks-159.mjs';
 import { register161 } from './blocks-161.mjs';
+import { register163 } from './blocks-163.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15667,6 +15668,8 @@ await register160({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register159({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T158（2026-11-10）: 速い動画で残る濃いエフェクトの直し（composePerson の継ぎ目を上へ・時間のたった画の画素。見出しは「T158速い動画の組み立て」）
 await register161({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T160（2026-11-10）: UmaExam の2列の直し（字の大きさ・親のいない形・線・OCR の前の画像を更新。見出しは「T160」）
+await register163({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

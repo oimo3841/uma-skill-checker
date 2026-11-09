@@ -342,7 +342,8 @@
 		.stitch-wire-2block + .stitch-wire-2block { border-top: 1px solid var(--uma-border); padding-top: 2px; }
 		.stitch-wire-2notes { display: flex; flex-direction: column; gap: 3px; padding: 3px 1px 1px; }
 		.stitch-wire-2notes .stitch-wire-line b { width: 80%; }
-		.stitch-wire-2under { padding: 2px 2px 1px; border-top: 1px solid var(--uma-border-strong); }
+		/* T160（決定 647）: 実物の画の帯に上の区切り線が無くなったので、模式図も線なし */
+		.stitch-wire-2under { padding: 2px 2px 1px; }
 
 		/* ============================================================
 		 * ハイライトの「人物のまとまり」の中のカードの段組み
@@ -4209,9 +4210,9 @@
 		 * videoRestitch … セットごとの { parts, files }。OCR の前の②の画像があるときだけ持つ。
 		 * 押せる（'ready'）: 作ったときの設定と今の設定が違う。押せない: 'same' 設定が同じ／'stale' 画像の並びが変わった（案内を出す）／処理中。
 		 * UmaExam の OCR の前の結合画像（列見出しと3人の画像だけ）が左右される設定は、形「3列｜2列」（T154）だけ（videoPreviewParts）。設定を足したときはここに足す。
-		 * おいもさんの決定 556（T139-2）: UmaExam では今は「画像を更新」とその案内を出さない（VIDEO_PREVIEW_REFRESH = false。適切な時期に導入する・時期は Chat で決める）。
-		 * 導入するときは true にすれば、ここの作り（UmaStar の T117 と同じ）がそのまま働く */
-		const VIDEO_PREVIEW_REFRESH = false;
+		 * おいもさんの決定 556（T139-2）: UmaExam では「画像を更新」とその案内を出さないでいた（VIDEO_PREVIEW_REFRESH = false）。
+		 * T160（決定 656）: 形「3列｜2列」を切り替えたらすぐ見直せるよう、出す（true）。作りは UmaStar の T117 と同じ */
+		const VIDEO_PREVIEW_REFRESH = true;
 		var videoRestitch = [null, null];
 		var videoRefreshBusy = -1;
 		// T154: 形「3列｜2列」は OCR の前の結合画像にも効くので、ここに足した
@@ -4494,7 +4495,7 @@
 				const parts = videoPreviewParts();
 				const canvas = await buildVideoPreviewSetImage(setIdx, videoSetFiles(setIdx));
 				if (!canvas) return false;
-				// 決定 556: 「画像を更新」を出さないあいだは restitch を渡さない（ボタンと案内を作らない）
+				// 決定 556: 「画像を更新」を出さないあいだは restitch を渡さない（ボタンと案内を作らない）。T160 で出す（656）
 				showVideoResult(setIdx, canvas, VIDEO_PREVIEW_REFRESH ? videoRestitchState(setIdx, parts) : null);
 				return true;
 			} catch (e) {
@@ -8322,17 +8323,19 @@
 		/* 紫の行（シナリオ因子・遺伝子）の折り返し。区分（因子・遺伝子）ごとに「名前：★N」を「／」でつなぎ、幅に収まらなければ
 		   項目の切れ目で折り返す（「他」は最後の項目として薄い色で続ける）。1項目が幅に収まらなければ字を小さくする（9px まで）。
 		   戻り値: { blocks: [{ lines, textToken, moreToken, more }], lineCount, fs } */
-		function effPurpleLayout(width, factors, genes, withFactors) {
+		// sizeK … 字・余白の基準の幅の倍率（T160: 2列の3列目。省略なら 1＝今まで）
+		function effPurpleLayout(width, factors, genes, withFactors, sizeK) {
 			const out = { blocks: [], lineCount: 0, fs: 0 };
 			if (!withFactors) return out;
-			const maxW = width - Math.round(width * EFF_BANNER.pad) * 2;
+			const sw = width * (sizeK || 1);
+			const maxW = width - Math.round(sw * EFF_BANNER.pad) * 2;
 			const ctx = document.createElement('canvas').getContext('2d');
 			const src = [[factors, STITCH_FACTOR_TEXT_TOKEN, STITCH_FACTOR_MORE_TOKEN], [genes, STITCH_GENE_TEXT_TOKEN, STITCH_GENE_MORE_TOKEN]];
 			src.forEach(([h, textToken, moreToken]) => {
 				if (!h || !h.items.length) return;
 				out.blocks.push({ items: h.items.map(it => it.text).concat(h.more ? ['他'] : []), more: !!h.more, textToken: textToken, moreToken: moreToken, lines: [] });
 			});
-			let fs = Math.max(9, Math.round(width * EFF_BANNER.purpleFont));
+			let fs = Math.max(9, Math.round(sw * EFF_BANNER.purpleFont));
 			const fits = () => {
 				ctx.font = 'bold ' + fs + 'px sans-serif';
 				return out.blocks.every(b => b.items.every(t => ctx.measureText(t).width <= maxW));
@@ -8368,14 +8371,15 @@
 		   最初のコロンの前（コロンを含む）をラベル、あとを数字として分け、数字の左端は2行でそろえる（ラベルの幅の大きいほうに、間を足した位置）。
 		   1行（ラベル＋間＋数字）が箱の内側の幅に収まらないときは、ラベルと数字を同じ比で縮める（ラベルは最小 6px）。
 		   戻り値: { rows: [{label, value}], lab（ラベルの大きさ px）, num（数字の大きさ px）, labelW, gap, inset, innerW, need（いちばん長い行の幅）, lab0, num0 } */
-		function effTotalLayout(width, lines) {
+		function effTotalLayout(width, lines, sizeK) {
 			const B = EFF_BANNER;
-			const pad = Math.round(width * B.pad);
+			const sw = width * (sizeK || 1);   // 字・余白の基準の幅（T160。省略なら 1）
+			const pad = Math.round(sw * B.pad);
 			const inset = pad;
 			const innerW = width - pad * 2 - inset * 2;
 			const rows = lines.map(line => { const k = line.indexOf(':'); return { label: line.slice(0, k + 1), value: line.slice(k + 1) }; });
 			const ctx = document.createElement('canvas').getContext('2d');
-			const lab0 = Math.round(width * B.totalLabelFont), num0 = Math.round(width * B.totalNumFont);
+			const lab0 = Math.round(sw * B.totalLabelFont), num0 = Math.round(sw * B.totalNumFont);
 			let lab = lab0, num = num0, labelW = 0, gap = 0, need = 0;
 			const measure = () => {
 				ctx.font = 'bold ' + lab + 'px sans-serif';
@@ -8405,7 +8409,9 @@
 		// （帯の高さがそろい、スクショの上端がずれない）
 		function stitchDrawEffPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const B = EFF_BANNER;
-			const U = (r) => Math.round(width * r);
+			// 字・余白・カードの基準の幅（T160: 2列の3列目では幅の STITCH_TWO_COL_BANNER_K 倍。パネル・合計の箱・行は列の幅いっぱいのまま）
+			const sizeK = (opts && opts.sizeK) || 1;
+			const U = (r) => Math.round(width * sizeK * r);
 			const withCards = !(opts && opts.cards === false);
 			const effPanel = (opts && opts.effPanel) || null;
 			const totalLines = (opts && opts.totalLines) || null;
@@ -8417,7 +8423,7 @@
 			const panelPitch = effPanel ? panelH + U(B.panelAfter) : 0;
 			const totalBoxH = U(B.totalRowH) * 2 + U(B.totalPadV) * 2;
 			const totalPitch = (totalLines || (opts && opts.totalReserve)) ? totalBoxH + U(B.totalAfter) : 0;
-			const purple = effPurpleLayout(width, factors, genes, !(opts && opts.factors === false));
+			const purple = effPurpleLayout(width, factors, genes, !(opts && opts.factors === false), sizeK);
 			const purpleLines = purple.lineCount ? Math.max(purple.lineCount, (opts && opts.purpleMinLines) || 0) : (opts && opts.purpleMinLines) || 0;
 			const purplePitch = purpleLines ? purpleLines * U(B.purpleLineH) + U(B.purpleAfter) : 0;
 			const barHeight = headPitch + panelPitch + totalPitch + purplePitch;
@@ -8518,7 +8524,7 @@
 				ctx.lineWidth = 2;
 				ctx.stroke();
 				ctx.fillStyle = stitchTokenColor('--exam-eff-total-text');
-				const L = effTotalLayout(width, totalLines);
+				const L = effTotalLayout(width, totalLines, sizeK);
 				const rowH = U(B.totalRowH);
 				ctx.textBaseline = 'alphabetic';
 				ctx.textAlign = 'left';
@@ -8583,11 +8589,13 @@
 		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const withCards = !(opts && opts.cards === false);
 			const withFactors = !(opts && opts.factors === false);
-			const pad = Math.round(width * 0.03);
-			const titleH = Math.round(width * 0.065);
-			const cardH = Math.round(width * 0.185);
+			// 字・余白・カードの高さの基準の幅（T160: 2列の3列目では幅の STITCH_TWO_COL_BANNER_K 倍。帯・カード・行は列の幅いっぱいのまま）
+			const sw = width * ((opts && opts.sizeK) || 1);
+			const pad = Math.round(sw * 0.03);
+			const titleH = Math.round(sw * 0.065);
+			const cardH = Math.round(sw * 0.185);
 			const cardBoxH = Math.round(cardH * STITCH_CARD_BOX_K);
-			const gapY = Math.round(width * 0.02);
+			const gapY = Math.round(sw * 0.02);
 			// 「他」は行を増やさず、その区分の最後の行の右端に添える（画面のハイライトと同じ形）。
 			// 区分ごとに1つのまとまりにして、色とトークンをそのまとまりが持つ。
 			const listBlocks = [];
@@ -8628,9 +8636,9 @@
 			y += titleH + gapY;
 
 			if (withCards) {
-				const cardGap = Math.round(width * 0.03);
+				const cardGap = Math.round(sw * 0.03);
 				const cardW = (width - pad * 2 - cardGap) / 2;
-				const radius = Math.round(width * 0.02);
+				const radius = Math.round(sw * 0.02);
 				const labelFont = Math.round(cardH * 0.28), valueFont = Math.round(cardH * 0.56);
 				const base = Math.round(y + cardBoxH / 2 + valueFont * 0.36);
 				[
@@ -8919,7 +8927,9 @@
 		 *  │                          │ 祖2          │ 祖A2 の帯（下の線なし）
 		 *  │                          │              │ 脚注（左詰め・上の線なし）
 		 *  │                          │              │ 凡例・印の断り（脚注との間は行の高さの半分）
-		 *  └ （印＋凡例だけのときは、凡例を1・2列目の下に幅いっぱいで。3列目は置かない＝決定 618）
+		 *  └ （印＋凡例だけのときは、凡例を1・2列目の下に幅いっぱいで。3列目は置かない＝決定 618。上の区切り線なし＝決定 647）
+		 *  ・T160（決定 646・655・656・662）: 親がいないセットは祖1｜祖2 を縮めずに横に並べる（祖が1人なら1列目だけ）。
+		 *    3列目の帯の字・余白・カードの高さは列の幅の 0.85 倍を基準に（STITCH_TWO_COL_BANNER_K）。補助の帯の字は 40px で列の幅で折り返す。
 		 *
 		 *  ・UmaStar の2列（special.html の composeFamilyImage2・T98）と同じ決まり: 人の画像は小窓の左右の端で切る（両側を削らない）／
 		 *    親（セットの1人目）だけ1枚目の上の欄（小窓の上端の帯〜結合の描き始めの行）を先頭に足す／祖2人は同じ縮小率で、2人の高さの合計を
@@ -8988,12 +8998,39 @@
 		   上の区切り線を引かない（決定 596・606）／脚注（通常・めろっぷ拡張は数え方の脚注〔検出数カードが ON のとき〕・効率を指定は2つの脚注）を先頭に左詰め／
 		   集計条件の行は描かない（決定 596）。脚注のまとまりと、凡例・印の断りのまとまりの間は、線の代わりに行の高さの半分を空ける（決定 616）。
 		   書くことが無ければ null。markInfo は stitchDrawSharedNoteBar と同じ形。show は stitchShowEffective の値 */
+		/* T160（決定 656・662）: 字は 40px に固定し、列の幅で折り返す（脚注の1行が列の幅に入るまで縮める決まり〔599〕はやめた。DMM版の縦画面のように列が細くても縮めない）。
+		   行の高さは字の STITCH_TWO_COL_NOTE_LINE 倍（3列の帯の 1.8 倍より詰める。折り返した脚注が1つの文に見えるように）。
+		   「印＋凡例だけ」で1・2列目の下に置く帯もこの関数で描く（同じ字の大きさ・上の区切り線なし〔647〕）。左の余白は referenceWidth の 0.03（3列の帯と同じ） */
+		const STITCH_TWO_COL_NOTE_FONT = 40;     // 補助の帯の字の大きさ（px。662）
+		const STITCH_TWO_COL_NOTE_LINE = 1.5;    // 行の高さ（字に対する割合）
 		const STITCH_TWO_COL_NOTE_TOP = 0.6;     // 帯の上の余白（行の高さに対する割合）
 		const STITCH_TWO_COL_GROUP_GAP = 0.5;    // 脚注と凡例の間（行の高さに対する割合）
+		// 2列の3列目の帯（見出し・カード・シナリオ因子と遺伝子の字・効率を指定のパネルと合計）の字・余白・カードの高さの倍率（T160・656）
+		const STITCH_TWO_COL_BANNER_K = 0.85;
+		function stitchTwoColNoteMetrics(ctx, width, referenceWidth) {
+			const fontSize = STITCH_TWO_COL_NOTE_FONT;
+			const pad = Math.round(referenceWidth * 0.03);
+			ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			return { fontSize: fontSize, pad: pad, maxTextWidth: Math.max(fontSize, width - pad * 2), lineH: Math.round(fontSize * STITCH_TWO_COL_NOTE_LINE) };
+		}
+		// 字で折り返したあと、行の頭に句読点・閉じ括弧が来たら、前の行の最後の字を一緒に次の行へ送る（「。」だけの行を作らない。T160）
+		const STITCH_LINE_HEAD_NG = '、。，．）」』】〕〉》！？・ー';
+		function stitchTwoColWrap(ctx, text, maxW) {
+			const lines = stitchWrapText(ctx, text, maxW);
+			for (let i = 1; i < lines.length; i++) {
+				let guard = 0;
+				while (lines[i] && STITCH_LINE_HEAD_NG.includes(lines[i][0]) && lines[i - 1].length > 1 && guard++ < 3) {
+					lines[i] = lines[i - 1].slice(-1) + lines[i];
+					lines[i - 1] = lines[i - 1].slice(0, -1);
+				}
+			}
+			return lines;
+		}
 		function stitchDrawTwoColNoteBar(width, referenceWidth, markInfo, show) {
 			const ctx = document.createElement('canvas').getContext('2d');
-			const m = stitchNoteMetrics(ctx, width, referenceWidth, STITCH_COUNT_NOTE);
+			const m = stitchTwoColNoteMetrics(ctx, width, referenceWidth);
 			const maxW = m.maxTextWidth;
+			const stitchWrapText = stitchTwoColWrap;   // この帯の中の折り返しは、行頭の句読点を避ける形で
 			const info = markInfo || {};
 			const effNote = !!info.effNote;
 			const groups = [];
@@ -9058,14 +9095,16 @@
 			const parent = p.parent || null;
 			const grands = (p.grands || []).filter(Boolean);
 			const sumGH = grands.reduce((s, c) => s + c.height, 0);
-			const colH = parent ? parent.height : sumGH;
+			// T160（決定 646・655）: 親がいないときは祖を縮めずに横に並べる（1列目＝祖1・2列目＝祖2。祖が1人なら1列目だけ）
+			const colH = parent ? parent.height : (grands.length ? Math.max.apply(null, grands.map(c => c.height)) : 0);
 			const gScale = (parent && grands.length) ? Math.min(1, colH / sumGH) : 1;
 			const gs = grands.map(c => ({ c: c, w: Math.max(1, Math.round(c.width * gScale)), h: Math.max(1, Math.round(c.height * gScale)) }));
 			// 縮めたときは丸めのずれを最後の人で吸収し、合計を1列目の高さにぴったりそろえる（special.html と同じ）
 			if (gScale < 1) gs[gs.length - 1].h = Math.max(1, colH - gs.slice(0, -1).reduce((a, g) => a + g.h, 0));
 			const col1W = parent ? parent.width : 0;
-			const col2W = gs.length ? Math.max.apply(null, gs.map(g => g.w)) : 0;
-			const spanW = col1W + (parent && gs.length ? GAP : 0) + col2W;
+			const col2W = parent ? (gs.length ? Math.max.apply(null, gs.map(g => g.w)) : 0) : 0;
+			const spanW = parent ? col1W + (gs.length ? GAP : 0) + col2W
+				: gs.reduce((s, g, i) => s + (i ? GAP : 0) + g.w, 0);
 			const under = p.under ? p.under(spanW) : null;
 			const col3Parts = (p.col3 || []).filter(Boolean);
 			const col3W = col3Parts.length ? p.col3W : 0;
@@ -9095,11 +9134,12 @@
 			gs.forEach(g => {
 				ctx.drawImage(g.c, x, gy, g.w, g.h);
 				layout.grands.push({ x: x, y: gy, w: g.w, h: g.h, scale: gScale, band: !!(g.c._twoCol && g.c._twoCol.band) });
-				gy += g.h;
+				if (parent) gy += g.h;
+				else x += g.w + GAP;   // 親がいないときは横に並べる（T160）
 			});
 			if (under) {
 				ctx.drawImage(under, 0, colH);
-				layout.under = { x: 0, y: colH, w: under.width, h: under.height };
+				layout.under = { x: 0, y: colH, w: under.width, h: under.height, fontSize: under._fontSize || 0 };
 			}
 			if (col3W) {
 				const x3 = spanW + GAP;
@@ -9237,23 +9277,23 @@
 				// 見出し（＝帯）を出すか（決定 596・605）
 				const headings = effOn || show.banner || show.scenario;
 				// 帯は 親→祖1→祖2 の順。人と人の間にだけ線（決定 620）。効率を指定の3人の帯の高さはそろえない（決定 612）
+				// 字・余白・カードの高さは列の幅の STITCH_TWO_COL_BANNER_K 倍を基準にする（T160・656）
 				const banners2 = headings ? bannerSpecs.map((sp, i) => {
-					const opts = Object.assign({}, sp.opts, { rule: i < bannerSpecs.length - 1 });
+					const opts = Object.assign({}, sp.opts, { rule: i < bannerSpecs.length - 1, sizeK: STITCH_TWO_COL_BANNER_K });
 					return effOn
 						? stitchDrawEffPersonBanner(col3W, sp.label, sp.detected, sp.sp70Count, sp.factors, sp.genes, opts)
 						: stitchDrawPersonBanner(col3W, sp.label, sp.detected, sp.sp70Count, sp.factors, sp.genes, opts);
 				}) : [];
 				const notes2 = stitchDrawTwoColNoteBar(col3W, col3W, markInfo, show);
 				// 印＋凡例だけのとき（見出しが出ない）は、3列目を置かず、凡例を1・2列目の下に幅いっぱいの帯で置く
-				// （3列のときの補助の帯と同じ関数・同じ字の大きさ・同じ左の余白。決定 618）
+				// （決定 618 の左の余白〔3列の帯と同じ〕。T160: 字は3列目の補助の帯と同じ 40px・上の区切り線なし〔647・656・662〕）
 				const legendUnder = !headings && !!notes2;
 				const out = stitchComposeTwoCol({
 					parent: parentWide ? parentWide.canvas : null,
 					grands: grandWides,
 					col3: headings ? banners2.concat([notes2]) : [],
 					col3W: col3W,
-					under: legendUnder ? (spanW) => stitchDrawSharedNoteBar(spanW, contentCanvases[0].width, markInfo,
-						{ legend: show.legend, conditions: false }, run, personMeta.map(p => p.idx)) : null
+					under: legendUnder ? (spanW) => stitchDrawTwoColNoteBar(spanW, contentCanvases[0].width, markInfo, show) : null
 				});
 				out._layout.headings = headings;
 				out._layout.noteFont = notes2 && !legendUnder ? notes2._fontSize : 0;

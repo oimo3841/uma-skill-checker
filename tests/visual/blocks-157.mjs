@@ -298,7 +298,8 @@ export async function register157(env) {
 				'T154(4) 3列目は帯（親→祖1→祖2）＋補助の帯。線は人と人の間だけ（親・祖1 の帯の下）', { parts: L.col3.parts, rules: r.rules });
 			assert(r.ruleAt[0] > 0.95 && r.ruleAt[1] > 0.95 && r.ruleAt[2] === 0, 'T154(4) 画の中でも、親・祖1 の帯の下に線があり、祖2 の帯の下には無い', r.ruleAt);
 			assert(r.noteGray.length === 0 && Math.abs(r.noteLeft - r.noteWant) <= 6, 'T154(4) 脚注は左詰め（帯の字と同じ左の余白）・上に区切り線なし', { gray: r.noteGray, left: r.noteLeft, want: r.noteWant });
-			assert(r.adjust === 0 && L.noteFont === r.fontWant && L.noteFont < 50, 'T154(4) 2列では集計条件を描かない（集計条件の行を作らない）・補助の帯の字は「脚注の1行が3列目の幅に入る大きさ」（3列の 50px より小さい。決定 599）', { adjust: r.adjust, font: L.noteFont, want: r.fontWant });
+			// T160（決定 656・662）: 補助の帯の字は「脚注の1行が3列目の幅に入る大きさ」（599）から 40px の固定（列の幅で折り返す）に変えた。詳しくは blocks-163
+			assert(r.adjust === 0 && L.noteFont === 40, 'T154(4) 2列では集計条件を描かない（集計条件の行を作らない）・補助の帯の字は 40px（T160・決定 662）', { adjust: r.adjust, font: L.noteFont, was599: r.fontWant });
 			assert(r.personMeta.join() === '親A,祖A1,祖A2', 'T154(4) コピーの行のための人の並びは今のまま', r.personMeta);
 			assert(sp.errors.length === 0, 'T154(4) ページのエラーなし', sp.errors);
 		} finally { await sp.page.context().close(); }
@@ -347,8 +348,9 @@ export async function register157(env) {
 				const lo = m.legendOnly;
 				assert(!lo.col3 && lo.n === 0 && lo.under && lo.under.x === 0 && lo.under.y === lo.colH && lo.under.w === lo.spanW && lo.w === lo.spanW && lo.h === lo.colH + lo.under.h,
 					'T154(5) ' + mode + ': 両方 OFF で印＋凡例なら、3列目を置かず、凡例を1・2列目の下に幅いっぱい（1・2列目の幅）で置く（決定 618）', lo);
-				assert(lo.under.h === lo.refH && lo.font === 50 && Math.abs(lo.ink - Math.round(1179 * 0.03)) <= 6,
-					'T154(5) ' + mode + ': その凡例は3列のときの補助の帯と同じ（同じ関数・字 50px・左の余白 35px）', lo);
+				// T160（決定 647・656・662）: その帯は上の区切り線なし・字は3列目の補助の帯と同じ 40px（3列の補助の帯の関数はやめた）。左の余白 35px は今のまま（618）。詳しくは blocks-163
+				assert(lo.under.fontSize === 40 && lo.under.h < lo.refH && Math.abs(lo.ink - Math.round(1179 * 0.03)) <= 6,
+					'T154(5) ' + mode + ': その凡例は字 40px・左の余白 35px（T160。3列の補助の帯より低い＝区切り線とその上の余白が無い）', lo);
 				assert(!m.nothing.col3 && !m.nothing.under && m.nothing.w === lo.spanW && m.nothing.h === m.nothing.colH,
 					'T154(5) ' + mode + ': 見出しも印も OFF なら3列目を置かない（画は1・2列目だけ。決定 615）', m.nothing);
 				assert(!m.legendOff.col3 && !m.legendOff.under, 'T154(5) ' + mode + ': 両方 OFF・凡例 OFF なら3列目も下の帯も無い', m.legendOff);
@@ -374,8 +376,9 @@ export async function register157(env) {
 				const c = await buildStitchedSetImage(0, T.run(files, { cols: 2 }));
 				return { L: c._layout, w: c.width, h: c.height };
 			});
-			assert(!g.L.parent && g.L.grandScale === 1 && g.L.grands.length === 2 && g.L.grands[0].x === 0 && g.L.colH === 3900 && g.L.col3.x === 1099 + 8 && g.L.col3.w === 1099,
-				'T154(6) 親のいないセット: 祖は縮めず（拡大もしない）1列目に積む・上の欄は足さない・3列目は最初の人の列の幅', g.L);
+			// T160（決定 646）: 親のいないセットは祖1｜祖2 を横に並べる形に変えた（前は1列目に積んでいた）。詳しくは blocks-163
+			assert(!g.L.parent && g.L.grandScale === 1 && g.L.grands.length === 2 && g.L.grands[0].x === 0 && g.L.grands[1].x === 1099 + 8 && g.L.colH === 2200 && g.L.col3.x === (1099 + 8) * 2 && g.L.col3.w === 1099,
+				'T154(6) 親のいないセット: 祖は縮めず（拡大もしない）横に並べる（T160）・上の欄は足さない・3列目は最初の人の列の幅', g.L);
 			const b = await withFakes(sp.page, [0, 0, 0, 1800, 1500, 1500], {}, async (T, files) => {
 				const c = await buildStitchedSetImage(1, T.run(files, { cols: 2 }));
 				return { L: c._layout, meta: (c._personMeta || []).map((p) => p.label), labels: T.calls.plain.length };

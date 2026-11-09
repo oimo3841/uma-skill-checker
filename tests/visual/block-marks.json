@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-09",
 "numbering": "runtime",
-"count": 1079,
+"count": 1084,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1037,7 +1037,7 @@
   {"file":"tests/visual/blocks-147.mjs","title":"T141つまみと★ ―― (3) 縁の切れた★（星の縁の1列が 2列のすきまで離れる）を1つと数えない","ord":1,"marks":"V","asserts":4,"review":"名前で分けられない assert が 75%"},
   {"file":"tests/visual/blocks-147.mjs","title":"T141つまみと★ ―― 呼び出し元: processPersonImages は塗ってから detectSkillRows・★は computeRowStarCountsSpecial で数える","ord":1,"marks":"C","asserts":2,"review":"名前で分けられない assert が 50%"},
   {"file":"tests/visual/blocks-146.mjs","title":"T139(1) UmaExam の②の入口「静止画｜動画α」: 動画モードで「動画を選ぶ」・「追加」と OCR だけのボタンを隠す・一体のボタンは「OCR処理を開始する」・保存して再読み込みでも動画・静止画に戻すと今のまま／390・1280px × ライト・ダーク","ord":1,"marks":"VAS","asserts":11},
-  {"file":"tests/visual/blocks-146.mjs","title":"T139(2) UmaExam の動画の取り込み: 3人の枠に入り、②に OCR の前の結合画像（3人とも composePerson）・枚数に数えない・「画像を更新」は出ない・セットをクリアで外れる","ord":1,"marks":"VAT","asserts":12},
+  {"file":"tests/visual/blocks-146.mjs","title":"T139(2) UmaExam の動画の取り込み: 3人の枠に入り、②に OCR の前の結合画像（3人とも composePerson）・枚数に数えない・「画像を更新」が出る（押せない）・セットをクリアで外れる","ord":1,"marks":"VAT","asserts":12},
   {"file":"tests/visual/blocks-146.mjs","title":"T139(3) UmaExam の動画モードの「OCR処理を開始する」: OCR の前に整える画が渡り、結合は composePerson・引き出しと②の両方に出る／静止画の流れは今のまま","ord":1,"marks":"A","asserts":6},
   {"file":"tests/visual/blocks-151.mjs","title":"T144(1) 交流重賞の3つ: 表は 186・ex-0607・ex-0445 → 大井・川崎・船橋・盛岡。データの名前は「交流重賞」を含み、trackVenue は空のまま","ord":1,"marks":"ATC","asserts":4},
   {"file":"tests/visual/blocks-151.mjs","title":"T144(2)(3)(4) raceRejectsSkill・raceBlocksSkill: 中山のダートでは3つとも外れる。4つのレース場ではレース場を空にしたのと同じ（外れない）。レース場の無いレース・指定なしでは外さない","ord":1,"marks":"AC","asserts":6},
@@ -1084,6 +1084,11 @@
   {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(2) 止まっている画で描き直すときの継ぎ目は、いちばん合う値＋1.5 以内のいちばん上の行（速い動画だけ）","ord":1,"marks":"VSC","asserts":5},
   {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(3) 速い動画でないとき（ages が無い・null・全部 99・数が合わない）は、結合画像と枠が同じ","ord":1,"marks":"VC","asserts":3},
   {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(4) 作り物の速い動画: selectFrames が ages を返し（速い動画だけ）、ages を渡して組み立てても3人とも一覧と合う","ord":1,"marks":"VC","asserts":5},
-  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(5) UmaStar ③・UmaExam ②: 動画から来た人の記録に ages を持ち、composePerson に渡す","ord":1,"marks":"A","asserts":4,"review":"名前で分けられない assert が 50%"}
+  {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(5) UmaStar ③・UmaExam ②: 動画から来た人の記録に ages を持ち、composePerson に渡す","ord":1,"marks":"A","asserts":4,"review":"名前で分けられない assert が 50%"},
+  {"file":"tests/visual/blocks-163.mjs","title":"T160 (1) 2列の3列目: 補助の帯の字は 40px で3列目の幅で折り返す（細い列でも縮めない）・帯より上は列の幅の 0.85 倍を基準に小さく（3モード）","ord":1,"marks":"VTC","asserts":7},
+  {"file":"tests/visual/blocks-163.mjs","title":"T160 (2) 親のいないセットの2列: 祖1｜祖2 を縮めずに横に並べる（UmaExam・UmaStar）・祖が1人なら1列目・親がいれば今のまま","ord":1,"marks":"V","asserts":11},
+  {"file":"tests/visual/blocks-163.mjs","title":"T160 (3) 印＋凡例だけ: 1・2列目の下の帯に上の区切り線が無い・字は 40px（通常・めろっぷ拡張）","ord":1,"marks":"V","asserts":3},
+  {"file":"tests/visual/blocks-163.mjs","title":"T160 (4) OCR の前の②に「画像を更新」: 出す（VIDEO_PREVIEW_REFRESH）・2列｜3列を切り替えると押せる・押すと取り込み直さずに②の画が今の形に作り直される","ord":1,"marks":"VA","asserts":7},
+  {"file":"tests/visual/blocks-163.mjs","title":"T160 (5) 3列の画は直す前と画素まで同じ（通常・めろっぷ拡張・効率を指定。作り物の画像）","ord":1,"marks":"V","asserts":2}
 ]
 }

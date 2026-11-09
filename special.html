@@ -5153,14 +5153,16 @@
 			const legend = parts.legend || null;
 			// 1列目・2列目
 			const sumGH = grands.reduce((s, g) => s + g.c.height, 0);
-			const colH = parent ? parent.height : sumGH;
+			// T160（決定 646・655）: 親がいないときは祖を縮めずに横に並べる（1列目＝祖1・2列目＝祖2。祖が1人なら1列目だけ）
+			const colH = parent ? parent.height : (grands.length ? Math.max(...grands.map(g => g.c.height)) : 0);
 			const gScale = (parent && grands.length) ? Math.min(1, colH / sumGH) : 1;
 			const gs = grands.map(g => ({ k: g.k, c: g.c, w: Math.max(1, Math.round(g.c.width * gScale)), h: Math.max(1, Math.round(g.c.height * gScale)) }));
 			// 縮めたときは丸めのずれを最後の人で吸収し、合計を1列目の高さにぴったりそろえる
 			if (gScale < 1) gs[gs.length - 1].h = Math.max(1, colH - gs.slice(0, -1).reduce((a, g) => a + g.h, 0));
 			const col1W = parent ? parent.width : 0;
-			const col2W = gs.length ? Math.max(...gs.map(g => g.w)) : 0;
-			const spanW = col1W + (parent && gs.length ? L.innerGap : 0) + col2W;
+			const col2W = parent ? (gs.length ? Math.max(...gs.map(g => g.w)) : 0) : 0;
+			const spanW = parent ? col1W + (gs.length ? L.innerGap : 0) + col2W
+				: gs.reduce((s, g, i) => s + (i ? L.innerGap : 0) + g.w, 0);
 			const bodyY = L.margin + (noBar ? 0 : L.barH + L.barGap);
 			const personsY = bodyY;
 			let lw = 0, lh = 0;
@@ -5227,7 +5229,8 @@
 			gs.forEach((g) => {
 				ctx.drawImage(g.c, x, gy, g.w, g.h);
 				layout.grands.push({ k: g.k, x: x, y: gy, w: g.w, h: g.h, scale: gScale });
-				gy += g.h;
+				if (parent) gy += g.h;
+				else x += g.w + L.innerGap;   // 親がいないときは横に並べる（T160）
 			});
 			if (legend) {
 				ctx.drawImage(legend, L.margin, legendY, lw, lh);
