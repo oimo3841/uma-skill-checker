@@ -12,7 +12,9 @@
 		**ツール本体には組み込まない**（どのページからもリンクしない）。ゲームの画面の画像は使わず、実物と同じ大きさの灰色の箱で描く。外へは何も送らない。保存もしない。
 		帯・補助の帯は exam.html の関数の写し（exam-2col-mock-exam.js）、帯の中身と画像の大きさは見本のデータ（exam-2col-mock-data.js。実物の exam.html に素材を通して取った値）。
 		組み立ては exam-2col-mock.js（3列＝今の exam.html と同じ・2列＝(ア)(イ)(ウ)。決まりはそのファイルの冒頭）。
-		引数: ?mode=normal|eff|melop・?cols=3|2・?plan=a|i|u・?off=banner,scenario,marks,legend,conditions（OFF にするチェック）・?shot=1（上の操作を隠す）
+		T152 で、おいもさんの決定 596〜606 に合わせた「596版」を足し、2列の既定にした（(ア)(イ)(ウ) は見比べ用にそのまま）。
+		3列も、通常・めろっぷ拡張の「検出」「sp70緑」のカードだけ 596版の横並びにした（決定 603。ほかは今の製品の3列のまま）。
+		引数: ?mode=normal|eff|melop・?cols=3|2・?plan=v2|a|i|u（v2＝596版）・?off=banner,scenario,marks,legend,conditions（OFF にするチェック）・?shot=1（上の操作を隠す）
 	-->
 	<link rel="stylesheet" href="../css/tokens.css" />
 	<style>
@@ -56,7 +58,7 @@ body.is-shot #out { border: 0; border-radius: 0; }
 				<button type="button" data-set="cols:3">3列</button><button type="button" data-set="cols:2">2列</button>
 			</div>
 			<div class="seg" role="group" aria-label="案">
-				<button type="button" data-set="plan:a">ア</button><button type="button" data-set="plan:i">イ</button><button type="button" data-set="plan:u">ウ</button>
+				<button type="button" data-set="plan:v2">596版</button><button type="button" data-set="plan:a">ア</button><button type="button" data-set="plan:i">イ</button><button type="button" data-set="plan:u">ウ</button>
 			</div>
 			<div class="checks">
 				<label><input type="checkbox" data-show="banner" />検出数カード<span class="sub">（検出数・sp70緑）</span></label>
