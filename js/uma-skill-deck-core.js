@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-09a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-09b';
 
 	/* ============================================================
 	 * 定数
@@ -4145,14 +4145,18 @@
 			const src = prob.cardSrc.get(cardId);
 			src.hint.forEach(id => put(id, 'hint', true));
 			const picks = picksOf.get(cardId) || [];
-			const eventsOut = (events, scope) => events.forEach(ev => {
+			// chara … 共通イベントのキャラクター（T153: グループのカードはメンバーごとに選択肢が別なので、picks の chara で照らす）
+			const eventsOut = (events, scope, chara) => events.forEach(ev => {
 				if (ev.alts.length === 1) { ev.alts[0].forEach(id => put(id, 'event', true)); return; }
-				const p = picks.find(x => x.scope === scope && x.eventIndex === ev.idx);
+				const p = picks.find(x => x.scope === scope && x.eventIndex === ev.idx && (chara === undefined || x.chara === chara));
 				if (!p) return;
 				ev.alts[p.choiceIndex].forEach(id => put(id, 'event', ev.alts.every(al => al.indexOf(id) !== -1)));
 			});
 			eventsOut(src.events, 'card');
-			eventsOut(prob.commonSrc.get(card.charaName) || [], 'chara');
+			// T153: グループのカード（残りの枠に指定したもの）は、探索の出発点（outsideBuild の bases）と同じく、メンバー全員の共通イベントを数える。
+			// それ以外のカードは今までと同じ（charaName の1人）
+			if (card.isGroup === true) outsideCharasOfCard(card).forEach(n => eventsOut(prob.commonSrc.get(n) || [], 'chara', n));
+			else eventsOut(prob.commonSrc.get(card.charaName) || [], 'chara');
 			Array.from(flags.keys()).forEach(id => {
 				if (!outsideIsGold(id)) return;
 				const g = flags.get(id);

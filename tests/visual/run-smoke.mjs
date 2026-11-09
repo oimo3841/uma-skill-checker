@@ -169,6 +169,7 @@ import { register146 } from './blocks-146.mjs';
 import { register151 } from './blocks-151.mjs';
 import { register148 } from './blocks-148.mjs';
 import { register152 } from './blocks-152.mjs';
+import { register156 } from './blocks-156.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15607,6 +15608,8 @@ await register151({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register148({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T145（2026-11-09）: DMM版の横画面の画からパネルを切り出して、今の流れ（行の検出・OCR・結合）へ渡す（js/landscape-panel.js。見出しは「T145横画面」）
 await register152({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T153（2026-11-09）: 残りの枠にグループのカードを指定したとき、結果の組み立てでメンバー全員の共通イベントを数える（見出しは「T153」）
+await register156({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
