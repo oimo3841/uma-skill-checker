@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+	<title>UmaExam の結合画像の2列</title>
+	<!--
+		T146 のモック（作業用）。UmaExam の結合画像に UmaStar と同じ「2列」の形を入れる案を、おいもさんが PC とスマホで見比べて決めるためのページ。
+		**ツール本体には組み込まない**（どのページからもリンクしない）。ゲームの画面の画像は使わず、実物と同じ大きさの灰色の箱で描く。外へは何も送らない。保存もしない。
+		帯・補助の帯は exam.html の関数の写し（exam-2col-mock-exam.js）、帯の中身と画像の大きさは見本のデータ（exam-2col-mock-data.js。実物の exam.html に素材を通して取った値）。
+		組み立ては exam-2col-mock.js（3列＝今の exam.html と同じ・2列＝(ア)(イ)(ウ)。決まりはそのファイルの冒頭）。
+		引数: ?mode=normal|eff|melop・?cols=3|2・?plan=a|i|u・?off=banner,scenario,marks,legend,conditions（OFF にするチェック）・?shot=1（上の操作を隠す）
+	-->
+	<link rel="stylesheet" href="../css/tokens.css" />
+	<style>
+:root {
+	/* exam.html の :root の値（結合画像の区間まとめパネル・合計の箱が読む。ライトの値） */
+	--exam-eff-turf-bg: #e8f3dd; --exam-eff-turf-border: #c6ddb2; --exam-eff-turf-text: #46563a;
+	--exam-eff-total-bg: #f3effa; --exam-eff-total-border: #d9cdee; --exam-eff-total-text: #4b3a73;
+}
+html, body { margin: 0; }
+body { background: var(--uma-surface-sunken); color: var(--uma-text); font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.wrap { max-width: 72rem; margin: 0 auto; padding: 12px 16px 24px; }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; margin-bottom: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--uma-border-strong); border-radius: 8px; overflow: hidden; background: var(--uma-surface); }
+.seg button { border: 0; border-right: 1px solid var(--uma-border); background: transparent; color: var(--uma-text); font: inherit; font-size: 13px; font-weight: 700; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--uma-text-heading); color: var(--uma-surface); }
+.seg button:disabled { color: var(--uma-text-faint); cursor: not-allowed; background: transparent; }
+.seg button:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
+.checks { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 13px; }
+.checks label { display: inline-block; padding: 6px 0; cursor: pointer; }
+.checks label.is-child::before { content: "└"; color: var(--uma-text-faint); margin-right: 6px; }
+.checks label.is-off { color: var(--uma-text-faint); cursor: not-allowed; }
+.checks input { width: 1rem; height: 1rem; margin: 0 6px 0 0; vertical-align: -2px; accent-color: var(--uma-text-heading); }
+.checks .sub { color: var(--uma-text-subtle); font-weight: 400; }
+.size { font-size: 12px; color: var(--uma-text-subtle); margin: 0 0 6px; }
+#out { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--uma-border); border-radius: 8px; }
+body.is-shot .ctl, body.is-shot .size { display: none; }
+body.is-shot .wrap { padding: 0; max-width: none; }
+body.is-shot #out { border: 0; border-radius: 0; }
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="ctl">
+			<div class="seg" role="group" aria-label="モード">
+				<button type="button" data-set="mode:normal">通常</button><button type="button" data-set="mode:eff">効率を指定</button><button type="button" data-set="mode:melop">めろっぷ拡張</button>
+			</div>
+			<div class="seg" role="group" aria-label="列">
+				<button type="button" data-set="cols:3">3列</button><button type="button" data-set="cols:2">2列</button>
+			</div>
+			<div class="seg" role="group" aria-label="案">
+				<button type="button" data-set="plan:a">ア</button><button type="button" data-set="plan:i">イ</button><button type="button" data-set="plan:u">ウ</button>
+			</div>
+			<div class="checks">
+				<label><input type="checkbox" data-show="banner" />検出数カード<span class="sub">（検出数・sp70緑）</span></label>
+				<label><input type="checkbox" data-show="scenario" />シナリオ因子・遺伝子<span class="sub">（各列の該当状況）</span></label>
+				<label><input type="checkbox" data-show="marks" /><span data-marks-label>印</span><span class="sub" data-marks-sub>（★●◆◇✕）</span></label>
+				<label class="is-child"><input type="checkbox" data-show="legend" />凡例<span class="sub">（印の見かた）</span></label>
+				<label><input type="checkbox" data-show="conditions" />集計条件<span class="sub">（追加／除外スキル・シナリオ因子・遺伝子一覧）</span></label>
+			</div>
+		</div>
+		<p class="size" id="size"></p>
+		<img id="out" alt="" />
+	</div>
+	<script src="../js/stitch.js"></script>
+	<script src="exam-2col-mock-exam.js"></script>
+	<script src="exam-2col-mock-data.js"></script>
+	<script src="exam-2col-mock.js"></script>
+</body>
+</html>
