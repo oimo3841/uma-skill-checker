@@ -366,7 +366,7 @@ export async function register122(env) {
 		assert(!/fetch\(|XMLHttpRequest|sendBeacon|WebSocket|RTCPeerConnection/.test(src), 'T105 PC取り込み(33) 部品に通信の処理が無い');
 		const sp2 = read('special.html');
 		// T156（決定 637）: DMM版の横画面の録画（wrapSource の出どころ。landscape の印つき）も取り込みと同じに扱う。ふつうの動画ファイル（縦画面）は今のまま
-		assert(/const debug = \{\}, pcVideo = capture \|\| !!src\.landscape;/.test(sp2) && /if \(pcVideo && window\.UmaPcCapture\) await UmaVideoFrames\.untilAbort\(UmaPcCapture\.removePointer/.test(sp2) && /if \(pcVideo\) \{ selOpts\.debug = debug; selOpts\.effectVote = false; \}/.test(sp2), 'T105 PC取り込み(33) カーソルを消す処理と effectVote の切り替えは取り込みと横画面の録画のときだけ');
+		assert(/const debug = \{\}, pcVideo = capture \|\| !!src\.landscape;/.test(sp2) && /if \(pcVideo && window\.UmaPcCapture\) (\{ )?await UmaVideoFrames\.untilAbort\(UmaPcCapture\.removePointer/.test(sp2) && /if \(pcVideo\) \{ selOpts\.debug = debug; selOpts\.effectVote = false; \}/.test(sp2), 'T105 PC取り込み(33) カーソルを消す処理と effectVote の切り替えは取り込みと横画面の録画のときだけ');
 		assert(jsErrors(errors).filter((x) => !/人が3人に分かれない/.test(x)).length === 0, 'T105 PC取り込み(33) エラー 0', errors);
 		await sp.ctx.close();
 	});

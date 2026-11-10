@@ -61,7 +61,7 @@
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
-	<script src="js/video-frames.js?v=2026-11-10a"></script>
+	<script src="js/video-frames.js?v=2026-11-10b"></script>
 	<!-- PC のウィンドウの取り込み（T105。③の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
 	<script src="js/pc-capture.js?v=2026-11-10a"></script>
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。exam.html と共有。③の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
@@ -2341,6 +2341,26 @@
 		// 動画（File）か、フレームの出どころ（UmaVideoFrames.videoSource／canvasSource の形）を受け取り、選んだフレームを入れ先のセットの3人の枠へ入れる。
 		// 戻り値 { ok, aborted?, error? }。取り消し・失敗のときは枠を変えない
 		// o.capture: input は取り込みの一回分（UmaPcCapture.begin の戻り値）。カーソルを消す処理を足し、失敗は枠の中の案内と「もう一度」で出す
+		/* 段ごとの秒（T161・決定 663）。開発ログに [時間] の行を1行出す。速くする直しはしない（OCR の速さの作業 445・446 でまとめて行う）。
+		 * lap(name) … 前の lap（なければ作った時）から今までを name の段として数える。name が無ければ数えずに起点だけ進める */
+		function makeStageClock() {
+			const t0 = performance.now();
+			let at = t0;
+			const parts = [];
+			const sec = (ms) => (ms / 1000).toFixed(1) + '秒';
+			return {
+				sec,
+				lap(name, extra) { const now = performance.now(); if (name) parts.push(name + ' ' + sec(now - at) + (extra || '')); at = now; },
+				line(head) { return '[時間] ' + head + ': ' + parts.concat(['合計 ' + sec(performance.now() - t0)]).join('・'); }
+			};
+		}
+		// 選ぶ処理（selectFrames）の中の段（読む・選ぶ・取り直す。横画面では、くっきりした画を探す時間も）
+		function selectTimeDetail(sel, sec) {
+			const tm = (sel && sel.tm) || {};
+			return '（読む ' + sec(tm.sampleMs || 0) + '・選ぶ ' + sec(tm.selectMs || 0) + '・取り直す ' + sec(tm.grabMs || 0) + (tm.sharpMs ? '〔うち くっきりした画を探す ' + sec(tm.sharpMs) + '〕' : '') + '）';
+		}
+		// 直前の取り込み・動画の [時間] の行。OCR を始めると開発ログが空になるので、OCR の行の前に入れ直す
+		let lastVideoTimeLine = null;
 		async function onVideoChosen(input, o) {
 			const capture = !!(o && o.capture);
 			const pend = videoPending;
@@ -2353,6 +2373,8 @@
 			setVideoBusyUi(true);
 			renderVideoProgress(setIdx, 0, 0);
 			const t0 = performance.now();
+			const clock = makeStageClock();
+			let sel = null;
 			let src = null;
 			try {
 				// 読み込み・シークの待ちが返ってこなくても「取り消す」でその場で抜ける（T68。前は読み込みの待ちが取り消しを聞いておらず、押しても何も起きなかった）
@@ -2362,15 +2384,17 @@
 				// T145: DMM版の横画面の録画は、パネルを切り出した出どころにする（縦長の動画はそのまま。取り込みは pc-capture.js が切り出す）
 				if (!capture && src !== input && window.UmaLandscape) src = await UmaVideoFrames.untilAbort(UmaLandscape.wrapSource(src, { signal: ctrl.signal }), ctrl.signal);
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
+				clock.lap(capture ? '取り込みのあとの処理（圧縮の仕上げ・切り出し・動く帯）' : src.landscape ? '動画を開く（横画面の切り出しを含む）' : '動画を開く');
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
 				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
 				// タッチのエフェクトの置き換え（effectVote）は iPhone の動画のためのもの。カーソルが写った画の行を別の画へ写してしまうので、取り込みでは切る
 				// DMM版の横画面の録画（wrapSource が切り出した出どころ。PC で撮ったのでカーソルが写る）も取り込みと同じに扱う（T156・決定 637）
 				const debug = {}, pcVideo = capture || !!src.landscape;
 				if (pcVideo) { selOpts.debug = debug; selOpts.effectVote = false; }
-				const sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
+				sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
+				clock.lap('選ぶ', selectTimeDetail(sel, clock.sec));
 				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
-				if (pcVideo && window.UmaPcCapture) await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal);
+				if (pcVideo && window.UmaPcCapture) { await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal); clock.lap('カーソルを消す'); }
 				sel.persons.forEach((p, r) => {
 					const idx = setIdx * 3 + r;
 					const frames = p.files.slice();
@@ -2385,11 +2409,17 @@
 				// 自動の結合が終わるまで進捗の箱は「完了 100%」のまま残す。結合は取り消せないので「取り消す」は押せなくする
 				const abortBtn = document.querySelector('#video-progress [data-video-act="abort"]');
 				if (abortBtn) abortBtn.disabled = true;
+				clock.lap('画像の一覧に入れる');
 				const stitched = await autoStitchVideoSet(setIdx);
+				clock.lap('組み立て（結合画像）');
+				lastVideoTimeLine = clock.line(capture ? '取り込み' : '動画');
+				devGeometry.push(lastVideoTimeLine);
 				document.getElementById('video-progress').remove();
 				if (capture) clearCaptureStage(setIdx);
 				return { ok: true, stitched };
 			} catch (e) {
+				clock.lap('止まった段');
+				devGeometry.push(clock.line((capture ? '取り込み' : '動画') + '（止まった）'));
 				const el = document.getElementById('video-progress');
 				if (el) el.remove();
 				if (capture) clearCaptureStage(setIdx);
@@ -3051,6 +3081,9 @@
 			if (!anyFiles) { showToast('少なくとも1人分の画像を選んでください'); return false; }
 
 			devGeometry = [];
+			if (lastVideoTimeLine) devGeometry.push(lastVideoTimeLine + '（直前の取り込み・動画）');
+			const ocrClock = makeStageClock();
+			let ocrStage = null;
 			previewCanvases = [];
 			// 結合画像の表は、押した時点の②の選択と、この OCR の結果から描く（段6・D10）。結果が揃うまでは前の写しも捨てる
 			const stitchSnap = captureStitchSnapshot();
@@ -3087,6 +3120,7 @@
 					preserve_interword_spaces: '1',
 					user_defined_dpi: '300'
 				});
+				ocrClock.lap('準備（OCR の読み込み）');
 
 				// T95: 全スキルの名前の辞書は、この OCR のあいだ1つを使い回す（②・遺伝子・読み込み済みのデータが変わるので押すたびに作り直す）。
 				// 進化スキルを辞書から外すには進化の一覧が要るので、読めていなければ先に待つ（読めなくても照合は続ける＝外さないだけ）
@@ -3102,6 +3136,8 @@
 					const files = persons[p].files;
 					if (files.length === 0) continue;
 					setProgress(ocrDone / ocrTotal, PERSON_LABELS[p] + 'を処理中…');
+					ocrClock.lap(ocrStage);
+					ocrStage = PERSON_LABELS[p];
 					ocrDone++;
 					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview, persons[p].video || null);
 					if (result.lines.length > 0) anySuccess = true;
@@ -3120,6 +3156,8 @@
 						try { personGreen[p] = await readGreenFactor(worker, files); } catch (e) { personGreen[p] = null; }
 					}
 				}
+				ocrClock.lap(ocrStage);
+				ocrStage = deckMode ? '青と赤の因子' : null;
 				// T116: Deck α へ送るときの青・赤因子。新UI のときだけ読む。白スキルの照合に影響しないよう、全員の読み取りのあとで読む。読めなくても判定は続ける
 				if (deckMode) {
 					for (let p = 0; p < persons.length; p++) {
@@ -3131,9 +3169,12 @@
 				console.error(err);
 				errorWrap.classList.remove('hidden');
 				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
+				ocrStage = (ocrStage || '準備') + '（止まった）';
 				return false;
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
+				ocrClock.lap(ocrStage);
+				devGeometry.push(ocrClock.line('OCR'));
 			}
 
 			// 文面の組み立ては common.js の buildImageQualityNotice() に集約している
@@ -5397,6 +5438,8 @@
 			const refresh = !!(opts && opts.refresh);
 			if (stitchInProgress) return { anyOutput: false, anySuccess: false, anyFailure: false }; // 多重クリック防止
 			stitchInProgress = true;
+			const stitchClock = makeStageClock();
+			let stitchTimed = false;
 			// 結合画像の設定は押した時点の値で全部のセットを作る（T96）。表示中の画像の設定として控え、「画像を更新」の可否に使う
 			const parts = stitchPartsNow();
 			const filesAtStart = persons.map(p => p.files.slice());
@@ -5474,9 +5517,12 @@
 					if (!keepClosed) openDrawer('stitch');   // 結果は引き出しの中なので、そのまま開いて見せる
 				}
 
+				devGeometry.push(stitchClock.line('結合'));
+				stitchTimed = true;
 				if (document.getElementById('opt-devlog').checked) renderDevLog();
 				return { anyOutput: anyOutput, anySuccess: anySuccess, anyFailure: anyFailure };
 			} finally {
+				if (!stitchTimed) devGeometry.push(stitchClock.line('結合'));   // 途中で戻ったとき
 				if (ownBusy) endBtnBusy();
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す

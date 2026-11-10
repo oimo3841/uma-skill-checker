@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-10a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-10b';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -86,6 +86,10 @@
 		fastSpeed: 0.55,     // スクロールしていた間の速さ（W/秒）がこれを超えたら速い動画（ふだんの速さの素材6本は 0.23〜0.33・速い動画 A-1・A-2・育成終了直後の動画は 0.92〜1.60。その間）
 		fastFps: 16,         // 速い動画を調べる間隔（1秒あたり）
 		lateAge: [0.45, 0.3], // 速い動画で、動いている画の候補は、はじき始めからこの秒数がたった画を、この順に先に試す（はじいた直後は指の位置にエフェクトが出る）
+		// 圧縮の立ち上がりの粗い画を使わない（T161）。null は「横画面の出どころ（kind に landscape: が入る）だけ」
+		sharpPick: null,
+		sharpCands: 3,       // 選んだ画と同じ位置のまま続く画から、くっきりしているかを比べる画の数
+		sharpGain: 0.03,     // 比べた画のほうが鮮明度がこの割合を超えて高ければ取り替える
 		maxPicks: 120,
 		sliceMs: 24,
 		labels: null         // 人の名前（例 ['親', '祖1', '祖2']）。無ければ「人1」…
@@ -960,6 +964,68 @@
 			await buildTrack(true);
 		}
 
+		/* 圧縮の立ち上がりの粗い画を使わない（T161）。
+		 * PC の取り込み（js/pc-capture.js の encodeSink）と PC の録画は、撮り始めの画が粗く、止まっている間に少しずつくっきりする
+		 * （おいもさんの取り込み 2本〔T105〕で、止まったままの頭 1.4秒の鮮明度が 622 → 677・570 → 626）。スクロールで新しく出た所も同じ。
+		 * 選ぶ処理の頭の1枚は必ず最初の画（いちばん粗い）なので、横画面のパネルを拡大すると親の上の部分がにじみ（止まっている画は組み立てで
+		 * 優先されるので、その画の行が全部残る）、OCR の行の検出が外れ、次の画との継ぎ目の一致も下がって「ずれているかもしれません」が出た
+		 * （T161 のおいもさんの取り込み: 1枚目の鮮明度 169・ほか 193〜235）。横画面の出どころ（kind に landscape: が入る）だけ、次の2つをする。
+		 * 縦画面の動画（iPhone）・縦画面の取り込みは今のまま（opts.sharpPick で切り替えられる）。
+		 *  (1) 頭: 軌跡で同じ位置のまま（となりとのずれ 0）続く画を sharpCands 枚まで等倍で描いて比べ、本文の帯の鮮明度が sharpGain を超えて高い画を頭にし、
+		 *      その前の画は使わない（選ぶ・継ぎ目の確かめも、くっきりした画の縮小画で行う）。
+		 *  (2) 取り直し: 選んだ画のあと、同じ位置のまま続く画を同じく比べ、くっきりした画で置き換える（同じ位置の画なので継ぎ目は変わらない） */
+		const sharpOn = opts.sharpPick != null ? !!opts.sharpPick : /(^|:)landscape:/.test(source.kind || '');
+		// 本文の帯（hE〜footer）のラプラシアン分散（グレー・2画素おき）
+		function bandSharpness(ctx) {
+			const y0 = Math.max(1, hE), y1 = Math.min(H - 1, footer), d = ctx.getImageData(0, y0 - 1, W, y1 - y0 + 2).data, rw = W * 4;
+			const g = (k) => 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2];
+			let s1 = 0, s2 = 0, n = 0;
+			for (let y = 1; y <= y1 - y0; y += 2) {
+				for (let x = 1; x < W - 1; x += 2) {
+					const k = y * rw + x * 4;
+					const l = 4 * g(k) - g(k - 4) - g(k + 4) - g(k - rw) - g(k + rw);
+					s1 += l; s2 += l * l; n++;
+				}
+			}
+			return n ? s2 / n - (s1 / n) * (s1 / n) : 0;
+		}
+		// 同じ位置のまま続く画（f のあと、となりとのずれ 0 が続く間）から、比べる画を sharpCands 枚まで（等間隔・最後の画を含む）
+		function sameSpotCands(f0) {
+			const k = same.indexOf(f0), chain = [];
+			if (k < 0 || !pos.has(f0)) return chain;
+			for (let j = k + 1; j < same.length; j++) {
+				const f = same[j];
+				if (f.stepPrev !== 0 || !pos.has(f) || pos.get(f) !== pos.get(f0)) break;
+				chain.push(f);
+			}
+			const n = Math.min(opts.sharpCands, chain.length), cands = [];
+			for (let c = 1; c <= n; c++) { const f = chain[Math.round(c * chain.length / n) - 1]; if (!cands.includes(f)) cands.push(f); }
+			return cands;
+		}
+		let sharpHead = null;
+		if (sharpOn) {
+			const cands = sameSpotCands(same[0]);
+			if (cands.length) {
+				const ts = performance.now();
+				const hc = document.createElement('canvas'); hc.width = W; hc.height = H;
+				const hx = hc.getContext('2d', { willReadFrequently: true });
+				const sharpAt = async (f) => { await untilAbort(source.drawAt(f.t, hx, W, H, signal), signal); return isBlankCanvas(hx, W, H, opts.blankRatio) ? -1 : bandSharpness(hx); };
+				const s0 = await sharpAt(same[0]);
+				let best = null;
+				for (const f of cands) { await pause(); const sv = await sharpAt(f); if (!best || sv > best.s) best = { f, s: sv }; }
+				hc.width = hc.height = 0;
+				if (best && s0 >= 0 && best.s > s0 * (1 + opts.sharpGain)) {
+					const k = same.indexOf(best.f);
+					sharpHead = { from: same[0].t, to: best.f.t, s0: Math.round(s0), s1: Math.round(best.s), dropped: k };
+					// 頭より前の画は使わない（同じ位置の画なので、軌跡の位置はそのまま 0）。頭の区画の頭の位置（heads）も同じ
+					same.splice(0, k);
+					same[0].stepPrev = undefined;
+					picks[0] = same[0];   // 選ぶ段の1枚目（上で same[0] で作ってある）
+				}
+				tm.sharpMs = (tm.sharpMs || 0) + performance.now() - ts;
+			}
+		}
+
 		// 止まっている区間（となりとのずれ 0 が続く所）。区間の真ん中の1枚を候補にする（T85。T83 の案1 (a)）。
 		// 止まっている画はシークが前後にずれても同じ画で、タッチのエフェクトも出ない
 		let stillRuns = 0;
@@ -1486,6 +1552,31 @@
 			effectPicks++; effectBlocks += flagged.length;
 			if (opts.debug) (opts.debug.effects = opts.debug.effects || []).push({ t: p.t, regions, alts: alts.map((x) => ({ t: x.t, d: x.d, rate: +x.rate.toFixed(4) })), blocks: flagged.map((c) => [c.y, c.x0, +c.d.toFixed(1), +c.ee.toFixed(1), +c.k.toFixed(1), +c.ke.toFixed(1)]) });
 		}
+		// 取り直しで、止まっている画を同じ位置のくっきりした画に置き換える（T161。sharpOn・bandSharpness は「止まっている区間」の前）
+		let sharpSwaps = 0, sharpTried = 0;
+		const sharpLog = [];
+		async function sharperGrab(p) {
+			const cands = sameSpotCands(p);
+			if (!cands.length) return null;
+			sharpTried++;
+			const ts = performance.now();
+			const s0 = bandSharpness(fctx), orig = fctx.getImageData(0, 0, W, H);
+			let best = null;
+			for (const f of cands) {
+				await pause();
+				await untilAbort(source.drawAt(f.t, fctx, W, H, signal), signal);
+				if (isBlankCanvas(fctx, W, H, opts.blankRatio)) continue;
+				const s = bandSharpness(fctx);
+				if (!best || s > best.s) best = { s, f, t: f.t, img: fctx.getImageData(0, 0, W, H) };
+			}
+			if (best && best.s > s0 * (1 + opts.sharpGain)) {
+				fctx.putImageData(best.img, 0, 0);
+				sharpSwaps++;
+				sharpLog.push(p.t.toFixed(3) + '→' + best.t.toFixed(3) + '秒（' + Math.round(s0) + '→' + Math.round(best.s) + '）');
+			} else fctx.putImageData(orig, 0, 0);   // 置き換えないときは選んだ時刻の画に戻す（今までと同じ画）
+			tm.sharpMs = (tm.sharpMs || 0) + performance.now() - ts;
+			return best && best.s > s0 * (1 + opts.sharpGain) ? best.f : null;
+		}
 		let grabMismatch = 0, grabFixed = 0, grabShifted = 0;
 		// 取り直した画が、縮小画の何 px 先（後）の画か。重なりがほぼ全面なので、となりの画どうしより確かに測れる
 		const grabDelta = (sp, gp) => {
@@ -1513,22 +1604,24 @@
 				grabRetries++;
 				t = tries === 1 ? p.t : Math.min(D - 0.01, p.t + (tries - 1) / 120);
 			}
-			let m = grabMatchOf(p);
+			// 取り替えたら（T161）、取り直しの確かめも取り替えた画の縮小画と比べる（同じ位置の画。選んだ画の縮小画は粗いので合わない）
+			const q = (sharpOn && await sharperGrab(p)) || p;
+			let m = grabMatchOf(q);
 			if (m && m.bad >= opts.grabMatch) {
 				grabMismatch++;
-				m.delta = grabDelta(p.plane, m.plane);
+				m.delta = grabDelta(q.plane, m.plane);
 				let best = { m, img: fctx.getImageData(0, 0, W, H) };
 				const better = (x, y) => (x.bad < opts.grabMatch) !== (y.bad < opts.grabMatch) ? x.bad < opts.grabMatch
 					: (x.delta != null) !== (y.delta != null) ? x.delta != null
 					: x.delta != null ? Math.abs(x.delta) < Math.abs(y.delta) : x.bad < y.bad;
 				for (const dt of opts.grabRetryDt) {
 					await pause();
-					const tt = Math.max(0, Math.min(D - 0.01, p.t + dt));
+					const tt = Math.max(0, Math.min(D - 0.01, q.t + dt));
 					await untilAbort(source.drawAt(tt, fctx, W, H, signal, { waitFrame: true }), signal);
 					if (isBlankCanvas(fctx, W, H, opts.blankRatio)) continue;
-					const m2 = grabMatchOf(p);
+					const m2 = grabMatchOf(q);
 					if (!m2) continue;
-					if (m2.bad >= opts.grabMatch) m2.delta = grabDelta(p.plane, m2.plane);
+					if (m2.bad >= opts.grabMatch) m2.delta = grabDelta(q.plane, m2.plane);
 					if (better(m2, best.m)) best = { m: m2, img: fctx.getImageData(0, 0, W, H) };
 					if (m2.bad < opts.grabMatch) break;
 				}
@@ -1544,7 +1637,7 @@
 				await voteOutEffects(i, p);
 				if (effectBlocks + effectCopiedRows !== before) { sctx.drawImage(full, 0, 0, W, H, 0, 0, sw, H); const g = planeFromSmall(); if (g) m = { plane: g, bad: m ? m.bad : 0, delta: m ? m.delta : null }; }
 			}
-			grabPlanes.push(m ? m.plane : p.plane);
+			grabPlanes.push(m ? m.plane : q.plane);
 			// 縮小画に対する取り直した画のずれ（正＝取り直した画のほうが下へ進んでいる）。合っていれば 0・測れなければ null
 			grabDeltas.push(!m ? 0 : m.bad < opts.grabMatch ? 0 : m.delta);
 			if (opts.normalizeFixed) {
@@ -1584,6 +1677,8 @@
 			s.shift = shift; s.overlap = cH - shift;
 		}
 		tm.grabMs = performance.now() - t2;
+		if (sharpHead && typeof stitchLog === 'function') stitchLog('動画: 撮り始めの粗い画を使わず、同じ位置のくっきりした画から始める: ' + sharpHead.from.toFixed(3) + '→' + sharpHead.to.toFixed(3) + '秒（本文の帯の鮮明度 ' + sharpHead.s0 + '→' + sharpHead.s1 + '・前の ' + sharpHead.dropped + '枚を使わない）');
+		if (sharpSwaps && typeof stitchLog === 'function') stitchLog('動画: 撮り始め・スクロールの直後の粗い画を、同じ位置のくっきりした画に取り替え（' + sharpSwaps + '/' + sharpTried + '枚。選んだ時刻→使った時刻・本文の帯の鮮明度）: ' + sharpLog.join('、'));
 
 		// 7. 人ごと: アンカー k からアンカー k+1 まで（次の人の1枚目も入れる。末尾は stitch が次の青いパネルの手前で切る）
 		const persons = anchorEntries.map((a, j) => {
@@ -1619,7 +1714,7 @@
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
 				nears, headHints, predVerifies, loose, micros, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
 				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, settledEnd,
-				scrollSpeed: speedInfo ? +speedInfo.speed.toFixed(3) : null, fast: fastVideo, fastAdded, releases: releaseTs.length, microWide, overscrolled },
+				scrollSpeed: speedInfo ? +speedInfo.speed.toFixed(3) : null, fast: fastVideo, fastAdded, releases: releaseTs.length, microWide, overscrolled, sharpOn, sharpHead: sharpHead ? +sharpHead.to.toFixed(3) : null, sharpTried, sharpSwaps },
 			tm
 		};
 	}
