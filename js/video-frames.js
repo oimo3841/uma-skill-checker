@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-10b';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-11a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -1124,7 +1124,8 @@
 		for (let i = 0; i < groups.length; i++) { const g0 = groups[i][0].abs; groups[i] = groups[i].filter((h) => h.abs - g0 <= headTol); }
 		// 頭が窓（帯の上から 0.25W-8）に入るフレームが無い（窓の少し下で止まり、次のスワイプで窓を飛び越えた）。
 		// 頭が最後に見えたフレームと次のフレームの間を半分ずつ取り直して、頭が窓に入るフレームを探す（最大 4回）
-		async function headIntoWindow(g) {
+		// tol: 同じ頭とみる軌跡の上の位置の差（既定 headTol。パネルの上端だけで探すときは nearTop）
+		async function headIntoWindow(g, tol = headTol) {
 			// 頭が最後に見えたフレーム（同じ時刻なら上のもの）から。頭は時間とともに上へ動いて窓を飛び越える
 			let cur = g.reduce((p, q) => (q.f.t > p.f.t || (q.f.t === p.f.t && q.y < p.y) ? q : p));
 			for (let it = 0; it < 4; it++) {
@@ -1138,7 +1139,7 @@
 				pos.set(e, pos.get(cur.f) + (st != null ? st : 0));
 				e.stepPrev = st;
 				// 同じ頭（測れたときは軌跡の上の位置で、測れないときは前より上にある頭）
-				const y = (e.heads || []).filter((v) => (st != null ? Math.abs(pos.get(e) + v - cur.abs) <= headTol : v < cur.y))[0];
+				const y = (e.heads || []).filter((v) => (st != null ? Math.abs(pos.get(e) + v - cur.abs) <= tol : v < cur.y))[0];
 				if (y == null) continue; // もう窓の上へ抜けた: 前半をさらに半分に
 				if (st == null) pos.set(e, cur.abs - y);
 				const h = { f: e, y, abs: pos.get(e) + y };
@@ -1150,14 +1151,20 @@
 		const firstAbs = same[0].heads && same[0].heads.length ? same[0].heads[0] : null;
 		const anchorEntries = [same[0]];
 		same[0].anchorY = firstAbs;
+		// 「窓に入った頭」は、組のいちばん上の頭（パネルの上端）から nearTop 以内のものだけ（T166・決定 680）。文字の下の青（上端から約 0.032〜0.038W。
+		// 13本の録画で 37〜44px）だけが窓に入った画は、パネルの上がタブの下に隠れていて、1枚目にすると頭が欠けた（UmaExam の横画面の録画の祖A2。
+		// パネルの上端どうしの位置の揺れは 0〜10px）。上端が窓に入った画が無ければ、上端だけで間を取り直して探し、見つからなければ上端が
+		// 見えている画（窓の下でもよい。組み立ては anchorY の位置の頭から描く。T105）を1枚目にする
+		const nearTop = Math.round(W * 0.02);
 		for (const g of groups) {
 			if (g[0].abs <= W * 0.25 - 8 || (firstAbs != null && g.some((h) => h.f === same[0]))) continue;
-			const inWin = g.filter((h) => h.y <= W * 0.25 - 8);
-			if (!inWin.length) { const h = await headIntoWindow(g); if (h) inWin.push(h); }
+			const top = g.filter((h) => h.abs - g[0].abs <= nearTop);
+			const inWin = top.filter((h) => h.y <= W * 0.25 - 8);
+			if (!inWin.length) { const h = await headIntoWindow(top, nearTop); if (h) inWin.push(h); }
 			let pool = inWin.filter((h) => h.f.stillRep);
 			// 速い動画で止まっている画が無ければ、はじき始めから時間のたった画を先に（T136・B3。区切りの1枚もエフェクトが写りにくい画に）
 			for (const a of releaseTs.length ? opts.lateAge : []) if (!pool.length) pool = inWin.filter((h) => ageOf(h.f) >= a);
-			const from = pool.length ? pool : inWin.length ? inWin : g;
+			const from = pool.length ? pool : inWin.length ? inWin : top;
 			let best = from[0];
 			for (const h of from) if (h.y < best.y || (h.y === best.y && h.f.t < best.f.t)) best = h;
 			if (anchorEntries.includes(best.f)) continue;

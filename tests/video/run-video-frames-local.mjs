@@ -122,7 +122,8 @@ async function runSpecial(v) {
 	const st = await page.evaluate(async () => {
 		devGeometry = [];
 		await runImageStitching({ keepClosed: true, quiet: true });
-		return { lines: devGeometry.filter((l) => /^\[動画\]/.test(l)), img: !!document.querySelector('#stitch-result-content img'),
+		// 組み立ての行だけ（T166 から「[動画] 親A: 結合画像に1行も使わなかった画…」の行も出る。--exam と同じ拾い方）
+		return { lines: devGeometry.filter((l) => /^\[動画\].*composePerson/.test(l)), img: !!document.querySelector('#stitch-result-content img'),
 			warn: (document.querySelector('#stitch-result-content .video-warn') || {}).textContent || null };
 	});
 	const stitchS = (Date.now() - t1) / 1000;

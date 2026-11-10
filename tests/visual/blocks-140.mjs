@@ -44,6 +44,7 @@ window.__synth140 = (function () {
 	}
 	d.fillStyle = 'rgb(120,190,40)'; d.fillRect(0, green, W, 50);
 	for (let k = 0; k < 11; k++) textRow(green + 50 + k * ROW);
+	const baseDoc = doc;
 	const fixed = document.createElement('canvas'); fixed.width = W; fixed.height = H;
 	const f = fixed.getContext('2d');
 	f.fillStyle = 'rgb(205,195,185)'; f.fillRect(0, 0, W, HE); f.fillRect(0, FS, W, H - FS);
@@ -71,10 +72,18 @@ window.__synth140 = (function () {
 		const steps = (to) => { while (to - s > 600) { go(s + 600, 0.6); stay(0.8); } go(to, Math.max(0.2, (to - s) / 1000)); stay(0.8); };
 		p.push([t, s]);
 		steps(heads[1] - 76); // 祖1 の頭は止まりで窓に入る
+		if (o.jump) {
+			// T166 段3（blocks-168）: 祖2 の頭が窓のすぐ下（y=262）で止まり、次の 0.25秒の画では上端が帯の外（y=−20）・文字の下の青だけが y=30 に写る
+			// （1128px/秒）。パネルの上端が窓に入った画が1枚も無い（UmaExam の横画面の録画の祖A2 の形。T165 §3-4）
+			steps(heads[2] - 262);
+			const tj = Math.ceil(t * 4) / 4 + 0.25; stay(tj - t);
+			go(s + 282 * 4, 1.0); stay(0.8);
+		} else {
 		// 祖2 の頭が y=490 で止まる（時刻を 0.25秒の格子にそろえる）→ 680px/秒で窓を抜けて先まで進む
 		steps(heads[2] - 490);
 		const tg = Math.ceil(t * 4) / 4 + 0.25; stay(tg - t);
 		go(s + 680 * 1.5, 1.5); stay(0.8);
+		}
 		const bottom = docH - CH - 400; // 一番下（この下の 400px は、行き過ぎたときだけ見える余白）
 		if (!o.bounce) steps(bottom);
 		else {
@@ -86,15 +95,28 @@ window.__synth140 = (function () {
 		}
 		return { path: p, end: t + 0.3 };
 	}
+	// o.split（T166 段3）: 頭のパネルの白い文字の下端（青がもう一度始まる行）を変えた一覧の写し。既定の 50 は headTol（40）を超え、
+	// 文字の下の青は組から外れる（T132）。実物の 37〜44px（headTol 以内）に近い 36 にすると、文字の下の青も組に残る
+	function splitDoc(split) {
+		const c = document.createElement('canvas'); c.width = W; c.height = docH;
+		const x = c.getContext('2d');
+		x.drawImage(doc, 0, 0);
+		for (let i = 0; i < heads.length; i++) {
+			x.fillStyle = 'rgb(40,170,235)'; x.fillRect(160, heads[i], 800, HEAD);
+			x.fillStyle = 'rgb(255,255,255)'; x.fillRect(230, heads[i] + 25, 140, split - 25); x.fillRect(400 + i * 50, heads[i] + 30, 220, 24);
+		}
+		return c;
+	}
 	function make(o) {
 		o = o || {};
+		const doc = o.split ? splitDoc(o.split) : baseDoc;
 		const pp = makePath(o);
 		const pos = lerpPath(pp.path);
 		const duration = pp.end;
 		const moving = (t) => pos(Math.max(0, t - 0.02)) !== pos(Math.min(duration, t + 0.02));
 		const touching = (t) => o.bounce && t >= o.touchFrom && t <= o.touchTo + 0.02;
 		return {
-			pos, moving, touching, W, H, HE, FS, CH, heads, green, docH, duration, doc,
+			pos, moving, touching, W, H, HE, FS, CH, heads, green, docH, duration, doc, split: o.split,
 			source: UmaVideoFrames.canvasSource({
 				width: W, height: H, duration,
 				draw(t, ctx, dw, dh) {
@@ -127,7 +149,7 @@ window.__synth140 = (function () {
 		const blue = (q) => q[0] < 90 && q[2] > 200, white = (q) => q[0] > 240 && q[1] > 240 && q[2] > 240;
 		let topBlue = h > 46;
 		for (let yy = 0; yy <= 20 && topBlue; yy++) if (!blue(px(yy))) topBlue = false;
-		for (let yy = 30; yy <= 45 && topBlue; yy++) if (!white(px(yy))) topBlue = false;
+		for (let yy = 30; yy <= (s.split || 50) - 5 && topBlue; yy++) if (!white(px(yy))) topBlue = false;
 		return { h, expectH, badRows, badAt, magenta, topBlue };
 	}
 	async function run(o) {

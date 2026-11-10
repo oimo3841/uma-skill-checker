@@ -180,6 +180,7 @@ import { register165 } from './blocks-165.mjs';
 import { register164 } from './blocks-164.mjs';
 import { register166 } from './blocks-166.mjs';
 import { register167 } from './blocks-167.mjs';
+import { register168 } from './blocks-168.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15682,6 +15683,8 @@ await register164({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register166({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T166 段2〜: 結合画像に使わなかった動画の画を OCR から外す（見出しは「T166段2」）ほか（tests/visual/blocks-167.mjs）
 await register167({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T166 段3〜: 人の1枚目の選び方（頭の欠け）ほか（見出しは「T166段3」。tests/visual/blocks-168.mjs）
+await register168({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
