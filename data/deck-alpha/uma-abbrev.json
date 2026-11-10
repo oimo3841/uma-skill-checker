@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-11-03a",
+	"dataVersion": "2026-11-11a",
 	"category": "deckCostumeAbbrev",
-	"trainingVersion": "2026-10-26a",
+	"trainingVersion": "2026-11-10a",
 	"maxLength": 5,
 	"note": "新しい Deck（α版）の縮小の列の名前に使う、衣装ごとの略称（5文字まで）。scripts/build-deck-abbrev.mjs が作る（手で直さない）。無い衣装はキャラ名の頭5文字を出す。",
 	"entries": [
@@ -1092,6 +1092,10 @@
 		{
 			"id": "uma-0272",
 			"abbr": "弓ダスカ"
+		},
+		{
+			"id": "uma-0273",
+			"abbr": "姫ユキノ"
 		}
 	]
 }

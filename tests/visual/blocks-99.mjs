@@ -49,7 +49,8 @@ export async function register99(env) {
 		// 略称のデータ: 全衣装にあり・5文字以内・重なりなし（無い衣装はページがキャラ名の頭5文字を出す）
 		// 略称の CSV（おいもさんの一覧）にまだ行の無い衣装。ページはキャラ名の頭5文字を出す。CSV に行が入ったら build-deck-abbrev.mjs で作り直し、ここから消す
 		// 2026-11-10（DA01）: uma-0273 を受け入れた時点で CSV に行が無かった（略称は名付けなので、ツール側では作らない）
-		const ABBR_PENDING = ['uma-0273'];
+		// 2026-11-11（T168）: uma-0273 は「姫ユキノ」に決まり、CSV に入れて作り直したので消した。今は空（空でも下の確かめはそのまま通る）
+		const ABBR_PENDING = [];
 		const pendingNow = UMAS.filter((u) => !ABBR.has(u.id) && ABBR_PENDING.includes(u.id)).map((u) => u.id);
 		if (pendingNow.length) console.log('    [略称待ち] CSV に行の無い衣装（ページはキャラ名の頭5文字）: ' + pendingNow.join('・'));
 		assert(ABBR_PENDING.every((id) => UMA.has(id) && !ABBR.has(id)), '略称待ちの一覧は、実在して略称がまだ無い衣装だけ（略称が入ったら一覧から消す）', ABBR_PENDING.filter((id) => !UMA.has(id) || ABBR.has(id)));
