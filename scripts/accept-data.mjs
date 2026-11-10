@@ -187,7 +187,8 @@ else {
 		fs.mkdirSync(tmpAbs, { recursive: true });
 		for (const f of fs.readdirSync(path.join(REPO_ROOT, 'data'))) if (f.endsWith('.json')) fs.copyFileSync(path.join(REPO_ROOT, 'data', f), path.join(tmpAbs, f));
 		dataInputs.forEach((f) => fs.copyFileSync(path.join(inDir, f), path.join(tmpAbs, f)));
-		const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + tmpRel, '--baseline=data'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+		// --ref のときは、§20（字の形の表）が読む special.html・js/common.js もその commit から（T164）
+		const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + tmpRel, '--baseline=data'].concat(REF ? ['--src-ref=' + REF] : []), { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
 		const out = (r.stdout || '') + (r.stderr || '');
 		const lines = out.split(/\r?\n/);
 		const nglines = lines.filter((l) => l.startsWith('[NG]'));

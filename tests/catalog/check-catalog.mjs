@@ -14,6 +14,9 @@
 //                                … 検査そのものの動作確認用。--dir は見に行く場所を差し替え、
 //                                  --baseline は「以前の内容」を git の HEAD ではなく
 //                                  別のフォルダから読む（退行の検査を手元で起こせるようにするため）
+//   … --src-ref=<commit> / --src-dir=<フォルダ>
+//                                … §20 が字の形の表を読む special.html・js/common.js を、その commit／フォルダから読む
+//                                  （accept:data の --ref が渡す。--src-dir は §20 の動作確認用）
 //
 // ■ なぜ要るか
 //   この6ファイルはおいもさんが用意し、手でも書き足す。ツールは中の id を鍵にして
@@ -42,6 +45,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import vm from 'node:vm';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
@@ -2514,6 +2518,156 @@ console.log('\n=== 19. スキルの既定の並び（' + DISPLAY_ORDER_FILE + '�
 		none(stray, DISPLAY_ORDER_FILE + ': 公開中のスキル・シナリオ因子・遺伝子に無い id が無い');
 		if (absent.length > 0) warn(DISPLAY_ORDER_FILE + ': 公開中だが並びの一覧に無い id（' + absent.length + '件。画面では末尾にまとめ、ツールの ID の順で並べる）', absent);
 		console.log('     並びの一覧 ' + entries.length + '件・公開中のスキル・シナリオ因子・遺伝子 ' + published.size + '件・一覧に無いもの ' + absent.length + '件');
+	}
+}
+
+/* §20 同点の行を決める字の形の表（2026-11-10・T164。決定 668。C-364・C-366 の見張り）
+   special.html の③の照合は、同点で並びでも決まらない行で、生存候補が「最後の1字だけが違う組」のときだけ、読みの最後の字を
+   字の形の表（TIED_LAST_CHAR_SHAPES。貝のつく字 → 賢、辶のつく字 → 速 など）で引いて候補を決める（T162・T163）。
+   データの更新で「同じ頭で、最後の字が表の行き先と別の、表に載った字」の候補が組に入ると、読みの字を正しく読めても
+   表が組の別の候補を指して、黙って誤った結果になる。形の崩れと同じく公開の前に落とす（直すのは special.html の表。データではない）。
+   - 表と判定（TIED_LAST_CHAR_RADICAL_162・TIED_LAST_CHAR_SHAPES・lastLetterOf・isLastCharOnlyGroup・pickTiedByLastCharShape・
+     isDoubleCircleSkillName）は special.html から、名前の正規化（CHAR_CONFUSION_MAP・HOMOGLYPH_MAP・normalizeText・
+     buildSkillDictionary）は js/common.js から、宣言をそのまま切り出して node:vm で動かす（写しを持たない）。
+     切り出し・実行・自己確認のどれかが通らなければ NG（見張りが黙って止まらないように）。
+     --src-ref=<commit> ならその commit の2ファイルを、--src-dir=<フォルダ> ならそのフォルダの2ファイルを読む（accept:data の --ref・動作確認用）。
+   - 語の集まりは③の照合の辞書と同じ: マスターの名前＋追加カタログ（シナリオ因子・遺伝子・拡張スキル。core の EXTRA_CATALOG_SOURCES の並び）
+     のうち進化先（skill-evolutions.json の evolvedSkillIds）でない名前。◎ の名前と金（skill-pt.json の rarity が gold）を外す。
+     special.html の allSkillNamesDictionary と同じ組み立て（ここだけは core を動かせないので組み立てを書いている）。
+   - (b) 組の候補 X を正しく読んだとき（読み＝X）に、special.html の pickTiedByLastCharShape が X でない候補を採る組。
+     組の全部と、X を含む2つずつの組み合わせの両方で引く（生存候補は組の一部になりうるので）。黙って誤る形そのもの。
+   - (a) 表の同じ行き先に当たる候補（最後の字がその行き先の字か、表でその行き先へ行く字）が、組の中に2つ以上。
+     今は誤らなくても（行き先の字の候補が組に無いなど）、表と組の前提が崩れている印なので落とす。
+   スキル名はここに書かない（恒久ルール1）。組も名前もファイルから読む。 */
+console.log('\n=== 20. 同点の行を決める字の形の表と、最後の1字だけが違う組（special.html） ===');
+{
+	const SRC_REF = argValue('src-ref');
+	const SRC_DIR = argValue('src-dir');
+	const srcWhere = SRC_REF ? 'git ' + SRC_REF : (SRC_DIR ? SRC_DIR + '/' : '作業ツリー');
+	const readSource = (rel) => {
+		if (SRC_REF) {
+			const r = spawnSync('git', ['show', SRC_REF + ':' + rel], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
+			if (r.status !== 0) throw new Error(rel + ' を git ' + SRC_REF + ' から読めない');
+			return r.stdout;
+		}
+		return fs.readFileSync(path.join(REPO_ROOT, SRC_DIR || '', rel), 'utf8');
+	};
+	/** 宣言を1つ切り出す。始まりの行の字下げと同じ字下げで閉じかっこから始まる行までを取る（1行で閉じていればその行だけ）。 */
+	const sliceDecl = (src, name, rel) => {
+		const lines = src.split(/\r?\n/);
+		const re = new RegExp('^(\\s*)(?:const|let|function)\\s+' + name + '\\b');
+		const at = lines.map((l, i) => (re.test(l) ? i : -1)).filter((i) => i >= 0);
+		if (at.length !== 1) throw new Error(rel + ' に ' + name + ' の宣言が ' + at.length + ' か所（1か所であること）');
+		const i0 = at[0];
+		const indent = re.exec(lines[i0])[1];
+		const first = lines[i0].trimEnd();
+		const opens = (first.match(/[{[(]/g) || []).length, closes = (first.match(/[}\])]/g) || []).length;
+		if (opens > 0 && opens === closes) return first;
+		for (let i = i0 + 1; i < lines.length; i++) {
+			const l = lines[i];
+			if (l.startsWith(indent) && /^[}\])]/.test(l.slice(indent.length))) return lines.slice(i0, i + 1).join('\n');
+		}
+		throw new Error(rel + ' の ' + name + ' の終わりが見つからない');
+	};
+	const FROM_COMMON = ['CHAR_CONFUSION_MAP', 'HOMOGLYPH_MAP', 'normalizeText', 'buildSkillDictionary'];
+	let lib = null, libError = '';
+	try {
+		const common = readSource('js/common.js');
+		const special = readSource('special.html');
+		// 部首の範囲（TIED_LAST_CHAR_RADICAL_162）は表がそれを使うときだけ読む（T162 の版の special.html は範囲を持たない）
+		const shapes = sliceDecl(special, 'TIED_LAST_CHAR_SHAPES', 'special.html');
+		const FROM_SPECIAL = (shapes.includes('TIED_LAST_CHAR_RADICAL_162') ? ['TIED_LAST_CHAR_RADICAL_162'] : [])
+			.concat(['TIED_LAST_CHAR_SHAPES', 'lastLetterOf', 'isLastCharOnlyGroup', 'pickTiedByLastCharShape', 'isDoubleCircleSkillName']);
+		const code = FROM_COMMON.map((n) => sliceDecl(common, n, 'js/common.js'))
+			.concat(FROM_SPECIAL.map((n) => sliceDecl(special, n, 'special.html'))).join('\n')
+			+ '\n;({ ' + FROM_COMMON.concat(FROM_SPECIAL).join(', ') + ' });';
+		lib = vm.runInContext(code, vm.createContext({}), { timeout: 10000 });
+		const notFn = ['normalizeText', 'buildSkillDictionary', 'lastLetterOf', 'isLastCharOnlyGroup', 'pickTiedByLastCharShape', 'isDoubleCircleSkillName'].filter((n) => typeof lib[n] !== 'function');
+		if (notFn.length) throw new Error('関数でない: ' + notFn.join('・'));
+		if (!isObj(lib.TIED_LAST_CHAR_SHAPES) || Object.keys(lib.TIED_LAST_CHAR_SHAPES).length === 0) throw new Error('TIED_LAST_CHAR_SHAPES が空・オブジェクトでない');
+	} catch (e) {
+		lib = null;
+		libError = String(e && e.message || e);
+	}
+	check(lib !== null, 'special.html・js/common.js（' + srcWhere + '）から字の形の表と判定の関数を読めた', lib ? undefined : libError);
+	if (lib) {
+		const TABLE = lib.TIED_LAST_CHAR_SHAPES;
+		const has = (c) => Object.prototype.hasOwnProperty.call(TABLE, c);
+		const TARGETS = new Set(Object.values(TABLE));
+		const dest = (c) => (has(c) ? TABLE[c] : (TARGETS.has(c) ? c : null));
+		// 自己確認: 表で別の字へ行く字 k と行き先 t で作り物の組（スキル名ではない仮の語）を作り、k を読んだら t の候補を採ること。
+		// 切り出しが崩れて判定が常に「使わない」を返すようになったとき、見張りが黙って OK を出さないため
+		let selfOk = false, selfDetail = '';
+		try {
+			const k = Object.keys(TABLE).find((c) => TABLE[c] !== c);
+			if (!k) throw new Error('表に「別の字へ行く字」が無い');
+			const t = TABLE[k], A = '仮の語' + t, B = '仮の語' + k;
+			const p = lib.pickTiedByLastCharShape(B, [A, B], [A, B]);
+			const q = lib.pickTiedByLastCharShape('仮の語' + '一二', [A, B], [A, B]);
+			selfOk = !!p && p.picked === A && lib.isLastCharOnlyGroup([A, B]) && !lib.isLastCharOnlyGroup([A, B + '一']) && !!q && q.picked === null;
+			selfDetail = '表の字 ' + k + ' → ' + t + '・採った候補 ' + JSON.stringify(p && p.picked) + '・表に無い字の読みで ' + JSON.stringify(q && q.picked);
+		} catch (e) { selfDetail = String(e && e.message || e); }
+		check(selfOk, '字の形の判定の自己確認（作り物の組で、表の字の読みが行き先の候補を採り、表に無い字の読みでは採らない）', selfOk ? undefined : selfDetail);
+
+		// ③の照合の辞書と同じ語の集まり
+		const evo = readJsonFile(path.join(REPO_ROOT, DIR, 'skill-evolutions.json'));
+		const evolved = new Set();
+		if (evo.ok && isArr(evo.data.entries)) evo.data.entries.forEach((e) => {
+			if (!e || !isStr(e.baseSkillId) || !isArr(e.evolvedSkillIds)) return;
+			if (!((e.kind === 'uma' && isStr(e.umaId)) || (e.kind === 'scenario' && isStr(e.scenarioId)))) return;
+			e.evolvedSkillIds.filter(isStr).forEach((id) => evolved.add(id));
+		});
+		const pt = readJsonFile(path.join(REPO_ROOT, DIR, 'skill-pt.json'));
+		const rarityById = new Map();
+		if (pt.ok && isArr(pt.data.entries)) pt.data.entries.forEach((e) => { if (e && typeof e.skillId === 'string' && isInt(e.pt) && e.pt >= 0) rarityById.set(e.skillId, e.rarity); });
+		const names = [];
+		const idByName = new Map();
+		const note = (name, id) => { if (name && id !== undefined && id !== null && !idByName.has(name)) idByName.set(name, String(id)); };
+		masterSkills.forEach((s) => { names.push(s.name); note(s.name, s.id); });
+		['scenarioFactor', 'geneFactor', 'extendedSkill'].forEach((c) => ((docs[c] && docs[c].entries) || []).filter((e) => e && e.id && e.name).forEach((e) => {
+			note(e.name, e.id);
+			if (!evolved.has(e.id)) names.push(e.name);
+		}));
+		const isGold = (name) => { const id = idByName.get(name); return id !== undefined && rarityById.get(id) === 'gold'; };
+		const dict = lib.buildSkillDictionary(names.filter((n) => !lib.isDoubleCircleSkillName(n) && !isGold(n)));
+		const byHead = new Map();
+		dict.index.forEach((s) => {
+			const c = Array.from(s.norm);
+			if (c.length < 2) return;
+			const key = c.length + '\u0000' + c.slice(0, -1).join('');
+			if (!byHead.has(key)) byHead.set(key, []);
+			byHead.get(key).push(s.raw);
+		});
+		const groups = Array.from(byHead.values()).map((m) => Array.from(new Set(m))).filter((m) => m.length >= 2 && lib.isLastCharOnlyGroup(m));
+		const label = (g) => '「' + g.join(' / ') + '」';
+		const wrongPick = [], sameDest = [];
+		groups.forEach((g) => {
+			const seen = new Set();
+			g.forEach((x) => {
+				const sets = [g].concat(g.filter((y) => y !== x).map((y) => [x, y]));
+				sets.forEach((cands) => {
+					let p = null;
+					try { p = lib.pickTiedByLastCharShape(x, cands, cands); } catch (e) { p = { picked: null, error: String(e && e.message || e) }; }
+					if (p && p.error && !seen.has('!' + x)) { seen.add('!' + x); wrongPick.push('読み「' + x + '」で判定が例外 ' + p.error + '・組' + label(g)); }
+					if (!p || !p.picked || p.picked === x || seen.has(x + '\u0000' + p.picked)) return;
+					seen.add(x + '\u0000' + p.picked);
+					const l = lib.lastLetterOf(x);
+					wrongPick.push('読み「' + x + '」の最後の字 ' + l + ' → 表の行き先 ' + TABLE[l] + ' → 別の候補「' + p.picked + '」を採る・組' + label(g));
+				});
+			});
+			const byDest = new Map();
+			g.forEach((x) => { const l = lib.lastLetterOf(x), d = dest(l); if (!d) return; if (!byDest.has(d)) byDest.set(d, []); byDest.get(d).push(x + '〔' + l + (l === d ? '' : '→' + d) + '〕'); });
+			byDest.forEach((list, d) => { if (list.length >= 2) sameDest.push('行き先 ' + d + ' に当たる候補が ' + list.length + 'つ（' + list.join('・') + '）・組' + label(g)); });
+		});
+		// NG は組ごとに1行（accept:data は [NG] の行の頭だけを写すので、組・字・行き先を先に、直し方を後に書く）
+		const FIX = '直し方: special.html の TIED_LAST_CHAR_SHAPES の見直しが要る（データを直すのではない）';
+		const okB = '(b) 組の候補を正しく読んだときに、字の形の表が組の別の候補を指さない';
+		const okA = '(a) 表の同じ行き先（' + Array.from(TARGETS).join('・') + '）に当たる候補が、1つの組に2つ以上ない';
+		if (wrongPick.length === 0) check(true, okB); else wrongPick.forEach((m) => check(false, '(b) 字の形の表が組の別の候補を指す ' + m + ' ― ' + FIX));
+		if (sameDest.length === 0) check(true, okA); else sameDest.forEach((m) => check(false, '(a) 表の同じ行き先に当たる候補が2つ以上 ' + m + ' ― ' + FIX));
+		const hits = groups.filter((g) => g.some((x) => dest(lib.lastLetterOf(x))));
+		console.log('     辞書 ' + dict.index.length + '語（進化先 ' + evolved.size + '件を除く・◎ と金を外す）・最後の1字だけが違う組 ' + groups.length + '（うち表の字を含む組 ' + hits.length + '）・表 ' + Object.keys(TABLE).length + '字（行き先 ' + Array.from(TARGETS).join('・') + '）');
+		groups.forEach((g) => console.log('       組 ' + g.map((x) => { const l = lib.lastLetterOf(x), d = dest(l); return x + (d ? '〔表の字 ' + l + (l === d ? '' : '→' + d) + '〕' : ''); }).join(' / ')));
 	}
 }
 
