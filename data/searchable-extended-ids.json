@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-26a",
+	"dataVersion": "2026-11-10a",
 	"category": "searchableExtendedId",
 	"entries": [
 		{
@@ -69,6 +69,10 @@
 		{
 			"skillId": "ex-1693",
 			"name": "彼方の呼び声"
+		},
+		{
+			"skillId": "ex-1700",
+			"name": "狼煙を上げて"
 		}
 	]
 }

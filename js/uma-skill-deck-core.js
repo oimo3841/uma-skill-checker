@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-09c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-10a';
 
 	/* ============================================================
 	 * 定数
@@ -67,16 +67,16 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-10-26b',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-11-07f',
+		'data/extended-skills.json': '2026-11-10a',
 		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
-		'data/searchable-extended-ids.json': '2026-10-26a',
+		'data/searchable-extended-ids.json': '2026-11-10a',
 		// 検索に出さないスキルの id の一覧（T130・2026-11-08。おいもさんの決定 497）。継承できないので出さない。ツールの側で持つ。searchable-extended-ids.json と同じ経路で読む
 		'data/search-excluded-skills.json': '2026-11-08a',
 		// サポカで得られないスキル（公開用・独自カテゴリ3のみ。2026-10-16c・C-163）。②の「サポカ外」ボタンの候補。データ側が規則で作る。loadNonSupportSkills() が読む
-		'data/non-support-skills.json': '2026-10-25a',
-		'data/training-umamusume.json': '2026-11-08a',
-		'data/support-cards.json': '2026-10-26b',
-		'data/support-card-event-skills.json': '2026-10-29a',
+		'data/non-support-skills.json': '2026-11-10a',
+		'data/training-umamusume.json': '2026-11-10a',
+		'data/support-cards.json': '2026-11-10a',
+		'data/support-card-event-skills.json': '2026-11-10b',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
 		'data/character-event-skills.json': '2026-10-27a',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
@@ -86,11 +86,11 @@
 		// 実ファイル（skill-pt.json・skill-step-up.json）は、届いてから載せた（載せると取りに行くため）。
 		'data/skill-pt-rules.json': '2026-09-30a',
 		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
-		'data/skill-pt.json': '2026-10-26a',
+		'data/skill-pt.json': '2026-11-10a',
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
-		'data/skill-step-up.json': '2026-10-27a',
+		'data/skill-step-up.json': '2026-11-10b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
-		'data/skill-descriptions.json': '2026-10-26a',
+		'data/skill-descriptions.json': '2026-11-10a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
 		'data/scenario-event-skills.json': '2026-10-27a',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
@@ -98,15 +98,15 @@
 		'data/upcoming-races.json': '2026-10-25b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
-		'data/skill-effect-levels.json': '2026-10-26a',
+		'data/skill-effect-levels.json': '2026-11-10a',
 		// 脚質オススメの小窓が使うスキル（C-130・2026-10-06。2026-10-21 に項目＋脚質の形へ）。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
 		'data/recommended-skills.json': '2026-10-21a',
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
-		'data/training-event-skills.json': '2026-10-26c',
+		'data/training-event-skills.json': '2026-11-10b',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
-		'data/skill-evolutions.json': '2026-10-26a',
+		'data/skill-evolutions.json': '2026-11-10a',
 		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）
 		'data/skill-requires.json': '2026-10-17a',
 		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。
@@ -114,7 +114,7 @@
 		'data/course-conditions.json': '2026-10-14a',
 		// スキルの既定の並び（ゲーム内の並び。2026-10-27・おいもさんの決定）。entries の順がそのまま既定の並び。
 		// loadMasterSkills が収録スキルデータと一緒に読み、compareGameOrder が使う。exam は読まない（埋め込みの順で持つ）
-		'data/skill-display-order.json': '2026-10-27b'
+		'data/skill-display-order.json': '2026-11-10b'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */

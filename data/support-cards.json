@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-10-26b",
+	"dataVersion": "2026-11-10a",
 	"category": "supportCard",
-	"nextSerial": "card-0567",
+	"nextSerial": "card-0569",
 	"note": "サポートカード。charaName はグループのカードでは代表者1人。hintSkills は練習のヒントで得られるスキルで、イベントで得られるスキルはこのファイルには書かない（support-card-event-skills.json に書く）。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus.hint は done（確かめて載せた）／none（ヒントを持たないと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。rarity はカードのレアリティで、\"R\"・\"SR\"・\"SSR\" のどれか。isGroup はグループのカード（複数のキャラクターが割り当てられたカード）なら true、それ以外は false。groupMembers はグループのカードの行にだけあり、割り当てられているキャラクターの名前の配列（先頭は charaName と同じ代表者）。",
 	"entries": [
 		{
@@ -24041,6 +24041,126 @@
 			"hintSkills": [],
 			"dataStatus": {
 				"hint": "none"
+			}
+		},
+		{
+			"id": "card-0567",
+			"title": "黄昏に馳せる追憶",
+			"charaName": "ステイゴールド",
+			"type": "パワー",
+			"typeOrder": 3,
+			"rarity": "SR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "19",
+					"name": "秋ウマ娘○"
+				},
+				{
+					"skillId": "53",
+					"name": "差し切り体勢"
+				},
+				{
+					"skillId": "177",
+					"name": "フルスロットル"
+				},
+				{
+					"skillId": "274",
+					"name": "切り替え上手"
+				},
+				{
+					"skillId": "297",
+					"name": "躍動"
+				},
+				{
+					"skillId": "337",
+					"name": "心惹かれて"
+				},
+				{
+					"skillId": "338",
+					"name": "気ままな足取り"
+				},
+				{
+					"skillId": "387",
+					"name": "大立ち回り"
+				},
+				{
+					"skillId": "393",
+					"name": "追尾"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
+			}
+		},
+		{
+			"id": "card-0568",
+			"title": "馳せて奪うは映山紅",
+			"charaName": "ノーリーズン",
+			"type": "スタミナ",
+			"typeOrder": 2,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "103",
+					"name": "中距離直線○"
+				},
+				{
+					"skillId": "104",
+					"name": "中距離コーナー○"
+				},
+				{
+					"skillId": "177",
+					"name": "フルスロットル"
+				},
+				{
+					"skillId": "219",
+					"name": "イグニッション"
+				},
+				{
+					"skillId": "297",
+					"name": "躍動"
+				},
+				{
+					"skillId": "316",
+					"name": "真っ直ぐな走り"
+				},
+				{
+					"skillId": "322",
+					"name": "不断の鍛錬"
+				},
+				{
+					"skillId": "326",
+					"name": "間隙を突いて"
+				},
+				{
+					"skillId": "334",
+					"name": "内なる獣"
+				},
+				{
+					"skillId": "356",
+					"name": "華麗な足取り"
+				},
+				{
+					"skillId": "363",
+					"name": "淀みなし"
+				},
+				{
+					"skillId": "365",
+					"name": "大志を抱いて"
+				},
+				{
+					"skillId": "388",
+					"name": "流れに任せて"
+				},
+				{
+					"skillId": "ex-1700",
+					"name": "狼煙を上げて"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
 			}
 		}
 	]

@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-26c",
+	"dataVersion": "2026-11-10b",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -29538,6 +29538,163 @@
 								{
 									"skillId": "66",
 									"name": "食い下がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"umaId": "uma-0273",
+			"status": "done",
+			"events": [
+				{
+					"eventName": "わくわく畑仕事",
+					"condition": "",
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "20",
+									"name": "冬ウマ娘○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "\"シチーガール\"になるために",
+					"condition": "",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "179",
+									"name": "下り坂巧者",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"eventName": "憧れは結ばれて",
+					"condition": "",
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "278",
+										"name": "アグレッシブ",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "278",
+										"name": "アグレッシブ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"eventName": "じゃじゃ麺に愛を込めて",
+					"condition": "",
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "391",
+									"name": "憂いなし",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "ティアラの夢の、その先は",
+					"condition": "トリプルティアラ(桜花賞・オークス・秋華賞)を達成",
+					"acquireMode": "fixed",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "32",
+									"name": "コーナー加速○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "164",
+									"name": "真っ向勝負",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "マイルCS南部杯の後に",
+					"condition": "クラシックのマイルCS南部杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのマイルCS南部杯",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "183",
+									"name": "盛岡レース場○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "189",
+									"name": "まっしぐら",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "マイルCS南部杯の後に",
+					"condition": "シニアのマイルCS南部杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのマイルCS南部杯",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "187",
+									"name": "明るい兆し",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "183",
+									"name": "盛岡レース場○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "189",
+									"name": "まっしぐら",
 									"hintLevel": 1
 								}
 							]

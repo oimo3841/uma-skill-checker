@@ -136,10 +136,11 @@ export async function register69(env) {
 		const got = await sp.page.evaluate((ids) => ids.map((id) => UmaSkillDeckCore.cardsWithSkill(id)), [AKI, CORNER]);
 		const want = [expectFor(AKI), expectFor(CORNER)];
 		const aki = got[0], cor = got[1];
-		assert(aki.length === 10 && count(aki, 'rarity', 'SSR') === 9 && count(aki, 'rarity', 'SR') === 1 && count(aki, 'how', 'ヒント') === 10,
-			'得られるサポカ(1) 秋ウマ娘○: 10枚・SSR 9・SR 1・すべてヒント', { n: aki.length, ssr: count(aki, 'rarity', 'SSR'), sr: count(aki, 'rarity', 'SR'), hint: count(aki, 'how', 'ヒント') });
-		assert(cor.length === 47 && count(cor, 'rarity', 'SSR') === 36 && count(cor, 'rarity', 'SR') === 11 && count(cor, 'how', 'ヒント') === 36 && count(cor, 'how', 'イベント') === 9 && count(cor, 'how', 'ヒント・イベント') === 2,
-			'得られるサポカ(1) 中距離コーナー○: 47枚・SSR 36・SR 11・ヒント 36・イベント 9・両方 2', { n: cor.length, ssr: count(cor, 'rarity', 'SSR'), sr: count(cor, 'rarity', 'SR'), how: [count(cor, 'how', 'ヒント'), count(cor, 'how', 'イベント'), count(cor, 'how', 'ヒント・イベント')] });
+		// 2026-11-10（DA01）: SR card-0567 のヒントに秋ウマ娘○が入り 10→11（SR 1→2）。SSR card-0568 のヒントに中距離コーナー○が入り 47→48（SSR 36→37・ヒント 36→37）
+		assert(aki.length === 11 && count(aki, 'rarity', 'SSR') === 9 && count(aki, 'rarity', 'SR') === 2 && count(aki, 'how', 'ヒント') === 11,
+			'得られるサポカ(1) 秋ウマ娘○: 11枚・SSR 9・SR 2・すべてヒント', { n: aki.length, ssr: count(aki, 'rarity', 'SSR'), sr: count(aki, 'rarity', 'SR'), hint: count(aki, 'how', 'ヒント') });
+		assert(cor.length === 48 && count(cor, 'rarity', 'SSR') === 37 && count(cor, 'rarity', 'SR') === 11 && count(cor, 'how', 'ヒント') === 37 && count(cor, 'how', 'イベント') === 9 && count(cor, 'how', 'ヒント・イベント') === 2,
+			'得られるサポカ(1) 中距離コーナー○: 48枚・SSR 37・SR 11・ヒント 37・イベント 9・両方 2', { n: cor.length, ssr: count(cor, 'rarity', 'SSR'), sr: count(cor, 'rarity', 'SR'), how: [count(cor, 'how', 'ヒント'), count(cor, 'how', 'イベント'), count(cor, 'how', 'ヒント・イベント')] });
 		[0, 1].forEach((k) => {
 			const g = got[k].map((x) => x.cardId + ':' + x.how), w = want[k].map((x) => x.id + ':' + x.how);
 			assert(JSON.stringify(g) === JSON.stringify(w), '得られるサポカ(1) ' + [AKI, CORNER][k] + ': 製品の一覧は検査の側で出した一覧と同じカード・同じ並び・同じ札', { got: g.slice(0, 6), want: w.slice(0, 6) });

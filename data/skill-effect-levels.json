@@ -1,6 +1,6 @@
 {
 	"category": "skillEffectLevel",
-	"dataVersion": "2026-10-26a",
+	"dataVersion": "2026-11-10a",
 	"stages": [
 		{
 			"key": "ほんのちょっと",
@@ -9043,6 +9043,31 @@
 			"skillId": "ex-1699",
 			"name": "常磐なる誓い",
 			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-1700",
+			"name": "狼煙を上げて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1701",
+			"name": "出陣",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1702",
+			"name": "今ぞ刈りどき祝祭の季",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1704",
+			"name": "もっす、通してくなンしぇ！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1705",
+			"name": "万果豊穣",
+			"maxStage": "副詞なし"
 		}
 	],
 	"note": "スキルの効果量の段階。ゲーム内で表示される説明文の効果の大きさを表す語から決めた、そのスキルに含まれる最も大きい効果の段階（maxStage）。stages は小さい順で、rank が大きいほど効果が大きい。「副詞なし」は効果の大きさを表す語が付かないもの。時間の表現（少しの間など）は数えない。maxStage が null のものは段階を決めていない（効果の表現が無い、または stages に無い大きさの表現を含む）。rank が lowEffectMax.rank 以下のものを低効果とする。ここに無い skillId は未収録。"

@@ -167,7 +167,7 @@ const RECOMMENDED_SKILL_KEYS = { need: ['skillId', 'name', 'section'], opt: ['st
 const RECOMMENDED_STYLE_VALUES = ['nige', 'senko', 'sashi', 'oikomi'];
 const RECOMMENDED_CATEGORY_NAME = 'recommendedSkills';
 /* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
-   ★を貼る欄（H38:J610。2026-10-08 に H38:J599 から2行増え、2026-10-13 に H38:J601 から1行増え、2026-10-26 に H38:J602 から8行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
+   ★を貼る欄（H38:J611。2026-10-08 に H38:J599 から2行増え、2026-10-13 に H38:J601 から1行増え、2026-10-26 に H38:J602 から8行増え、2026-11-10 に H38:J610 から1行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
    行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
 const MELOP_FILE = 'melop-sheet-rows.json';
 const MELOP_TOP_KEYS = { need: ['dataVersion', 'category', 'rows'], opt: ['note'] };
@@ -175,7 +175,7 @@ const MELOP_ROW_KEYS = { need: ['row', 'group', 'name'], opt: ['id', 'slot', 'co
 const MELOP_CATEGORY_NAME = 'melopSheetRows';
 const MELOP_SLOTS = ['blue', 'red', 'unique'];
 const MELOP_FIRST_ROW = 38;
-const MELOP_LAST_ROW = 610;   // 2026-10-26: シートに8行（新スキル7・駿大祭シナリオ）が増えて 602→610
+const MELOP_LAST_ROW = 611;   // 2026-10-26: シートに8行（新スキル7・駿大祭シナリオ）が増えて 602→610。2026-11-10（DA01）: 狼煙を上げて の1行で 610→611
 
 /* スキルの既定の並び（data/skill-display-order.json。2026-10-27）。形は { dataVersion, category, note, entries: [{ id }] }。§19 */
 const DISPLAY_ORDER_FILE = 'skill-display-order.json';

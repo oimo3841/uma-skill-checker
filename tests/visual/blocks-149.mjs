@@ -63,8 +63,9 @@ export async function register149(env) {
 
 	await block('T140(1) ①の「育成ウマ娘を選ぶ」: 先頭は uma-0272・uma-0271・uma-0269・uma-0270、出ている60件は releaseOrder の降順、最後は uma-0001（390・1280）／サポートカードの小窓の並びは今までどおり', async () => {
 		const EXP = expectedOrder(UMAS);
-		assert(UMAS.length === 272 && EXP.length === 272 && UMAS.every((e) => Number.isInteger(e.releaseOrder)) && new Set(UMAS.map((e) => e.releaseOrder)).size === 272,
-			'T140(1) データ: 272行すべてに releaseOrder があり、重複しない', { n: UMAS.length });
+		// 2026-11-10（DA01）: 衣装 uma-0273（releaseOrder 273）が増えて 272→273・先頭が uma-0273 に（塊の名前は塊の鍵なので変えない）
+		assert(UMAS.length === 273 && EXP.length === 273 && UMAS.every((e) => Number.isInteger(e.releaseOrder)) && new Set(UMAS.map((e) => e.releaseOrder)).size === 273,
+			'T140(1) データ: 273行すべてに releaseOrder があり、重複しない', { n: UMAS.length });
 		assert(EXP[EXP.length - 1] === 'uma-0001' && byId.get('uma-0001').releaseOrder === 1, 'T140(1) データ: いちばん古い（releaseOrder 1）のは uma-0001', EXP.slice(-3));
 		for (const w of [390, 1280]) {
 			const tag = 'T140(1) ' + w + 'px: ';
@@ -72,9 +73,9 @@ export async function register149(env) {
 			await openUmaPick(sp.page);
 			const h = await readHits(sp.page);
 			assert(h.title === '育成ウマ娘を選ぶ', tag + '小窓は「育成ウマ娘を選ぶ」', h.title);
-			assert(h.ids.slice(0, 4).join() === 'uma-0272,uma-0271,uma-0269,uma-0270', tag + '先頭の4件は uma-0272・uma-0271・uma-0269・uma-0270', h.ids.slice(0, 6));
+			assert(h.ids.slice(0, 4).join() === 'uma-0273,uma-0272,uma-0271,uma-0269', tag + '先頭の4件は uma-0273・uma-0272・uma-0271・uma-0269', h.ids.slice(0, 6));
 			assert(h.ids.length === 60 && h.ids.join() === EXP.slice(0, 60).join() && descending(h.ids), tag + '出ている60件は releaseOrder の降順（データから求めた並びと同じ）', { n: h.ids.length, got: h.ids.slice(0, 12), exp: EXP.slice(0, 12) });
-			assert(/全272件のうち 60件/.test(h.note), tag + '件数の文は「全272件のうち 60件」', h.note);
+			assert(/全273件のうち 60件/.test(h.note), tag + '件数の文は「全273件のうち 60件」', h.note);
 			// 最後: uma-0001 と同じキャラクターで絞ると、uma-0001 がいちばん下
 			const chara = byId.get('uma-0001').charaName;
 			await find(sp.page, chara);
@@ -114,7 +115,7 @@ export async function register149(env) {
 		// 消すと元の並びに戻る
 		await find(sp.page, '');
 		const back = await readHits(sp.page);
-		assert(back.ids.join() === EXP.slice(0, 60).join(), 'T140(2) 検索の語を消すと、元の並び（先頭 uma-0272）に戻る', back.ids.slice(0, 5));
+		assert(back.ids.join() === EXP.slice(0, 60).join(), 'T140(2) 検索の語を消すと、元の並び（先頭 uma-0273）に戻る', back.ids.slice(0, 5));
 		assert(jsErrors(sp.errors).length === 0, 'T140(2) コンソールのエラー0', sp.errors.slice(0, 3));
 		await sp.ctx.close();
 	});

@@ -225,15 +225,16 @@ export async function register53(env) {
 		const mel = readJson('data/melop-sheet-rows.json').rows, eff = readJson('data/skill-efficiency.json').entries;
 		const idx = (n) => mel.findIndex((r) => r.name === n);
 		const after = (prev, names) => names.every((n, k) => idx(n) === idx(prev) + 1 + k);
-		assert(mel.length === 573 && mel[0].row === 38 && mel[mel.length - 1].row === 610 && mel.every((r, i) => r.row === 38 + i), '駿大祭(7) 573行・行番号は 38 から1ずつ 610 まで', [mel.length, mel[0].row, mel[mel.length - 1].row]);
-		assert(after('怯むことなく', ['如才なし', '直感力', '主導権', '死力を尽くして', '遊び心']) && after('規格外', ['弧を描いて', '直情', 'アオハル点火・速']) && after('恩返し、召し上がれ', ['彼方の呼び声']) && after('トレセン軒シナリオ', ['駿大祭シナリオ']),
-			'駿大祭(7) 8行の位置: 如才なし・直感力・主導権・死力を尽くして（怯むことなく と 遊び心 の間）／弧を描いて・直情（規格外 の後・アオハル点火・速 の直前）／彼方の呼び声（恩返し、召し上がれ の次）／駿大祭シナリオ（トレセン軒シナリオ の次）', '');
+		// 2026-11-10（DA01）: 狼煙を上げて（ex-1700）の1行が 死力を尽くして と 遊び心 の間に入り 573→574行・610→611行目。効率も 470→471件
+		assert(mel.length === 574 && mel[0].row === 38 && mel[mel.length - 1].row === 611 && mel.every((r, i) => r.row === 38 + i), '駿大祭(7) 574行・行番号は 38 から1ずつ 611 まで', [mel.length, mel[0].row, mel[mel.length - 1].row]);
+		assert(after('怯むことなく', ['如才なし', '直感力', '主導権', '死力を尽くして', '狼煙を上げて', '遊び心']) && after('規格外', ['弧を描いて', '直情', 'アオハル点火・速']) && after('恩返し、召し上がれ', ['彼方の呼び声']) && after('トレセン軒シナリオ', ['駿大祭シナリオ']),
+			'駿大祭(7) 8行の位置: 如才なし・直感力・主導権・死力を尽くして（怯むことなく と 遊び心 の間。2026-11-10（DA01） から 死力を尽くして と 遊び心 の間に 狼煙を上げて）／弧を描いて・直情（規格外 の後・アオハル点火・速 の直前）／彼方の呼び声（恩返し、召し上がれ の次）／駿大祭シナリオ（トレセン軒シナリオ の次）', '');
 		const g = (n) => mel[idx(n)].group;
 		assert(g('駿大祭シナリオ') === g('トレセン軒シナリオ') && mel[idx('駿大祭シナリオ')].id === 'sf-shuntaisai', '駿大祭(7) 駿大祭シナリオの分類はトレセン軒シナリオと同じ（' + g('トレセン軒シナリオ') + '）', g('駿大祭シナリオ'));
 		// 2026-10-26（新シナリオの仕上げ）: 適性をすべてAにして書き出したシートに差し替えたので、直感力（ex-1682）・死力を尽くして（ex-1681）・直情（ex-1688）の値が上がった
 		const want = { 'ex-1680': [639, 180, 3.548], 'ex-1682': [639, 180, 3.548], 'ex-1679': [617, 180, 3.428], 'ex-1681': [639, 180, 3.548], 'ex-1678': [617, 160, 3.856], 'ex-1688': [639, 190, 3.362], 'ex-1693': [663, 200, 3.315] };
 		const got = Object.fromEntries(Object.keys(want).map((id) => { const e = eff.find((x) => x.skillId === id); return [id, e ? [e.score, e.sp, e.efficiency] : null]; }));
-		assert(eff.length === 470 && JSON.stringify(got) === JSON.stringify(want) && !eff.some((e) => e.skillId === 'sf-shuntaisai'), '駿大祭(7) 効率は新しい7行（シートの評価点・消費sp・効率）だけ増えて470件。駿大祭シナリオ（0）は持たない', got);
+		assert(eff.length === 471 && JSON.stringify(got) === JSON.stringify(want) && !eff.some((e) => e.skillId === 'sf-shuntaisai'), '駿大祭(7) 効率は新しい7行（シートの評価点・消費sp・効率）だけ増えて470件（2026-11-10（DA01） の 狼煙を上げて で471件）。駿大祭シナリオ（0）は持たない', got);
 		const order = mel.filter((r) => r.id && eff.some((e) => e.skillId === r.id)).map((r) => r.id);
 		assert(JSON.stringify(order) === JSON.stringify(eff.map((e) => e.skillId)), '駿大祭(7) 効率の並びは、めろっぷの行の順', '');
 	});

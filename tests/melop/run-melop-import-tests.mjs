@@ -39,8 +39,10 @@ const curMelop = JSON.parse(cur.melop), curEff = JSON.parse(cur.eff);
 /* ---- 2026-10-26 に足した行（その commit の前のファイルに無い id のうち、効率の行を持つもの） ---- */
 const prevMelop = JSON.parse(execFileSync('git', ['show', ADDED_COMMIT + '^:data/' + MELOP], { cwd: ROOT, encoding: 'utf8' }));
 const prevIds = new Set(prevMelop.rows.filter((r) => r.id).map((r) => r.id));
+// その commit の時点にあった id に限る（あとの受け入れで足した行を数えない。2026-11-10・DA01 で 狼煙を上げて の1行が入って 7→8 になったため）
+const atIds = new Set(JSON.parse(execFileSync('git', ['show', ADDED_COMMIT + ':data/' + MELOP], { cwd: ROOT, encoding: 'utf8' })).rows.filter((r) => r.id).map((r) => r.id));
 const effIds = new Set(curEff.entries.map((e) => e.skillId));
-const addedIds = curMelop.rows.filter((r) => r.id && !prevIds.has(r.id) && effIds.has(r.id)).map((r) => r.id);
+const addedIds = curMelop.rows.filter((r) => r.id && !prevIds.has(r.id) && atIds.has(r.id) && effIds.has(r.id)).map((r) => r.id);
 const added = new Set(addedIds);
 console.log('2026-10-26 に足した行（効率の行を持つもの）: ' + addedIds.length + '行');
 

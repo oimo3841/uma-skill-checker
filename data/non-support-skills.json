@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-11-10a",
 	"category": "nonSupportSkill",
 	"entries": [
 		{
@@ -53,10 +53,6 @@
 		{
 			"skillId": "330",
 			"name": "衝動"
-		},
-		{
-			"skillId": "334",
-			"name": "内なる獣"
 		},
 		{
 			"skillId": "345",
