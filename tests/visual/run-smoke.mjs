@@ -179,6 +179,7 @@ import { register163 } from './blocks-163.mjs';
 import { register165 } from './blocks-165.mjs';
 import { register164 } from './blocks-164.mjs';
 import { register166 } from './blocks-166.mjs';
+import { register167 } from './blocks-167.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15679,6 +15680,8 @@ await register165({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register164({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T166（2026-11-11）: DMM版の横画面の直し。段1＝カーソルを消す処理（横画面は余白だけ・縦画面の取り込みは探す場所を絞る。見出しは「T166段1」）
 await register166({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T166 段2〜: 結合画像に使わなかった動画の画を OCR から外す（見出しは「T166段2」）ほか（tests/visual/blocks-167.mjs）
+await register167({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

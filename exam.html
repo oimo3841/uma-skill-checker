@@ -4376,8 +4376,41 @@
 				devGeometry.push('[動画] ' + label + ': 動画のずれで組み立て（composePerson・' + files.length + '枚・高さ ' + canvas.height + 'px）');
 				canvas._fromVideo = true;
 				canvas._videoUncertain = video.uncertain.some(Boolean);
+				noteVideoUnusedFiles(video, files, canvas, label);
 			}
 			return canvas;
+		}
+		/* 結合画像に1行も使わなかった動画・取り込みの画（T166・決定 679。special.html と同じ）。一覧の下（継承の履歴）まで撮った画は、組み立ての末尾の
+		 * 切り方で結合画像に入らないのに、OCR が読むと「列 1本」になり、「列がちょうど2本でない画が1枚でもあれば、その人には印を付けない」に当たっていた。
+		 * 組み立て（composePerson）の _sourcePlacements に1行も無い画を persons[].video.unusedFiles に控え、processPersonImages が OCR しない */
+		function videoUnusedFiles(files, canvas) {
+			const used = new Set(((canvas && canvas._sourcePlacements) || []).filter(p => p.srcY1 > p.srcY0).map(p => p.fileIndex));
+			return new Set(used.size ? files.filter((f, i) => !used.has(i)) : []);
+		}
+		// 結合画像のいちばん下を受け持った画と、その画で使った所の下端（元の画の y）。その下は一覧の末尾（組み立ての末尾の切り方）より下で、
+		// 継承の履歴などが写る（横画面の録画の祖A2 は、この画が「列 1本」になって印が付かなかった。T166。special.html と同じ）。無ければ null
+		function videoTailCut(files, canvas) {
+			const pl = ((canvas && canvas._sourcePlacements) || []).filter(p => p.srcY1 > p.srcY0);
+			if (!pl.length) return null;
+			const last = pl.reduce((a, b) => (b.outY0 + b.srcY1 - b.srcY0 > a.outY0 + a.srcY1 - a.srcY0 ? b : a));
+			return files[last.fileIndex] ? { file: files[last.fileIndex], y: last.srcY1 } : null;
+		}
+		function noteVideoUnusedFiles(v, files, canvas, label) {
+			v.unusedFiles = videoUnusedFiles(files, canvas);
+			v.tailCut = videoTailCut(files, canvas);
+			if (v.unusedFiles.size) devGeometry.push('[動画] ' + label + ': 結合画像に1行も使わなかった画 ' + v.unusedFiles.size + '枚（' + files.filter(f => v.unusedFiles.has(f)).map(f => f.name).join('・') + '）は OCR と印の確かめから外します');
+		}
+		// 結合画像のいちばん下を受け持った画で、使った所より下を白で塗る（T166。cutNextPersonInVideoFrame と同じ塗り方）。戻り値: 塗ったか
+		function cutVideoTail(base, video, file, naturalH, diag) {
+			const tc = video && video.tailCut;
+			if (!tc || tc.file !== file || !(naturalH > 0)) return false;
+			const y = Math.round(tc.y * base.height / naturalH);
+			if (y >= base.height) return false;
+			const ctx = base.getContext('2d');
+			ctx.fillStyle = '#fff';
+			ctx.fillRect(0, y, base.width, base.height - y);
+			diag.push('動画の画: 結合画像に使った所（y=' + y + '）より下を白で塗った（一覧の末尾より下）');
+			return true;
 		}
 
 		// OCR の前の②の結合画像（T139）。列見出し（親A など。結合画像の表示の「検出数カード」「シナリオ因子・遺伝子」が OFF のときと同じ帯）と3人の画像だけ。
@@ -5080,6 +5113,12 @@
 						scale: img.naturalWidth / base.width,
 						naturalW: img.naturalWidth, naturalH: img.naturalHeight
 					};
+					// 結合画像に1行も使わなかった動画の画は OCR しない（T166・決定 679。videoUnusedFiles）。大きさは画面の形の確かめ（決定6）に使うので控え、行は無いままにする
+					if (video && video.unusedFiles && video.unusedFiles.has(file)) {
+						diag.push('→ 結合画像に1行も使わなかった画のため、OCR と印の確かめから外します（動画の画）');
+						devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+						continue;
+					}
 
 					// 画質による事前チェック（common.js参照）。SNS再共有や画像結合ツールを経由した
 					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済み。
@@ -5112,6 +5151,7 @@
 					if (vk >= 0) {
 						videoState.naturalH = img.naturalHeight;
 						maskVideoFrameMargins(base, diag);
+						cutVideoTail(base, video, file, img.naturalHeight, diag);
 						cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
 					}
 					const thumbSaved = maskScrollbarThumb(base, diag);
