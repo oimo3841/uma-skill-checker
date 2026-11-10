@@ -10,6 +10,9 @@
 //  (2) 形が当たる候補が0（表に無い字・当たる候補が別の行で出ていて外れた）なら出ない。2つ以上なら採らない（関数で直接見る）。
 //  (3) 最後の1字だけが違う組でない同点には効かない（別の位置が違う組の行・組でない名前の取り合わせ）。
 //  (4) 並びで決まる行は今までどおり並びで決まる（字の形が別の候補を指しても並びが先）。
+// T163（2026-11-10・決定 664）: 速 の字を部首 162（辵・辶）のすべての漢字に広げた。塊 (5) の見出しは「T163」で始まる
+//  （`--only=T163` で回せる）。
+//  (5) 表の字数と重なり・新しく入った字（道・進・範囲の端・拡張 B。遠 は正規化で 速 になるので表と関数で）で 速 に決まる・辶でも貝でもない字（翌・鏈）では決まらない。
 // スキル名・字は検査の側に書かない（恒久ルール1。データと製品の表から選ぶ）。
 
 import { reloadReady } from './lib/page-ready.mjs';
@@ -230,6 +233,84 @@ export async function register165(env) {
 			assert(!!a && !a.byShape, 'T162(4) 並びで決まった行には字の形の記録が付かない', a && a.byShape);
 			assert(/並び/.test(r.res.reasons[r.x] || ''), 'T162(4) 理由は「並びで絞り込み」のまま', r.res.reasons[r.x]);
 			assert(jsErrors(sp.errors).length === 0, 'T162(4) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		} finally { await sp.ctx.close(); }
+	});
+
+	// T163（決定 664）: 速 の字を、部首が辵・辶（康熙部首 162）のすべての漢字にした（Unihan 18.0 の kRSUnicode・1,227 字）。
+	// 新しく入った字（T162 の6字 返・逢・遥・通・途・連 の外）で 速 に決まること、辶でも貝でもない字では決まらないこと、
+	// 賢 の字は T162 のまま・速 と重ならないことを見る。字の一覧は製品の表（TIED_LAST_CHAR_RADICAL_162）から引く。
+	await block('T163 (5) 辶のつく字すべて（T162 の6字の外も）で 速 に決まり、辶でも貝でもない字では決まらない', async () => {
+		const sp = await openSp();
+		try {
+			const r = await sp.page.evaluate(() => {
+				const { line, setScope, match, known, group } = window.__t162;
+				const own = (k) => Object.prototype.hasOwnProperty.call(TIED_LAST_CHAR_SHAPES, k);
+				const T162_SIX = ['返', '逢', '遥', '通', '途', '連'];
+				// 表の範囲の字（符号の範囲から並べる）
+				const radical = [];
+				TIED_LAST_CHAR_RADICAL_162.forEach(([a, b]) => { for (let cp = a; cp <= (b === undefined ? a : b); cp++) radical.push(String.fromCodePoint(cp)); });
+				const keys = Object.keys(TIED_LAST_CHAR_SHAPES);
+				const speedKeys = keys.filter((k) => TIED_LAST_CHAR_SHAPES[k] === '速');
+				const kenKeys = keys.filter((k) => TIED_LAST_CHAR_SHAPES[k] === '賢');
+				const radSet = new Set(radical);
+				const table = {
+					radical: radical.length, speed: speedKeys.length,
+					allRadicalSpeed: radical.every((ch) => own(ch) && TIED_LAST_CHAR_SHAPES[ch] === '速'),
+					speedOnlyRadical: speedKeys.filter((k) => !radSet.has(k)),
+					sixInRadical: T162_SIX.filter((k) => radSet.has(k)).length,
+					kenKeys: kenKeys.join(''), kenInRadical: kenKeys.filter((k) => radSet.has(k)),
+					// 部首 162 の字の見本: 辵・辶（部首そのもの）・巡（URO の範囲の外）・U+FA24（互換の区画にある統合漢字）・遠・拡張 B の範囲の頭と末尾
+					samples: [String.fromCodePoint(0x8FB5), String.fromCodePoint(0x8FB6), String.fromCodePoint(0x5DE1), String.fromCodePoint(0xFA24), '遠', String.fromCodePoint(0x2844D), String.fromCodePoint(0x28667)].map((ch) => ({ ch, to: own(ch) ? TIED_LAST_CHAR_SHAPES[ch] : null })),
+					// 互換漢字（U+F99A 連）は lastLetterOf の NFKC で統合漢字に移ってから引かれる
+					compat: (() => { const ch = lastLetterOf(String.fromCodePoint(0xF99A)); return { ch, to: own(ch) ? TIED_LAST_CHAR_SHAPES[ch] : null }; })()
+				};
+				if (!group) return { table, group: null };
+				const m = group.members;
+				const want = group.byTarget['速'];
+				const head = want.slice(0, want.length - 1);
+				setScope(m.map(known));
+				// 新しく入った字: 表の範囲の字のうち、T162 の6字でも 速 でもなく、正規化（CHAR_CONFUSION_MAP）のあとも組のどの最後の字にもならないもの。
+				// 遠 は正規化で 速 になり、同点にならずに 速 と読める（字の形の前に決まる）ので、照合の流れでは見ない（表と関数で直接見る）。
+				// 照合の流れで見るのは 道（正規化で 進）・進（T163 の指示の例）と、URO の範囲の頭・表の最初と最後・拡張 B の字
+				const lastsOfGroup = new Set(m.map((n) => normalizeText(lastLetterOf(n))));
+				const fresh = radical.filter((ch) => !T162_SIX.includes(ch) && ch !== '速' && !lastsOfGroup.has(normalizeText(ch)));
+				const pickFlow = ['道', '進'].filter((ch) => fresh.includes(ch))
+					.concat([fresh.find((ch) => ch.codePointAt(0) >= 0x8FB5), fresh[0], fresh[fresh.length - 1], fresh.find((ch) => ch.codePointAt(0) >= 0x20000 && ch.codePointAt(0) < 0x2A6E0)])
+					.filter((ch, i, a) => ch && a.indexOf(ch) === i);
+				const flow = pickFlow.map((ch) => {
+					const res = match([line(head + ch, '0:4', 2)]);
+					const a = res.amb.find((x) => x.rowKey === '0:4');
+					return { ch, cp: ch.codePointAt(0).toString(16), detected: res.detected, star: res.stars[want], reason: res.reasons[want] || '', byShape: a ? a.byShape : null, tie: !!a && !a.resolved && a.survivors.length >= 2, byOrderPicked: a && a.byOrder ? a.byOrder.picked : 'none' };
+				});
+				// 部首 162 の字すべて（T162 の6字・遠 も含む）を関数で直接（組の全部を候補に）
+				const direct = radical.map((ch) => { const p = pickTiedByLastCharShape(head + ch, m, m); return !!p && p.picked === want; });
+				// 辶でも貝でもない字（翌。T150 の動画8 祖2 の読み）・辶を部首でない所に持つ字（鏈〔金部〕）は表に無く、決まらない
+				const others = ['翌', '鏈'].map((ch) => {
+					const res = match([line(head + ch, '0:4', 2)]);
+					const a = res.amb.find((x) => x.rowKey === '0:4');
+					return { ch, inTable: own(ch), detected: res.detected, byShape: a ? a.byShape : null, tie: !!a && !a.resolved && a.survivors.length >= 2 };
+				});
+				return { table, group: m, want, freshCount: fresh.length, flow, directOk: direct.filter(Boolean).length, directAll: direct.length, others };
+			});
+			const t = r.table;
+			assert(t.radical === 1227 && t.speed === 1227 && t.allRadicalSpeed, 'T163(5) 表: 部首 162 の 1,227 字がすべて 速 に行く', { radical: t.radical, speed: t.speed, all: t.allRadicalSpeed });
+			assert(t.speedOnlyRadical.length === 0 && t.sixInRadical === 6, 'T163(5) 表: 速 に行く字は部首 162 の字だけ（T162 の6字も範囲に入る）', { extra: t.speedOnlyRadical, six: t.sixInRadical });
+			assert(t.kenKeys === '買貴賞質費' && t.kenInRadical.length === 0, 'T163(5) 表: 賢 の字は T162 のまま（買・貴・賞・質・費）で、辶の字と重ならない', { ken: t.kenKeys, overlap: t.kenInRadical });
+			assert(t.samples.every((s) => s.to === '速'), 'T163(5) 表: 辵・辶・巡・U+FA24・遠・拡張 B の字も 速', t.samples);
+			assert(t.compat.ch === '連' && t.compat.to === '速', 'T163(5) 互換漢字の 連（U+F99A）は NFKC で 連 になって 速', t.compat);
+			assert(!!r.group && !!r.want, 'T163(5) データに、最後の1字だけが違い 賢・速 で終わる候補を持つ組がある', r.group);
+			if (!r.group) return;
+			assert(r.flow.length >= 5 && ['道', '進'].every((ch) => r.flow.some((f) => f.ch === ch)), 'T163(5) 照合の流れで見る字に 道・進 と範囲の端・拡張 B の字が入る', r.flow.map((f) => f.ch + ' U+' + f.cp));
+			for (const f of r.flow) {
+				assert(f.tie && !f.byOrderPicked, 'T163(5) 「…' + f.ch + '」（U+' + f.cp + '）は同点で、並びでは決まらない', f);
+				assert(f.detected.length === 1 && f.detected[0] === r.want && f.star === 2 && /字の形/.test(f.reason), 'T163(5) 最後の字「' + f.ch + '」→「' + r.want + '」が出る（字の形で絞り込み）', f);
+				assert(!!f.byShape && f.byShape.last === f.ch && f.byShape.picked === r.want, 'T163(5) 開発ログの記録: 最後の字「' + f.ch + '」→ 速', f.byShape);
+			}
+			assert(r.freshCount >= 1200 && r.directAll === 1227 && r.directOk === r.directAll, 'T163(5) 部首 162 の字すべて（関数で直接）: 速 で終わる候補に決まる', { fresh: r.freshCount, ok: r.directOk, all: r.directAll });
+			for (const o of r.others) {
+				assert(!o.inTable && o.tie && o.detected.length === 0 && !!o.byShape && o.byShape.matched.length === 0 && !o.byShape.picked, 'T163(5) 辶でも貝でもない字「' + o.ch + '」: 表に無く、決まらない（今までどおり捨てる）', o);
+			}
+			assert(jsErrors(sp.errors).length === 0, 'T163(5) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		} finally { await sp.ctx.close(); }
 	});
 }

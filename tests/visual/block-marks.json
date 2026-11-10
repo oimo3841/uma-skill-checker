@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-10",
 "numbering": "runtime",
-"count": 1092,
+"count": 1093,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1094,6 +1094,7 @@
   {"file":"tests/visual/blocks-165.mjs","title":"T162 (2) 形が当たる候補が0（表に無い字・当たる候補が別の行で出ている）・2つ以上なら採らない","ord":1,"marks":"VAC","asserts":10},
   {"file":"tests/visual/blocks-165.mjs","title":"T162 (3) 最後の1字だけが違う組でない同点には、字の形を使わない","ord":1,"marks":"VAT","asserts":6,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-165.mjs","title":"T162 (4) 並びで決まる行は今までどおり並びで決まる（字の形が別の候補を指しても並びが先）","ord":1,"marks":"VAS","asserts":6},
+  {"file":"tests/visual/blocks-165.mjs","title":"T163 (5) 辶のつく字すべて（T162 の6字の外も）で 速 に決まり、辶でも貝でもない字では決まらない","ord":1,"marks":"VTC","asserts":13},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(1) 撮り始め・スクロールのあとの画が粗い横画面の出どころ: 同じ位置のくっきりした画を使い、結合画像が一覧と画素で合う","ord":1,"marks":"VAC","asserts":6},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(2) 縦画面の出どころ（kind に landscape: が無い）は今のまま: 置き換えず、静止画が sharpPick:false とバイトまで同じ","ord":1,"marks":"C","asserts":3,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(3) special.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4},
