@@ -2058,7 +2058,7 @@ await noticeBlock('special.html — 既定は新UI／切り替えの告知モー
  *
  * 第2段階（exam×Deck）の着手にあたり、それまで exam を見る項目が 0 件だった
  * ところに受け皿を作った。読み込める・コンソールエラー0・375px で横スクロール無し、
- * に加えて「組み込み133種が登録されて見えている」ことだけを見る。
+ * に加えて「組み込み134種が登録されて見えている」ことだけを見る。
  * ============================================================ */
 await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 {
@@ -2086,8 +2086,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		// 見出しの一言（2nd Edition のバッジの脇。微調整2・D で見出しの下の <p> から移した）
 		header: document.querySelector('header .header-tagline').textContent
 	}));
-	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種',
-		'exam: 組み込みの133種が登録されている（①のタブのバッジは「133種」）', registry);
+	assert(registry.rows === 134 && registry.total === '134' && registry.badge === '134種',
+		'exam: 組み込みの134種が登録されている（①のタブのバッジは「134種」）', registry);
 	assert(registry.header.trim() === '技能試験用ツール' && !/\d+種/.test(registry.header),
 		'exam: ヘッダーの見出しに種数を書かない（C-139・微調整1・C(9)で冒頭は「技能試験特化ツール」の1行になった。2026-10-27 に「技能試験用ツール」）', registry.header.slice(0, 40));
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
@@ -2130,12 +2130,12 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert((await stepState()).panel1, 'exam: ←キーで①へ戻る');
 	// 対象の範囲を既定から動かすとバッジに「（調整あり）」が付き、戻せば消える
 	await page.evaluate(() => setTargetScopeMode('expanded'));
-	assert(await page.textContent('#step1-skill-badge') === '138種（調整あり）', 'exam: 対象を広げると①のバッジに（調整あり）が付く');
+	assert(await page.textContent('#step1-skill-badge') === '139種（調整あり）', 'exam: 対象を広げると①のバッジに（調整あり）が付く');
 	assert(await page.evaluate(() => !document.getElementById('badge-scope-added').classList.contains('hidden')
 		&& document.getElementById('badge-scope-added-text').textContent === '追加5種'),
 		'exam: 対象を広げると「追加5種」のバッジが出る');
 	await page.evaluate(() => setTargetScopeMode('curated'));
-	assert(await page.textContent('#step1-skill-badge') === '121種（調整あり）', 'exam: 対象を絞ると「121種（調整あり）」になる');
+	assert(await page.textContent('#step1-skill-badge') === '122種（調整あり）', 'exam: 対象を絞ると「122種（調整あり）」になる');
 	assert(await page.evaluate(() => !document.getElementById('badge-scope-removed').classList.contains('hidden')
 		&& document.getElementById('badge-scope-removed-text').textContent === '除外12種'
 		&& document.querySelectorAll('#skill-registry-list .registry-removed').length === 12),
@@ -2364,8 +2364,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		return { both, factorOnly, geneOnly, none };
 	});
 	assert(geneSplit.both.note === '＋シナリオ因子25種＋遺伝子10種'
-		&& geneSplit.both.skill === 121 && geneSplit.both.factor === 25 && geneSplit.both.gene === 10
-		&& geneSplit.both.all === 156,
+		&& geneSplit.both.skill === 122 && geneSplit.both.factor === 25 && geneSplit.both.gene === 10
+		&& geneSplit.both.all === 157,
 		'段F(exam): 両方 ON なら「＋シナリオ因子25種＋遺伝子10種」と並記する（合算しない。2026-10-26: 因子24→25種）', geneSplit.both);
 	assert(geneSplit.factorOnly.note === '＋シナリオ因子25種' && geneSplit.geneOnly.note === '＋遺伝子10種'
 		&& geneSplit.none.note === '',
@@ -2373,7 +2373,7 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	await page.evaluate(() => setAptitudeGenesAll(false));
 
 	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
-	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+24 のまま。
+	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 122+24 のまま。
 	const splitCounts = await page.evaluate(() => {
 		renderSkillCopyTextarea();
 		return {
@@ -2387,20 +2387,20 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 			copyLines: document.getElementById('skill-copy-textarea').value.split('\n').length
 		};
 	});
-	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 25 && splitCounts.all === 146,
-		'exam: シナリオ因子を ON にすると、数える配列はスキル121・因子25に分かれる（並びの skillList は146のまま。2026-10-26: 因子24→25種）', splitCounts);
-	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121',
-		'exam: ①のバッジ・一覧の見出しは、因子を足してもスキルだけの数（121）', splitCounts);
-	// 一覧は「外した12種」も取り消し線で残すので 133＋因子25＝158行。数だけがスキルの121になる。
-	assert(splitCounts.rows === 158,
-		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子25＝158行）', splitCounts);
+	assert(splitCounts.skillOnly === 122 && splitCounts.factorOnly === 25 && splitCounts.all === 147,
+		'exam: シナリオ因子を ON にすると、数える配列はスキル122・因子25に分かれる（並びの skillList は147のまま。2026-10-26: 因子24→25種）', splitCounts);
+	assert(splitCounts.badge === '122種（調整あり）' && splitCounts.registry === '122',
+		'exam: ①のバッジ・一覧の見出しは、因子を足してもスキルだけの数（122）', splitCounts);
+	// 一覧は「外した12種」も取り消し線で残すので 134＋因子25＝159行。数だけがスキルの122になる。
+	assert(splitCounts.rows === 159,
+		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（134＋因子25＝159行）', splitCounts);
 	// 表記: 因子も並ぶ／書き出される場所には「＋シナリオ因子N種」を添える
-	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子25種の一覧を確認する',
-		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子25種の一覧を確認する」', splitCounts.registryHead);
-		assert(splitCounts.copyHint === 'スキル121種＋シナリオ因子25種・ 146行' && splitCounts.copyLines === 146,
-		'exam: スキル名のコピーの見出しは「スキル121種＋シナリオ因子25種・ 146行」（種数を分けて書き、行数は実際の146行。微調整2のCで短くした）', splitCounts);
+	assert(splitCounts.registryHead === '対象スキル122種＋シナリオ因子25種の一覧を確認する',
+		'exam: 一覧の見出しは「対象スキル122種＋シナリオ因子25種の一覧を確認する」', splitCounts.registryHead);
+		assert(splitCounts.copyHint === 'スキル122種＋シナリオ因子25種・ 147行' && splitCounts.copyLines === 147,
+		'exam: スキル名のコピーの見出しは「スキル122種＋シナリオ因子25種・ 147行」（種数を分けて書き、行数は実際の147行。微調整2のCで短くした）', splitCounts);
 	await page.evaluate(() => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default'); });
-	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
+	assert(await page.textContent('#step1-skill-badge') === '134種', 'exam: 調整を戻すとバッジも「134種」に戻る');
 	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors', 'badge-genes']
 		.every((id) => document.getElementById(id).classList.contains('hidden'))),
 		'exam: 既定に戻すと4つの追加バッジは出ない');
@@ -2442,7 +2442,7 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 
 	/* --- UmaSkill Deck への受け渡し（手順3）---
 	   OCRを回さずに、合成した行を本物の照合関数に通して結果を作る（special と同じ考え方）。
-	   親Aは133種すべて検出（うち1件は★不明）、親Bは先頭20件だけ検出。 */
+	   親Aは134種すべて検出（うち1件は★不明）、親Bは先頭20件だけ検出。 */
 	const seedExam = (extraNames) => page.evaluate((extra) => {
 		const mk = (names, offset) => matchAllSkillsWithStars(
 			names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })),
@@ -2468,13 +2468,13 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 			oldGone: !document.getElementById('deck-handoff-note') && !document.getElementById('fab-dot-deck') && !document.getElementById('deck-drawer') && !document.getElementById('deck-drawer-trigger') };
 	});
 	let p = await readExam();
-	assert(p && p.source === 'exam' && p.scope.kind === 'manual' && p.scope.name === '技能試験' && p.skillNames.length === 133,
-		'exam: 判定が終わると :exam キーへ payload が書かれる（source=exam・scope=manual「技能試験」・133件）',
+	assert(p && p.source === 'exam' && p.scope.kind === 'manual' && p.scope.name === '技能試験' && p.skillNames.length === 134,
+		'exam: 判定が終わると :exam キーへ payload が書かれる（source=exam・scope=manual「技能試験」・134件）',
 		p && { source: p.source, scope: p.scope, n: p.skillNames.length });
 	assert(p && p.persons.length === 2 && p.persons[0].label === '親A' && p.persons[1].label === '親B'
-		&& Object.keys(p.persons[0].stars).length === 132 && p.persons[0].unknownStars.length === 1
+		&& Object.keys(p.persons[0].stars).length === 133 && p.persons[0].unknownStars.length === 1
 		&& Object.keys(p.persons[1].stars).length === 20,
-		'exam: persons は special と同じ形（親A 132件＋★不明1件・親B 20件）', p && p.persons.map((x) => [x.label, Object.keys(x.stars).length, x.unknownStars.length]));
+		'exam: persons は special と同じ形（親A 133件＋★不明1件・親B 20件）', p && p.persons.map((x) => [x.label, Object.keys(x.stars).length, x.unknownStars.length]));
 	let n = await noteState();
 	assert(n.visible && n.text === 'Deck (αテスト)に送る UmaSkill Deck は開発を停止しました。' && n.oldGone,
 		'exam: 結果の先頭に「Deck (αテスト)に送る」と停止の1行・旧 Deck の案内とバッジと引き出しは無い', n);
@@ -2596,8 +2596,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		const r = resolveHandoffSkills(pendingOcrHandoff().payload);
 		return { resolved: r.resolved.length, unresolved: r.unresolved, ids: new Set(r.resolved.map((x) => x.id)).size };
 	});
-	assert(resolved.resolved === 133 && resolved.ids === 133 && resolved.unresolved.length === 0,
-		'exam: exam の表記（〇・半角括弧）のまま133件すべてが Deck 側で別々の ID に解決する', resolved);
+	assert(resolved.resolved === 134 && resolved.ids === 134 && resolved.unresolved.length === 0,
+		'exam: exam の表記（〇・半角括弧）のまま134件すべてが Deck 側で別々の ID に解決する', resolved);
 	await deckFrame.locator('[data-ocr-act="import"]').click();
 	await page.waitForTimeout(600);
 	const dlg = await frame.evaluate(() => ({
@@ -2607,8 +2607,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		name: document.querySelector('[data-ocr-el="record-name"]').value,
 		warn: !!document.querySelector('.usd-modal-panel .ocr-warn')
 	}));
-	assert(dlg.title === 'UmaExam OCRの結果を読み込む' && dlg.lead.includes('スキル133件') && !dlg.warn,
-		'exam: 取り込みダイアログは「UmaExam OCR」・133件・未解決の警告なし', dlg);
+	assert(dlg.title === 'UmaExam OCRの結果を読み込む' && dlg.lead.includes('スキル134件') && !dlg.warn,
+		'exam: 取り込みダイアログは「UmaExam OCR」・134件・未解決の警告なし', dlg);
 	assert(dlg.record === '__new__' && dlg.name === '技能試験 候補比較',
 		'exam: 取り込み先の既定は新しい比較シート「技能試験 候補比較」', dlg);
 	await deckFrame.locator('[data-ocr-act="apply"]').click();
@@ -2628,8 +2628,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 			b445: v('445', '親B'),  // 親B は先頭20件だけ → 未検出 0
 		};
 	});
-	assert(rec && rec.skills === 133 && rec.labels.join('・') === '親A・親B',
-		'exam: 比較シートが133件・親A/親B の2候補で作られる', rec);
+	assert(rec && rec.skills === 134 && rec.labels.join('・') === '親A・親B',
+		'exam: 比較シートが134件・親A/親B の2候補で作られる', rec);
 	assert(rec && rec.a1 === 1 && rec.a5 === 0 && rec.a70 === 1 && rec.b1 === 2 && rec.b445 === 0,
 		'exam: 比較シートに★が入る（★不明は0・表記ゆれの名前も正しい ID に入る）', rec);
 	const ex = await readExam();
@@ -2644,14 +2644,14 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	await page.waitForTimeout(400);
 	p = await readExam();
 	// Deck へ渡す skillNames は**因子を含めたまま**（Deck 側はカタログの◆として取り込む）。
-	// 138種＋シナリオ因子25種＝163件。この163は「渡した行数」であって「スキル数」ではない。
-	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 163,
-		'exam: 判定し直すと新しい payload（調整あり・163件＝スキル138＋シナリオ因子25）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+	// 139種＋シナリオ因子25種＝164件。この164は「渡した行数」であって「スキル数」ではない。
+	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 164,
+		'exam: 判定し直すと新しい payload（調整あり・164件＝スキル139＋シナリオ因子25）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
 	assert(await page.evaluate(() => {
 		const f = new Set(SCENARIO_INHERITANCE_FACTORS);
 		const pay = JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam'));
-		return pay.skillNames.filter((x) => !f.has(x)).length === 138 && pay.skillNames.filter((x) => f.has(x)).length === 25;
-	}), 'exam: 渡した163件の内訳はスキル138件・シナリオ因子25件');
+		return pay.skillNames.filter((x) => !f.has(x)).length === 139 && pay.skillNames.filter((x) => f.has(x)).length === 25;
+	}), 'exam: 渡した164件の内訳はスキル139件・シナリオ因子25件');
 	// 「スキル」と付く数からは因子を外す。検出数もスキルだけを数える（因子は全員が検出済みの種でも増えない）。
 	const factorSplit = await page.evaluate(() => ({
 		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
@@ -2665,11 +2665,11 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		detected0: countDetected(0),
 		detectedWithFactors: skillList.filter((s) => personResults[0].detectedSkills.has(s)).length
 	}));
-	assert(factorSplit.skillOnly === 138 && factorSplit.factorOnly === 25 && factorSplit.all === 163
-		&& factorSplit.badge === '138種（調整あり）' && factorSplit.registry === '138' && factorSplit.statTotal === '138',
-		'exam: ①のバッジ・一覧の見出し・「対象スキル数」カードは、因子を除いた138', factorSplit);
-	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 163 && factorSplit.statFound1 === '138',
-		'exam: 検出数はスキルだけを数える（因子込みなら163になるところを138）', factorSplit);
+	assert(factorSplit.skillOnly === 139 && factorSplit.factorOnly === 25 && factorSplit.all === 164
+		&& factorSplit.badge === '139種（調整あり）' && factorSplit.registry === '139' && factorSplit.statTotal === '139',
+		'exam: ①のバッジ・一覧の見出し・「対象スキル数」カードは、因子を除いた139', factorSplit);
+	assert(factorSplit.detected0 === 139 && factorSplit.detectedWithFactors === 164 && factorSplit.statFound1 === '139',
+		'exam: 検出数はスキルだけを数える（因子込みなら164になるところを139）', factorSplit);
 	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子25種',
 		'exam: 「対象スキル数」カードの下に「＋シナリオ因子25種」が出る', factorSplit);
 	n = await noteState();
@@ -2681,9 +2681,9 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		return { resolved: r.resolved.length, unresolved: r.unresolved, uraId: hit ? hit.id : null,
 			kind: hit ? UmaSkillDeckCore.skillCatalogKind(hit.id) : null };
 	});
-	assert(factorResolve.resolved === 163 && factorResolve.unresolved.length === 0
+	assert(factorResolve.resolved === 164 && factorResolve.unresolved.length === 0
 		&& factorResolve.uraId === 'sf-ura' && factorResolve.kind === 'scenarioFactor',
-		'exam: シナリオ因子も含めて163件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
+		'exam: シナリオ因子も含めて164件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
 	await deckFrame.locator('[data-ocr-act="import"]').click();
 	await page.waitForTimeout(600);
 	const warn = await frame.evaluate(() => {
@@ -2693,8 +2693,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert(warn === null, 'exam: シナリオ因子を混ぜても「見つからなかった」警告は出ない', warn);
 	const factorDlg = await frame.evaluate(() =>
 		document.querySelector('.usd-modal-panel .text-xs.text-slate-500').textContent);
-	assert(factorDlg.includes('スキル138件・シナリオ因子25件を取り込みます'),
-		'deck: 取り込みダイアログも「スキル138件・シナリオ因子25件」と分けて書く', factorDlg);
+	assert(factorDlg.includes('スキル139件・シナリオ因子25件を取り込みます'),
+		'deck: 取り込みダイアログも「スキル139件・シナリオ因子25件」と分けて書く', factorDlg);
 	// 取り込んだシートで、カタログ由来の行に◆が付き、名前が「（不明なスキル）」にならないこと。
 	// 行の格子はシートを開いている間だけ描かれるので、取り込んだシートを開いてから見る。
 	await deckFrame.locator('[data-ocr-act="apply"]').click();
@@ -11010,9 +11010,9 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(flow.eff.calls.match === 1 && flow.eff.calls.dictRows.every((n) => n === flow.eff.dictFull) && flow.eff.runEff,
 		'効率(8): 効率で選ぶで判定すると、拡張モードの辞書の全部（範囲で絞らない）で照合する', flow.eff.calls);
 	assert(JSON.stringify(flow.eff.snap) === JSON.stringify(flow.def.snap) && flow.eff.snap.copy.length > 0 && !flow.eff.melopBtn && !flow.def.melopBtn,
-		'効率(8): 判定結果の表と「★の数をコピー」は既定の133種と同じ（めろっぷ用のボタンは出ない。T104・232 で、既定でも Deck へ送るために拡張の照合は通す）', { eff: flow.eff.snap, def: flow.def.snap });
-	assert(flow.namesOk && flow.starsHasPick && flow.starsNoUnique && flow.def.payload.skillNames.length === 133,
-		'効率(8): Deck へは効率の対象のうち独自IDのあるものを渡し、継承固有は除く（既定では従来どおり133種）', flow);
+		'効率(8): 判定結果の表と「★の数をコピー」は既定の134種と同じ（めろっぷ用のボタンは出ない。T104・232 で、既定でも Deck へ送るために拡張の照合は通す）', { eff: flow.eff.snap, def: flow.def.snap });
+	assert(flow.namesOk && flow.starsHasPick && flow.starsNoUnique && flow.def.payload.skillNames.length === 134,
+		'効率(8): Deck へは効率の対象のうち独自IDのあるものを渡し、継承固有は除く（既定では従来どおり134種）', flow);
 
 	// (9) 「画像を更新」: 範囲や区間を変えたら OCR からやり直す扱い
 	const stale = await page.evaluate(() => {
@@ -11662,7 +11662,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	await page.click('label[for="scope-mode-default"]');
 	const back = await page.evaluate(() => ({ panel: document.getElementById('eff-panel').hidden, detail: document.getElementById('scope-detail').hidden,
 		reg: document.getElementById('registry-skill-count').textContent, minis: document.querySelectorAll('#skill-registry-list .eff-mini').length }));
-	assert(back.panel && !back.detail && back.reg === '133' && back.minis === 0, '効率(12): 既定に戻すとバーは消え、一覧は133種に戻る', back);
+	assert(back.panel && !back.detail && back.reg === '134' && back.minis === 0, '効率(12): 既定に戻すとバーは消え、一覧は134種に戻る', back);
 
 	await page.evaluate(() => { ['uma-exam-eff-bounds', 'uma-exam-eff-tiers', 'uma-exam-target-scope'].forEach((k) => localStorage.removeItem(k)); });
 	assert(errors.length === 0, '効率: コンソールエラーなし', errors.slice(0, 3));

@@ -18,8 +18,8 @@
  *   T92-1: blue・red の null は「読んでいない」として、閉じた状態で出し（因子の行は「—」）、「要確認」にも入れない。
  *   読もうとして決まらなかったものは [null, ★] で送れば、今までどおり開いて「読めなかった」を出す。
  *   T116（2026-11-07）: UmaStar も blue・red を読んで送る（読み方は UmaExam と同じ）。いちばん上の段が写っていない入力は null、段があって名前が決まらなければ [null, ★]。
- *   T104（2026-11-05・C-296）: UmaExam からは from: 'exam'・send: 133種の id・race と style は null・blue と red は読めた値（読めなければ [null, ★]）・
- *   persons[].sheet: { めろっぷの行で id の無い行の名前: ★ } を足して送る。セットは「技能試験（133種）」で固定・親Aにも「登録済みの〇〇と同一」を出す（234）。
+ *   T104（2026-11-05・C-296）: UmaExam からは from: 'exam'・send: 133種の id（2026-11-10〔DA01〕から134種）・race と style は null・blue と red は読めた値（読めなければ [null, ★]）・
+ *   persons[].sheet: { めろっぷの行で id の無い行の名前: ★ } を足して送る。セットは「技能試験（134種。2026-11-10 までは133種）」で固定・親Aにも「登録済みの〇〇と同一」を出す（234）。
  *   T115（2026-11-06・356〜363）: 右上にツール切り替えとライト／ダーク（Deck の本体と同じ。登録の前も後も）。UmaStar から送ったときも親Aに「同一」の候補を出す（UmaExam の 234 と同じ）。
  *   全部同じ親がいれば先頭（いちばん新しく登録した親）を「同一」に選んだ状態で出す。親Aを「同一」にして登録すると新しい親を作らず、読み取りの値を足し、送り先のセットに入れる。
  *   T126（2026-11-08・決定 418）: 各人に img: { slot, token } か null を足す（人ごとの結合画像の印。画像そのものは js/deck-alpha-images.js の別の IndexedDB）。
@@ -44,7 +44,7 @@
  */
 (function () {
 	'use strict';
-	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-08a';
+	const DECK_ALPHA_REGISTER_JS_VERSION = '2026-11-11a';
 	const K = window.DeckAlpha;
 	const IMG = window.UmaDeckImages || null; // 人ごとの結合画像（js/deck-alpha-images.js。読めなくても画像が出ないだけ）
 	const $ = (s) => document.querySelector(s);
@@ -183,9 +183,9 @@
 		const noFam = S.ocr.persons.length < 3;
 		const scopeLine = '<div class="line"><span class="k">送る</span><span class="seg" role="group" id="scopeSeg"><button type="button" data-scope="one" aria-pressed="' + (S.scope === 'one') + '">親Aだけ</button><button type="button" data-scope="fam" aria-pressed="' + (S.scope === 'fam') + '"' + (noFam ? ' disabled class="strike"' : '') + '>親Aセット</button></span></div>';
 		const ownerLine = '<div class="line"><span class="k">持ち主</span><span class="seg" role="group"><button type="button" data-owner="self" aria-pressed="' + (S.owner === 'self') + '">自分</button><button type="button" data-owner="friend" aria-pressed="' + (S.owner === 'friend') + '">フレンド</button></span></div>';
-		// UmaExam から: セットは「技能試験」だけ（97・100）。スキルの一覧は133種で決まっているので行を出さず、脚質の札も出さない
+		// UmaExam から: セットは「技能試験」だけ（97・100）。スキルの一覧は134種で決まっているので行を出さず、脚質の札も出さない
 		const lines = '<div class="linepair">' + scopeLine + ownerLine + '</div>' + (S.exam
-			? '<div class="line"><span class="k">セット</span><span>技能試験<span class="muted small">（133種）</span></span></div>'
+			? '<div class="line"><span class="k">セット</span><span>技能試験<span class="muted small">（134種）</span></span></div>'
 			: '<div class="line"><span class="k">セット</span><button class="rsel" type="button" id="setPick" aria-haspopup="dialog" aria-label="レース/周回セット：' + K.esc(K.setName(setNow)) + '" style="flex:1;justify-content:space-between;margin-left:0"><span class="t">' + K.esc(K.setName(setNow)) + '</span><span class="car" aria-hidden="true">▾</span></button></div>' +
 				'<div class="line"><span class="k">脚質</span>' + kindChips(K.STYLE, null, 'data-style') + '</div>' +
 				(sendN ? '<div class="line"><span class="k">スキル</span><span>②の' + sendN + '種' + (had ? '<span class="muted small">（前の一覧 ' + had + '種に足す）</span>' : '') + '</span></div>' : ''));

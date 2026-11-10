@@ -183,7 +183,7 @@ export async function register115(env) {
 		});
 		const s = j.s;
 		assert(s.format === 'uma-deck-send' && s.v === 1 && s.from === 'exam' && s.race === null && s.style === null && s.owner === 'self', '先頭の項目', { f: s.format, from: s.from, race: s.race, style: s.style, owner: s.owner });
-		assert(s.send.length === 133 && JSON.stringify(s.send) === JSON.stringify(j.ids), 'send は133種の id（EXAM_SKILL_LIST のまま）', s.send.length);
+		assert(s.send.length === 134 && JSON.stringify(s.send) === JSON.stringify(j.ids), 'send は134種の id（EXAM_SKILL_LIST のまま）', s.send.length);
 		assert(s.persons.length === 3, '祖2人とも読めていれば3人', s.persons.length);
 		const p0 = s.persons[0];
 		assert(p0.uma === null && JSON.stringify(p0.blue) === '["power",3]' && JSON.stringify(p0.red) === '["nige",2]', '青・赤は読めた値を Deck α の鍵で', { b: p0.blue, r: p0.red });
@@ -226,7 +226,7 @@ export async function register115(env) {
 			const pa = doc.parents[0];
 			return { n: doc.parents.length, from: pa.from, sets: pa.sets, exam: doc.exam && doc.exam.sends, examKeys: doc.exam && Object.keys(doc.exam.skills).length, none: doc.none ? Object.keys(doc.none.skills || {}).length : 0, inNone: K.inNoneList ? K.inNoneList(pa) : null, gp: (pa.gp || []).length, sheet: Object.keys(pa.sheet || {}).length, skills: Object.keys(pa.skills).length };
 		});
-		assert(saved.n === 1 && saved.from === 'exam' && saved.sets.join() === 'exam' && saved.exam === 1 && saved.examKeys === 133, '技能試験のまとまりにだけ入る（233）・doc.exam は133種', saved);
+		assert(saved.n === 1 && saved.from === 'exam' && saved.sets.join() === 'exam' && saved.exam === 1 && saved.examKeys === 134, '技能試験のまとまりにだけ入る（233）・doc.exam は134種', saved);
 		assert(saved.gp === 2 && saved.sheet === 1 && saved.skills >= 9, '祖2人・sheet・133種の外の id が保存される', saved);
 		await reg.close();
 

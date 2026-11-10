@@ -1,5 +1,5 @@
 // 文字正規化（js/common.js の CHAR_CONFUSION_MAP / HOMOGLYPH_MAP）の安全確認と、
-// exam.html の組み込み133種（ID と名前の組）がマスターと食い違っていないかの見張り。
+// exam.html の組み込み134種（ID と名前の組）がマスターと食い違っていないかの見張り。
 //
 // 1. 正規化の安全確認
 //   これらのマップは normalizeText() を通じて「OCRの読み取り結果」だけでなく
@@ -9,21 +9,23 @@
 //   更新したときは必ずこれを走らせること。common.js の各エントリのコメントにある
 //   「マスタ更新時に再確認すること」を自動化したもの。
 //
-// 2. exam.html の組み込み133種の整合（2026-09-11・第2段階 手順1で追加）
+// 2. exam.html の組み込み134種の整合（2026-09-11・第2段階 手順1で追加）
 //   exam.html は各スキルを { id: マスターID, name: exam の表示名 } で持つ。名前を
 //   マスターから引かずに exam 内へ残しているため（表記を変えないため・単体で動くため）、
 //   「exam の名前」と「マスターの名前」の二重持ちになる。ここでは
-//     - 133件すべての id がマスターに存在し、normalizeText(exam の名前) === normalizeText(マスターの名前)
-//     - sp70緑 17・緑59 59・実質53 の件数、sp70緑 ⊂ 緑59 ⊂ 133
+//     - 134件すべての id がマスターに存在し、normalizeText(exam の名前) === normalizeText(マスターの名前)
+//       （2026-11-10・DA01: 既定を「効率 4.40 以上」の134種にして、マスターに無い拡張スキル〔ex- の id〕が入った。
+//        ex- の id は data/extended-skills.json にあり、名前が一致することを見る）
+//     - sp70緑 17・緑59 59・実質53 の件数、sp70緑 ⊂ 緑59 ⊂ 134
 //     - 目覚めペア6組の ID がマスター 440〜445 と対応元（1, 2, 17〜20）に一致
 //   を見る。exam の名前とマスターが食い違ったら落ちる。
 //
 // 3. 対象スキルの範囲（軸1）・シナリオ因子（軸2）・遺伝子（軸3）の整合
-//   exam.html は 133種の足し引き（対象拡張の5種 EXPANDED_EXTRA_SKILL_LIST ／
+//   exam.html は 134種の足し引き（対象拡張の5種 EXPANDED_EXTRA_SKILL_LIST ／
 //   絞り込みで外す12種 CURATED_EXCLUDED_IDS）と、シナリオ因子24種
 //   （SCENARIO_INHERITANCE_FACTORS）・遺伝子10種（APTITUDE_GENES）を持つ。ここでは
-//     - 足す5種の id がマスターにあり、normalizeText 後の名前が一致し、133種と重ならない
-//     - 外す12種の id がすべて133種にあり、重複が無い
+//     - 足す5種の id がマスターにあり、normalizeText 後の名前が一致し、134種と重ならない
+//     - 外す12種の id がすべて134種にあり、重複が無い
 //     - シナリオ因子の写しが正本（data/scenario-inheritance-factors.json）と
 //       1文字も違わない（並び・件数も同じ）
 //     - 遺伝子の写しが正本（data/aptitude-genes.json）と 1文字も違わない（同上。段F）
@@ -40,7 +42,7 @@
 //   を見る。Deck のページは http で開く（file:// だと JSON のフェッチが CORS で
 //   落ちて組み込みの写しに落ち、正本との突き合わせにならないため）。
 //     - シナリオ因子どうし・シナリオ因子とスキル名が、normalizeText 後に衝突しない
-//     - 3つのモードの種数（133 / 138 / 121）
+//     - 3つのモードの種数（134 / 139 / 122。2026-11-10 までは 133 / 138 / 121）
 //   を見る。
 //
 // 使い方:
@@ -60,6 +62,8 @@ const ROOT = path.resolve(__dirname, '../..');
 const master = JSON.parse(await fs.readFile(path.join(ROOT, 'uma-skill-deck-skills.json'), 'utf-8'));
 const deckSkills = (master.skills || master).map((s) => ({ id: String(s.id), name: s.name }));
 const deckNames = deckSkills.map((s) => s.name);
+/** 拡張スキル（ex- の id）。exam の既定にマスターに無いスキルが入ったので、その名前の照合に使う（2026-11-10・DA01） */
+const extendedSkills = (JSON.parse(await fs.readFile(path.join(ROOT, 'data', 'extended-skills.json'), 'utf-8')).entries || []).map((e) => ({ id: String(e.id), name: e.name }));
 
 /** シナリオ因子の正本。exam.html が持つのはこの写し（file:// でも動かすため） */
 const scenarioFile = path.join(ROOT, 'data', 'scenario-inheritance-factors.json');
@@ -88,7 +92,7 @@ const page = await browser.newPage();
 page.on('pageerror', (e) => console.error('[pageerror]', e.message));
 await page.goto(pathToFileURL(path.join(ROOT, 'exam.html')).href, { waitUntil: 'load' });
 
-const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames, geneMasterNames }) => {
+const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames, geneMasterNames, extendedSkills }) => {
 	function collisionsIn(names) {
 		const byNorm = {};
 		names.forEach((n) => {
@@ -115,12 +119,16 @@ const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames
 	const examNames = EXAM_SKILL_LIST.map((s) => s.name);
 	const masterById = {};
 	deckSkills.forEach((s) => { masterById[s.id] = s.name; });
+	// 既定の対象の名前の引き先: マスターの id はマスター、ex- の id は拡張スキル（2026-11-10・DA01）
+	const extById = {};
+	extendedSkills.forEach((s) => { extById[s.id] = s.name; });
+	const refName = (id) => (/^ex-/.test(id) ? extById[id] : masterById[id]);
 
-	// ID と名前の組がマスターと合っているか
+	// ID と名前の組がマスター（ex- は拡張スキル）と合っているか
 	const idProblems = [];
 	EXAM_SKILL_LIST.forEach((s, i) => {
-		const m = masterById[s.id];
-		if (m === undefined) idProblems.push({ index: i + 1, id: s.id, name: s.name, problem: 'マスターに無いID' });
+		const m = refName(s.id);
+		if (m === undefined) idProblems.push({ index: i + 1, id: s.id, name: s.name, problem: 'マスター（ex- は拡張スキル）に無いID' });
 		else if (normalizeText(m) !== normalizeText(s.name)) idProblems.push({ index: i + 1, id: s.id, name: s.name, master: m, problem: '正規化後の名前が不一致' });
 	});
 	const examIds = EXAM_SKILL_LIST.map((s) => s.id);
@@ -138,7 +146,9 @@ const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames
 			uniqueNames: new Set(examNames).size,
 			problems: idProblems,
 			// examSkillId() は normalizeText 後で引くので、マスター表記からも同じIDに着くこと
-			lookupViaMasterName: EXAM_SKILL_LIST.filter((s) => examSkillId(masterById[s.id] || '') !== s.id).map((s) => s.id),
+			lookupViaMasterName: EXAM_SKILL_LIST.filter((s) => examSkillId(refName(s.id) || '') !== s.id).map((s) => s.id),
+			// マスターに無い id（拡張スキル）の数。いまは 狼煙を上げて（ex-1700）の1件
+			extIds: EXAM_SKILL_LIST.filter((s) => /^ex-/.test(s.id)).map((s) => s.id),
 			sp70: SP70_GREEN_17_IDS.length,
 			green59: GREEN_59_IDS.length,
 			green59Unique: green.size,
@@ -155,7 +165,7 @@ const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames
 				const m = masterById[s.id];
 				if (m === undefined) return { id: s.id, name: s.name, problem: 'マスターに無いID' };
 				if (normalizeText(m) !== normalizeText(s.name)) return { id: s.id, name: s.name, master: m, problem: '正規化後の名前が不一致' };
-				if (examIdSet.has(s.id)) return { id: s.id, name: s.name, problem: '既に133種にある' };
+				if (examIdSet.has(s.id)) return { id: s.id, name: s.name, problem: '既に134種にある' };
 				return null;
 			}).filter(Boolean),
 			// 絞り込みで外す12種
@@ -177,7 +187,7 @@ const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames
 				return a.map((n, i) => (n === b[i] ? null : { index: i, 写し: n, 正本: b[i] })).filter(Boolean);
 			})(),
 			factorCollisions: collisionsIn(SCENARIO_INHERITANCE_FACTORS),
-			// シナリオ因子とスキル名（133＋5）が正規化後にぶつかると、
+			// シナリオ因子とスキル名（134＋5）が正規化後にぶつかると、
 			// どちらか一方が常にもう一方として検出されることになる
 			factorVsSkill: (function () {
 				const skillNorms = {};
@@ -197,7 +207,7 @@ const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames
 				return a.map((n, i) => (n === b[i] ? null : { index: i, 写し: n, 正本: b[i] })).filter(Boolean);
 			})(),
 			geneCollisions: collisionsIn(APTITUDE_GENES),
-			// 遺伝子とスキル名（133＋5）が正規化後にぶつかると、
+			// 遺伝子とスキル名（134＋5）が正規化後にぶつかると、
 			// どちらか一方が常にもう一方として検出されることになる
 			geneVsSkill: (function () {
 				const skillNorms = {};
@@ -212,7 +222,7 @@ const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames
 			geneVsFactor: APTITUDE_GENES.filter((n) => SCENARIO_FACTOR_NORM_SET.has(normalizeText(n))),
 		},
 	};
-}, { deckSkills, deckNames, scenarioMasterNames, geneMasterNames });
+}, { deckSkills, deckNames, scenarioMasterNames, geneMasterNames, extendedSkills });
 
 /* --- 追加カタログ（Deck 側）。core.js を読むページを http で開いて見る --- */
 const server = await startServer(0);
@@ -363,7 +373,7 @@ if (embeddedBlock) {
 const CATEGORIES_WITHOUT_EMBEDDED_COPY = ['extendedSkill'];
 
 // exam の①の一覧の表示の並び（2026-10-27）。exam は core を読まないので、並びを EXAM_REGISTRY_DISPLAY_ORDER に埋め込んでいる。
-// 顔ぶれ（133種・広げる5種・シナリオ因子・遺伝子）と、data/skill-display-order.json の順と食い違わないことを見る
+// 顔ぶれ（134種・広げる5種・シナリオ因子・遺伝子）と、data/skill-display-order.json の順と食い違わないことを見る
 const displayOrderExam = await page.evaluate(() => ({
 	order: typeof EXAM_REGISTRY_DISPLAY_ORDER === 'undefined' ? null : EXAM_REGISTRY_DISPLAY_ORDER.slice(),
 	skills: EXAM_SKILL_LIST.concat(EXPANDED_EXTRA_SKILL_LIST).map((s) => ({ id: s.id, name: s.name })),
@@ -397,16 +407,17 @@ function check(cond, label, detail) {
 	console.log('  ' + (cond ? '✓ ' : '✗ ') + label + (detail !== undefined ? '  ' + JSON.stringify(detail) : ''));
 }
 const ids = report.ids;
-console.log('■ exam.html の組み込み133種（ID と名前の組）とマスターの整合');
-check(ids.size === 133 && ids.uniqueIds === 133 && ids.uniqueNames === 133,
-	'133件・ID と名前に重複なし', { size: ids.size, uniqueIds: ids.uniqueIds, uniqueNames: ids.uniqueNames });
-check(ids.problems.length === 0, '133件すべての id がマスターにあり、normalizeText 後の名前が一致', ids.problems);
+console.log('■ exam.html の組み込み134種（ID と名前の組）とマスター（ex- は拡張スキル）の整合');
+check(ids.size === 134 && ids.uniqueIds === 134 && ids.uniqueNames === 134,
+	'134件・ID と名前に重複なし', { size: ids.size, uniqueIds: ids.uniqueIds, uniqueNames: ids.uniqueNames });
+check(ids.problems.length === 0, '134件すべての id がマスター（ex- は拡張スキル）にあり、normalizeText 後の名前が一致', ids.problems);
+check(ids.extIds.join() === 'ex-1700', 'マスターに無い id（拡張スキル）は ex-1700 の1件', ids.extIds);
 check(ids.lookupViaMasterName.length === 0, 'マスター表記の名前からも examSkillId() で同じ id に着く', ids.lookupViaMasterName);
 check(ids.sp70 === 17, 'sp70緑は17件', ids.sp70);
 check(ids.green59 === 59 && ids.green59Unique === 59, '緑59種は59件（重複なし）', { green59: ids.green59, unique: ids.green59Unique });
 check(ids.equivalenceMax === 53 && ids.equivalenceMaxRecomputed === 53, '緑59種の実質は53種', { page: ids.equivalenceMax, recomputed: ids.equivalenceMaxRecomputed });
 check(ids.sp70NotInGreen.length === 0, 'sp70緑 ⊂ 緑59種', ids.sp70NotInGreen);
-check(ids.greenNotInExam.length === 0, '緑59種 ⊂ 133種', ids.greenNotInExam);
+check(ids.greenNotInExam.length === 0, '緑59種 ⊂ 134種', ids.greenNotInExam);
 const pairKeys = Object.keys(ids.pairs).sort();
 const pairOk = pairKeys.length === 6 && pairKeys.every((k) => ids.pairs[k] === EXPECTED_AWAKENING_PAIRS[k]);
 check(pairOk, '目覚めペア6組の ID がマスター 440〜445 と対応元（1, 2, 17〜20）に一致', ids.pairs);
@@ -418,26 +429,26 @@ console.log('');
 const scope = report.scope;
 console.log('■ 対象スキルの範囲（軸1）と シナリオ因子（軸2）と 遺伝子（軸3）');
 check(scope.extras.length === 5 && scope.extraProblems.length === 0,
-	'対象拡張で足す5種が、マスターにあり・名前が一致し・133種と重ならない', scope.extraProblems);
+	'対象拡張で足す5種が、マスターにあり・名前が一致し・134種と重ならない', scope.extraProblems);
 console.log('    足す5種: ' + scope.extras.map((s) => `${s.name}(${s.id})`).join(' / '));
 check(scope.curatedSize === 12 && scope.curatedUnique === 12,
 	'絞り込みで外すのは12種（重複なし）', { size: scope.curatedSize, unique: scope.curatedUnique });
-check(scope.curatedNotInExam.length === 0, '外す12種がすべて133種にある', scope.curatedNotInExam);
+check(scope.curatedNotInExam.length === 0, '外す12種がすべて134種にある', scope.curatedNotInExam);
 console.log('    外す12種: ' + scope.curatedNames.join(' / '));
-check(scope.counts.default === 133 && scope.counts.expanded === 138 && scope.counts.curated === 121,
-	'3つのモードの種数が 133 / 138 / 121', scope.counts);
+check(scope.counts.default === 134 && scope.counts.expanded === 139 && scope.counts.curated === 122,
+	'3つのモードの種数が 134 / 139 / 122', scope.counts);
 check(scope.factorMismatch.length === 0,
 	'exam.html のシナリオ因子が正本（data/scenario-inheritance-factors.json）と一致', scope.factorMismatch);
 console.log(`    シナリオ因子: ${scope.factorSize}種`);
 check(scope.factorCollisions.length === 0, 'シナリオ因子どうしが正規化後に衝突しない', scope.factorCollisions);
-check(scope.factorVsSkill.length === 0, 'シナリオ因子とスキル名（133＋5）が正規化後に衝突しない', scope.factorVsSkill);
+check(scope.factorVsSkill.length === 0, 'シナリオ因子とスキル名（134＋5）が正規化後に衝突しない', scope.factorVsSkill);
 check(scope.factorWithSkillId.length === 0, 'シナリオ因子は白スキルのIDを持たない', scope.factorWithSkillId);
 // 遺伝子（軸3・段F）。exam.html は core を読まないので写しを持つ ―― 正本とのズレはここで捕まえる。
 check(scope.geneMismatch.length === 0,
 	'exam.html の遺伝子が正本（data/aptitude-genes.json）と一致', scope.geneMismatch);
 console.log(`    遺伝子: ${scope.geneSize}種`);
 check(scope.geneCollisions.length === 0, '遺伝子どうしが正規化後に衝突しない', scope.geneCollisions);
-check(scope.geneVsSkill.length === 0, '遺伝子とスキル名（133＋5）が正規化後に衝突しない', scope.geneVsSkill);
+check(scope.geneVsSkill.length === 0, '遺伝子とスキル名（134＋5）が正規化後に衝突しない', scope.geneVsSkill);
 check(scope.geneWithSkillId.length === 0, '遺伝子は白スキルのIDを持たない', scope.geneWithSkillId);
 check(scope.geneVsFactor.length === 0, '遺伝子とシナリオ因子が正規化後に衝突しない', scope.geneVsFactor);
 console.log('');
@@ -529,6 +540,6 @@ console.log('■ exam の①の一覧の表示の並び（EXAM_REGISTRY_DISPLAY_
 console.log('');
 
 if (failed > 0) {
-	console.log('CHAR_CONFUSION_MAP の追記、スキルマスタの更新、または exam.html の組み込み133種で食い違いが発生しています。');
+	console.log('CHAR_CONFUSION_MAP の追記、スキルマスタの更新、または exam.html の組み込み134種で食い違いが発生しています。');
 	process.exitCode = 1;
 }

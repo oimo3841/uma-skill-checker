@@ -19,6 +19,7 @@ export async function register113(env) {
 	const examHtml = fs.readFileSync(path.join(root, 'exam.html'), 'utf8');
 	const m133 = examHtml.match(/const EXAM_SKILL_LIST\s*=\s*\[([\s\S]*?)\n\s*\];/);
 	const IDS = [...m133[1].matchAll(/\{\s*id:\s*'([^']+)'/g)].map((x) => x[1]);
+	// 2026-11-11（DA01）: 既定が134種（狼煙を上げて ex-1700 を足した）。塊の名前の「133行」「N/133」は塊の鍵なので変えない
 	const effJson = JSON.parse(fs.readFileSync(path.join(root, 'data/skill-efficiency.json'), 'utf8'));
 	const EFF = {}; effJson.entries.forEach((e) => { if (e.skillId) EFF[String(e.skillId)] = e.efficiency; });
 	const sizes = { 375: { width: 375, height: 812, isMobile: true, hasTouch: true }, 1280: { width: 1280, height: 800 } };
@@ -104,7 +105,7 @@ export async function register113(env) {
 				await T.send({ from: 'exam', send: IDS, persons: [person(uma[0], starsFrom(0, 50, 2)), person(uma[1], starsFrom(40, 30, 1)), person(uma[2], starsFrom(60, 10, 3))] });
 				await T.openReg();
 				const reg = await ev(() => ({ top: document.querySelector('.topline').innerText, body: document.getElementById('body').innerText, setBtn: !!document.getElementById('setPick'), tags: document.querySelectorAll('[data-style]').length }));
-				assert(/UmaExam から/.test(reg.top) && /技能試験（133種）/.test(reg.body) && !reg.setBtn && reg.tags === 0 && !/②の/.test(reg.body), tag + ' 登録の画面: 「UmaExam から」・セットは「技能試験（133種）」で固定・脚質の札は出さない', reg.body.slice(0, 120));
+				assert(/UmaExam から/.test(reg.top) && /技能試験（134種）/.test(reg.body) && !reg.setBtn && reg.tags === 0 && !/②の/.test(reg.body), tag + ' 登録の画面: 「UmaExam から」・セットは「技能試験（134種）」で固定・脚質の札は出さない', reg.body.slice(0, 120));
 				assert(noFamily(reg.body), tag + ' 登録の画面に「家系」が無い');
 				await look('12-登録の画面', true);
 				await T.doReg();
@@ -117,7 +118,7 @@ export async function register113(env) {
 					hd: [...hd.querySelectorAll('.chd button')].map((b) => b.textContent).join(), sends: S.doc.exam.sends, keys: Object.keys(S.doc.exam.skills).length, fromExam: S.doc.parents.filter((p) => p.from === 'exam' && p.sets.join() === 'exam').length, sheet: S.doc.parents.filter((p) => p.from === 'exam').every((p) => p.sheet && p.sheet['レース因子の見本'] === 2 && p.gp[0].sheet['レース因子の見本'] === 2),
 					named: Object.keys(S.doc.exam.skills).every((id) => K.skill(id).name !== id), rs: [...document.getElementById('rs').options].map((o) => o.value).join(), gl: document.querySelectorAll('.vl th.gl').length, style: !document.getElementById('pf-style').closest('.it').hidden, cat: !document.getElementById('sf-cat').closest('.it').hidden, list: document.getElementById('sf-listRow').hidden, gene: !document.getElementById('geneToggle').hidden, col: !document.getElementById('colMax').closest('.it').hidden }; });
 				assert(t1.mode === 'exam' && t1.setText === '技能試験', tag + ' UmaExam から登録したあとは UmaExam 用の表で開く', t1.mode);
-				assert(IDS.length === 133 && t1.cnt.includes('2人') && t1.cnt.includes('133種') && t1.keys === 133 && t1.named, tag + ' 親2人・133行・133種とも名前が引ける', t1.cnt);
+				assert(IDS.length === 134 && t1.cnt.includes('2人') && t1.cnt.includes('134種') && t1.keys === 134 && t1.named, tag + ' 親2人・134行・134種とも名前が引ける', t1.cnt);
 				assert(t1.fromExam === 2 && t1.sheet && t1.sends === 2, tag + ' 親は sets:[exam]・from:exam、親と祖に sheet が残る・送りの回 2', t1);
 				const nw = w === 375 ? 76 : 112;
 				assert(t1.cols.join() === nw + ',24,26' && t1.hd === '最大,効率', tag + ' 列は 名前・最大・効率 の順（効率は最大の右）', t1.cols);
@@ -128,7 +129,7 @@ export async function register113(env) {
 				const rowIds = await ev(() => { const a = window.__deckAlpha; return Object.keys(a.S.doc.exam.skills).map(a.K.skill).sort((x, y) => x.order - y.order).map((s) => s.id); });
 				const effBad = cells.filter(([r, t]) => t !== EFF[rowIds[r]].toFixed(2));
 				assert(cells.length > 10 && effBad.length === 0, tag + ' 効率の列の値が data/skill-efficiency.json と一致（見えている ' + cells.length + '行）', effBad.slice(0, 3));
-				assert(IDS.every((id) => typeof EFF[id] === 'number'), tag + ' 133種すべてに効率がある');
+				assert(IDS.every((id) => typeof EFF[id] === 'number'), tag + ' 134種すべてに効率がある');
 				// 並べ替え: 効率の見出しで大きい順 → もう一度で戻る。選択中は黒の塗りで緑ではない
 				const firstNames = () => ev(() => [...document.querySelectorAll('.vl th[data-r]')].slice(0, 12).map((t) => t.title));
 				const n0 = await firstNames();
@@ -162,22 +163,22 @@ export async function register113(env) {
 				const saved = await ev(async () => (await window.DeckAlpha.store.load()).meta.settings);
 				assert(saved.colMax === true && saved.colEff === true && saved.mode === 'exam', tag + ' 列と表の選択は保存する', saved);
 				await tab('view');
-				// 充足: 親Aを選ぶ → N/133。名前で絞っても分母は133
+				// 充足: 親Aを選ぶ → N/134。名前で絞っても分母は134
 				const pick = async (k, idx) => { await page.click('.vh th[data-c="' + idx + '"]'); await page.waitForSelector('#sheetIn [data-pick]'); await page.click('#sheetIn [data-pick="' + k + '"]'); await page.waitForTimeout(100); };
 				await pick('A', 1); await pick('B', 0);
 				const cov1 = await ev(() => { const a = window.__deckAlpha, S = a.S; const n = a.covRows().filter((r) => S.M.famHas(S.M.byId.get(S.A), r.id) || S.M.famHas(S.M.byId.get(S.B), r.id)).length; return { t: document.getElementById('cov').textContent, n }; });
-				assert(cov1.t === cov1.n + '/133充足' && cov1.n > 100, tag + ' 親A・親Bの充足が N/133', cov1);
+				assert(cov1.t === cov1.n + '/134充足' && cov1.n > 100, tag + ' 親A・親Bの充足が N/134', cov1);
 				await look('02-表-親A親Bを選ぶ');
 				await tab('skill');
 				await page.fill('#sf-q', '円弧'); await page.waitForTimeout(350);
 				const cov2 = await ev(() => ({ t: document.getElementById('cov').textContent, cnt: document.querySelector('.vc .cnt') ? document.querySelector('.vc .cnt').textContent : '', miss: document.getElementById('miss').textContent }));
-				assert(/\/133充足$/.test(cov2.t) && cov2.t === cov1.t && !cov2.cnt.includes('133種'), tag + ' 名前で絞っても分母は133（充足も変わらない）', cov2);
+				assert(/\/134充足$/.test(cov2.t) && cov2.t === cov1.t && !cov2.cnt.includes('134種'), tag + ' 名前で絞っても分母は134（充足も変わらない）', cov2);
 				await page.fill('#sf-q', ''); await page.waitForTimeout(350);
 				await tab('skill');
 				// 2組の詳細・親の小窓・スキルの小窓
 				await page.click('#cov'); await page.waitForSelector('#sheetTitle');
 				const det = await ev(() => document.getElementById('sheetIn').innerText);
-				assert(/2組の充足/.test(det) && /\/133/.test(det) && !/（6人の合計）/.test(det) && noFamily(det), tag + ' 2組の詳細は N/133・遺伝子の行が無い', det.slice(0, 60));
+				assert(/2組の充足/.test(det) && /\/134/.test(det) && !/（6人の合計）/.test(det) && noFamily(det), tag + ' 2組の詳細は N/134・遺伝子の行が無い', det.slice(0, 60));
 				await ev(() => document.getElementById('scrim').click());
 				await page.click('.vh th[data-c="0"]'); await page.waitForSelector('#sheetIn [data-pick]');
 				const ps = await ev(() => { const dts = [...document.querySelectorAll('#sheetIn dl.kv dt')].map((d) => d.textContent); return { dts, tgl: [...document.querySelectorAll('#sheetIn .tgl')].map((x) => x.textContent), t: document.getElementById('sheetIn').innerText }; });
@@ -207,8 +208,8 @@ export async function register113(env) {
 					out.t = document.getElementById('planTree').innerText; out.dock = document.getElementById('cov').textContent;
 					return out;
 				});
-				assert(pl.empty === null && pl.none === '—/133充足', tag + ' 本育成設計: 6人が空なら出さない・合う親がいなければ —/133', pl);
-				assert(pl.oneSide === pl.oneN + '/133充足' && pl.both === pl.bothN + '/133充足' && pl.both !== pl.oneSide, tag + ' 片側だけ合う・両側が合うときの種数', pl);
+				assert(pl.empty === null && pl.none === '—/134充足', tag + ' 本育成設計: 6人が空なら出さない・合う親がいなければ —/134', pl);
+				assert(pl.oneSide === pl.oneN + '/134充足' && pl.both === pl.bothN + '/134充足' && pl.both !== pl.oneSide, tag + ' 片側だけ合う・両側が合うときの種数', pl);
 				await look('05-本育成設計の充足');
 				await ev(() => { const a = window.__deckAlpha; a.S.doc.plans.exam = a.K.emptyPlan(); a.renderAll(); });
 				await tab('plan');
@@ -231,7 +232,7 @@ export async function register113(env) {
 				await page.click('#setBtn'); await page.waitForSelector('.modeline');
 				await page.click('.modeline [data-mode="exam"]'); await page.waitForTimeout(150);
 				const back = await ev(() => { const S = window.__deckAlpha.S; return { A: S.A, B: S.B, open: !document.getElementById('sheet').hidden, cov: document.getElementById('cov').textContent }; });
-				assert(back.A === AB[0] && back.B === AB[1] && !back.open && /\/133充足$/.test(back.cov), tag + ' UmaExam に戻すと親の選択が戻る・小窓は閉じる', back);
+				assert(back.A === AB[0] && back.B === AB[1] && !back.open && /\/134充足$/.test(back.cov), tag + ' UmaExam に戻すと親の選択が戻る・小窓は閉じる', back);
 				// 文に「家系」が無い・横スクロールなし・エラー 0
 				const txt = await ev(() => document.body.innerText);
 				assert(noFamily(txt), tag + ' 画面の文に「家系」が無い');
@@ -324,14 +325,14 @@ export async function register113(env) {
 			await T.openDeck();
 			const exp = await ev(() => { const a = window.__deckAlpha; const j = a.K.buildExport(a.S.doc); return { text: JSON.stringify(j), name: a.K.exportFileName() }; });
 			const j = JSON.parse(exp.text);
-			assert(j.tool === 'star' && j.schema === 2 && /^uma-deck-star-\d{8}\.json$/.test(exp.name) && j.exam && j.exam.sends === 1 && Object.keys(j.exam.skills).length === 133, '書き出しは tool:star・schema 2・1つのファイルに doc.exam を含む', { tool: j.tool, name: exp.name });
+			assert(j.tool === 'star' && j.schema === 2 && /^uma-deck-star-\d{8}\.json$/.test(exp.name) && j.exam && j.exam.sends === 1 && Object.keys(j.exam.skills).length === 134, '書き出しは tool:star・schema 2・1つのファイルに doc.exam を含む', { tool: j.tool, name: exp.name });
 			assert(j.parents[0].sets.join() === 'exam' && j.parents[0].from === 'exam' && j.parents[0].sheet['レース因子の見本'] === 2 && j.parents[0].gp[0].sheet['レース因子の見本'] === 2, '書き出しの親と祖に sets・from・sheet が残る', j.parents[0].sets);
 			// 読み込み（置き換え）→ 開き直す
 			const res = await ev(async (text) => { const K = window.DeckAlpha; const r = K.parseImport(text); await K.store.clear(); await K.store.replaceAll(r.doc); return { err: r.error || null, exam: !!r.doc.exam }; }, exp.text);
 			assert(!res.err && res.exam, '読み込める', res);
 			await T.openDeck();
 			const after = await ev(() => { const S = window.__deckAlpha.S; return { mode: S.mode, sends: S.doc.exam && S.doc.exam.sends, cnt: document.querySelector('.vc .cnt').textContent, sheet: S.doc.parents[0].sheet['レース因子の見本'], gp: S.doc.parents[0].gp[0].sheet['レース因子の見本'] }; });
-			assert(after.sends === 1 && after.cnt.includes('133種') && after.sheet === 2 && after.gp === 2, '読み込んだあとも133行・sheet が残る', after);
+			assert(after.sends === 1 && after.cnt.includes('134種') && after.sheet === 2 && after.gp === 2, '読み込んだあとも134行・sheet が残る', after);
 			// 親を消すと、紐づいた祖に sheet も写す
 			const rm = await ev(() => { const K = window.DeckAlpha; const a = { id: 'a', uma: 'x', skills: {}, genes: {}, sheet: { s: 1 }, gp: [] }, b = { id: 'b', gp: [{ link: 'a' }] }, c = { id: 'c', gp: [{ link: 'd' }] }, d = { id: 'd', uma: 'y', skills: {}, genes: {}, gp: [] }; const doc = { parents: [a, b, c, d] }; K.removeParent(doc, 'a'); K.removeParent(doc, 'd'); return { b: b.gp[0], c: c.gp[0] }; });
 			assert(rm.b.sheet && rm.b.sheet.s === 1 && !('sheet' in rm.c), '親を消して祖に写すときも sheet を残す（無ければ足さない）', rm);

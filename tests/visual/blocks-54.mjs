@@ -68,7 +68,7 @@ export async function register54(env) {
 			assert(r.tag === '技能試験用ツール', tag + 'ヘッダーの一言は「技能試験用ツール」', r.tag);
 			assert(r.tab1 === '対象スキル' && !r.tab1Html.includes('登録済み'), tag + '①のタブの見出しは「対象スキル」（「（登録済み）」は無い）', r.tab1Html);
 			assert(!r.p && !r.panelText.includes('既定として登録済みの133種を対象にします') && !r.panelText.includes('「対象スキルの範囲」で調整可能です'), tag + '①の冒頭の説明文は無い', r.p);
-			assert(/^既定（133種）$/.test(r.defLabel) && !r.panelText.includes('これまでどおりの対象です'), tag + '「既定（133種）」の補足「これまでどおりの対象です」は無い', r.defLabel);
+			assert(/^既定（134種）$/.test(r.defLabel) && !r.panelText.includes('これまでどおりの対象です'), tag + '「既定（134種）」の補足「これまでどおりの対象です」は無い', r.defLabel);
 			assert(/^効率を指定（\d+種）\?$/.test(r.effLabel) && !r.effLabel.includes('βテスト'), tag + '「効率を指定」の下の「βテスト」は無い（選択肢は「効率を指定（N種）?」だけ）', r.effLabel);
 			assert(JSON.stringify(r.subs) === JSON.stringify(['既定に5種を足します', '既定から12種を外します']), tag + 'ほかの選択肢の補足（足す5種・外す12種）は残る', r.subs);
 			assert(jsErrors(errors).length === 0, tag + 'コンソールのエラーなし', errors.slice(0, 3));

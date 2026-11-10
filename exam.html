@@ -415,7 +415,7 @@
 		   このページだと少し小さく見えるので、このページの中だけ一段大きくする。
 		   共通CSSを触ると special 側の見え方まで変わるため、ここで上書きする。 */
 		.step-tab-label { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); }
-		/* 375px 級ではバッジ（「121種（調整あり）」）と並べる幅が無いので、共通CSS（shell.css の
+		/* 375px 級ではバッジ（「122種（調整あり）」）と並べる幅が無いので、共通CSS（shell.css の
 		   640px 以下の 11px）と同じ大きさに戻し、以前と同じ見え方にする。大きくするのは 480px より上だけ。 */
 		@media (max-width: 480px) { .step-tab-label { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); } }
 
@@ -576,6 +576,9 @@
 		   ①の名前が数px 欠けるので、480px 以下ではタブの中の間を 4px に詰める */
 		#new-step-card .step-tab { flex: 1 1 0; }
 		@media (max-width: 480px) { #new-step-card .step-tab { column-gap: 4px; } }
+		/* 2026-11-11（DA01）: 既定が134種になり、バッジが「122種（調整あり）」「139種（調整あり）」のとき 360px で①の名前が 1px 欠けるので、
+		   374px 以下は 3px に詰める（375px 以上は今のまま） */
+		@media (max-width: 374px) { #new-step-card .step-tab { column-gap: 3px; } }
 
 		/* ヘッダーのツール切替（アイコンだけのボタン。special.html と同じ寸法・左右の余白だけ詰める）と、画面の色の切り替えボタン（44px。C-139・微調整1・C）。
 		   いまの状態は data-theme-state で、3つのアイコンのうち1つだけを出す */
@@ -1402,8 +1405,8 @@
 					<span class="step-tab-num" aria-hidden="true">1</span>
 					<!-- 2026-10-27（夜間のまとめ・作業3）: 見出しの「（登録済み）」は削除した -->
 					<span id="step1-title" class="step-tab-label">対象スキル</span>
-					<!-- 133種 ／ 除外・追加があれば「（調整あり）」。updateSkillCountDisplays() が書く -->
-					<span id="step1-skill-badge" class="step-tab-badge step-tab-badge--accent">133種</span>
+					<!-- 134種 ／ 除外・追加があれば「（調整あり）」。updateSkillCountDisplays() が書く -->
+					<span id="step1-skill-badge" class="step-tab-badge step-tab-badge--accent">134種</span>
 				</button>
 				<button type="button" role="tab" class="step-tab" id="step-tab-2"
 					aria-controls="step-panel-2" aria-selected="false" tabindex="-1" onclick="selectStepTab(2)">
@@ -1419,7 +1422,7 @@
 			<!-- ① 技能試験 対象スキル（登録済み・入力不要） -->
 			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
 			<!-- 2026-10-27（夜間のまとめ・作業3）: 冒頭の説明文「既定として登録済みの133種を対象にします。…」は削除した。
-			     既定の種数は「対象スキルの範囲」の「既定（133種）」が出す -->
+			     既定の種数は「対象スキルの範囲」の「既定（134種）」が出す -->
 
 			<!-- 今の設定のバッジ。sp70緑・緑59種は常時、あとの4つは
 			     その設定を選んでいるときだけ出す（updateCategoryBadges が出し入れする）。
@@ -1475,14 +1478,14 @@
 							onmouseenter="previewScopeDetail('default')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-default" name="target-scope-mode" value="default" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('default')" onfocus="previewScopeDetail('default')" onblur="previewScopeDetail(null)" checked />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">既定<span class="whitespace-nowrap">（<span id="scope-count-default">133</span>種）</span></span>
+								<span class="block text-xs font-semibold text-slate-800">既定<span class="whitespace-nowrap">（<span id="scope-count-default">134</span>種）</span></span>
 							</span>
 						</label>
 						<label for="scope-mode-expanded" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
 							onmouseenter="previewScopeDetail('expanded')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-expanded" name="target-scope-mode" value="expanded" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('expanded')" onfocus="previewScopeDetail('expanded')" onblur="previewScopeDetail(null)" />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">対象を広げる<span class="whitespace-nowrap">（<span id="scope-count-expanded">138</span>種）</span></span>
+								<span class="block text-xs font-semibold text-slate-800">対象を広げる<span class="whitespace-nowrap">（<span id="scope-count-expanded">139</span>種）</span></span>
 								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">既定に5種を足します</span>
 							</span>
 						</label>
@@ -1490,7 +1493,7 @@
 							onmouseenter="previewScopeDetail('curated')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-curated" name="target-scope-mode" value="curated" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('curated')" onfocus="previewScopeDetail('curated')" onblur="previewScopeDetail(null)" />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">対象を絞る<span class="whitespace-nowrap">（<span id="scope-count-curated">121</span>種）</span></span>
+								<span class="block text-xs font-semibold text-slate-800">対象を絞る<span class="whitespace-nowrap">（<span id="scope-count-curated">122</span>種）</span></span>
 								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">既定から12種を外します</span>
 							</span>
 						</label>
@@ -1552,7 +1555,7 @@
 						<i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
 						<!-- 「＋シナリオ因子N種」は因子を1種以上選んでいるときだけ出す（updateSkillCountDisplays が書く）。
 						     一覧には因子の行も並ぶが、種数は「スキル」と「シナリオ因子」で分けて示す。 -->
-						<span>対象スキル<span id="registry-skill-count">133</span>種<span id="registry-factor-count"></span>の一覧を確認する</span>
+						<span>対象スキル<span id="registry-skill-count">134</span>種<span id="registry-factor-count"></span>の一覧を確認する</span>
 					</span>
 					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
 				</summary>
@@ -2113,7 +2116,7 @@
 		 * 決め打ち・ハードコードは禁止」という恒久ルールを持つ（汎用ツールとして
 		 * 任意のスキルリストに対応するため）。
 		 * 本ツール(exam.html)は「技能試験」という対象スキルが固定された用途に
-		 * 特化するものであり、133種を事前登録することがユーザーの明示的な要望・
+		 * 特化するものであり、対象スキル（2026-11-10 から134種）を事前登録することがユーザーの明示的な要望・
 		 * 承認事項である。よってこのファイルに限り、上記恒久ルールの意図的な
 		 * 例外として、スキル名をハードコードしている。
 		 * （このような例外を伴う特殊ツールを新設する際は、その都度ユーザーに
@@ -2133,6 +2136,9 @@
 		 * 名前とマスターの食い違いは npm run test:norm が見張る
 		 * （normalizeText 後の文字列がマスターと一致しなければ落ちる）。
 		 * ============================================================ */
+		// 2026-11-10（DA01・おいもさんの決定）: 既定の対象は「ツールの効率のデータ（data/skill-efficiency.json）で効率 4.40 以上のスキル」で134種。
+		// 狼煙を上げて（ex-1700）はマスターに無い拡張スキルで、id は data/extended-skills.json の独自ID（名前の照合は test:norm が拡張スキルの名前で見る）。
+		// 末尾ではなくゲーム内の並び（data/skill-display-order.json）の位置（勝負勘 の次）に入れた（一覧・コピー・表の並びがゲーム内の並びのまま揃うように）。
 		const EXAM_SKILL_LIST = [
 		{ id: '1', name: '右回り〇' },
 		{ id: '2', name: '左回り〇' },
@@ -2261,6 +2267,7 @@
 		{ id: '384', name: '実直な走り' },
 		{ id: '397', name: 'ポイントマン' },
 		{ id: '404', name: '勝負勘' },
+		{ id: 'ex-1700', name: '狼煙を上げて' },
 		{ id: '441', name: '右回りの目覚め' },
 		{ id: '440', name: '左回りの目覚め' },
 		{ id: '442', name: '春の目覚め' },
@@ -2308,9 +2315,9 @@
 		 * 対象スキルの範囲（軸1）と シナリオ因子（軸2）
 		 *
 		 * 軸1（排他3択・targetScopeMode）
-		 *   'default'  … EXAM_SKILL_LIST の133種そのまま（従来どおり・既定）
-		 *   'expanded' … 133種 ＋ EXPANDED_EXTRA_SKILL_LIST の5種
-		 *   'curated'  … 133種 − CURATED_EXCLUDED_IDS の12種
+		 *   'default'  … EXAM_SKILL_LIST の134種そのまま（従来どおり・既定）
+		 *   'expanded' … 134種 ＋ EXPANDED_EXTRA_SKILL_LIST の5種
+		 *   'curated'  … 134種 − CURATED_EXCLUDED_IDS の12種
 		 * 軸2（独立・selectedScenarioFactors）
 		 *   SCENARIO_INHERITANCE_FACTORS の24件から選んだぶんを、軸1の状態に
 		 *   関わらず足す。1種も選んでいなければ従来どおり何も足さない。
@@ -2319,14 +2326,14 @@
 		 * curated / scenarioFactors）。画面に出す呼び名は「既定」「対象を広げる」
 		 * 「対象を絞る」で確定済み（C-46）。呼び名が変わってもこの識別子は変えない。
 		 *
-		 * EXAM_SKILL_LIST（133種）自体はこれまでどおり固定で、足し引きはすべて
-		 * この下の定数と rebuildSkillList() で行う。133件という数は
+		 * EXAM_SKILL_LIST（134種）自体はこれまでどおり固定で、足し引きはすべて
+		 * この下の定数と rebuildSkillList() で行う。134件という数は
 		 * tests/ocr/check-normalization.mjs が見張っているので動かさない。
 		 * ============================================================ */
 
-		// 対象拡張（'expanded'）で足す5種。マスター445種にはあるが133種には無いもの。
+		// 対象拡張（'expanded'）で足す5種。マスター445種にはあるが134種には無いもの。
 		// id はマスター（uma-skill-deck-skills.json）のID。名前はマスターの表記と同じ
-		// （〇・括弧の食い違いが無いので、133種のような読み替えは要らない）。
+		// （〇・括弧の食い違いが無いので、134種のような読み替えは要らない）。
 		const EXPANDED_EXTRA_SKILL_LIST = [
 			{ id: '37', name: '集中力' },
 			{ id: '93', name: '仕掛け準備' },
@@ -2335,7 +2342,7 @@
 			{ id: '161', name: '前列狙い' }
 		];
 
-		// 絞り込み（'curated'）で133種から外す12種（マスターID）。
+		// 絞り込み（'curated'）で134種から外す12種（マスターID）。
 		// 名前ではなくIDで持つのは、exam の表記（トリック(前)＝半角括弧）と
 		// マスターの表記（トリック（前）＝全角括弧）の食い違いを避けるため。
 		const CURATED_EXCLUDED_IDS = [
@@ -2360,7 +2367,7 @@
 		 * UmaSkill Deck も uma-skill-deck-core.js からこの同じファイルを読む）。
 		 * （素材フォルダの reference/ はスキルセットOCR系の正本置き場なので混ぜない）
 		 * ここにあるのはその写しで、exam.html が file:// でも単体で動く性質を
-		 * 保つため（133種を埋め込んでいるのと同じ理由。冒頭のコメント参照）。
+		 * 保つため（134種を埋め込んでいるのと同じ理由。冒頭のコメント参照）。
 		 * 正本・core の写し・ここの写しの3者の食い違いは npm run test:norm が見張る。
 		 * ※ ここは名前だけを持つ。id は Deck 側（保存済みシートが指す鍵）の都合なので
 		 *   正本と core だけが持ち、exam は名前で受け渡す（Deck が名前からIDへ解決する）。
@@ -2409,7 +2416,7 @@
 		 * skillList が差し替わっても、sp70緑・緑59種の集計が数え落とさないための備え。
 		 * ------------------------------------------------------------ */
 		// ①の「一覧を確認する」の表示の並び（スキルの既定の並び＝ゲーム内の並び。2026-10-27・おいもさんの決定）。
-		// 正本は data/skill-display-order.json。exam は core を読まず file:// でも動く決まりなので、一覧に出る名前（133種・広げる5種・
+		// 正本は data/skill-display-order.json。exam は core を読まず file:// でも動く決まりなので、一覧に出る名前（134種・広げる5種・
 		// シナリオ因子・遺伝子）をこの順で埋め込む。食い違いは test:norm が見張る。**変えるのは一覧の表示の順だけ**
 		// （コピー・②の表・結合画像・sp70緑・緑59種は、これまでどおり EXAM_SKILL_LIST などの並び）。
 		const EXAM_REGISTRY_DISPLAY_ORDER = [
@@ -2435,13 +2442,13 @@
 			'無三', 'ダート直線〇', 'ダートコーナー〇', '熱狂的', '光差す方へ', '駆け降り',
 			'登竜門', '影を追って', '精神力', '弾ける足取り', '急降下', '華麗な足取り',
 			'余勢を駆って', 'サンタアニタパークレース場〇', 'デルマーレース場〇', '実直な走り', 'ポイントマン', '勝負勘',
-			'URAシナリオ', 'アオハル杯シナリオ', 'クライマックスシナリオ', 'グランドライブシナリオ', 'グランドマスターズシナリオ', "L'Arcシナリオ",
-			'U.A.F.シナリオ・スフィア', 'U.A.F.シナリオ・ファイト', 'U.A.F.シナリオ・フリー', '豊食祭シナリオ・にんじん', '豊食祭シナリオ・にんにく', '豊食祭シナリオ・じゃがいも',
-			'豊食祭シナリオ・唐辛子', '豊食祭シナリオ・いちご', 'メカウマ娘シナリオ・SPD', 'メカウマ娘シナリオ・STM', 'メカウマ娘シナリオ・POW', 'メカウマ娘シナリオ・GUTS',
-			'メカウマ娘シナリオ・WIT', 'Legendsシナリオ', '無人島シナリオ', '温泉郷シナリオ', 'Dreamsシナリオ', 'トレセン軒シナリオ',
-			'駿大祭シナリオ', '芝の遺伝子', 'ダートの遺伝子', '短距離の遺伝子', 'マイルの遺伝子', '中距離の遺伝子',
-			'長距離の遺伝子', '逃げの遺伝子', '先行の遺伝子', '差しの遺伝子', '追込の遺伝子', '右回りの目覚め',
-			'左回りの目覚め', '春の目覚め', '夏の目覚め', '秋の目覚め', '冬の目覚め'
+			'狼煙を上げて', 'URAシナリオ', 'アオハル杯シナリオ', 'クライマックスシナリオ', 'グランドライブシナリオ', 'グランドマスターズシナリオ',
+			"L'Arcシナリオ", 'U.A.F.シナリオ・スフィア', 'U.A.F.シナリオ・ファイト', 'U.A.F.シナリオ・フリー', '豊食祭シナリオ・にんじん', '豊食祭シナリオ・にんにく',
+			'豊食祭シナリオ・じゃがいも', '豊食祭シナリオ・唐辛子', '豊食祭シナリオ・いちご', 'メカウマ娘シナリオ・SPD', 'メカウマ娘シナリオ・STM', 'メカウマ娘シナリオ・POW',
+			'メカウマ娘シナリオ・GUTS', 'メカウマ娘シナリオ・WIT', 'Legendsシナリオ', '無人島シナリオ', '温泉郷シナリオ', 'Dreamsシナリオ',
+			'トレセン軒シナリオ', '駿大祭シナリオ', '芝の遺伝子', 'ダートの遺伝子', '短距離の遺伝子', 'マイルの遺伝子',
+			'中距離の遺伝子', '長距離の遺伝子', '逃げの遺伝子', '先行の遺伝子', '差しの遺伝子', '追込の遺伝子',
+			'右回りの目覚め', '左回りの目覚め', '春の目覚め', '夏の目覚め', '秋の目覚め', '冬の目覚め'
 		];
 		const EXAM_SKILL_NAMES = EXAM_SKILL_LIST.map(s => s.name);
 		const EXPANDED_EXTRA_SKILL_NAMES = EXPANDED_EXTRA_SKILL_LIST.map(s => s.name);
@@ -2543,7 +2550,7 @@
 		 * 元画像のOCRが「アオハル杓シナリオ」「アオムハル杯シナリオ」と1文字違いでしか
 		 * 読めず、①だけでは落ちていた（判定は元画像のOCRで行う。結合画像は判定に使わない）。
 		 *
-		 * 白スキル133種側の判定には触らない。common.js を変えずに済ませるため、
+		 * 白スキル134種側の判定には触らない。common.js を変えずに済ませるため、
 		 * 照合の中ではなくここで落としている。
 		 */
 		// run … 押した時点のスナップショット（captureRun）。渡されればそのシナリオ因子の選択を見る。
@@ -2579,7 +2586,7 @@
 		 *
 		 * 正本は data/aptitude-genes.json（シナリオ因子と同じ追加カタログの置き場）。
 		 * ここにあるのはその写しで、exam.html が file:// でも単体で動く性質を保つため
-		 * （133種・シナリオ因子24種を埋め込んでいるのと同じ理由。冒頭のコメント参照）。
+		 * （134種・シナリオ因子24種を埋め込んでいるのと同じ理由。冒頭のコメント参照）。
 		 * **exam は uma-skill-deck-core.js を読まないので、10件のために fetch の配線を
 		 * 増やすのは割に合わない**という判断（C-67 の7節 (5)）。正本との食い違いは
 		 * npm run test:norm が見張る。
@@ -2588,7 +2595,7 @@
 		 *
 		 * 白スキル445種のマスターとは別カテゴリなので examSkillId() では引けない
 		 * （＝ sp70緑・緑59種の集計には一切入らない）。シナリオ因子とも別枠で数える
-		 * （並記。「対象スキル133種＋シナリオ因子24種＋遺伝子10種」）。
+		 * （並記。「対象スキル134種＋シナリオ因子24種＋遺伝子10種」）。
 		 *
 		 * **照合は完全一致のみ**。理由は下の APTITUDE_GENE_NEAR_LIMIT を参照。
 		 * ------------------------------------------------------------ */
@@ -2708,7 +2715,7 @@
 		// skillOnlyList … 「スキル」と付く数を数えるのはこちら（因子も遺伝子も含めない）。
 		// factorOnlyList… 選んでいるシナリオ因子だけ。因子の数はここから出す。
 		// geneOnlyList  … 選んでいる遺伝子だけ。遺伝子の数はここから出す（段F）。
-		// **数え分けは合算せず並記する**（「対象スキル133種＋シナリオ因子24種＋遺伝子10種」）。
+		// **数え分けは合算せず並記する**（「対象スキル134種＋シナリオ因子24種＋遺伝子10種」）。
 		// 選ぶときに2つに分けているのだから、数えるときも分ける。
 		// 4つは rebuildSkillList() が同時に作り直す（片方だけ古い、が起きないように）。
 		let skillList = EXAM_SKILL_NAMES.slice();
@@ -2732,12 +2739,12 @@
 		const COUNT_MODE_STORAGE_KEY = 'uma-exam-count-mode';
 
 		// ステップ1「スキル名のコピー」で、現在どのリストを表示中か。
-		// 'all133' | 'sp70' | 'green59'
+		// 'all133' | 'sp70' | 'green59'（'all133' は内部の識別子。2026-11-10 に既定が134種になっても変えない）
 
 		/* ------------------------------------------------------------
 		 * 軸1（対象スキルの範囲）と軸2（シナリオ因子）の状態
 		 *
-		 * EXAM_SKILL_LIST（登録済み133種）はこのファイル内の固定値のまま変更せず、
+		 * EXAM_SKILL_LIST（登録済み134種）はこのファイル内の固定値のまま変更せず、
 		 * 足し引きはすべてこの2つの軸で行う。実際にOCR照合・結果表示・コピー機能等が
 		 * 参照する skillList / skillIndex は、2つの軸を反映して rebuildSkillList() が
 		 * 都度再構築する（＝既存ロジックへの影響を skillList の中身の差し替えだけに
@@ -2790,7 +2797,7 @@
 		 *   'gene'    … 遺伝子 10種（段F）
 		 *   'added'   … 「対象を広げる」で足した5種（そのモードのときだけ）
 		 *   'removed' … 「対象を絞る」で外した12種（そのモードのときだけ）
-		 *   null      … 133種の外・選んでいないシナリオ因子など（印を付けない）
+		 *   null      … 134種の外・選んでいないシナリオ因子など（印を付けない）
 		 *
 		 * 軸1は排他なので、'added' と 'removed' が同時に現れることはない。
 		 *
@@ -2914,7 +2921,7 @@
 			const m = mode || targetScopeMode;
 			if (m === 'expanded') return EXAM_SKILL_NAMES.concat(EXPANDED_EXTRA_SKILL_NAMES);
 			if (m === 'curated') return EXAM_SKILL_NAMES.filter(n => !CURATED_EXCLUDED_ID_SET.has(examSkillId(n)));
-			// 'efficiency'（効率で選ぶ）も133種を返す。判定結果の表と「★の数をコピー」は133種の並びのまま変えないため
+			// 'efficiency'（効率で選ぶ）も134種を返す。判定結果の表と「★の数をコピー」は134種の並びのまま変えないため
 			// （効率の対象の照合は拡張モードの辞書で別に行う。effPersonItems）
 			return EXAM_SKILL_NAMES.slice();
 		}
@@ -2955,7 +2962,7 @@
 		}
 
 		// 実際に照合・表示・コピーで使う対象スキル。
-		// 並びは「軸1の基準リスト → シナリオ因子 → 遺伝子」。既定の133種の並びは動かさない
+		// 並びは「軸1の基準リスト → シナリオ因子 → 遺伝子」。既定の134種の並びは動かさない
 		// （利用者のスプレッドシート側の照合が黙って外れないため）。
 		// シナリオ因子も遺伝子もスキルではないので、**数える用の配列は分けて持つ**
 		// （「スキル◯種」と書いてある数に混ざると、表記と食い違って誤解を生む）。
@@ -2969,7 +2976,7 @@
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 		}
 
-		// 既定（133種・シナリオ因子なし・遺伝子なし）から離れているか。
+		// 既定（134種・シナリオ因子なし・遺伝子なし）から離れているか。
 		// ①のタブのバッジと Deck への受け渡し名で「調整あり」を出すのに使う。
 		function isTargetAdjusted() {
 			return targetScopeMode !== 'default' || selectedScenarioFactors.size > 0 || selectedGenes.size > 0;
@@ -3309,7 +3316,7 @@
 				if (el) el.textContent = factorNote;
 			});
 			// ①のタブのバッジ。軸1・軸2・除外・追加のどれかがあるときは、
-			// 既定の133種から離れていることが分かるようにする。
+			// 既定の134種から離れていることが分かるようにする。
 			// 因子の数はここには足さない（「シナリオ因子：N種」のバッジが別に出ている）。
 			const badge = document.getElementById('step1-skill-badge');
 			if (badge) badge.textContent = shown + '種' + (isTargetAdjusted() ? '（調整あり）' : '');
@@ -4787,7 +4794,7 @@
 		const processBtn = document.getElementById('process-btn');
 
 		function updateProcessBtn() {
-			// 対象スキルは常に133種登録済みのため、画像の有無だけで判定する。
+			// 対象スキルは常に134種登録済みのため、画像の有無だけで判定する。
 			const anyFiles = persons.some(p => p.files.length > 0);
 			// T123（決定 408）: 処理中は、押したボタンは処理中の表示のまま・もう1つは押せないまま（途中で画像を足し引きしても戻さない）
 			if (busyBtnId) {
@@ -6555,7 +6562,7 @@
 		 * - 最小・最大・段の値はデータから出す（数値をコードに書かない）。初期の境目は最小〜最大の等分点に最も近い段の値。
 		 * - 照合は常に拡張モードの辞書（matchMelopLines）で行い、範囲・区間の切り替えは結果を絞るのにだけ使う
 		 *   （範囲内の名前だけで照合すると、範囲外のスキルが字面の近い名前に化けるため）。
-		 * - 判定結果の表と「★の数をコピー」は、既定の133種の並びのまま（scopeBaseNames('efficiency') は133種を返す）。
+		 * - 判定結果の表と「★の数をコピー」は、既定の134種の並びのまま（scopeBaseNames('efficiency') は134種を返す）。
 		 * ============================================================ */
 		const EFF_DATA_PATH = 'data/skill-efficiency.json';
 		const EFF_BOUNDS_STORAGE_KEY = 'uma-exam-eff-bounds';
@@ -8774,7 +8781,7 @@
 
 		/* ------------------------------------------------------------
 		 * 結果画像の補助テキスト（対象スキルをどう調整したか）。
-		 * 既定（133種・調整なし）のときは空配列＝何も足さない。
+		 * 既定（134種・調整なし）のときは空配列＝何も足さない。
 		 * シナリオ因子の「因子名：★の数」は人ごとの値なので、各人のバナーに焼く
 		 * （stitchDrawPersonBanner）。ここは全員に共通する「何を対象にしたか」だけを書く。
 		 * ------------------------------------------------------------ */
@@ -9209,8 +9216,8 @@
 			if (activeIndexes.length === 0) return null;
 
 			const equivalence = (run.countMode === 'equivalence');
-			// 効率で選ぶ（C-136・改善D）: 結合画像の「検出」「sp70緑」のカード（とコメントのコピー）は、既定の133種・sp70緑17種を
-			// 母数とした従来の集計にする（同じ画像を既定で判定したときと同じ値。判定の表も133種のまま）
+			// 効率で選ぶ（C-136・改善D）: 結合画像の「検出」「sp70緑」のカード（とコメントのコピー）は、既定の134種・sp70緑17種を
+			// 母数とした従来の集計にする（同じ画像を既定で判定したときと同じ値。判定の表も134種のまま）
 			const effScope = (run.scope === 'efficiency');
 			const sp70Ids = new Set(effScope ? SP70_GREEN_17_IDS : effectiveBaseIds(SP70_GREEN_17_IDS, run));
 			const greenIds = new Set(effScope ? GREEN_59_IDS : effectiveBaseIds(GREEN_59_IDS, run));
@@ -10189,12 +10196,12 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		 * Deck（uma-skill-deck.html）側がそれを見つけてバナーを出し、利用者が「読み込む」を
 		 * 押したときだけ比較シートへ取り込む（自動では反映しない）。special.html と同じ仕組み。
 		 *
-		 * exam の対象は常に「133種＋各自の除外／追加」で、Deck のテンプレートには紐づかない。
+		 * exam の対象は常に「134種＋各自の除外／追加」で、Deck のテンプレートには紐づかない。
 		 * そのため scope は kind:'manual' で渡し、取り込み先の既定は新しい比較シート
 		 * （既定名「技能試験 候補比較」）になる。既存のシートは取り込みダイアログで選べる。
 		 *
 		 * スキル名は exam の表記（右回り〇・トリック(前)）のまま渡す。Deck 側の
-		 * 名前→ID 解決が正規化で吸収する（tests/visual/run-smoke.mjs が133件すべて
+		 * 名前→ID 解決が正規化で吸収する（tests/visual/run-smoke.mjs が134件すべて
 		 * 解決することを見ている）。利用者が「追加」した名前でマスターに無いものは
 		 * Deck 側で「見つからなかったため取り込みません」と一覧で知らせる（既存の挙動）。
 		 * ============================================================ */
@@ -10202,7 +10209,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// ※ 同じキー名が js/uma-skill-deck.js の受け取り側（OCR_HANDOFF_SOURCES）にもある。
 		//    片方を変えるときは必ず両方を直すこと。
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
-		// 対象の範囲を変えた人・除外／追加がある人は、対象が既定の133種と違うことが
+		// 対象の範囲を変えた人・除外／追加がある人は、対象が既定の134種と違うことが
 		// Deck 側でも分かるようにする（軸1・軸2もここに含める）。
 		function handoffScopeName() {
 			return isTargetAdjusted() ? '技能試験（調整あり）' : '技能試験';
@@ -10270,9 +10277,9 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		 * 右下のボタン群の「Deck (αテスト)」も同じ開き方で deck-alpha.html を開く。
 		 * - 送るのは親セットの単位。親が読めているセットだけ。祖2人とも読めていれば3人、そうでなければ親だけ。
 		 *   親Aセット・親Bセットの両方で親が読めているときは、どちらを送るかを小窓で選ぶ。
-		 * - send は133種の id（EXAM_SKILL_LIST が正本。「対象スキルの範囲」を変えていても133種を全部送る）。race・style は null。
+		 * - send は134種の id（EXAM_SKILL_LIST が正本。「対象スキルの範囲」を変えていても134種を全部送る）。race・style は null。
 		 * - 各人の skills／genes／sheet は、573行の辞書で照合した結果（personMelop）から作り、画面の判定（personResults）に
-		 *   id のあるものはそちらを優先する。id の無い50行は sheet に名前で入れる。133種の外の id も skills に入れる。★を測れなかったものは -1。
+		 *   id のあるものはそちらを優先する。id の無い50行は sheet に名前で入れる。134種の外の id も skills に入れる。★を測れなかったものは -1。
 		 * - 青・赤は readMelopTopRow が読んだもの（読めなければ [null, ★]）。緑は readGreenFactor が読んだもの。
 		 * - 新UI のあいだだけボタンと停止の1行を出す。旧UIは変えない。
 		 * ============================================================ */
