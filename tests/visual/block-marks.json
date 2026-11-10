@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-10",
 "numbering": "runtime",
-"count": 1093,
+"count": 1094,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1077,7 +1077,7 @@
   {"file":"tests/visual/blocks-160.mjs","title":"T157 (4) 旧UI の◎と○（453）: 手入力のリストに◎だけなら○の行は出ない・両方なら○だけが出る（リストには両方残る）","ord":1,"marks":"AS","asserts":7},
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (1) 横画面の切り出しの出どころは、小さく描いた画が出す大きさの画を縮めた画と同じ（取り込みも同じ部品）。縦画面の切り取りは今のまま","ord":1,"marks":"VAC","asserts":6,"review":"名前で分けられない assert が 50%"},
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (2) 取り込みの頭と終わりの「パネルが見つからない区間」を切り落とす（matchSpan・trimSource）。始めから終わりまで見つかっていれば切らない","ord":1,"marks":"V","asserts":3,"review":"名前で分けられない assert が 67%"},
-  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (3) カーソルを消す処理: 横画面では一覧の左の動かない所を探す範囲から外し、カーソルを消す。主のスレッドを長くふさがない。縦画面の印の出どころでは今のまま（左端 0）","ord":1,"marks":"VTC","asserts":5,"review":"名前で分けられない assert が 40%"},
+  {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (3) カーソルを消す処理: 横画面では一覧の左の動かない所を探す範囲から外す（T166 から横画面は形を探さない）。主のスレッドを長くふさがない。縦画面の印の出どころでは今のまま（左端 0）","ord":1,"marks":"VT","asserts":5,"review":"名前で分けられない assert が 60%"},
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) special.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2},
   {"file":"tests/visual/blocks-159.mjs","title":"T156横画面 ―― (4) exam.html: DMM版の横画面の録画（landscape の印つきの出どころ）はカーソルを消す処理を通る。縦画面の動画は通らない（今のまま）","ord":1,"marks":"A","asserts":2},
   {"file":"tests/visual/blocks-161.mjs","title":"T158速い動画の組み立て(1) 動いている画どうしの重なりは、はじいてから時間のたった画の画素を残す（速い動画だけ）","ord":1,"marks":"VASC","asserts":7},
@@ -1098,6 +1098,7 @@
   {"file":"tests/visual/blocks-164.mjs","title":"T161(1) 撮り始め・スクロールのあとの画が粗い横画面の出どころ: 同じ位置のくっきりした画を使い、結合画像が一覧と画素で合う","ord":1,"marks":"VAC","asserts":6},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(2) 縦画面の出どころ（kind に landscape: が無い）は今のまま: 置き換えず、静止画が sharpPick:false とバイトまで同じ","ord":1,"marks":"C","asserts":3,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(3) special.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4},
-  {"file":"tests/visual/blocks-164.mjs","title":"T161(3) exam.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4}
+  {"file":"tests/visual/blocks-164.mjs","title":"T161(3) exam.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4},
+  {"file":"tests/visual/blocks-166.mjs","title":"T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白だけを塗る（余白のカーソルは消え、行の上は今までどおり残る）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す","ord":1,"marks":"VASC","asserts":9}
 ]
 }

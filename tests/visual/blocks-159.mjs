@@ -103,7 +103,9 @@ export async function register159(env) {
 		} finally { await sp.page.context().close(); }
 	});
 
-	await block('T156横画面 ―― (3) カーソルを消す処理: 横画面では一覧の左の動かない所を探す範囲から外し、カーソルを消す。主のスレッドを長くふさがない。縦画面の印の出どころでは今のまま（左端 0）', async () => {
+	// T166 段1（決定 676）から、横画面は形を探さず右の余白を塗るだけになった。この作り物の行の上のカーソルは横画面では残る（消す段は T167）。
+	// 縦画面の印の出どころ（crop:）で、行の上のカーソルが今までどおり消えることを見る（形を当てる場所を絞っても同じ）
+	await block('T156横画面 ―― (3) カーソルを消す処理: 横画面では一覧の左の動かない所を探す範囲から外す（T166 から横画面は形を探さない）。主のスレッドを長くふさがない。縦画面の印の出どころでは今のまま（左端 0）', async () => {
 		const sp = await open('special.html');
 		try {
 			const r = await sp.page.evaluate(async () => {
@@ -176,7 +178,7 @@ export async function register159(env) {
 			});
 			// 値は半分の幅の画で。動かない背景は 0〜220px（半分で 110）。一覧の欄の地（260px〜）は白との差が小さく「動く」に数えないので、文字（300px〜・半分で 150）の手前（余裕 2）になる
 			assert(r.land.xStart >= 110 && r.land.xStart <= 160, '(3) 横画面: 中身の左端（findContentStart）は動かない背景（半分の幅で 0〜110）より右・一覧の文字（150〜）の左端の手前', r.land.xStart);
-			assert(r.land.cells >= 3 && r.land.after.every((v) => v < 6), '(3) 横画面: 4枚ともカーソルの所が、カーソルの無い一覧と同じになる（差の平均 6 未満）', r.land);
+			assert(r.land.sprite === null && r.land.cells === 0, '(3) 横画面: カーソルの形を覚えず、形で置き換えない（T166・決定 676）', r.land);
 			assert(r.land.longMax < 1000, '(3) 横画面: 主のスレッドを 1秒以上ふさがない（重い繰り返しの途中で手番を返す）', r.land.longMax);
 			assert(r.land.log && /カーソル: \d+ms/.test(r.land.log), '(3) 開発ログに [動画] カーソル: の行', r.land.log);
 			assert(r.port.xStart === 0, '(3) 縦画面の印の出どころ（crop:）は左端 0（今のまま）', r.port.xStart);

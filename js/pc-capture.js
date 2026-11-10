@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-10a';
+	const PC_CAPTURE_JS_VERSION = '2026-11-11a';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -449,7 +449,7 @@
 	async function removePointer(src, sel, track, signal) {
 		const W = src.width, H = src.height, { headerEnd: hE, contentH: cH } = sel.header;
 		const hw = Math.round(W / 2), P = POINTER;
-		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0 };
+		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0, searched: 0, searchAll: 0 };
 		const breathe = makeBreather(signal, P.sliceMs), rp0 = performance.now();
 		// DMM版の横画面の切り出し（kind に landscape: が入る。T145）だけ、一覧の左の動かない所を探す範囲から外す（縦画面は今のまま）
 		const landscape = /landscape:/.test(src.kind || '');
@@ -620,12 +620,14 @@
 			for (const g of groups.values()) if (g.length > count) { count = g.length; best = g.reduce((u, v) => (v.px.length > u.px.length ? v : u)); }
 			return count >= 2 ? { sprite: best, count } : { sprite: null, count };
 		};
-		for (const file of uniq) {
+		// DMM版の横画面（T166・決定 676 の案 c）: 形を覚えて画全体を総当たりで探す所を飛ばし、下の余白を塗る所（T156）だけにする。
+		// 横画面の録画5本すべてで、覚えた形はカーソルでなく（縦長の帯・横の線）置き換えは 0 で、時間の 76〜90% がその総当たりだった（T165）
+		for (const file of landscape ? [] : uniq) {
 			const t = timeOf(file), me = await loadFile(file);
 			await learnFrom(me, t, await candsOf(me, t));
 		}
 		// 余白の塊からも覚える（スクロールバーを引っ張る間、カーソルは行の上に来ない）。塊が余白の左端で切れているものは形が欠けているので使わない
-		if (!pickSprite().sprite && margin) {
+		if (!landscape && !pickSprite().sprite && margin) {
 			for (const file of uniq) {
 				const t = timeOf(file), me = await loadFile(file);
 				for (const b of findMarginBlobs(dx.getImageData(margin.mX, hE, margin.mW, cH).data, margin)) {
@@ -639,7 +641,7 @@
 				}
 			}
 		}
-		if (!pickSprite().sprite) {
+		if (!landscape && !pickSprite().sprite) {
 			// 止まっている画だけでは覚えられなかった（ホイールを大きく回した）: スクロールの途中のフレームも相手にして、もう一度
 			for (const file of uniq.slice(0, P.learnMax)) {
 				const t = timeOf(file), me = await loadFile(file);
@@ -649,7 +651,7 @@
 				if (pickSprite().sprite) break;
 			}
 		}
-		const { sprite, count } = pickSprite();
+		const { sprite, count } = landscape ? { sprite: null, count: 0 } : pickSprite();
 		stat.samples = samples.length; stat.sprite = sprite ? { w: sprite.w, h: sprite.h, px: sprite.px.length, seen: count } : null;
 		const out = new Map();
 		// 余白の左端で切れた塊の、行の上の部分（T118）。まわりが合い、その場所の余白にカーソルが無い相手の画素で置き換える
@@ -724,11 +726,14 @@
 				}
 				return n >= sprite.px.length * P.spriteVisible ? s / n : Infinity;
 			};
-			const findAll = async (img, xa, xb, ya, yb) => {
+			// mask（任意）: 探す位置の印（(oy - ya) * (xb - xa) + (ox - xa)）。印の無い位置は当てない
+			const findAll = async (img, xa, xb, ya, yb, mask) => {
 				const hits = [];
 				for (let oy = ya; oy < yb; oy++) {
 					await breathe();
+					const row = (oy - ya) * (xb - xa) - xa;
 					for (let ox = xa; ox < xb; ox++) {
+					if (mask && !mask[row + ox]) continue;
 					const m = fits(img, ox, oy);
 					if (m > P.spriteMax) continue;
 					const near = hits.find((h) => Math.abs(h.x - ox) < sprite.w && Math.abs(h.y - oy) < sprite.h);
@@ -755,13 +760,37 @@
 				}
 				return pickPool.filter((q) => q.j !== i && Math.abs(posG[q.j] - posG[i]) >= P.minD).map((q) => ({ q, d: posG[q.j] - posG[i], dt: Math.abs(q.t - times[i]) })).sort((u, v) => u.dt - v.dt);
 			};
+			// 探す場所を絞る（T166・決定 676 の案 a）: カーソルが乗った所は、ずらして合わせた相手の画と合わない。覚える段（learnFrom）と同じ区画の比べで
+			// どの相手とも合わない区画と、合わせる相手の無い行（一覧の先頭・末尾）・下の端の行・右の端と余白の近くだけに印を付け、そこだけ形を当てる
+			const searchMask = async (me, cands, xa, xb, ya, yb) => {
+				const mw = xb - xa, mh = yb - ya;
+				if (mw <= 0 || mh <= 0) return null;
+				const mask = new Uint8Array(mw * mh);
+				const mark = (x0, x1, y0, y1) => {
+					x0 = Math.max(xa, x0); x1 = Math.min(xb, x1); y0 = Math.max(ya, y0); y1 = Math.min(yb, y1);
+					if (x1 > x0) for (let y = y0; y < y1; y++) mask.fill(1, (y - ya) * mw + x0 - xa, (y - ya) * mw + x1 - xa);
+				};
+				for (let y = 0; y + P.BH <= cH; y += P.BH) {
+					await breathe();
+					const av = cands.filter((c) => rowsOk(c, y, P.BH));
+					if (!av.length) { mark(xa, xb, y - sprite.h, y + P.BH); continue; }
+					for (let x0 = x0s; x0 + 6 <= xEnd; x0 += P.BW) if (!av.some((c) => cell(me, y, c.q.half, y - c.d, x0))) mark(x0 - sprite.w, x0 + P.BW, y - sprite.h, y + P.BH);
+				}
+				if (cH % P.BH) mark(xa, xb, cH - (cH % P.BH) - sprite.h, yb);
+				mark(xEnd - P.BW - sprite.w, xb, ya, yb);
+				if (margin) mark(xLimit - sprite.w, xb, ya, yb);
+				return mask;
+			};
 			fixBySprite = async (file, t, me) => {
 				// 行の右端にかかるカーソルも探す。右へ抜けた所は余白のほうで塗る
-				const hits = await findAll(me, Math.max(0, xStart - (sprite.w >> 1)), Math.max(xEnd - (sprite.w >> 1), margin ? xLimit : 0), -(sprite.h >> 1), cH - (sprite.h >> 1));
+				const cands = await candsOf(me, t);
+				const xa = Math.max(0, xStart - (sprite.w >> 1)), xb = Math.max(xEnd - (sprite.w >> 1), margin ? xLimit : 0), ya = -(sprite.h >> 1), yb = cH - (sprite.h >> 1);
+				const mask = await searchMask(me, cands, xa, xb, ya, yb);
+				stat.searchAll += Math.max(0, (xb - xa) * (yb - ya)); stat.searched += mask ? mask.reduce((s, v) => s + v, 0) : 0;
+				const hits = await findAll(me, xa, xb, ya, yb, mask);
 				if (!hits.length) return 0;
 				// カーソルは1枚に1つ。何か所にも当たるなら、覚えた形はカーソルではない（一覧の縦線・背景の帯など）。置き換えない（T156）
 				if (hits.length > P.maxHits) { stat.manyHits++; return 0; }
-				const cands = await candsOf(me, t);
 				let extra = null, done = 0;
 				const fetchExtra = () => extrasFor(me, t, (g) => hits.some((h) => h.y - P.pad - g >= 0 && h.y + sprite.h + P.pad - g <= cH));
 				// 3. カーソルのまわりまで自分と合い（位置が確か）、その場所にカーソルが写っていない相手の画素で、カーソルの所だけを置き換える
@@ -835,7 +864,8 @@
 		for (const p of sel.persons) p.files = p.files.map((f) => out.get(f) || f);
 		devLog('[動画] カーソル: ' + Math.round(performance.now() - rp0) + 'ms・形 ' + (stat.sprite ? stat.sprite.w + 'x' + stat.sprite.h + '（' + stat.sprite.seen + '回）' : 'なし')
 			+ '・置き換え ' + stat.cells + '・残し ' + stat.leftCells + '・余白 ' + (stat.margin ? stat.margin.cells + (stat.margin.whole ? '（全体を塗った画 ' + stat.margin.whole + '）' : '') : '—') + '・直した画 ' + stat.frames
-			+ (landscape ? '・中身の左端 ' + stat.xStart : '') + (stat.manyHits ? '・当たりが多く使わなかった画 ' + stat.manyHits : ''));
+			+ (landscape ? '・中身の左端 ' + stat.xStart + '・横画面は余白だけ' : '') + (stat.manyHits ? '・当たりが多く使わなかった画 ' + stat.manyHits : '')
+			+ (stat.searchAll ? '・形を当てた位置 ' + Math.round(stat.searched * 100 / stat.searchAll) + '%' : ''));
 		return stat;
 	}
 
