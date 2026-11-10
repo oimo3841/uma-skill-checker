@@ -3924,6 +3924,9 @@
 			'video.tile.text': '動画の画像',
 			'video.tile.hint': '押すと全部を表示',
 			'video.warn.person': '{人} の結合の一部がずれているかもしれません。結果の画像を見て、ずれていたら動画を撮り直すか、スクショで入れ直してください。',
+			// 窓が小さいときの知らせ（T166・決定 677。原文どおり）と、OCR のあとの知らせの動画の画の1行（{N}＝枚数）
+			'video.warn.window': 'ウィンドウが小さいため文字がぼやけて読み取れないことがあります。大きくしてから撮り直してください。',
+			'video.warn.blurry': '動画の画 {N}枚がぼやけていて読み取れませんでした。',
 			'video.err.unreadable': '動画を読み込めませんでした。このブラウザでは再生できない形式かもしれません（例: iPhone で撮った動画を Android で開いたとき）。撮った端末で開き直すか、スクショで入れてください。',
 			'video.err.noscreen': '動画の中に継承の画面（因子の一覧）が見つかりませんでした。因子の一覧を開いてから撮り直してください。',
 			'video.err.split': '親・祖1・祖2 の区切りが見つからず、人ごとに分けられませんでした（見つかったのは {N}人）。',
@@ -4051,6 +4054,7 @@
 			const vid = document.getElementById('cap-video'), time = document.getElementById('cap-time'), frame = document.getElementById('cap-frame');
 			if (!vid || !time || !frame) return;
 			const found = !!(t.area && t.area.ok && t.width);
+			if (found) lastCaptureArea = t.area;
 			time.hidden = !found;
 			frame.hidden = !found;
 			layoutCapture();
@@ -4094,6 +4098,7 @@
 					stopped = true;
 					Promise.resolve().then(() => onCaptureStopped(setIdx, session, reason));
 				};
+				lastCaptureArea = null;
 				session = await UmaPcCapture.begin({ onTick: renderCaptureTick, onStop });
 			} catch (e) {
 				videoBusy = null;
@@ -4213,6 +4218,48 @@
 		}
 		/* ②に結合画像を出しているセットの印。OCR のあとの結合（runImageStitching）が②も作り直すかを見る。var: updateProcessBtn から先に読まれても困らないように */
 		var videoShown = [false, false];
+		/* 窓が小さいときの知らせ（T166・決定 677）。DMM版の横画面の取り込み・録画で、パネルの切り出しの幅が LANDSCAPE_SMALL_W 未満なら、
+		 * 結果の所に video.warn.window を出す。目安: 録画で切り出し 468px（パネル 458px）は全部の画が鮮明度 98〜105 で読めず、608px（パネル 594px）は
+		 * 173〜177 で読めた（T165 §3-1・§4）。その間の、拡大の倍率が約2倍になる 570px（1170px へ 2.05倍）を境にする。縦画面・スクショには出さない */
+		const LANDSCAPE_SMALL_W = 570;
+		const videoSmallWindow = [false, false];
+		let lastCaptureArea = null;   // 取り込みの途中で見つけた領域（renderCaptureTick が覚える。how と w を見る）
+		// rect … 録画は wrapSource の切り出しの矩形（src.landscape.rect）、取り込みは見つけた領域（横画面のときだけ how が 'landscape'）
+		function noteSmallWindow(setIdx, rect) {
+			const w = rect && (rect.how === undefined || rect.how === 'landscape') && rect.w > 0 ? rect.w : null;
+			videoSmallWindow[setIdx] = w != null && w < LANDSCAPE_SMALL_W;
+			if (w != null) devGeometry.push('[横画面] 切り出しの幅 ' + Math.round(w) + 'px（' + LANDSCAPE_SMALL_W + 'px 未満で「ウィンドウが小さい」の知らせ）' + (videoSmallWindow[setIdx] ? ' → 知らせる' : ''));
+		}
+		// 結果の所（②の結合画像の上）に、窓が小さいときの知らせを出す
+		/* OCR のあとの画質の知らせ（T166・決定 677）。文面は common.js の buildImageQualityNotice（凍結）のまま組み、ぼやけて読めなかった動画・取り込みの画
+		 * （skipped の fromVideo）の「・人: 画の名前」の行だけを抜いて、video.warn.blurry の1行（「動画の画 N枚が…」）にまとめる。抜いて空になった段は段ごと外し、
+		 * 1行はその段の場所に置く。スクショの画・小さすぎた画は今のまま名前を並べる */
+		function videoQualityNotice(skipped, warned) {
+			const text = buildImageQualityNotice(skipped, warned);
+			const has = (s, k) => (s.kinds || []).indexOf(k) !== -1;
+			const vid = (skipped || []).filter(s => s.fromVideo && has(s, 'blurry') && !has(s, 'too-small'));
+			if (!text || !vid.length) return text;
+			const drop = new Set(vid.map(s => '・' + s.label + ': ' + s.name));
+			const out = [];
+			let at = -1;
+			text.split('\n\n').forEach(b => {
+				const ls = b.split('\n');
+				const kept = ls.filter(l => !drop.has(l));
+				if (kept.length === ls.length) { out.push(b); return; }
+				if (at < 0) at = out.length + (kept.length > 1 ? 1 : 0);
+				if (kept.length > 1) out.push(kept.join('\n'));
+			});
+			out.splice(at < 0 ? 0 : at, 0, videoText('video.warn.blurry', { N: vid.length }));
+			return out.join('\n\n');
+		}
+		function appendSmallWindowNote(setIdx, box) {
+			if (!videoSmallWindow[setIdx] || !box.firstElementChild) return;
+			const vw = document.createElement('div');
+			vw.className = 'video-small-window mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 flex gap-2';
+			vw.setAttribute('role', 'status');
+			vw.innerHTML = videoSvgTri('text-amber-500') + '<div>' + escapeHtml(videoText('video.warn.window')) + '</div>';
+			box.firstElementChild.insertBefore(vw, box.firstElementChild.firstChild);
+		}
 		/* OCR の前の②の「画像を更新」（special.html の T117 と同じ作り）。取り込みの自動の結合で作った②の画像を、取り込み直さずに今の設定で作り直す。
 		 * videoRestitch … セットごとの { parts, files }。OCR の前の②の画像があるときだけ持つ。
 		 * 押せる（'ready'）: 作ったときの設定と今の設定が違う。押せない: 'same' 設定が同じ／'stale' 画像の並びが変わった（案内を出す）／処理中。
@@ -4290,6 +4337,7 @@
 			const box = document.createElement('div');
 			box.className = 'video-result';
 			appendStitchResultBlock(box, PERSON_SETS[setIdx], canvas);
+			appendSmallWindowNote(setIdx, box);
 			// ②では見出し「親Aセット」を出さず、「PNGをダウンロード」は控えめなアイコンのボタンにする（special.html の T106 の (9)(10) と同じ。引き出しの中は今のまま）
 			const dl = box.querySelector('a.uma-btn');
 			if (dl) {
@@ -4500,6 +4548,7 @@
 				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
 				clock.lap(capture ? '取り込みのあとの処理（圧縮の仕上げ・切り出し・動く帯）' : src.landscape ? '動画を開く（横画面の切り出しを含む）' : '動画を開く');
 				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
+				noteSmallWindow(setIdx, capture ? lastCaptureArea : (src.landscape && src.landscape.rect));
 				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
 				// タッチのエフェクトの置き換え（effectVote）は iPhone の動画のためのもの。取り込みでは切る
 				// DMM版の横画面の録画（wrapSource が切り出した出どころ。PC で撮ったのでカーソルが写る）も取り込みと同じに扱う（T156・決定 637）
@@ -5134,7 +5183,8 @@
 						devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
 						skipped.push({
 							label: labelPrefix, name: file.name,
-							reasons: quality.reasons, kinds: quality.rejectKinds
+							reasons: quality.reasons, kinds: quality.rejectKinds,
+							fromVideo: !!(video && video.files.indexOf(file) >= 0)   // 動画・取り込みの画（OCR のあとの知らせで名前を並べない。T166）
 						});
 						continue;
 					}
@@ -5367,7 +5417,7 @@
 
 			// 文面の組み立ては common.js の buildImageQualityNotice() に集約している
 			// （exam.html / special.html で同じ文言を二重に持たないため）。ここはDOMに入れるだけ。
-			const qualityNotice = buildImageQualityNotice(skippedAll, warnedAll);
+			const qualityNotice = videoQualityNotice(skippedAll, warnedAll);
 			if (qualityNotice) {
 				qualityWarnWrap.classList.remove('hidden');
 				document.getElementById('quality-warn-content').textContent = qualityNotice;
@@ -5375,7 +5425,7 @@
 
 			if (!anySuccess) {
 				errorWrap.classList.remove('hidden');
-				const totalFiles = persons.reduce((s, p) => s + p.files.length, 0);
+				const totalFiles = persons.reduce((s, p) => s + p.files.filter(f => !(p.video && p.video.unusedFiles && p.video.unusedFiles.has(f))).length, 0);   // 結合画像に使わなかった動画の画（OCR しない。T166）は数えない
 				if (skippedAll.length > 0 && skippedAll.length === totalFiles) {
 					document.getElementById('error-content').textContent = '選んだ画像は、いずれもゲーム画面が小さすぎて読み取れませんでした。パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直してください。';
 				} else {

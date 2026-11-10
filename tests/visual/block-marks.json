@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-10",
 "numbering": "runtime",
-"count": 1097,
+"count": 1099,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1102,6 +1102,8 @@
   {"file":"tests/visual/blocks-166.mjs","title":"T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白だけを塗る（余白のカーソルは消え、行の上は今までどおり残る）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す","ord":1,"marks":"VASC","asserts":9},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段2 ―― special.html: 結合画像に1行も使わなかった動画の画は OCR せず、行の無い画として控える（印の確かめに当たらない）。使った画は今までどおり読む","ord":1,"marks":"VAT","asserts":8},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段2 ―― exam.html: 結合画像に1行も使わなかった動画の画は OCR せず、行の無い画として控える（印の確かめに当たらない）。使った画は今までどおり読む","ord":1,"marks":"VAT","asserts":8},
-  {"file":"tests/visual/blocks-168.mjs","title":"T166段3 ―― 頭のパネルの上端が窓に入った画が無く、文字の下の青だけが窓に入る（速いスクロール）: 祖2 の1枚目は上端が写った画で、頭が欠けない","ord":1,"marks":"VC","asserts":4}
+  {"file":"tests/visual/blocks-168.mjs","title":"T166段3 ―― 頭のパネルの上端が窓に入った画が無く、文字の下の青だけが窓に入る（速いスクロール）: 祖2 の1枚目は上端が写った画で、頭が欠けない","ord":1,"marks":"VC","asserts":4},
+  {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― special.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8},
+  {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― exam.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8}
 ]
 }

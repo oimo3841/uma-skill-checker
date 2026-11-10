@@ -41,4 +41,54 @@ export async function register168(env) {
 			assert(errors.length === 0, 'コンソールのエラー 0', errors);
 		} finally { await ctx.close(); }
 	});
+
+	// 段4（決定 677）: 窓が小さいときの知らせ。(1) 横画面の切り出しの幅が 570px 未満なら、取り込み・録画の結果の所に video.warn.window を出す
+	// （録画は wrapSource の矩形、取り込みは見つけた領域の how が landscape のときだけ。縦画面には出さない）。
+	// (2) OCR のあとの画質の知らせで、ぼやけた動画の画は名前を並べず video.warn.blurry の1行にまとめる（スクショの画は今のまま）
+	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
+	for (const page of ['special.html', 'exam.html']) {
+		await block('T166段4 ―― ' + page + ': 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる', async () => {
+			const sp = await env.openPage(browser, base, page, { width: 375, height: 812 }, EMPTY);
+			sp.page.setDefaultTimeout(120000);
+			try {
+				const r = await sp.page.evaluate(async () => {
+					const c = document.createElement('canvas'); c.width = 40; c.height = 40;
+					const shown = (rect) => {
+						devGeometry = [];
+						noteSmallWindow(0, rect);
+						showVideoResult(0, c, null);
+						const el = document.querySelector('#personset-A-wrap .video-small-window');
+						const out = { text: el ? el.textContent : null, log: devGeometry.filter((l) => /切り出しの幅/.test(l)) };
+						clearVideoResult(0);
+						return out;
+					};
+					const notice = videoQualityNotice([
+						{ label: '親A', name: 'frame-001.png', kinds: ['blurry'], fromVideo: true },
+						{ label: '祖A1', name: 'frame-002.png', kinds: ['blurry'], fromVideo: true },
+						{ label: '祖A2', name: 'shot.png', kinds: ['blurry'], fromVideo: false },
+						{ label: '祖A2', name: 'frame-003.png', kinds: ['too-small'], fromVideo: true }
+					], []);
+					const onlyVideo = videoQualityNotice([{ label: '親A', name: 'frame-001.png', kinds: ['blurry'], fromVideo: true }], []);
+					const base = buildImageQualityNotice([{ label: '親A', name: 'frame-001.png', kinds: ['blurry'] }], []);
+					const none = videoQualityNotice([{ label: '祖A2', name: 'shot.png', kinds: ['blurry'] }], []);
+					const noneBase = buildImageQualityNotice([{ label: '祖A2', name: 'shot.png', kinds: ['blurry'] }], []);
+					return {
+						text: videoText('video.warn.window'), blurry: videoText('video.warn.blurry', { N: 2 }),
+						small: shown({ x: 0, y: 0, w: 468, h: 827 }), big: shown({ x: 0, y: 0, w: 608, h: 1072 }),
+						capSmall: shown({ ok: true, how: 'landscape', w: 500 }), capPortrait: shown({ ok: true, how: 'edge+16:9', w: 500 }), none: shown(null),
+						notice, onlyVideo, baseLast: base.split('\n\n').pop(), noneSame: none === noneBase
+					};
+				});
+				assert(r.text === 'ウィンドウが小さいため文字がぼやけて読み取れないことがあります。大きくしてから撮り直してください。', '知らせの文（原文どおり）', r.text);
+				assert(r.small.text === r.text && r.small.log.length === 1 && /468px/.test(r.small.log[0]), '録画の切り出し 468px: 結果の所に知らせ・開発ログに幅の行', r.small);
+				assert(r.big.text === null && r.big.log.length === 1, '録画の切り出し 608px: 知らせなし（幅の行は出る）', r.big);
+				assert(r.capSmall.text === r.text, '取り込みの横画面（how landscape）の 500px: 知らせ', r.capSmall);
+				assert(r.capPortrait.text === null && r.capPortrait.log.length === 0 && r.none.text === null, '縦画面の取り込み・横画面でない動画: 知らせも幅の行も無い', [r.capPortrait, r.none]);
+				assert(r.notice.includes(r.blurry) && !/frame-001|frame-002/.test(r.notice) && r.notice.includes('・祖A2: shot.png') && r.notice.includes('・祖A2: frame-003.png'),
+					'OCR のあとの知らせ: ぼやけた動画の画2枚は「動画の画 2枚が…」の1行・スクショと小さすぎた画は名前のまま', r.notice);
+				assert(r.onlyVideo.split('\n\n').pop() === r.baseLast && !/frame-001/.test(r.onlyVideo) && r.onlyVideo.startsWith('動画の画 1枚'), '動画の画だけのとき: 1行のあとに今の締めの文', r.onlyVideo);
+				assert(r.noneSame, 'スクショだけのときは今の文のまま', null);
+			} finally { await sp.page.context().close(); }
+		});
+	}
 }
