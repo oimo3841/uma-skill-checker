@@ -61,7 +61,7 @@ async function main() {
 	const masterNames = loadMaster().map((s) => s.name);
 	let examNames = [];
 	if (process.argv.includes('--exam')) {
-		try { examNames = await examSkillNames(); } catch (e) { console.log(`※ exam.html の133種を読めませんでした（${String(e.message).split('\n')[0]}）`); }
+		try { examNames = await examSkillNames(); } catch (e) { console.log(`※ exam.html の134種を読めませんでした（${String(e.message).split('\n')[0]}）`); }
 	}
 	const before = evaluate(corpus, {});
 	if (baselineOnly) {

@@ -10769,7 +10769,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(JSON.stringify(st.vals) === JSON.stringify([fmt2v(min, false)].concat(eq.map((v) => fmt2v(v, true)), [fmt2v(max, true)])),
 		'効率(2・微調整4C): つまみの上に境目の値、両端の上に最小値と最大値（小数第2位。最小は切り捨て・境目と最大は切り上げ）', st.vals);
 	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyRows === st.n,
-		'効率(2): 動かすまで境目と区間は保存しない。判定の表は133種のまま。「スキル名のコピー」は一覧と同じ（効率の対象の行）', st);
+		'効率(2): 動かすまで境目と区間は保存しない。判定の表は134種のまま。「スキル名のコピー」は一覧と同じ（効率の対象の行）', st);
 
 	// (3) キーボード: ←→ で1段、Shift で5段。段の値だけを取る。4つの区間のどれも1種以上を含む範囲で止まる。動かすと保存
 	await page.focus('.eff-shoe[data-idx="0"]');
@@ -10978,7 +10978,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(syn.edge.atB0 === 0 && syn.edge.atB1 === 1 && syn.edge.justAbove === 2 && syn.edge.atB2 === 2 && syn.edge.max === 3 && syn.edge.min === 0,
 		'効率(7): 境目ちょうどの値は下（左）の区間に入る（区間1は最小を、区間4は最大を含む）', syn.edge);
 
-	// (8) 判定の流れ（OCR の代わりに行を固定）: 照合は拡張モードの辞書の全部で行い、表・コピーは133種のまま。Deck へは独自IDのある対象だけ
+	// (8) 判定の流れ（OCR の代わりに行を固定）: 照合は拡張モードの辞書の全部で行い、表・コピーは134種のまま。Deck へは独自IDのある対象だけ
 	const flow = await page.evaluate(async () => {
 		const calls = { match: 0, dictRows: [] };
 		const orig = { top: readMelopTopRow, match: matchMelopLines, ppi: processPersonImages, tess: window.Tesseract };
@@ -11388,7 +11388,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const s = melopSheet;
 		const b = effBounds.slice();
 		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
-		// 既定の133種に入っているスキル（カードの値を既定と比べるため）と、sp70緑のスキル
+		// 既定の134種に入っているスキル（カードの値を既定と比べるため）と、sp70緑のスキル
 		const in133 = EXAM_SKILL_LIST.slice(0, 3).map((x) => x.name);
 		const sp70 = EXAM_NAME_BY_ID[SP70_GREEN_17_IDS[0]];
 		const names = pick.map((t) => t.name).concat(in133, [sp70]);
@@ -11423,7 +11423,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		stitchOnePerson = orig.stitch; stitchDrawPersonBanner = orig.banner; stitchDrawEffPersonBanner = orig.effBanner;
 		// 期待値: 区間ごとの数（1種1回。継承固有は数えない）・合計（評価点の合計÷消費SPの合計。★は掛けない）
 		const effItems = pick.map((t) => ({ t, tier: effTierOf(t.milli, b) }));
-		// 133種・sp70緑のスキルにも効率があれば、拡張モードの照合で対象として数えられる
+		// 134種・sp70緑のスキルにも効率があれば、拡張モードの照合で対象として数えられる
 		const extra = in133.concat([sp70]).map((n) => effData.targets.find((t) => t.name === n)).filter(Boolean)
 			.filter((t) => !pick.includes(t)).map((t) => ({ t, tier: effTierOf(t.milli, b) }));
 		const all = effItems.concat(extra);
@@ -11441,7 +11441,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	}, { white: WHITE_STITCH.toString() });
 	const [effOn, effOff, effTierOff, defC, melopOn, melopOff, effRainbowOff] = st5.calls;
 	assert(effRainbowOff.sp70Count === defC.sp70Count && effRainbowOff.detected === defC.detected,
-		'効率(D): 虹の区間を外しても、結合画像のカードは既定の133種・sp70緑17種を母数とした値のまま', { got: [effRainbowOff.detected, effRainbowOff.sp70Count], def: [defC.detected, defC.sp70Count] });
+		'効率(D): 虹の区間を外しても、結合画像のカードは既定の134種・sp70緑17種を母数とした値のまま', { got: [effRainbowOff.detected, effRainbowOff.sp70Count], def: [defC.detected, defC.sp70Count] });
 	assert(effOn.cards && effOn.detected === defC.detected && effOn.sp70Count === defC.sp70Count && defC.detected > 0 && defC.sp70Count > 0,
 		'効率(D): 効率を指定の「検出」「sp70緑」のカードは、同じ行を既定で判定したときと同じ値', { eff: [effOn.detected, effOn.sp70Count], def: [defC.detected, defC.sp70Count] });
 	assert(effOn.kind === 'eff' && defC.kind === 'old' && melopOn.kind === 'old',

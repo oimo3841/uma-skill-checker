@@ -5,10 +5,10 @@
 // 中の OCR 処理をそのまま呼び出す(ロジックの複製は一切行わない)。
 //
 // 使い方:
-//   npm run test:ocr                          … exam.html / 組み込み133種（--dict=exam）/ 元画像
+//   npm run test:ocr                          … exam.html / 組み込み134種（--dict=exam）/ 元画像
 //   npm run test:ocr -- --stitched            … 先に画像結合してから、その結合結果をOCR
 //   npm run test:ocr -- --page=special        … special.html を対象にする
-//   npm run test:ocr -- --dict=exam           … exam.html の組み込み133種を照合辞書に（npm script の既定）
+//   npm run test:ocr -- --dict=exam           … exam.html の組み込み134種を照合辞書に（npm script の既定）
 //   npm run test:ocr -- --dict=deck           … uma-skill-deck-skills.json の全スキルを照合辞書に
 //   npm run test:ocr -- --dict=page           … ページ側が起動時に持つ skillList をそのまま照合辞書に
 //   npm run test:ocr -- --dict=連綿,存在感    … 指定したスキル名だけを照合辞書に
@@ -38,7 +38,7 @@
 // 「ページ側の skillList をそのまま使う」を既定にしていない理由:
 //   exam.html の既定が新UI（Deck から対象スキルセットを選ぶ）になると、file:// では
 //   マスターが読めず skillList が空か組み込みサンプル3件になり、テストが黙って別の対象で
-//   走ってしまう（F-29③と同型）。技能試験の133種で照合したいことを常に明示する。
+//   走ってしまう（F-29③と同型）。技能試験の134種で照合したいことを常に明示する。
 //
 // 出力:
 //   コンソールに検出スキル一覧・★・診断ログ・エラーを表示し、
@@ -108,7 +108,7 @@ async function resolveBaseDictionary(browser, arg) {
 		return (json.skills || json).map((s) => s.name || String(s));
 	}
 	if (arg === 'exam') {
-		// exam.html が組み込みで持つ技能試験の133種。ソースを正規表現で拾うのではなく
+		// exam.html が組み込みで持つ技能試験の134種。ソースを正規表現で拾うのではなく
 		// 実際に exam.html を開いて定数を読む（持ち方が名前の配列から {id, name} に
 		// 変わっても追従できるように、どちらの形でも名前だけを取り出す）。
 		const page = await browser.newPage();
@@ -200,7 +200,7 @@ async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict
 		}
 	}
 
-	// 照合辞書。指定がなければページ側の既定(exam.htmlなら133種)をそのまま使う。
+	// 照合辞書。指定がなければページ側の既定(exam.htmlなら134種)をそのまま使う。
 	let list, index;
 	if (dictNames) {
 		const dict = buildSkillDictionary(dictNames);

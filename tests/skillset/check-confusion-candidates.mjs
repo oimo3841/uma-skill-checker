@@ -9,7 +9,7 @@
 //
 // 見るのは3つ:
 //   1. 衝突 … その読み替えを足すと、別々のスキル名が正規化後に同じ文字列になってしまわないか
-//      （マスター445種と exam.html の133種の両方で見る）
+//      （マスター445種と exam.html の134種の両方で見る）
 //   2. 食い違い … その字が既に別の字へ読み替えられていないか
 //   3. 手元のOCR結果の変化 … 保存済みの生の読み（reports/ocr-*.json）を読み替え後の
 //      正規化で照合し直して、判定がどう変わるかを数える。
@@ -170,7 +170,7 @@ async function main() {
 	try {
 		examNames = await examSkillNames();
 	} catch (e) {
-		console.log(`※ exam.html の133種を読めませんでした（${e.message}）。マスターだけで検査します`);
+		console.log(`※ exam.html の134種を読めませんでした（${e.message}）。マスターだけで検査します`);
 	}
 	console.log(`候補 ${candidates.length}件 / マスター ${masterNames.length}種 / exam ${examNames.length}種\n`);
 

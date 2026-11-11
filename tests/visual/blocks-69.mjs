@@ -6,7 +6,7 @@
 //  ・閉じた行「このスキルが得られるサポートカード　N枚 ▾」（高さ 44px・行全体が押せる）。開くと ▴。
 //  ・一覧の行: レアリティのアイコン（SSR／SR）・種別アイコン・上に小さくカードの題・下に太字でキャラクター名・右端に「ヒント」「イベント」「ヒント・イベント」の札。R は載せない。
 //  ・並び: SSR → SR、同じレアリティの中は種別の順（スピード → スタミナ → パワー → 根性 → 賢さ → 友人）、その中はカードの題の順。
-//  ・長い一覧（最大47枚）も上限なし（案B）: 小窓の本文がスクロールし、開閉の行は小窓の上に残る。説明の文は足さない。
+//  ・長い一覧（最大47枚。2026-11-10a から48枚）も上限なし（案B）: 小窓の本文がスクロールし、開閉の行は小窓の上に残る。説明の文は足さない。
 // 期待値（どのカードが・どの経路で得られるか）は製品の計算を読まず、data/ の3つのファイルから検査の側で独立に出す。
 // 例の数（C-239 のモックの報告）: 秋ウマ娘○（id 19）10枚〔SSR 9・SR 1・すべてヒント〕・中距離コーナー○（id 104）47枚〔SSR 36・SR 11・ヒント 36・イベント 9・両方 2〕。
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
@@ -167,12 +167,12 @@ export async function register69(env) {
 		const p0 = await readPanel(sp.page);
 		assert(p0 && p0.has && p0.tag === 'BUTTON' && p0.expanded === 'false' && p0.controls && p0.hidden && !p0.shown && p0.rows.length === 0,
 			'得られるサポカ(2) 初期は閉じている（ボタン・aria-expanded false・一覧は出ていない）', p0 && { expanded: p0.expanded, hidden: p0.hidden, rows: p0.rows.length });
-		assert(p0.h >= 44 && p0.wFull && p0.text.startsWith('このスキルが得られるサポートカード') && p0.count === '47枚' && p0.chev && p0.chevTf === 'none' && p0.last,
-			'得られるサポカ(2) 閉じた行: 高さ 44px 以上・本文の幅いっぱい・文言「このスキルが得られるサポートカード」「47枚」・▾（回転なし）・説明の小窓の最後', { h: p0.h, wFull: p0.wFull, text: p0.text, count: p0.count, chevTf: p0.chevTf, last: p0.last });
+		assert(p0.h >= 44 && p0.wFull && p0.text.startsWith('このスキルが得られるサポートカード') && p0.count === '48枚' && p0.chev && p0.chevTf === 'none' && p0.last,
+			'得られるサポカ(2) 閉じた行: 高さ 44px 以上・本文の幅いっぱい・文言「このスキルが得られるサポートカード」「48枚」・▾（回転なし）・説明の小窓の最後', { h: p0.h, wFull: p0.wFull, text: p0.text, count: p0.count, chevTf: p0.chevTf, last: p0.last });
 		await toggle(sp.page);
 		const p1 = await readPanel(sp.page);
-		assert(p1.expanded === 'true' && !p1.hidden && p1.shown && p1.rows.length === 47 && p1.count === p1.rows.length + '枚' && p1.chevTf !== 'none',
-			'得られるサポカ(2) 押すと開く（aria-expanded true・一覧の行の数＝枚数 47・▴＝回転）', { expanded: p1.expanded, rows: p1.rows.length, count: p1.count, chevTf: p1.chevTf });
+		assert(p1.expanded === 'true' && !p1.hidden && p1.shown && p1.rows.length === 48 && p1.count === p1.rows.length + '枚' && p1.chevTf !== 'none',
+			'得られるサポカ(2) 押すと開く（aria-expanded true・一覧の行の数＝枚数 48・▴＝回転）', { expanded: p1.expanded, rows: p1.rows.length, count: p1.count, chevTf: p1.chevTf });
 		await toggle(sp.page);
 		const p2 = await readPanel(sp.page);
 		assert(p2.expanded === 'false' && p2.hidden && !p2.shown && p2.chevTf === 'none', '得られるサポカ(2) もう一度押すと閉じる', { expanded: p2.expanded, hidden: p2.hidden });
@@ -196,7 +196,7 @@ export async function register69(env) {
 		await toggle(sp.page);
 		const p = await readPanel(sp.page);
 		const want = expectFor(CORNER);
-		assert(JSON.stringify(p.rows.map((r) => r.id)) === JSON.stringify(want.map((x) => x.id)), '得られるサポカ(3) 並び（47行）が検査の側の一覧と同じ', { got: p.rows.slice(0, 5).map((r) => r.id), want: want.slice(0, 5).map((x) => x.id) });
+		assert(JSON.stringify(p.rows.map((r) => r.id)) === JSON.stringify(want.map((x) => x.id)), '得られるサポカ(3) 並び（48行）が検査の側の一覧と同じ', { got: p.rows.slice(0, 5).map((r) => r.id), want: want.slice(0, 5).map((x) => x.id) });
 		const rk = (r) => (r === 'SSR' ? 0 : 1);
 		assert(p.rows.every((r, i) => i === 0 || rk(p.rows[i - 1].rarity) <= rk(r.rarity)) && p.rows.some((r) => r.rarity === 'SR') && p.rows.every((r) => !R_IDS.has(r.id)),
 			'得られるサポカ(3) SSR → SR の順・R のカードは無い', p.rows.map((r) => r.rarity).join(''));
@@ -275,7 +275,7 @@ export async function register69(env) {
 			}, POP);
 			assert(hs.over.every((v) => v <= 1) && hs.page <= 1 && hs.inView && hs.rowsIn, tag + '小窓・本文・一覧と画面に横スクロールなし・行は小窓の中', hs);
 			const open = await sp.page.evaluate(scanTextContrastInPage, POP + ' [data-usd-el="skill-cards"]');
-			assert(open.checked >= 47 * 3 && open.bad.length === 0, tag + '開いた一覧の文字のコントラスト 4.5 以上（' + open.checked + '件）', formatContrast(open.bad).slice(0, 4));
+			assert(open.checked >= 48 * 3 && open.bad.length === 0, tag + '開いた一覧の文字のコントラスト 4.5 以上（' + open.checked + '件）', formatContrast(open.bad).slice(0, 4));
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', sp.errors.slice(0, 3));
 			await sp.ctx.close();
 		}

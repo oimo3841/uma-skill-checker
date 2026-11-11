@@ -14,7 +14,7 @@
 //     **誤着地（一意に一致したが誤り）の増減**、確認に回る行の増減
 //   - 影響するスキルの名前の文字数（2文字以下があるか。短い名前は許容距離0なので1文字の誤読で
 //     読めない扱いになり、読み替えでしか救えない）
-//   - 衝突検査: 採用するとマスター445種（と exam.html の133種）の別々の名前が正規化後に同じになるか。
+//   - 衝突検査: 採用するとマスター445種（と exam.html の134種）の別々の名前が正規化後に同じになるか。
 //     既存の読み替えとの食い違い（同じ字が別の字へ）も見る
 //
 // 3段:
@@ -102,7 +102,7 @@ async function main() {
 	const lenOf = new Map(master.map((s) => [s.name, [...s.name].length]));
 	let examNames = [];
 	if (useExam) {
-		try { examNames = await examSkillNames(); } catch (e) { console.log(`※ exam.html の133種を読めませんでした（${String(e.message).split('\n')[0]}）。マスターだけで検査します`); }
+		try { examNames = await examSkillNames(); } catch (e) { console.log(`※ exam.html の134種を読めませんでした（${String(e.message).split('\n')[0]}）。マスターだけで検査します`); }
 	}
 	console.log(`候補の出どころ: confusions-${candLabel}.json（${candRep.skillCount}種）／土台: ${baseLabel}`);
 	// 行を持つカード → 行（「増えた枚数がどの行に入ったか」を見るため）

@@ -37,7 +37,7 @@ export async function register115(env) {
 	 *  いちばん上の段と緑の読み取りを差し替える。melop は拡張モードの入り切り。greenNamed なら緑の名前を実データから順に返す（親Bは親Aと同じ名前） */
 	const judge = (page, sets, melop, greenNamed) => page.evaluate(async ([sets, melop, greenNamed]) => {
 		const orig = { ppi: processPersonImages, top: readMelopTopRow, green: readGreenFactor, tess: window.Tesseract };
-		// 133種の先頭・133種の外の id のある行・id の無い行・遺伝子を混ぜる
+		// 134種の先頭・134種の外の id のある行・id の無い行・遺伝子を混ぜる
 		await loadMelopSheet();
 		const outside = melopSheet.rows.find((r) => r.id && !r.slot && !EXAM_SKILL_NAMES.includes(r.name) && !/^ap-/.test(r.id));
 		const noId = melopSheet.rows.find((r) => !r.id && !r.slot);
@@ -188,9 +188,9 @@ export async function register115(env) {
 		const p0 = s.persons[0];
 		assert(p0.uma === null && JSON.stringify(p0.blue) === '["power",3]' && JSON.stringify(p0.red) === '["nige",2]', '青・赤は読めた値を Deck α の鍵で', { b: p0.blue, r: p0.red });
 		assert(JSON.stringify(p0.green) === '[null,2]' && p0.greenCands === null, '緑は読み取りの値（名前が決まらなければ [null, ★]）', p0.green);
-		assert(j.firstIds.every((id) => p0.skills[id] !== undefined), '画面の判定の133種が skills に id で入る', j.firstIds);
+		assert(j.firstIds.every((id) => p0.skills[id] !== undefined), '画面の判定の134種が skills に id で入る', j.firstIds);
 		assert(p0.skills[j.firstIds[1]] === -1, '★を測れなかったものは -1', p0.skills[j.firstIds[1]]);
-		assert(p0.skills[j.row.outside.id] !== undefined, '133種の外の id も skills に入る', j.row.outside);
+		assert(p0.skills[j.row.outside.id] !== undefined, '134種の外の id も skills に入る', j.row.outside);
 		assert(p0.sheet[j.row.noId.name] !== undefined && Object.keys(p0.sheet).length === 1, 'id の無い行は sheet に名前で入る', p0.sheet);
 		assert(p0.genes[j.row.gene.id] !== undefined && !p0.skills[j.row.gene.id], '遺伝子は genes に入る', p0.genes);
 		assert(errs.length === 0, 'コンソールのエラー0', errs);
@@ -227,7 +227,7 @@ export async function register115(env) {
 			return { n: doc.parents.length, from: pa.from, sets: pa.sets, exam: doc.exam && doc.exam.sends, examKeys: doc.exam && Object.keys(doc.exam.skills).length, none: doc.none ? Object.keys(doc.none.skills || {}).length : 0, inNone: K.inNoneList ? K.inNoneList(pa) : null, gp: (pa.gp || []).length, sheet: Object.keys(pa.sheet || {}).length, skills: Object.keys(pa.skills).length };
 		});
 		assert(saved.n === 1 && saved.from === 'exam' && saved.sets.join() === 'exam' && saved.exam === 1 && saved.examKeys === 134, '技能試験のまとまりにだけ入る（233）・doc.exam は134種', saved);
-		assert(saved.gp === 2 && saved.sheet === 1 && saved.skills >= 9, '祖2人・sheet・133種の外の id が保存される', saved);
+		assert(saved.gp === 2 && saved.sheet === 1 && saved.skills >= 9, '祖2人・sheet・134種の外の id が保存される', saved);
 		await reg.close();
 
 		// Deck α の表: UmaExam 用に1人・UmaStar 用の「指定なし」には出ない

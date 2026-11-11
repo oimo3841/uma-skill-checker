@@ -92,7 +92,7 @@ export async function register20c(env) {
 					'微調整2C2(' + mode + '・因子' + (fact ? 'あり' : 'なし') + '・遺伝子' + (gene ? 'あり' : 'なし') + '): 件数の表記は「' + want + '」（「・」の後ろに半角スペース1つ）', { got: r.hint, want });
 			}
 		}
-		// 既定（因子・遺伝子なし）は「スキル133種・ 133行」
+		// 既定（因子・遺伝子なし）は「スキル134種・ 134行」
 		await setMode(page, 'default');
 		const d = await page.evaluate(() => document.getElementById('skill-copy-hint').textContent);
 		assert(/^スキル\d+種・ \d+行$/.test(d), '微調整2C2: 因子・遺伝子を選んでいない既定は「スキルN種・ N行」だけ', d);
