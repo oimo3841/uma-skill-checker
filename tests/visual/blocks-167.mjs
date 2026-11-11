@@ -63,4 +63,44 @@ export async function register167(env) {
 		});
 	}
 
+	// 段5 (1)（決定 678）: 「置きたかった行」を、置き場所の重なりを除いた数にする（枠・印を置くときと同じ重なりの見方）。結合画像は変えない。
+	// 作った行: 画0 の2行目と画1 の1行目が結合画像の同じ所（y=220）に写る同じスキル（2つの rowKey）。画1 の3行目の別のスキルは結合画像の外（y=420）。
+	for (const page of ['special.html', 'exam.html']) {
+		await block('T166段5 ―― ' + page + ': 「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（収まらない行があるときだけ開発ログに出る）', async () => {
+			const sp = await openPage(browser, base, page, { width: 375, height: 812 }, EMPTY);
+			sp.page.setDefaultTimeout(120000);
+			try {
+				const r = await sp.page.evaluate(async (pg) => {
+					const special = pg === 'special.html';
+					let names;
+					const run = special ? null : { attrIcons: true, scope: targetScopeMode };
+					if (special) {
+						await UmaSkillDeckCore.loadMasterSkills();
+						const genes = new Set(stitchGeneNames());
+						names = UmaSkillDeckCore.getMasterSkills().map((s) => s.name).filter((n) => n && !genes.has(n)).slice(0, 2);
+						stitchSnapshot = { entries: names.map((name) => ({ name })), geneNames: [] };
+					} else {
+						names = skillList.filter((n) => { const k = stitchMarkKind(n, run); return k && k !== 'gene' && k !== 'factor'; }).slice(0, 2);
+					}
+					const nw = 1000, nh = special ? 1000 : 2200;
+					const rows = (ys) => ys.map((y) => ({ x: 120, y, w: 200, h: 40, col: 0 }));
+					const g = (ys) => ({ rows: rows(ys), columnXs: [100, 600], scale: 1, naturalW: nw, naturalH: nh });
+					const drawOnce = (withOutside) => {
+						personGeometry[0] = [g([100, 200, 300]), g([0, 100, 200])];
+						personLines[0] = [{ text: names[0], rowKey: '0:1' }, { text: names[0], rowKey: '1:0' }, { text: names[1], rowKey: '1:2' }];
+						personResults[0] = { detectedSkills: new Set(withOutside ? names : [names[0]]), skillSources: withOutside ? { [names[0]]: [0, 1], [names[1]]: [2] } : { [names[0]]: [0, 1] }, skillStars: {}, matchReasons: {} };
+						const c = document.createElement('canvas'); c.width = 1000; c.height = 400;
+						c._sourcePlacements = [{ fileIndex: 0, srcY0: 0, srcY1: 250, outY0: 0 }, { fileIndex: 1, srcY0: 50, srcY1: 250, outY0: 250 }];
+						devGeometry = [];
+						const n = special ? drawFactorFramesOnPerson(c, 0, { legacy: false, marker: false }) : drawAttrIconsOnPerson(c, 0, run);
+						return { n: special ? n : n.drawn, log: devGeometry.filter((l) => /置きたかった行/.test(l)) };
+					};
+					return { names, one: drawOnce(false), two: drawOnce(true) };
+				}, page);
+				assert(r.names.length === 2, '前提: データから名前を2つ選べる', r.names);
+				assert(r.one.n && r.one.log.length === 0, '同じ行が2枚に写っただけなら「置きたかった行」の行は出ない（前は「1 / 2」と出た）', r.one);
+				assert(r.two.log.length === 1 && /置いた 1 \/ (印を)?置きたかった行 2/.test(r.two.log[0]), '結合画像の外の行があるときは「置いた 1 / 置きたかった行 2」（前は 3）', r.two.log);
+			} finally { await sp.page.context().close(); }
+		});
+	}
 }

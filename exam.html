@@ -8227,7 +8227,20 @@
 			// 検出できているのに印を置けなかったものがあれば、開発ログに残す。
 			// 「検出の数と印の数が合わない」はパッと見では原因が分からないので、
 			// どのスキルがどういう理由で置けなかったかを後から読めるようにしておく。
-			const wantKeys = Object.keys(kindByRowKey).length;
+			// 置きたかった行は、置き場所の重なりを除いて数える（T166・決定 678）。同じパネルが2枚の画に写ると rowKey が2つになり、
+			// 前は2回数えて「収まらなかった行」が出ていた（印の抜けは無い）。重なりの見方は印を置くときと同じ（へこみの大きさ d 未満）
+			const wantAt = [];
+			let wantOther = 0;
+			Object.keys(kindByRowKey).forEach(key => {
+				const [fi, ri] = key.split(':').map(Number);
+				const g = geo[fi], p = placements.find(q => q.fileIndex === fi), row = g && g.rows && g.rows[ri];
+				const metrics = g && g.columnXs ? attrCircleMetrics(g) : null;
+				if (!row || !metrics || !p) { wantOther++; return; }
+				const d = metrics.d * ATTR_MARK_SCALE;
+				const cx = g.columnXs[row.col] * g.scale - metrics.offset, cy = p.outY0 + ((row.y + row.h / 2) * g.scale - p.srcY0);
+				if (!wantAt.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) wantAt.push({ x: cx, y: cy });
+			});
+			const wantKeys = wantAt.length + wantOther;
 			if (placed.length < wantKeys) {
 				devGeometry.push('[印] ' + PERSON_LABELS[personIdx] + ': 印を置いた ' + placed.length +
 					' / 印を置きたかった行 ' + wantKeys + '（結合後のCanvasに収まらなかった行があります）');

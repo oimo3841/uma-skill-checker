@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-10",
+"generated": "2026-11-11",
 "numbering": "runtime",
-"count": 1099,
+"count": 1102,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1095,6 +1095,7 @@
   {"file":"tests/visual/blocks-165.mjs","title":"T162 (3) 最後の1字だけが違う組でない同点には、字の形を使わない","ord":1,"marks":"VAT","asserts":6,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-165.mjs","title":"T162 (4) 並びで決まる行は今までどおり並びで決まる（字の形が別の候補を指しても並びが先）","ord":1,"marks":"VAS","asserts":6},
   {"file":"tests/visual/blocks-165.mjs","title":"T163 (5) 辶のつく字すべて（T162 の6字の外も）で 速 に決まり、辶でも貝でもない字では決まらない","ord":1,"marks":"VTC","asserts":13},
+  {"file":"tests/visual/blocks-165.mjs","title":"T166段5 (6) 同じ行に推定で決まる読みもある同点の行: 結果は今のまま（推定の読みのスキル）・開発ログに「同じ行の別の読みで決まっている」","ord":1,"marks":"VAS","asserts":6,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(1) 撮り始め・スクロールのあとの画が粗い横画面の出どころ: 同じ位置のくっきりした画を使い、結合画像が一覧と画素で合う","ord":1,"marks":"VAC","asserts":6},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(2) 縦画面の出どころ（kind に landscape: が無い）は今のまま: 置き換えず、静止画が sharpPick:false とバイトまで同じ","ord":1,"marks":"C","asserts":3,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(3) special.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4},
@@ -1102,6 +1103,8 @@
   {"file":"tests/visual/blocks-166.mjs","title":"T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白だけを塗る（余白のカーソルは消え、行の上は今までどおり残る）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す","ord":1,"marks":"VASC","asserts":9},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段2 ―― special.html: 結合画像に1行も使わなかった動画の画は OCR せず、行の無い画として控える（印の確かめに当たらない）。使った画は今までどおり読む","ord":1,"marks":"VAT","asserts":8},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段2 ―― exam.html: 結合画像に1行も使わなかった動画の画は OCR せず、行の無い画として控える（印の確かめに当たらない）。使った画は今までどおり読む","ord":1,"marks":"VAT","asserts":8},
+  {"file":"tests/visual/blocks-167.mjs","title":"T166段5 ―― special.html: 「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（収まらない行があるときだけ開発ログに出る）","ord":1,"marks":"VATC","asserts":3},
+  {"file":"tests/visual/blocks-167.mjs","title":"T166段5 ―― exam.html: 「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（収まらない行があるときだけ開発ログに出る）","ord":1,"marks":"VATC","asserts":3},
   {"file":"tests/visual/blocks-168.mjs","title":"T166段3 ―― 頭のパネルの上端が窓に入った画が無く、文字の下の青だけが窓に入る（速いスクロール）: 祖2 の1枚目は上端が写った画で、頭が欠けない","ord":1,"marks":"VC","asserts":4},
   {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― special.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8},
   {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― exam.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8}

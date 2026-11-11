@@ -13,6 +13,7 @@
 // T163（2026-11-10・決定 664）: 速 の字を部首 162（辵・辶）のすべての漢字に広げた。塊 (5) の見出しは「T163」で始まる
 //  （`--only=T163` で回せる）。
 //  (5) 表の字数と重なり・新しく入った字（道・進・範囲の端・拡張 B。遠 は正規化で 速 になるので表と関数で）で 速 に決まる・辶でも貝でもない字（翌・鏈）では決まらない。
+// T166（2026-11-11・決定 681）: 塊 (6) の見出しは「T166段5」で始まる。同じ行に推定で決まる読みと同点の読みがあるとき、結果は今のまま・開発ログに1行。
 // スキル名・字は検査の側に書かない（恒久ルール1。データと製品の表から選ぶ）。
 
 import { reloadReady } from './lib/page-ready.mjs';
@@ -311,6 +312,37 @@ export async function register165(env) {
 				assert(!o.inTable && o.tie && o.detected.length === 0 && !!o.byShape && o.byShape.matched.length === 0 && !o.byShape.picked, 'T163(5) 辶でも貝でもない字「' + o.ch + '」: 表に無く、決まらない（今までどおり捨てる）', o);
 			}
 			assert(jsErrors(sp.errors).length === 0, 'T163(5) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		} finally { await sp.ctx.close(); }
+	});
+
+	// T166（2026-11-11・決定 681）: 同じ行（rowKey）に、推定（距離1）で決まる読みと、同点の読みの両方があるとき（実機の「アオムル点火・賢」と
+	// 「アオハル点火・買」の形。T165 §3-5）。同点の行は並び・字の形を見ずに飛ばす（結果は今のまま）。開発ログに「同じ行の別の読みで決まっている（スキル名）」
+	await block('T166段5 (6) 同じ行に推定で決まる読みもある同点の行: 結果は今のまま（推定の読みのスキル）・開発ログに「同じ行の別の読みで決まっている」', async () => {
+		const sp = await openSp();
+		try {
+			const r = await sp.page.evaluate(() => {
+				const { line, setScope, known, keyOf, targets, group } = window.__t162;
+				if (!group) return null;
+				setScope(group.members.map(known));
+				const t = targets[0], want = group.byTarget[t];
+				const chars = Array.from(want);
+				// 推定の読み: 2字目だけを別の字にした読み（want と距離1・組のほかの名前とは距離2）
+				chars[1] = chars[1] === 'ヌ' ? 'ネ' : 'ヌ';
+				const estText = chars.join('');
+				const tieText = want.slice(0, want.length - 1) + keyOf[t];
+				allSkillNamesDict = null;
+				const res = matchWithAllSkillNames([line(estText, '0:4', 3), line(tieText, '0:4', 3)]);
+				const a = (res.devAmbiguous || []).find((x) => x.rowKey === '0:4' && !x.resolved);
+				return { want, estText, tieText, detected: Array.from(res.detectedSkills), stars: res.skillStars, reason: res.matchReasons[want] || '',
+					a: a ? { bySameRow: a.bySameRow || null, byOrder: a.byOrder || null, byShape: a.byShape || null } : null, log: a ? formatAmbiguousEntry(a) : '' };
+			});
+			assert(!!r, 'T166(6) データに、最後の1字だけが違い、表の先の字で終わる候補を持つ組がある', r);
+			if (!r) return;
+			assert(r.detected.length === 1 && r.detected[0] === r.want && r.stars[r.want] === 3 && /推定/.test(r.reason), 'T166(6) 結果は今のまま: 推定の読み「' + r.estText + '」の「' + r.want + '」だけが出る', r);
+			assert(!!r.a && !r.a.byOrder && !r.a.byShape, 'T166(6) 同点の読み「' + r.tieText + '」の行は、並び・字の形を見ない（今のまま）', r.a);
+			assert(!!r.a && Array.isArray(r.a.bySameRow) && r.a.bySameRow.includes(r.want), 'T166(6) 同点の記録に、同じ行で決まったスキルが残る', r.a);
+			assert(r.log.includes('同じ行の別の読みで決まっている（' + r.want + '）'), 'T166(6) 開発ログに「同じ行の別の読みで決まっている（' + r.want + '）」', r.log);
+			assert(jsErrors(sp.errors).length === 0, 'T166(6) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		} finally { await sp.ctx.close(); }
 	});
 }

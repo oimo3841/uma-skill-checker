@@ -3709,6 +3709,8 @@
 				lines.push('      生存候補: ' + (u.survivors && u.survivors.length ? u.survivors.join(' / ') : 'なし'));
 				lines.push('      結果: ' + (u.resolved ? '「' + u.resolved + '」に確定' : '解決できず（曖昧のまま）'));
 			}
+			// T166: 同じ行の別の読みで決まっていて、並び・字の形を見なかった行（pickTiedRowsByGameOrder）
+			if (u.bySameRow) lines.push('      同じ行の別の読みで決まっている（' + u.bySameRow.join(' / ') + '）');
 			// T157: 照合のあとの並びでの拾い直し（pickTiedRowsByGameOrder）
 			if (u.byOrder) {
 				lines.push('      並び: 上 ' + (u.byOrder.up || 'なし') + ' / 下 ' + (u.byOrder.down || 'なし') + (u.byOrder.adjacent ? '' : '（となりの行でない）') + ' / 間の候補 ' + (u.byOrder.inRange.length ? u.byOrder.inRange.join(' / ') : 'なし')
@@ -4088,9 +4090,22 @@
 					right: Math.max(...boxes.map(b => b.right + b.line / 2))
 				};
 			}
-			if (boxes.length < want) {
+			// 置きたかった行は、置き場所の重なりを除いて数える（T166・決定 678）。同じパネルが2枚の画に写ると rowKey が2つになり、
+			// 前は2回数えて「収まらなかった行」が出ていた（枠の抜けは無い）。重なりの見方は枠を置くときと同じ（同じ列・step/2 未満）
+			const wantAt = [];
+			let wantOther = 0;
+			Object.keys(kindByRowKey).forEach(key => {
+				const [fi, ri] = key.split(':').map(Number);
+				const g = geo[fi], p = placements.find(q => q.fileIndex === fi), row = g && g.rows && g.rows[ri];
+				if (!row || !g.columnXs || !p) { wantOther++; return; }
+				const step = steps[fi] || fallbackStep;
+				const colX = g.columnXs[row.col] * g.scale, cy = p.outY0 + ((row.y + row.h / 2) * g.scale - p.srcY0);
+				if (!wantAt.some(q => Math.abs(q.colX - colX) < step / 2 && Math.abs(q.cy - cy) < step / 2)) wantAt.push({ colX: colX, cy: cy });
+			});
+			const wantPlaces = wantAt.length + wantOther;
+			if (boxes.length < wantPlaces) {
 				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] + ': 枠を置いた ' + boxes.length +
-					' / 置きたかった行 ' + want + '（結合後のCanvasに収まらなかった行があります）');
+					' / 置きたかった行 ' + wantPlaces + '（結合後のCanvasに収まらなかった行があります）');
 			}
 			const geneN = boxes.filter(b => b.kind === 'gene').length;
 			canvas._geneFrameCount = geneN;
@@ -6642,9 +6657,12 @@
 			const done = new Set();
 			const picks = [];
 			amb.forEach(a => {
-				if (a.resolved || !a.rowKey || done.has(a.rowKey)) return;
+				if (a.resolved || !a.rowKey) return;
+				// 同じ行の別の読みで決まっている（推定〔距離1など〕で決まった読みは、照合の同点の判定から外れないので、同じ行に同点の読みも残る。
+				// 結果は変えずに、開発ログに「同じ行の別の読みで決まっている（スキル名）」を出す。T166・決定 681）
+				if (skillsAt.has(a.rowKey)) { a.bySameRow = Array.from(skillsAt.get(a.rowKey)); done.add(a.rowKey); return; }
+				if (done.has(a.rowKey)) return;
 				done.add(a.rowKey);
-				if (skillsAt.has(a.rowKey)) return;   // 同じ行の別の読みで決まっている
 				const at = parseKey(a.rowKey);
 				if (!at) return;
 				let up = null, down = null;
