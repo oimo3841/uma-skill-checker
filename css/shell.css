@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-11-01a";
+	--uma-shell-css-version: "2026-11-12a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -316,13 +316,17 @@
    数を出さないドットにしているのは、結果が1件か複数かに意味がないため。
    【2026-09-15・43セッション目】橙の直書き → 行き先ごとの色、と試したうえで、
    **行き先を問わず1色の赤（--uma-notify）**に落ち着いた。色で行き先を言い分けるより、
-   「見ていないものがある」ことだけを一目で分かる方を採る。脈動の光も同じ色から作る。 */
+   「見ていないものがある」ことだけを一目で分かる方を採る。脈動の光も同じ色から作る。
+   【T173・決定 698・700〜702】脈動は**5回で止める**（見るまで光り続けると、放置中も描き直しが続くため）。
+   止まったあとも丸は出したまま（光の輪が出なくなるだけ。最後の 100% は輪なしなので、止まった見た目は脈動の無い丸と同じ）。
+   丸が隠れてから出れば CSS のアニメーションは最初から始まる。出たままで新しい結果が出たときは、
+   各ページの markFabUnseen が replayFabPulse でもう一度5回光らせる。 */
 .uma-fab-dot {
 	position: absolute; top: -2px; right: -2px;
 	width: 12px; height: 12px; border-radius: var(--uma-r-full);
 	background: var(--uma-notify);
 	border: 2px solid var(--uma-surface);
-	animation: uma-fab-pulse 1.8s ease-out infinite;
+	animation: uma-fab-pulse 1.8s ease-out 5;
 }
 .uma-fab-dot[hidden] { display: none !important; }
 @keyframes uma-fab-pulse {

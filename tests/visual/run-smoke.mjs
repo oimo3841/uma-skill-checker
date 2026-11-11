@@ -183,6 +183,7 @@ import { register167 } from './blocks-167.mjs';
 import { register168 } from './blocks-168.mjs';
 import { register169 } from './blocks-169.mjs';
 import { register170 } from './blocks-170.mjs';
+import { register171 } from './blocks-171.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15691,6 +15692,8 @@ await register168({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register169({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T171（2026-11-11）: UmaExam の [蹄鉄] の開発ログの「置きたかった行」を重なりを除いて数える（見出しは「T171」）。tests/visual/blocks-170.mjs
 await register170({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T173（2026-11-11）: 未読の赤い点の脈動を5回で止める・新しい結果でまた5回光る（見出しは「T173」）。tests/visual/blocks-171.mjs
+await register171({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

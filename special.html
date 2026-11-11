@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-01a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-12a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-12a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-12a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -1488,7 +1488,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-01a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-12a';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -7722,6 +7722,24 @@
 		function markFabUnseen(key) {
 			fabUnseen[key] = true;
 			updateFabBadges();
+			replayFabPulse(key);
+		}
+
+		/* T173（決定 702）: 新しい結果が出たら、その行き先の赤い点（とメインボタンの点）を
+		 * もう一度5回光らせる。点が出たままで脈動を終えていても最初から光り直す。
+		 * 隠れている点はアニメーションを持たない（出たときに CSS が最初から光らせる）。
+		 * exam.html にも同じ関数がある。 */
+		function replayFabPulse(key) {
+			document.querySelectorAll('.uma-fab-dot').forEach((dot) => {
+				if (dot.hidden) return;
+				const id = dot.id;
+				if (id !== 'fab-unseen-dot' && !id.endsWith('-' + key + '-dot') && !id.endsWith('-dot-' + key)) return;
+				// 5回を終えた CSS アニメーションは getAnimations() に残らないので、巻き戻しでなく
+				// animation を一度外し（スタイルを確定させて）戻す＝最初から始め直す
+				dot.style.animation = 'none';
+				void getComputedStyle(dot).animationName;
+				dot.style.animation = '';
+			});
 		}
 
 		function fabGoTo(key) {

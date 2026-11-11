@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-01a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-01a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-01a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-12a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-12a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-12a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -3033,7 +3033,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-01a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-12a';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -10135,6 +10135,24 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		function markFabUnseen(key) {
 			fabUnseen[key] = true;
 			updateFabBadges();
+			replayFabPulse(key);
+		}
+
+		/* T173（決定 702）: 新しい結果が出たら、その行き先の赤い点（とメインボタンの点）を
+		 * もう一度5回光らせる。点が出たままで脈動を終えていても最初から光り直す。
+		 * 隠れている点はアニメーションを持たない（出たときに CSS が最初から光らせる）。
+		 * special.html にも同じ関数がある。 */
+		function replayFabPulse(key) {
+			document.querySelectorAll('.uma-fab-dot').forEach((dot) => {
+				if (dot.hidden) return;
+				const id = dot.id;
+				if (id !== 'fab-unseen-dot' && !id.endsWith('-' + key + '-dot') && !id.endsWith('-dot-' + key)) return;
+				// 5回を終えた CSS アニメーションは getAnimations() に残らないので、巻き戻しでなく
+				// animation を一度外し（スタイルを確定させて）戻す＝最初から始め直す
+				dot.style.animation = 'none';
+				void getComputedStyle(dot).animationName;
+				dot.style.animation = '';
+			});
 		}
 
 		function fabGoTo(key) {
