@@ -41,6 +41,9 @@ export const EMPTY_ALLOW = [
 		why: '枠が空の人どうしの比べ（files が0件どうしで同じ）。件数も比べている' },
 	{ title: 'T76', file: 'tests/visual/blocks-96.mjs', line: 's.cols.every((c) => c.thumbs.every(',
 		why: '入れ子の内側。サムネイルの無い列は0件で正しく、外側の列と、列ごとのサムネイルの数は別に確かめている' },
+	// ---- (4) 意図して空のまま残す一覧（T171・決定 695） ----
+	{ title: 'T88 Deck α ―― 版の一致・略称のデータ', file: 'tests/visual/blocks-99.mjs', line: 'ABBR_PENDING.every(',
+		why: '略称待ちの一覧は、次の新しい衣装の略称が間に合わないときのために空のまま残す（C-369・T168）。空のときは every が真で、全衣装に略称があることは同じ塊の missing の確かめで見ている' },
 	// ---- 子プロセス（今の仕掛けは子プロセスに入らないので鳴らない。T149 の試作では NODE_OPTIONS で入ったので鳴った） ----
 	{ title: '', file: 'tests/catalog/check-catalog.mjs', line: "e.tags[k].every(isStr)",
 		why: 'check:catalog の型の確かめ。タグの配列が空でも「文字列の配列」であることは正しい' }
