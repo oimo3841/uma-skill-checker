@@ -8391,7 +8391,20 @@
 					});
 				});
 			});
-			const wanted = Object.keys(tierByRowKey).length;
+			// 置きたかった行は、置き場所の重なりを除いて数える（T171・決定 692。[印] の T166・決定 678 と同じ数え方）。
+			// 同じパネルが2枚の画に写ると rowKey が2つになり、前は2回数えていた（蹄鉄の抜けは無い）。重なりの見方は置くときと同じ（差し渡し s 未満）
+			const wantAt = [];
+			let wantOther = 0;
+			Object.keys(tierByRowKey).forEach(key => {
+				const [fi, ri] = key.split(':').map(Number);
+				const g = geo[fi], p = placements.find(q => q.fileIndex === fi), row = g && g.rows && g.rows[ri];
+				const metrics = g && g.columnXs ? attrCircleMetrics(g) : null;
+				if (!row || !metrics || !p) { wantOther++; return; }
+				const s = effRowIconSize(metrics.d / ATTR_WELL_D_OVER_PITCH);
+				const cx = g.columnXs[row.col] * g.scale - metrics.offset, cy = p.outY0 + ((row.y + row.h / 2) * g.scale - p.srcY0);
+				if (!wantAt.some(q => Math.abs(q.x - cx) < s && Math.abs(q.y - cy) < s)) wantAt.push({ x: cx, y: cy });
+			});
+			const wanted = wantAt.length + wantOther;
 			devGeometry.push('[蹄鉄] ' + PERSON_LABELS[personIdx] + ': 置いた ' + placed.length + ' / 置きたかった行 ' + wanted
 				+ '（差し渡し ' + Array.from(sizes).join('・') + 'px）');
 			return { drawn: placed.length > 0, suppressed: null, placed: placed.length, wanted: wanted, sizes: Array.from(sizes) };

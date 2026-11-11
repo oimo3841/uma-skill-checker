@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-11",
 "numbering": "runtime",
-"count": 1106,
+"count": 1107,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1111,6 +1111,7 @@
   {"file":"tests/visual/blocks-169.mjs","title":"T167(1) 横画面: 動いている・止まったまま・スクロールバーを引っ張る・末尾で止まっている間に動くカーソルが消え、中身は壊れない","ord":1,"marks":"VA","asserts":4},
   {"file":"tests/visual/blocks-169.mjs","title":"T167(1) 縦画面: 動いている・止まったまま・スクロールバーを引っ張る・末尾で止まっている間に動くカーソルが消え、中身は壊れない","ord":1,"marks":"VA","asserts":4},
   {"file":"tests/visual/blocks-169.mjs","title":"T167(2) 横画面: 末尾で止まっている間ずっと同じ所・2か所を行き来するカーソルは残る（決められない）が、相手の画のカーソルを写し込まない。開発ログに「行の上」","ord":1,"marks":"VASC","asserts":4},
-  {"file":"tests/visual/blocks-169.mjs","title":"T167(3) カーソルの無い動画は何も変えない（横画面・縦画面とも、余白のほかは素材の画をそのまま）","ord":1,"marks":"V","asserts":2}
+  {"file":"tests/visual/blocks-169.mjs","title":"T167(3) カーソルの無い動画は何も変えない（横画面・縦画面とも、余白のほかは素材の画をそのまま）","ord":1,"marks":"V","asserts":2},
+  {"file":"tests/visual/blocks-170.mjs","title":"T171 ―― exam.html: [蹄鉄] の「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（蹄鉄を置く数は変えない）","ord":1,"marks":"VC","asserts":3}
 ]
 }
