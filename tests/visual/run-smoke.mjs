@@ -181,6 +181,7 @@ import { register164 } from './blocks-164.mjs';
 import { register166 } from './blocks-166.mjs';
 import { register167 } from './blocks-167.mjs';
 import { register168 } from './blocks-168.mjs';
+import { register169 } from './blocks-169.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15685,6 +15686,8 @@ await register166({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register167({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T166 段3〜: 人の1枚目の選び方（頭の欠け）ほか（見出しは「T166段3」。tests/visual/blocks-168.mjs）
 await register168({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T167（2026-11-11）: 行の上のカーソルを消す新しい段（案 d1。覚える段の塊をその場で相手の画素で置き換える。見出しは「T167」）。tests/visual/blocks-169.mjs
+await register169({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

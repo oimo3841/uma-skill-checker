@@ -12,7 +12,7 @@ export async function register166(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 
-	await block('T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白だけを塗る（余白のカーソルは消え、行の上は今までどおり残る）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す', async () => {
+	await block('T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白を塗る（余白のカーソルは消え、行の上は T167 の段で消える）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す', async () => {
 		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
 		sp.page.setDefaultTimeout(120000);
 		try {
@@ -85,7 +85,7 @@ export async function register166(env) {
 						row.push(await diffAt(sel.persons[0].files[i], picks[i], 596, hE + 426, 36, 54, rowTruth));
 						mar.push(await diffAt(sel.persons[0].files[i], picks[i], MX + 18, hE + 596, 36, 54, (bx, t) => marginTruth(bx, t, /^landscape:/.test(kind))));
 					}
-					return { ms, sprite: st.sprite, samples: st.samples, cells: st.cells, frames: st.frames, margin: st.margin && { x: st.margin.x, cells: st.margin.cells, whole: st.margin.whole || 0 },
+					return { ms, sprite: st.sprite, samples: st.samples, cells: st.cells, frames: st.frames, lines: (st.lines || []).length, margin: st.margin && { x: st.margin.x, cells: st.margin.cells, whole: st.margin.whole || 0 },
 						searched: st.searched, searchAll: st.searchAll, row, mar, log: devGeometry.filter((l) => /^\[動画\] カーソル/.test(l)).slice(-1)[0] || null };
 				};
 				return { land: await run('landscape:test'), port: await run('crop:test') };
@@ -94,9 +94,10 @@ export async function register166(env) {
 			assert(L.margin && L.margin.x >= 1080 && L.margin.x <= 1112, '前提: 右の余白を測れる（余白の左端 1080〜1112）', L.margin);
 			assert(L.sprite === null && L.samples === 0 && L.cells === 0, '横画面: カーソルの形を覚えない・形で置き換えない（形を探す所を飛ばす）', L);
 			assert(L.margin && L.margin.whole === 4 && L.mar.every((v) => v < 6), '横画面: 4枚とも余白を全体で塗り、余白の上のカーソルが消える（差の平均 6 未満）', L);
-			assert(L.row.every((v) => v > 20), '横画面: 行の上のカーソルは残る（今までも消せていなかった。消す段は T167）', L.row);
-			assert(L.log && /横画面は余白だけ/.test(L.log), '横画面: 開発ログの [動画] カーソル: の行に「横画面は余白だけ」', L.log);
-			assert(P.sprite && P.cells >= 3 && P.row.every((v) => v < 6), '縦画面: 形を覚えて、4枚とも行の上のカーソルが消える（差の平均 6 未満）', P);
+			// T167（案 d1）から、行の上のカーソルは形を使わずに消える（覚える段の塊をその場で相手の画素で置き換える。検査は blocks-169）
+			assert(L.row.every((v) => v < 6) && L.lines >= 4, '横画面: 行の上のカーソルは T167 の段（行の上）で消える（差の平均 6 未満）', L);
+			assert(L.log && /横画面は形を探さない/.test(L.log), '横画面: 開発ログの [動画] カーソル: の行に「横画面は形を探さない」', L.log);
+			assert(P.sprite && P.cells + P.lines >= 3 && P.row.every((v) => v < 6), '縦画面: 形を覚えて、4枚とも行の上のカーソルが消える（差の平均 6 未満。T167 から、形で探す前に行の上の段〔lines〕が消すことがある）', P);
 			assert(P.mar.every((v) => v < 6), '縦画面: 余白の上のカーソルも消える（T118 のまま）', P.mar);
 			assert(P.searchAll > 0 && P.searched > 0 && P.searched < P.searchAll * 0.6, '縦画面: 形を当てた位置は総当たりの 6割未満（合わない区画の近くに絞る）', [P.searched, P.searchAll]);
 			assert(P.log && /形を当てた位置 \d+%/.test(P.log), '縦画面: 開発ログに「形を当てた位置 N%」', P.log);

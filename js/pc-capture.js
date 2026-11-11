@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-11a';
+	const PC_CAPTURE_JS_VERSION = '2026-11-11b';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -238,7 +238,7 @@
 	 * 比べる相手が足りない区画・相手どうしが合わない区画は、塗らずに残す（壊すほうを避ける）。
 	 * iPhone の動画（カーソルが無い）の流れに入れないよう、ここ（取り込みの側）に置く。js/video-frames.js の選ぶ処理は変えない。
 	 */
-	const POINTER = { poolMax: 40, BH: 16, BW: 16, minD: 80, sep: 60, sepVote: 16, refine: 10, extraMax: 16, extraRefine: 120, alignNear: 16, alignMax: 9, alignRatio: 1.2, maxW: 96, maxH: 128, learnMax: 8, spriteMinPx: 40, spriteMax: 32, spriteSure: 12, spriteVisible: 0.5, pad: 3, ring: 12, ringMean: 10, ringHot: 0.03, hot: 40, hotCount: 4, meanMax: 10, maxHits: 4, sliceMs: 24 };
+	const POINTER = { poolMax: 40, BH: 16, BW: 16, minD: 80, sep: 60, sepVote: 16, refine: 10, extraMax: 16, extraRefine: 120, alignNear: 16, alignMax: 9, alignRatio: 1.2, maxW: 96, maxH: 128, learnMax: 8, spriteMinPx: 40, spriteMax: 32, spriteSure: 12, spriteVisible: 0.5, pad: 3, linePad: 4, lineExtra: 2, lineSame: 4, sameGap: 0.2, lineMinH: 6, lineMaxW: 48, lineMaxH: 100, lineWaitH: 32, ring: 12, ringMean: 10, ringHot: 0.03, hot: 40, hotCount: 4, meanMax: 10, maxHits: 4, sliceMs: 24 };
 	/*
 	 * 行の右の余白（スクロールバーの辺り）のカーソルを消す（T118。スクロールバーを引っ張って撮るとカーソルが残った。決定は C-327）。
 	 * 上の消し方は「中身と一緒に動く所」でしか使えない（スクロールバーは中身と一緒に動かない）ので、そこを探す範囲からも覚える範囲からも外してあり、
@@ -449,7 +449,7 @@
 	async function removePointer(src, sel, track, signal) {
 		const W = src.width, H = src.height, { headerEnd: hE, contentH: cH } = sel.header;
 		const hw = Math.round(W / 2), P = POINTER;
-		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0, searched: 0, searchAll: 0 };
+		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0, searched: 0, searchAll: 0, lines: [], lineExtra: 0, lineSame: 0 };
 		const breathe = makeBreather(signal, P.sliceMs), rp0 = performance.now();
 		// DMM版の横画面の切り出し（kind に landscape: が入る。T145）だけ、一覧の左の動かない所を探す範囲から外す（縦画面は今のまま）
 		const landscape = /landscape:/.test(src.kind || '');
@@ -504,12 +504,13 @@
 		};
 		const same = (r) => r.hot <= P.hotCount && r.mean < P.meanMax;
 		// 自分との正確なずれ（見込み ±win 行）。一覧は行が同じ間隔で並ぶので、1行ぶんずれた所でも欄の形は合う。文字まで合う「はっきりした最小」でなければ相手にしない
-		const align = (me, q, d0, win = P.refine) => {
+		// st: 比べる画素の間引き（行・列とも st ごと。既定 3）。行の上の置き換えの位置の確かめ（T167）は 6 で軽く測る
+		const align = (me, q, d0, win = P.refine, st = 3) => {
 			const score = (d) => {
 				const y0 = Math.max(0, d), y1 = Math.min(cH, cH + d);
 				if (y1 - y0 < 48) return Infinity;
 				let s = 0, c = 0;
-				for (let y = y0; y < y1; y += 3) { let p = (y * hw + 8) * 4, r = ((y - d) * hw + 8) * 4; for (let x = 8; x < hw - 24; x += 3, p += 12, r += 12) { s += Math.abs(me[p + 1] - q[r + 1]); c++; } }
+				for (let y = y0; y < y1; y += st) { let p = (y * hw + 8) * 4, r = ((y - d) * hw + 8) * 4; for (let x = 8; x < hw - 24; x += st, p += st * 4, r += st * 4) { s += Math.abs(me[p + 1] - q[r + 1]); c++; } }
 				return s / c;
 			};
 			const list = [];
@@ -548,15 +549,17 @@
 		const rowsOk = (c, y, n) => y - c.d >= 0 && y - c.d + n <= cH;
 		const samples = [];
 		// 止まっている画の間が離れていて比べる相手が足りないときに使う、スクロールの途中のフレーム（時間の近い順に extraMax 枚）
-		const extrasFor = async (me, t, wantedRow) => {
+		// pick（T167）: 候補 [{ t, g }] から取り直す画を選ぶ関数（既定は時間の近い順に most 枚）
+		const extrasFor = async (me, t, wantedRow, most = P.extraMax, pick = null) => {
 			const myPos = posAt(t), wanted = [];
 			for (let tt = 0; tt < src.duration - 0.02; tt += 1 / 30) {
 				const g = interp(tt) - myPos;
 				if (Math.abs(g) < P.minD || !wantedRow(g)) continue;
 				if (wanted.every((w) => Math.abs(w.g - g) >= P.sepVote)) wanted.push({ t: tt, g });
 			}
+			if (pick) { const keep = pick(wanted); wanted.length = 0; wanted.push(...keep); }
 			wanted.sort((u, v) => Math.abs(u.t - t) - Math.abs(v.t - t));
-			wanted.length = Math.min(wanted.length, P.extraMax);
+			wanted.length = Math.min(wanted.length, most);
 			wanted.sort((u, v) => u.t - v.t);
 			const list = [];
 			for (const w of wanted) {
@@ -572,16 +575,75 @@
 			stat.extra += list.length;
 			return list;
 		};
-		const learnFrom = async (me, t, cands) => {
-			const odd = new Set();
+		// 一覧の端（先頭・末尾）は1枚にしか写らず、スクロール量の違う相手が無い。一覧が止まっている間にカーソルが動いていれば、
+		// 同じ位置の別の時刻の画が相手になる（T167）。止まっている時間の中から、自分と離れた時刻を lineSame 枚まで等間隔に
+		const sameFor = async (me, t) => {
+			const myPos = posAt(t), list0 = known.filter((f) => f.pos === myPos && Math.abs(f.t - t) >= P.sameGap);
+			const list = [];
+			for (let i = 0; i < Math.min(P.lineSame, list0.length); i++) {
+				const f = list0[Math.floor((i + 0.5) * list0.length / Math.min(P.lineSame, list0.length))];
+				await breathe();
+				await src.drawAt(f.t, dx2d, W, H, signal);
+				const qh = halfOf(extraCanvas);
+				if (align(me, qh, 0, 2) !== 0) continue;
+				const band = document.createElement('canvas'); band.width = W; band.height = cH;
+				band.getContext('2d').drawImage(extraCanvas, 0, hE, W, cH, 0, 0, W, cH);
+				list.push({ q: { band, half: qh, t: f.t, still: true, pos: myPos }, d: 0, dt: Math.abs(f.t - t), same: true });
+			}
+			stat.lineSame += list.length;
+			return list;
+		};
+		// スクロール量の違う相手のどれも写さない行（一覧の端）の範囲 [{ x0, x1, y0, y1 }]（半分の幅の画の座標）。
+		// 塊のまわりの区画（上下 BH）まで写す相手が無いと確かめられないので、写す行の上下の BH も端に入れる
+		const uncovered = (cands) => {
+			const rows = new Uint8Array(cH), list = [];
+			for (const c of cands) if (cH - Math.abs(c.d) > 2 * P.BH) rows.fill(1, c.d > 0 ? c.d + P.BH : 0, c.d < 0 ? cH + c.d - P.BH : cH);
+			for (let y = 0; y < cH; y++) {
+				if (rows[y]) continue;
+				let e = y; while (e + 1 < cH && !rows[e + 1]) e++;
+				list.push({ x0: 0, x1: hw, y0: y, y1: e + 1 }); y = e;
+			}
+			return list;
+		};
+		// 行の上のカーソルを、覚える段で見つけた塊のまま置き換える（T167・案 d1）。file ごとの [{ x0, x1, y0, y1, data }]（等倍の画の座標・帯の中の行）。
+		// 相手が1枚しか合わず、2枚目で確かめられなかった差の大きい塊は lineWait に残し、あとでその行を写すスクロールの途中の画と、
+		// 同じ位置の別の時刻の画を相手に足して確かめ直す
+		const lineFix = new Map(), lineWait = new Map();
+		// カーソルらしい形（差のある画素の四角が横に寝た細い帯でない。帯の上の端の影・圧縮のにじみを外す）。大きさはカーソルまで（字の帯のような
+		// 横に長い塊は置き換えない。横画面の拡大したカーソルで半分の幅の画の 25×39px 前後）
+		const pointerLike = (px, minH = P.lineMinH) => {
+			let ya = Infinity, yb = -1, xa = Infinity, xb = -1;
+			for (const q of px) { if (q[0] < xa) xa = q[0]; if (q[0] > xb) xb = q[0]; if (q[1] < ya) ya = q[1]; if (q[1] > yb) yb = q[1]; }
+			const w = xb - xa + 1, h = yb - ya + 1;
+			return h >= minH && w <= h * 2 && w <= P.lineMaxW && h <= P.lineMaxH;
+		};
+		const hotPx = (me, c, y0, y1, x0, x1) => {
+			const px = [], h = c.q.half;
+			for (let y = y0; y < Math.min(y1, cH); y++) for (let x = x0; x < Math.min(x1, hw); x++) {
+				const p = (y * hw + x) * 4, r = ((y - c.d) * hw + x) * 4;
+				if ((Math.abs(me[p] - h[r]) + Math.abs(me[p + 1] - h[r + 1]) + Math.abs(me[p + 2] - h[r + 2])) / 3 > P.hot) px.push([x, y, me[p], me[p + 1], me[p + 2]]);
+			}
+			return px;
+		};
+		// 行の上の置き換えに使う相手の位置が確かか（T167）: 広く（±extraRefine 行）探しても、その位置がはっきりいちばん合う（形を覚える所の厳しい見方と同じ）。
+		// 一覧は行が同じ間隔で並ぶので、スクロールの途中のぶれた画では、記録の位置が1〜2行ずれたまま「合う」になることがあり、別の行の字と★を写し込んだ。
+		// 同じ位置の相手（c.same）は、同じ止まりの中の画なので確か。1つの相手につき1回だけ測る
+		const sure = (me, c) => c.same || (c.sure != null ? c.sure : (c.sure = align(me, c.q.half, c.d, P.extraRefine, 6) === c.d));
+		// only: 確かめ直す所（lineWait の塊と一覧の端の行）。渡したときは、それに重なる塊だけを見て、形は覚えない（覚える段の結果を変えない）
+		const learnFrom = async (me, t, cands, file, only) => {
+			const odd = new Map();
 			for (let y = 0; y + P.BH <= cH; y += P.BH) {
 				await breathe();
-				const av = cands.filter((c) => rowsOk(c, y, P.BH));
-				if (!av.length) continue;
-				for (let x0 = x0s; x0 + 6 <= xEnd; x0 += P.BW) if (!av.some((c) => cell(me, y, c.q.half, y - c.d, x0))) odd.add(y + ':' + x0);
+				const av = cands.filter((c) => !c.same && rowsOk(c, y, P.BH));
+				if (av.length) { for (let x0 = x0s; x0 + 6 <= xEnd; x0 += P.BW) if (!av.some((c) => cell(me, y, c.q.half, y - c.d, x0))) odd.set(y + ':' + x0, ''); continue; }
+				// 一覧の端の行: 同じ位置の別の時刻の画のどれとも合わない区画。1枚でも合えば置き換えない（カーソルが2か所を行き来すると、
+				// どちらが中身か画素からは決められない。相手の側のカーソルを写し込まないほうを取る）
+				const sv = cands.filter((c) => c.same);
+				if (sv.length < 2) continue;
+				for (let x0 = x0s; x0 + 6 <= xEnd; x0 += P.BW) if (!sv.some((c) => cell(me, y, c.q.half, y, x0))) odd.set(y + ':' + x0, 's');
 			}
 			const seen = new Set();
-			for (const k of odd) {
+			for (const [k] of odd) {
 				await breathe();
 				if (seen.has(k)) continue;
 				seen.add(k);
@@ -594,18 +656,58 @@
 				const ys = list.map((c) => c.y), xs = list.map((c) => c.x);
 				const y0 = Math.min(...ys), y1 = Math.max(...ys) + P.BH, x0 = Math.min(...xs), x1 = Math.max(...xs) + P.BW;
 				if (x1 - x0 > P.maxW || y1 - y0 > P.maxH) continue;
+				if (only && !only.some((r) => r.x0 < x1 && r.x1 > x0 && r.y0 < y1 && r.y1 > y0)) continue;
 				const inner = new Set(list.map((c) => c.y + ':' + c.x)), ring = [];
 				const ry0 = Math.max(0, y0 - P.BH), ry1 = Math.min(cH, y1 + P.BH);
 				for (let y = ry0; y + P.BH <= ry1; y += P.BH) for (let x = Math.max(x0s, x0 - P.BW); x + 6 <= Math.min(xEnd, x1 + P.BW); x += P.BW) if (!inner.has(y + ':' + x)) ring.push({ y, x });
-				const ok = cands.filter((c) => rowsOk(c, ry0, ry1 - ry0) && ring.every((r) => cell(me, r.y, c.q.half, r.y - c.d, r.x)));
-				let donor = null;
-				for (let u = 0; u < ok.length && !donor; u++) for (let v = u + 1; v < ok.length; v++) if (Math.abs(ok[u].d - ok[v].d) >= P.sep && list.every((c) => cell(ok[u].q.half, c.y - ok[u].d, ok[v].q.half, c.y - ok[v].d, c.x))) { donor = ok[u]; break; }
-				if (!donor) continue;
-				const px = [];
-				for (let y = y0; y < Math.min(y1, cH); y++) for (let x = x0; x < Math.min(x1, hw); x++) {
-					const p = (y * hw + x) * 4, r = ((y - donor.d) * hw + x) * 4, h = donor.q.half;
-					if ((Math.abs(me[p] - h[r]) + Math.abs(me[p + 1] - h[r + 1]) + Math.abs(me[p + 2] - h[r + 2])) / 3 > P.hot) px.push([x, y, me[p], me[p + 1], me[p + 2]]);
+				// まわりが自分と合い、互いにも塊の所が合う2枚の相手。スクロール量の違う相手は量が sep 以上違うこと（カーソルは中身と一緒に動かない）。
+				// 行の上の置き換え（fix）は、位置の確かな相手（sure）だけ・塊の所が自分とも合う相手（同じ所にカーソルが写っている）を除く。
+				// 同じ位置の相手（c.same。一覧の端の行と、ほかの相手で確かめられなかった塊だけ）は時刻が離れていること（カーソルが同じ所に留まっていない）
+				const pair = (same, fix) => {
+					const ok = cands.filter((c) => !!c.same === same && rowsOk(c, ry0, ry1 - ry0) && ring.every((r) => cell(me, r.y, c.q.half, r.y - c.d, r.x)) && (!fix || sure(me, c)));
+					const apart = (a, b) => (same ? Math.abs(a.q.t - b.q.t) >= P.sameGap : Math.abs(a.d - b.d) >= P.sep);
+					const usable = fix ? ok.filter((c) => !list.every((e) => cell(me, e.y, c.q.half, e.y - c.d, e.x))) : ok;
+					for (let u = 0; u < usable.length; u++) for (let v = u + 1; v < usable.length; v++) if (apart(usable[u], usable[v]) && list.every((c) => cell(usable[u].q.half, c.y - usable[u].d, usable[v].q.half, c.y - usable[v].d, c.x))) return { donor: usable[u], ok };
+					return { donor: null, ok };
+				};
+				const edge = list.some((c) => odd.get(c.y + ':' + c.x) === 's');
+				if (file) {
+					let { donor, ok } = pair(edge, true);
+					if (!donor && !edge && only) ({ donor } = pair(true, true));
+					if (donor) {
+						// 差のある画素（余白の画素は数えない。余白は下で塗る）がカーソルらしい形・大きさなら、その四角と少しの余裕を相手の画素で置き換える。
+						// まわりの区画（ring）は相手と合っているので、そこまでははみ出してよい
+						const pxL = hotPx(me, donor, y0, y1, x0, Math.min(x1, xLimit));
+						if (pxL.length >= P.spriteMinPx && pointerLike(pxL)) {
+							let ax = Infinity, bx = -1, ay = Infinity, by = -1;
+							for (const q of pxL) { if (q[0] < ax) ax = q[0]; if (q[0] > bx) bx = q[0]; if (q[1] < ay) ay = q[1]; if (q[1] > by) by = q[1]; }
+							const X0 = Math.max(x0s, x0 - P.BW, ax - P.linePad), X1 = Math.min(xLimit, hw, x1 + P.BW, bx + 1 + P.linePad);
+							const Y0 = Math.max(ry0, ay - P.linePad, donor.d), Y1 = Math.min(ry1, by + 1 + P.linePad, cH + donor.d);
+							const list2 = lineFix.get(file) || [];
+							const sx = Math.floor(X0 * W / hw), ex = Math.min(W, Math.ceil(X1 * W / hw));
+							if (X1 > X0 && Y1 > Y0 && !list2.some((r) => r.x0 < ex && r.x1 > sx && r.y0 < Y1 && r.y1 > Y0)) {
+								list2.push({ x0: sx, x1: ex, y0: Y0, y1: Y1, t: donor.q.t, data: donor.q.band.getContext('2d', { willReadFrequently: true }).getImageData(sx, Y0 - donor.d, ex - sx, Y1 - Y0) });
+								lineFix.set(file, list2);
+							}
+						}
+					} else if (!only && !edge) {
+						// 確かめ直しに回す（相手が1枚しか合わない・まわりの区画まで写す相手が無い）。差を測る相手は、まわりまで合う相手か塊の所を写す相手
+						// 位置の確かでない相手しか無い画（スクロールの途中のぶれた画）は、取り直しても確かめられないので回さない
+						const ref = ok[0] || cands.find((c) => !c.same && rowsOk(c, y0, y1 - y0));
+						// 取り直しは重い（1枚 0.2〜0.3秒）ので、縦に lineWaitH 行以上ある塊だけ（圧縮のにじみの小さな塊を外す。カーソルは縦に長い）
+						const px0 = ref && sure(me, ref) ? hotPx(me, ref, y0, y1, x0, Math.min(x1, xLimit)) : [];
+						if (px0.length >= P.spriteMinPx && pointerLike(px0, P.lineWaitH)) {
+							const w = lineWait.get(file) || [];
+							w.push({ x0, x1, y0, y1, ry0, ry1, refD: ref.d });
+							lineWait.set(file, w);
+						}
+					}
 				}
+				// 形を覚える（縦画面。今までどおりの相手の選び方）
+				if (only || landscape || edge) continue;
+				const { donor } = pair(false, false);
+				if (!donor) continue;
+				const px = hotPx(me, donor, y0, y1, x0, x1);
 				if (px.length < P.spriteMinPx) continue;
 				const mx = Math.min(...px.map((q) => q[0])), my = Math.min(...px.map((q) => q[1])), w = Math.max(...px.map((q) => q[0])) - mx + 1, h2 = Math.max(...px.map((q) => q[1])) - my + 1;
 				if (margin && mx + w > xLimit) continue; // 余白にかかる塊は右が切れていて、形が欠けている（余白の形は下で覚える）
@@ -620,11 +722,38 @@
 			for (const g of groups.values()) if (g.length > count) { count = g.length; best = g.reduce((u, v) => (v.px.length > u.px.length ? v : u)); }
 			return count >= 2 ? { sprite: best, count } : { sprite: null, count };
 		};
-		// DMM版の横画面（T166・決定 676 の案 c）: 形を覚えて画全体を総当たりで探す所を飛ばし、下の余白を塗る所（T156）だけにする。
-		// 横画面の録画5本すべてで、覚えた形はカーソルでなく（縦長の帯・横の線）置き換えは 0 で、時間の 76〜90% がその総当たりだった（T165）
-		for (const file of landscape ? [] : uniq) {
+		// DMM版の横画面（T166・決定 676 の案 c）は、形を覚えて画全体を総当たりで探す所を飛ばす（下で形を使わない）。覚える段の区画の比べは、
+		// 行の上のカーソルをその場で置き換えるため（T167・案 d1）に、横画面でも回す
+		const edges = new Map();
+		for (const file of uniq) {
+			const t = timeOf(file), me = await loadFile(file), cands = await candsOf(me, t);
+			await learnFrom(me, t, cands, file);
+			const e = uncovered(cands);
+			if (e.length) edges.set(file, e);
+		}
+		// 確かめ直す（T167）: 相手が1枚しか合わなかった差の大きい塊（速いスクロールで、止まっている画の間が離れている）と、一覧の端の行。
+		// 塊の行を写すスクロールの途中の画を lineExtra 枚まで、同じ位置の別の時刻の画を lineSame 枚まで、相手に足す（形は覚えない）
+		for (const file of uniq) {
+			const wait = lineWait.get(file) || [], edge = edges.get(file) || [];
+			if (!wait.length && !edge.length) continue;
 			const t = timeOf(file), me = await loadFile(file);
-			await learnFrom(me, t, await candsOf(me, t));
+			// 取り直すのは、塊ごとに lineExtra 枚まで: 塊のまわりまで写し、1枚目の相手とスクロール量が sep 以上違う画（2枚目の相手になれる画）を、
+			// 量が自分（0）とも1枚目の相手とも遠い順に、互いにも sep 以上離して（止まったままのカーソルは、量の小さい画では自分のカーソルがまわりの区画に重なる）
+			const fits = (r, g) => r.ry0 - g >= 0 && r.ry1 - g <= cH && Math.abs(g - r.refD) >= P.sep;
+			const pick = (list) => {
+				const keep = [];
+				for (const r of wait) {
+					const mine = [], far = (g) => Math.min(Math.abs(g), Math.abs(g - r.refD));
+					for (const w of list.filter((w) => fits(r, w.g)).sort((u, v) => far(v.g) - far(u.g))) if (mine.length < P.lineExtra && mine.every((k) => Math.abs(k.g - w.g) >= P.sep)) mine.push(w);
+					for (const w of mine) if (!keep.includes(w)) keep.push(w);
+				}
+				return keep;
+			};
+			const extra = wait.length ? await extrasFor(me, t, (g) => wait.some((r) => fits(r, g)), P.lineExtra * wait.length, pick) : [];
+			const same = await sameFor(me, t);
+			stat.lineExtra += extra.length;
+			if (extra.length || same.length >= 2) await learnFrom(me, t, (await candsOf(me, t)).concat(extra, same), file, wait.concat(edge));
+			for (const c of extra.concat(same)) { c.q.band.width = c.q.band.height = 0; }
 		}
 		// 余白の塊からも覚える（スクロールバーを引っ張る間、カーソルは行の上に来ない）。塊が余白の左端で切れているものは形が欠けているので使わない
 		if (!landscape && !pickSprite().sprite && margin) {
@@ -646,7 +775,7 @@
 			for (const file of uniq.slice(0, P.learnMax)) {
 				const t = timeOf(file), me = await loadFile(file);
 				const extra = await extrasFor(me, t, () => true);
-				await learnFrom(me, t, (await candsOf(me, t)).concat(extra));
+				await learnFrom(me, t, (await candsOf(me, t)).concat(extra), file);
 				for (const c of extra) { c.q.band.width = c.q.band.height = 0; }
 				if (pickSprite().sprite) break;
 			}
@@ -827,8 +956,19 @@
 			};
 		}
 		for (const file of uniq) {
-			const t = timeOf(file), me = await loadFile(file);
-			let done = fixBySprite ? await fixBySprite(file, t, me) : 0;
+			const t = timeOf(file);
+			let me = await loadFile(file), done = 0;
+			// 0. 行の上のカーソル（T167・案 d1）: 覚える段で、自分だけが違い、スクロール量の違う2枚が互いに合う塊を見つけた所は、その相手の画素で置き換える
+			const fixes = lineFix.get(file);
+			if (fixes) {
+				for (const r of fixes) {
+					dx.putImageData(r.data, r.x0, hE + r.y0);
+					stat.lines.push({ t: +t.toFixed(2), x: [r.x0, r.x1], y: [r.y0, r.y1], from: +r.t.toFixed(2) });
+				}
+				done += fixes.length;
+				me = halfOf(draw);
+			}
+			if (fixBySprite) done += await fixBySprite(file, t, me);
 			// 4. 行の右の余白のカーソル（T118）
 			if (margin) {
 				const d = dx.getImageData(margin.mX, hE, margin.mW, cH).data;
@@ -863,8 +1003,8 @@
 		extraCanvas.width = extraCanvas.height = 0; draw.width = draw.height = 0; half.width = half.height = 0;
 		for (const p of sel.persons) p.files = p.files.map((f) => out.get(f) || f);
 		devLog('[動画] カーソル: ' + Math.round(performance.now() - rp0) + 'ms・形 ' + (stat.sprite ? stat.sprite.w + 'x' + stat.sprite.h + '（' + stat.sprite.seen + '回）' : 'なし')
-			+ '・置き換え ' + stat.cells + '・残し ' + stat.leftCells + '・余白 ' + (stat.margin ? stat.margin.cells + (stat.margin.whole ? '（全体を塗った画 ' + stat.margin.whole + '）' : '') : '—') + '・直した画 ' + stat.frames
-			+ (landscape ? '・中身の左端 ' + stat.xStart + '・横画面は余白だけ' : '') + (stat.manyHits ? '・当たりが多く使わなかった画 ' + stat.manyHits : '')
+			+ '・行の上 ' + stat.lines.length + (stat.lineExtra ? '（足した相手 ' + stat.lineExtra + '）' : '') + '・置き換え ' + stat.cells + '・残し ' + stat.leftCells + '・余白 ' + (stat.margin ? stat.margin.cells + (stat.margin.whole ? '（全体を塗った画 ' + stat.margin.whole + '）' : '') : '—') + '・直した画 ' + stat.frames
+			+ (landscape ? '・中身の左端 ' + stat.xStart + '・横画面は形を探さない' : '') + (stat.manyHits ? '・当たりが多く使わなかった画 ' + stat.manyHits : '')
 			+ (stat.searchAll ? '・形を当てた位置 ' + Math.round(stat.searched * 100 / stat.searchAll) + '%' : ''));
 		return stat;
 	}

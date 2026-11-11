@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-11",
 "numbering": "runtime",
-"count": 1102,
+"count": 1106,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1100,13 +1100,17 @@
   {"file":"tests/visual/blocks-164.mjs","title":"T161(2) 縦画面の出どころ（kind に landscape: が無い）は今のまま: 置き換えず、静止画が sharpPick:false とバイトまで同じ","ord":1,"marks":"C","asserts":3,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(3) special.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4},
   {"file":"tests/visual/blocks-164.mjs","title":"T161(3) exam.html: 開発ログに段ごとの秒の行（取り込み・動画・OCR・結合）","ord":1,"marks":"VAC","asserts":4},
-  {"file":"tests/visual/blocks-166.mjs","title":"T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白だけを塗る（余白のカーソルは消え、行の上は今までどおり残る）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す","ord":1,"marks":"VASC","asserts":9},
+  {"file":"tests/visual/blocks-166.mjs","title":"T166段1 ―― カーソルを消す処理: 横画面は形を探さず右の余白を塗る（余白のカーソルは消え、行の上は T167 の段で消える）。縦画面の取り込みは形を当てる場所を絞り、行の上のカーソルを今までどおり消す","ord":1,"marks":"VAC","asserts":9},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段2 ―― special.html: 結合画像に1行も使わなかった動画の画は OCR せず、行の無い画として控える（印の確かめに当たらない）。使った画は今までどおり読む","ord":1,"marks":"VAT","asserts":8},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段2 ―― exam.html: 結合画像に1行も使わなかった動画の画は OCR せず、行の無い画として控える（印の確かめに当たらない）。使った画は今までどおり読む","ord":1,"marks":"VAT","asserts":8},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段5 ―― special.html: 「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（収まらない行があるときだけ開発ログに出る）","ord":1,"marks":"VATC","asserts":3},
   {"file":"tests/visual/blocks-167.mjs","title":"T166段5 ―― exam.html: 「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（収まらない行があるときだけ開発ログに出る）","ord":1,"marks":"VATC","asserts":3},
   {"file":"tests/visual/blocks-168.mjs","title":"T166段3 ―― 頭のパネルの上端が窓に入った画が無く、文字の下の青だけが窓に入る（速いスクロール）: 祖2 の1枚目は上端が写った画で、頭が欠けない","ord":1,"marks":"VC","asserts":4},
   {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― special.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8},
-  {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― exam.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8}
+  {"file":"tests/visual/blocks-168.mjs","title":"T166段4 ―― exam.html: 横画面の切り出しが 570px 未満なら結果の所に「ウィンドウが小さい」の知らせ・OCR のあとの知らせは動画の画を1行にまとめる","ord":1,"marks":"VAT","asserts":8},
+  {"file":"tests/visual/blocks-169.mjs","title":"T167(1) 横画面: 動いている・止まったまま・スクロールバーを引っ張る・末尾で止まっている間に動くカーソルが消え、中身は壊れない","ord":1,"marks":"VA","asserts":4},
+  {"file":"tests/visual/blocks-169.mjs","title":"T167(1) 縦画面: 動いている・止まったまま・スクロールバーを引っ張る・末尾で止まっている間に動くカーソルが消え、中身は壊れない","ord":1,"marks":"VA","asserts":4},
+  {"file":"tests/visual/blocks-169.mjs","title":"T167(2) 横画面: 末尾で止まっている間ずっと同じ所・2か所を行き来するカーソルは残る（決められない）が、相手の画のカーソルを写し込まない。開発ログに「行の上」","ord":1,"marks":"VASC","asserts":4},
+  {"file":"tests/visual/blocks-169.mjs","title":"T167(3) カーソルの無い動画は何も変えない（横画面・縦画面とも、余白のほかは素材の画をそのまま）","ord":1,"marks":"V","asserts":2}
 ]
 }
