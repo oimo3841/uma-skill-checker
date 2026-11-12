@@ -186,6 +186,7 @@ import { register170 } from './blocks-170.mjs';
 import { register171 } from './blocks-171.mjs';
 import { register172 } from './blocks-172.mjs';
 import { register173 } from './blocks-173.mjs';
+import { register174 } from './blocks-174.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -9420,8 +9421,10 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		// core は読まないので、core の表の本数からは除く（両方の表で data/ を網羅していることは run-verify §1 が見る）
 		const examOnly = (() => {
 			const m = /const EXAM_DATA_JSON_VERSIONS = \{([\s\S]*?)\};/.exec(fs.readFileSync(path.join(REPO_ROOT, 'exam.html'), 'utf8'));
-			// 固有スキルの名前の一覧は core と exam の両方が読む（T104。run-verify の IN_BOTH_TABLES）
-			return m ? [...m[1].matchAll(/'(data\/[a-z0-9-]+\.json)'/g)].map((x) => x[1]).filter((k) => k !== 'data/training-umamusume.json') : [];
+			// 固有スキルの名前の一覧は core と exam の両方が読む（T104。run-verify の IN_BOTH_TABLES）。
+			// ゲーム内の並び（skill-display-order.json）も同じ（T179。exam の並びでの拾い直しが読む）
+			const inBoth = ['data/training-umamusume.json', 'data/skill-display-order.json'];
+			return m ? [...m[1].matchAll(/'(data\/[a-z0-9-]+\.json)'/g)].map((x) => x[1]).filter((k) => !inBoth.includes(k)) : [];
 		})();
 		const dataFileCount = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json') && !examOnly.includes('data/' + f)).length;
 		assert(examOnly.length > 0 && !paths.some((k) => examOnly.includes(k)),
@@ -15700,6 +15703,8 @@ await register171({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register172({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T175（2026-11-12）: 収録データの写しを中身が変わったときだけ書く・取れた時刻は小さな値で毎回（見出しは「T175」）。tests/visual/blocks-173.mjs
 await register173({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T179（2026-11-12）: ★を置き場所で数える（S7）・2文字の名前の1字違いを並びで拾い直す（K1）・UmaExam に並びの拾い直しを写す（見出しは「T179」）。tests/visual/blocks-174.mjs
+await register174({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -168,7 +168,8 @@ for (const k of Object.keys(dataVerTable)) dataVerOwner[k] = 'core.js';
 for (const k of Object.keys(examDataVerTable)) dataVerOwner[k] = 'exam.html';
 // 例外（T104・2026-11-05）: 固有スキルの名前の一覧（training-umamusume.json）は、core と exam の両方が読む。exam は core を読まないので、
 // exam の表にも載せる。そのかわり両方の版が JSON の dataVersion と揃っていることを下の (2) で見る（データを受け入れるときは2か所を直す）。
-const IN_BOTH_TABLES = ['data/training-umamusume.json'];
+// T179（2026-11-12・決定 734）: ゲーム内の並び（skill-display-order.json）も同じ。exam の並びでの拾い直し（pickRowsByGameOrderExam）が読む。
+const IN_BOTH_TABLES = ['data/training-umamusume.json', 'data/skill-display-order.json'];
 const bothTables = Object.keys(examDataVerTable).filter((k) => k in dataVerTable && !IN_BOTH_TABLES.includes(k));
 const coreVerOfBoth = Object.fromEntries(IN_BOTH_TABLES.filter((k) => k in dataVerTable).map((k) => [k, dataVerTable[k]]));
 Object.assign(dataVerTable, examDataVerTable);

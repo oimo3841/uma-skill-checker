@@ -5111,6 +5111,60 @@
 			}
 			return Math.min(3, runs.filter(r => r[1] - r[0] + 1 >= minW).length);
 		}
+		// T179（決定 732。T178 の案 S7）: ★の置き場所で数える。速い動画で、★の左下に写った指のエフェクト（黄色い輪）を
+		// 3つ目の★と数えていた（T178-check-1 の 2-2）。
+		//   - 画ごとに「きれいな★」（金色の列の連なりで、幅 0.022〜0.034W・縦の中心が文字帯の下端から すきまの中央値の 0.15〜0.40）
+		//     の位置から、★の置き場所3つ（列の左端から1つ目までの位置・間隔・★の幅）を推定する（estimateStarSlots）。
+		//   - 置き場所に重なる連なり（重なりが ★0.3個ぶん、または連なりの幅の6割）がある置き場所の数を★にする（countStarsInSlots）。
+		//     窓の下端で★の先だけ写った細い切れ端も、置き場所に重なれば今どおり数える。幅の下限（案C の 0.005W）は今どおり。
+		//   - 推定できない画（きれいな★が4つ未満・間隔が取れない）は今までどおり連なりの数（countRowStarBlobs と同じ）。
+		//   special.html の computeRowStarCountsSpecial と同じ中身（両ページで同じ値を保つ）。
+		function rowGoldRuns(mask, W, x0, x1, y0, y1) {
+			x0 = Math.max(0, x0); x1 = Math.min(W, x1);
+			const runs = [];
+			if (x1 <= x0 || y1 <= y0) return runs;
+			const top = new Int32Array(x1 - x0).fill(-1), bot = new Int32Array(x1 - x0).fill(-1);
+			for (let y = y0; y < y1; y++) { const b = y * W; for (let x = x0; x < x1; x++) if (mask[b + x]) { const k = x - x0; if (top[k] < 0) top[k] = y; bot[k] = y; } }
+			for (let i = 0; i < top.length; i++) {
+				if (top[i] < 0) continue;
+				const last = runs[runs.length - 1];
+				if (last && i - last.b <= 2) { last.b = i; if (top[i] < last.yt) last.yt = top[i]; if (bot[i] > last.yb) last.yb = bot[i]; }
+				else runs.push({ a: i, b: i, yt: top[i], yb: bot[i] });
+			}
+			return runs.map(q => ({ x0: x0 + q.a, x1: x0 + q.b, w: q.b - q.a + 1, yt: q.yt, yb: q.yb }));
+		}
+		// rows … [{ x0（列の左端）, bandB（文字帯の下端）, runs }]。推定できなければ null
+		function estimateStarSlots(rows, W, medGap) {
+			if (!(medGap > 0)) return null;
+			const offs = [], ws = [], pitches = [];
+			rows.forEach(r => {
+				const clean = r.runs.filter(q => {
+					const cy = ((q.yt + q.yb) / 2 - r.bandB) / medGap;
+					return q.w >= W * 0.022 && q.w <= W * 0.034 && cy > 0.15 && cy < 0.4;
+				});
+				clean.forEach((q, k) => { offs.push(q.x0 - r.x0); ws.push(q.w); if (k) pitches.push(q.x0 - clean[k - 1].x0); });
+			});
+			if (offs.length < 4 || !pitches.length) return null;
+			const near = pitches.filter(p => p > W * 0.025 && p < W * 0.045);
+			const pitch = near.length ? median(near) : median(pitches);
+			const starW = median(ws);
+			// 1つ目の置き場所: 位置を 3px ごとにまとめ、きれいな★の 15%（最低2つ）以上が集まる所のうち、いちばん左
+			const bins = new Map();
+			offs.forEach(o => { const k = Math.round(o / 3) * 3; bins.set(k, (bins.get(k) || 0) + 1); });
+			const need = Math.max(2, offs.length * 0.15);
+			let s1 = null;
+			bins.forEach((n, k) => { if (n >= need && (s1 === null || k < s1)) s1 = k; });
+			return s1 === null ? null : { s1: s1, pitch: pitch, starW: starW };
+		}
+		function countStarsInSlots(runs, x0, W, slots) {
+			const minW = Math.max(3, Math.round(W * 0.005));
+			let n = 0;
+			for (let k = 0; k < 3; k++) {
+				const a = x0 + slots.s1 + k * slots.pitch - 2, b = a + slots.starW + 4;
+				if (runs.some(q => q.w >= minW && Math.min(b, q.x1 + 1) - Math.max(a, q.x0) >= Math.min(slots.starW * 0.3, q.w * 0.6))) n++;
+			}
+			return n;
+		}
 		function computeRowStarCountsExam(baseCanvas, detection) {
 			const W = baseCanvas.width, H = baseCanvas.height;
 			const gold = goldMaskOf(getPixels(baseCanvas));
@@ -5119,9 +5173,9 @@
 			const gaps = [];
 			for (let i = 0; i + 1 < bands.length; i++) gaps.push(bands[i + 1].a - bands[i].b);
 			const medGap = gaps.length ? median(gaps) : 0;
-			return detection.rows.map(row => {
+			const items = detection.rows.map(row => {
 				const band = bands[row.band];
-				if (!band) return { stars: 0, reliable: false };
+				if (!band) return null;
 				const nextBand = bands[row.band + 1];
 				const rowH = band.b - band.a + 1;
 				const y0 = band.b + 1;
@@ -5135,12 +5189,20 @@
 					reliable = false;
 					if (y1 > H) y1 = H;
 				}
-				if (y1 <= y0) return { stars: 0, reliable: false };
+				if (y1 <= y0) return null;
 				const colX = columnXs[row.col];
 				const nextColX = columnXs[row.col + 1];
 				const x0 = (colX !== undefined) ? colX : row.x;
 				const x1 = (nextColX !== undefined) ? (nextColX - Math.round(W * 0.03)) : W;
-				return { stars: countRowStarBlobs(gold, W, x0, x1, y0, y1), reliable: reliable };
+				return { x0: Math.max(0, x0), bandB: band.b, runs: rowGoldRuns(gold, W, x0, x1, y0, y1), reliable: reliable };
+			});
+			// T179（S7）: 置き場所を推定できた画は置き場所で、できない画は今までどおり連なりの数で
+			const slots = estimateStarSlots(items.filter(it => it), W, medGap);
+			const minW = Math.max(3, Math.round(W * 0.005));
+			return items.map(it => {
+				if (!it) return { stars: 0, reliable: false };
+				const stars = slots ? countStarsInSlots(it.runs, it.x0, W, slots) : Math.min(3, it.runs.filter(q => q.w >= minW).length);
+				return { stars: stars, reliable: it.reliable };
 			});
 		}
 
@@ -5345,6 +5407,10 @@
 				try { await loadGreenNames(); }
 				catch (err) { console.warn('緑因子の名前の一覧を読み込めませんでした', err); }
 			}
+			// T179（決定 734）: 並びでの拾い直しに使う、564行の名前とゲーム内の並び。どのモードでも読む。
+			// 読めなくても判定は続ける（拾い直さないだけ。知らせは出さない）
+			try { await loadMelopSheet(); await loadSkillDisplayOrder(); }
+			catch (err) { console.warn('並びでの拾い直しのデータを読み込めませんでした（拾い直しなしで判定します）', err); }
 			// 効率で選ぶ（C-136）。照合は拡張モードの辞書で行うので、並びのデータと効率のデータを読む。
 			// 押した時点でまだ読めていなければ、ここで読んで今の境目と区間で控える。読めなければ効率なしで判定する
 			if (run.scope === 'efficiency') {
@@ -5410,6 +5476,9 @@
 							personMelop[p] = { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) };
 						} catch (e) { personMelop[p] = null; }
 					}
+					// T179（決定 734）: いつもの判定への並びでの拾い直し（同点の行・2文字の名前の1字違いの行）。対象の範囲に入っている名前だけを足す。
+					// 上の564行の照合（personMelop）があればその結果を使う（照合を2回通さない）。無ければここで照合する
+					if (melopSheet && skillOrderPosById) addOrderPicksInScope(personResults[p], result.lines, melopSheet, run, personMelop[p] ? personMelop[p].res : null);
 					// T104: Deck (αテスト) へ送るときの緑因子（継承固有）。読めなくても判定は続ける
 					if (run.deck && examGreenNames) {
 						try { personGreen[p] = await readGreenFactor(worker, files); } catch (e) { personGreen[p] = null; }
@@ -6209,7 +6278,9 @@
 			// 「効率で選ぶ（βテスト）」と結合画像の効率の合計が読む（C-136）
 			'data/skill-efficiency.json': '2026-11-10a',
 			// Deck (αテスト) へ送るときの緑因子の名前（固有スキルの名前。T104）
-			'data/training-umamusume.json': '2026-11-10a'
+			'data/training-umamusume.json': '2026-11-10a',
+			// 並びでの拾い直し（T179・決定 734。pickRowsByGameOrderExam）に使うゲーム内の並び
+			'data/skill-display-order.json': '2026-11-10b'
 		};
 		// 効率の区間の蹄鉄（左から銅・銀・金・虹＝効率の低い区間から高い区間）。画像はファイル名の日付が版
 		// （差し替えるときは新しい名前にする。test:verify §1 が img/ の実ファイルとの一致を見る）
@@ -6344,7 +6415,163 @@
 			let res = matchAllSkillsWithStars(marked, sheet.listDict.list, sheet.listDict.index, {});
 			res = applyScenarioFactorStrictMatch(res, marked, { factors: MELOP_ALL_FACTORS });
 			res = applyAptitudeGeneStrictMatch(res, marked, { genes: MELOP_ALL_GENES });
+			// T179: 並びでの拾い直し（同点の行・2文字の名前の1字違いの行）。並びのデータを読めていなければ何もしない
+			res.orderPicks = pickRowsByGameOrderExam(res, marked, sheet);
 			return res;
+		}
+
+		/* ------------------------------------------------------------
+		 * T179（決定 734。special.html の T157〔632〕と T179 の K1〔733〕を UmaExam に写したもの）
+		 *   - 564行の名前（拡張モードの辞書）で照合した結果に対して、special.html と同じ2つの拾い直しを掛ける
+		 *     （pickRowsByGameOrderExam）。どちらも「同じ画のすぐ上・すぐ下〔行の番号 ±1〕の行が1つのスキルに決まっていて、
+		 *     ゲーム内の並び（data/skill-display-order.json）の間に入る候補が1つだけ」なら採る。決まらなければ何も足さない。
+		 *       ① 同点で捨てた行（照合の devAmbiguous で、絞り込めなかった行）… 生存候補の中から（T157）
+		 *       ② どの名前にも当たらなかった行で、読み（正規化して2〜3文字）が2文字の名前に距離1の行 … その名前の中から（K1。
+		 *          2文字の名前は1字違いを許さないので、速い動画で1枚にしか写らない行の読み違い〔巨歩 →「巨坂」〕が抜けていた）
+		 *     上下に使うのは照合で決まった行だけ（拾い直しで足したものは使わない）。すでに別の行で出ているスキルは触らない。
+		 *   - 拡張モード・効率を指定・Deck へ送るぶんは、この照合（matchMelopLines）の結果をそのまま使うので、そのまま効く
+		 *     （効率を指定は、このあと今までどおり対象の区間で絞る）。
+		 *   - いつもの判定（対象スキルの範囲の名前だけで照合する personResults）には、addOrderPicksInScope で、
+		 *     564行の名前で照合して拾い直した名前のうち **今の対象の範囲に入っているものだけ** を足す
+		 *     （対象の範囲の名前だけで並びを見ると、範囲の外のスキルの行を範囲の中の字面の近い名前に取りかねないため。
+		 *     special.html が全部の名前で照合してから②の範囲で絞るのと同じ順）。その行がいつもの判定で別の名前に決まっていれば足さない。
+		 *   - 並びのデータは exam が core を読まないので、ここで読む（loadSkillDisplayOrder）。読めなければ（file:// など）拾い直さない。
+		 *   - 名前 → 独自ID は並びのデータ（data/melop-sheet-rows.json）の行の id。id の無い行・並びに無い id は上下にも候補にも使わない。
+		 * ------------------------------------------------------------ */
+		const SKILL_ORDER_PATH = 'data/skill-display-order.json';
+		let skillOrderPosById = null;   // Map: 独自ID → 並びの位置（読み込めたら持ち続ける）
+		let skillOrderPromise = null;
+		function loadSkillDisplayOrder() {
+			if (skillOrderPosById) return Promise.resolve(skillOrderPosById);
+			if (!skillOrderPromise) {
+				skillOrderPromise = (async () => {
+					const v = EXAM_DATA_JSON_VERSIONS[SKILL_ORDER_PATH];
+					const res = await fetch(SKILL_ORDER_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
+					if (!res.ok) throw new Error('HTTP ' + res.status);
+					const json = await res.json();
+					const m = new Map();
+					((json && json.entries) || []).forEach((e, i) => { if (e && e.id !== undefined && !m.has(String(e.id))) m.set(String(e.id), i); });
+					skillOrderPosById = m;
+					return m;
+				})();
+				skillOrderPromise.catch(() => { skillOrderPromise = null; });
+			}
+			return skillOrderPromise;
+		}
+		function examRowSkills(res, lines) {
+			const at = new Map();
+			Object.keys(res.skillSources || {}).forEach(name => {
+				(res.skillSources[name] || []).forEach(i => {
+					const k = lines[i] && lines[i].rowKey;
+					if (!k) return;
+					if (!at.has(k)) at.set(k, new Set());
+					at.get(k).add(name);
+				});
+			});
+			return at;
+		}
+		/** res（564行の名前で照合した結果）に拾い直した名前を足し、足したもの [{ name, indexes, how, rowKey }] を返す。
+		 *  開発用に res.devOrderRows（行ごとの候補・上下・間の候補・採った名前）を残す */
+		function pickRowsByGameOrderExam(res, lines, sheet) {
+			res.devOrderRows = [];
+			const added = [];
+			if (!skillOrderPosById || !sheet) return added;
+			const posOf = (name) => {
+				const r = sheet.rowByDictName[name];
+				if (!r || r.id === undefined) return null;
+				const p = skillOrderPosById.get(String(r.id));
+				return p === undefined ? null : p;
+			};
+			const parseKey = (k) => { const m = /^(\d+):(\d+)$/.exec(String(k || '')); return m ? { img: Number(m[1]), row: Number(m[2]) } : null; };
+			const matchedAt = examRowSkills(res, lines);
+			// 同じ画のすぐ上・すぐ下の決まった行と、その間に入る候補
+			const between = (key, cands) => {
+				const at = parseKey(key);
+				if (!at) return null;
+				let up = null, down = null;
+				matchedAt.forEach((set, k) => {
+					const p = parseKey(k);
+					if (!p || p.img !== at.img || set.size !== 1) return;
+					const name = set.values().next().value;
+					const pos = posOf(name);
+					if (pos === null) return;
+					if (p.row < at.row && (!up || p.row > up.row)) up = { row: p.row, name: name, pos: pos };
+					if (p.row > at.row && (!down || p.row < down.row)) down = { row: p.row, name: name, pos: pos };
+				});
+				const adjacent = !!up && !!down && up.row === at.row - 1 && down.row === at.row + 1;
+				const inRange = !adjacent ? [] : cands.filter(n => { const pos = posOf(n); return pos !== null && up.pos < pos && pos < down.pos; });
+				return { up: up ? up.name : null, down: down ? down.name : null, adjacent: adjacent, inRange: inRange, picked: inRange.length === 1 ? inRange[0] : null };
+			};
+			const picks = [];
+			// ① 同点で捨てた行（T157）
+			const doneTied = new Set();
+			(res.devAmbiguous || []).forEach(a => {
+				if (a.resolved || !a.rowKey || matchedAt.has(a.rowKey) || doneTied.has(a.rowKey)) return;
+				doneTied.add(a.rowKey);
+				const survivors = Array.from(new Set(a.survivors || []));
+				const b = between(a.rowKey, survivors);
+				if (!b) return;
+				res.devOrderRows.push(Object.assign({ kind: '同点', rowKey: a.rowKey, texts: [a.text], candidates: survivors }, b));
+				if (!b.picked) return;
+				const index = lines.findIndex(l => l && l.rowKey === a.rowKey && normalizeText(l.text) === a.norm);
+				if (index !== -1) picks.push({ name: b.picked, indexes: [index], how: '並び', rowKey: a.rowKey });
+			});
+			// ② 2文字の名前に1字違いの、どの名前にも当たらなかった行（K1）。①で採った行は除く
+			const short = sheet.listDict.index.filter(s => s.norm && s.norm.length === 2);
+			const pickedRows = new Set(picks.map(pk => pk.rowKey));
+			const readings = new Map();
+			lines.forEach((l, i) => {
+				if (!l || !l.rowKey || matchedAt.has(l.rowKey) || pickedRows.has(l.rowKey)) return;
+				const norm = normalizeText(l.text);
+				if (!norm || norm.length < 2 || norm.length > 3) return;
+				if (!readings.has(l.rowKey)) readings.set(l.rowKey, []);
+				readings.get(l.rowKey).push({ index: i, norm: norm });
+			});
+			readings.forEach((rs, key) => {
+				const cands = [];
+				rs.forEach(r => short.forEach(s => { if (cands.indexOf(s.raw) === -1 && levenshtein(r.norm, s.norm) === 1) cands.push(s.raw); }));
+				if (!cands.length) return;
+				const b = between(key, cands);
+				if (!b) return;
+				res.devOrderRows.push(Object.assign({ kind: '2文字', rowKey: key, texts: rs.map(r => lines[r.index].text), candidates: cands }, b));
+				if (!b.picked) return;
+				const pn = normalizeText(b.picked);
+				picks.push({ name: b.picked, indexes: rs.filter(r => levenshtein(r.norm, pn) === 1).map(r => r.index), how: '2文字の1字違い→並び', rowKey: key });
+			});
+			// 先に全部の行で決めてから足す。すでに別の行で出ているスキルは触らない
+			picks.forEach(pk => {
+				if (res.detectedSkills.has(pk.name)) return;
+				res.detectedSkills.add(pk.name);
+				res.matchReasons[pk.name] = '推定（' + pk.how + 'で拾い直し）';
+				res.skillSources[pk.name] = pk.indexes;
+				if (res.skillStars) res.skillStars[pk.name] = pickStarsFromSources(pk.indexes, lines);
+				added.push(pk);
+			});
+			return added;
+		}
+		/** いつもの判定（対象スキルの範囲の名前で照合した res）に、564行の名前で照合して拾い直した名前のうち、
+		 *  今の対象の範囲（run.skillList）に入っているものだけを足す。足した名前の配列を返す。
+		 *  fullRes … すでに564行の名前で照合した結果（lines の後ろに行を足して照合したものでもよい。lines の外の行の拾い直しは使わない）。
+		 *  無ければここで照合する */
+		function addOrderPicksInScope(res, lines, sheet, run, fullRes) {
+			if (!skillOrderPosById || !sheet || !res) return [];
+			const full = fullRes || matchMelopLines(lines, sheet);
+			const scopeByNorm = new Map();
+			(run.skillList || []).forEach(n => { const k = normalizeText(n); if (k && !scopeByNorm.has(k)) scopeByNorm.set(k, n); });
+			const assigned = examRowSkills(res, lines);
+			const added = [];
+			(full.orderPicks || []).forEach(pk => {
+				const name = scopeByNorm.get(normalizeText(pk.name));
+				if (!name || res.detectedSkills.has(name) || assigned.has(pk.rowKey)) return;
+				if (!pk.indexes.length || pk.indexes.some(i => i >= lines.length)) return;
+				res.detectedSkills.add(name);
+				res.matchReasons[name] = '推定（' + pk.how + 'で拾い直し）';
+				res.skillSources[name] = pk.indexes.slice();
+				if (res.skillStars) res.skillStars[name] = pickStarsFromSources(pk.indexes, lines);
+				added.push(name);
+			});
+			res.devOrderPicksInScope = added;
+			return added;
 		}
 
 		/* ------------------------------------------------------------

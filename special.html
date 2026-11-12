@@ -2999,6 +2999,60 @@
 			}
 			return Math.min(3, runs.filter(r => r[1] - r[0] + 1 >= minW).length);
 		}
+		// T179（決定 732。T178 の案 S7）: ★の置き場所で数える。速い動画で、★の左下に写った指のエフェクト（黄色い輪）を
+		// 3つ目の★と数えていた（T178-check-1 の 2-2）。
+		//   - 画ごとに「きれいな★」（金色の列の連なりで、幅 0.022〜0.034W・縦の中心が文字帯の下端から すきまの中央値の 0.15〜0.40）
+		//     の位置から、★の置き場所3つ（列の左端から1つ目までの位置・間隔・★の幅）を推定する（estimateStarSlots）。
+		//   - 置き場所に重なる連なり（重なりが ★0.3個ぶん、または連なりの幅の6割）がある置き場所の数を★にする（countStarsInSlots）。
+		//     窓の下端で★の先だけ写った細い切れ端も、置き場所に重なれば今どおり数える。幅の下限（案C の 0.005W）は今どおり。
+		//   - 推定できない画（きれいな★が4つ未満・間隔が取れない）は今までどおり連なりの数（countRowStarBlobs と同じ）。
+		//   exam.html の computeRowStarCountsExam と同じ中身（両ページで同じ値を保つ）。
+		function rowGoldRuns(mask, W, x0, x1, y0, y1) {
+			x0 = Math.max(0, x0); x1 = Math.min(W, x1);
+			const runs = [];
+			if (x1 <= x0 || y1 <= y0) return runs;
+			const top = new Int32Array(x1 - x0).fill(-1), bot = new Int32Array(x1 - x0).fill(-1);
+			for (let y = y0; y < y1; y++) { const b = y * W; for (let x = x0; x < x1; x++) if (mask[b + x]) { const k = x - x0; if (top[k] < 0) top[k] = y; bot[k] = y; } }
+			for (let i = 0; i < top.length; i++) {
+				if (top[i] < 0) continue;
+				const last = runs[runs.length - 1];
+				if (last && i - last.b <= 2) { last.b = i; if (top[i] < last.yt) last.yt = top[i]; if (bot[i] > last.yb) last.yb = bot[i]; }
+				else runs.push({ a: i, b: i, yt: top[i], yb: bot[i] });
+			}
+			return runs.map(q => ({ x0: x0 + q.a, x1: x0 + q.b, w: q.b - q.a + 1, yt: q.yt, yb: q.yb }));
+		}
+		// rows … [{ x0（列の左端）, bandB（文字帯の下端）, runs }]。推定できなければ null
+		function estimateStarSlots(rows, W, medGap) {
+			if (!(medGap > 0)) return null;
+			const offs = [], ws = [], pitches = [];
+			rows.forEach(r => {
+				const clean = r.runs.filter(q => {
+					const cy = ((q.yt + q.yb) / 2 - r.bandB) / medGap;
+					return q.w >= W * 0.022 && q.w <= W * 0.034 && cy > 0.15 && cy < 0.4;
+				});
+				clean.forEach((q, k) => { offs.push(q.x0 - r.x0); ws.push(q.w); if (k) pitches.push(q.x0 - clean[k - 1].x0); });
+			});
+			if (offs.length < 4 || !pitches.length) return null;
+			const near = pitches.filter(p => p > W * 0.025 && p < W * 0.045);
+			const pitch = near.length ? median(near) : median(pitches);
+			const starW = median(ws);
+			// 1つ目の置き場所: 位置を 3px ごとにまとめ、きれいな★の 15%（最低2つ）以上が集まる所のうち、いちばん左
+			const bins = new Map();
+			offs.forEach(o => { const k = Math.round(o / 3) * 3; bins.set(k, (bins.get(k) || 0) + 1); });
+			const need = Math.max(2, offs.length * 0.15);
+			let s1 = null;
+			bins.forEach((n, k) => { if (n >= need && (s1 === null || k < s1)) s1 = k; });
+			return s1 === null ? null : { s1: s1, pitch: pitch, starW: starW };
+		}
+		function countStarsInSlots(runs, x0, W, slots) {
+			const minW = Math.max(3, Math.round(W * 0.005));
+			let n = 0;
+			for (let k = 0; k < 3; k++) {
+				const a = x0 + slots.s1 + k * slots.pitch - 2, b = a + slots.starW + 4;
+				if (runs.some(q => q.w >= minW && Math.min(b, q.x1 + 1) - Math.max(a, q.x0) >= Math.min(slots.starW * 0.3, q.w * 0.6))) n++;
+			}
+			return n;
+		}
 		function computeRowStarCountsSpecial(baseCanvas, detection) {
 			const W = baseCanvas.width, H = baseCanvas.height;
 			const gold = goldMaskOf(getPixels(baseCanvas));
@@ -3007,9 +3061,9 @@
 			const gaps = [];
 			for (let i = 0; i + 1 < bands.length; i++) gaps.push(bands[i + 1].a - bands[i].b);
 			const medGap = gaps.length ? median(gaps) : 0;
-			return detection.rows.map(row => {
+			const items = detection.rows.map(row => {
 				const band = bands[row.band];
-				if (!band) return { stars: 0, reliable: false };
+				if (!band) return null;
 				const nextBand = bands[row.band + 1];
 				const rowH = band.b - band.a + 1;
 				const y0 = band.b + 1;
@@ -3023,12 +3077,20 @@
 					reliable = false;
 					if (y1 > H) y1 = H;
 				}
-				if (y1 <= y0) return { stars: 0, reliable: false };
+				if (y1 <= y0) return null;
 				const colX = columnXs[row.col];
 				const nextColX = columnXs[row.col + 1];
 				const x0 = (colX !== undefined) ? colX : row.x;
 				const x1 = (nextColX !== undefined) ? (nextColX - Math.round(W * 0.03)) : W;
-				return { stars: countRowStarBlobs(gold, W, x0, x1, y0, y1), reliable: reliable };
+				return { x0: Math.max(0, x0), bandB: band.b, runs: rowGoldRuns(gold, W, x0, x1, y0, y1), reliable: reliable };
+			});
+			// T179（S7）: 置き場所を推定できた画は置き場所で、できない画は今までどおり連なりの数で
+			const slots = estimateStarSlots(items.filter(it => it), W, medGap);
+			const minW = Math.max(3, Math.round(W * 0.005));
+			return items.map(it => {
+				if (!it) return { stars: 0, reliable: false };
+				const stars = slots ? countStarsInSlots(it.runs, it.x0, W, slots) : Math.min(3, it.runs.filter(q => q.w >= minW).length);
+				return { stars: stars, reliable: it.reliable };
 			});
 		}
 
@@ -6721,11 +6783,91 @@
 			});
 		}
 
+		/* ------------------------------------------------------------
+		 * T179（決定 733。T178 の案 K1）: 2文字の名前の拾い直し
+		 *   - 2文字の名前は1字違いを許さない（common.js の allowedDistance）。速い動画でその行が1枚にしか写らず、2通りの読みが
+		 *     どちらも1字違い（巨歩 → 「巨坂」「巨執」）だと、どの名前にも当たらずに抜けていた（T178-check-1 の 2-1）。
+		 *   - どの名前にも当たらなかった行のうち、読み（正規化して2〜3文字）が辞書の2文字の名前に距離1の行を、T157 と同じ決まり
+		 *     （同じ画のすぐ上・すぐ下〔行の番号 ±1〕の行が1つのスキルに決まっていて、並びの間に入る候補が1つだけ）で採る。
+		 *     同じ行に読みが2つあれば、候補はどちらかの読みから距離1の名前すべて。決まらなければ今までどおり何も足さない。
+		 *   - 上下に使うのは照合で決まった行だけ（T157・この拾い直しで足したものは使わない）。すでに別の行で出ているスキルは触らない。
+		 *   - 開発用に res.devShortByOrder（行ごとの読み・候補・上下・間の候補・採った名前）を残す（画面の文は足さない）。
+		 * ------------------------------------------------------------ */
+		function skillsByRowKey(res, lines) {
+			const at = new Map();
+			Object.keys(res.skillSources || {}).forEach(name => {
+				(res.skillSources[name] || []).forEach(i => {
+					const k = lines[i] && lines[i].rowKey;
+					if (!k) return;
+					if (!at.has(k)) at.set(k, new Set());
+					at.get(k).add(name);
+				});
+			});
+			return at;
+		}
+		function pickShortRowsByGameOrder(res, lines, matchedAt, dict) {
+			res.devShortByOrder = [];
+			if (!allSkillIdByName || !dict || !matchedAt) return;
+			const short = dict.index.filter(s => s.norm && s.norm.length === 2);
+			if (!short.length) return;
+			const idOf = (name) => { const id = allSkillIdByName.get(name); return (id !== undefined && gameOrderKnown(id)) ? id : null; };
+			const parseKey = (k) => { const m = /^(\d+):(\d+)$/.exec(String(k || '')); return m ? { img: Number(m[1]), row: Number(m[2]) } : null; };
+			// どの名前にも当たらなかった行（T157 で足した行も「当たった」に数える）の読み
+			const assignedNow = skillsByRowKey(res, lines);
+			const readings = new Map();
+			lines.forEach((l, i) => {
+				if (!l || !l.rowKey || assignedNow.has(l.rowKey)) return;
+				const norm = normalizeText(l.text);
+				if (!norm || norm.length < 2 || norm.length > 3) return;
+				if (!readings.has(l.rowKey)) readings.set(l.rowKey, []);
+				readings.get(l.rowKey).push({ index: i, norm: norm });
+			});
+			const picks = [];
+			readings.forEach((rs, key) => {
+				const cands = [];
+				rs.forEach(r => short.forEach(s => { if (cands.indexOf(s.raw) === -1 && levenshtein(r.norm, s.norm) === 1) cands.push(s.raw); }));
+				if (!cands.length) return;
+				const at = parseKey(key);
+				if (!at) return;
+				let up = null, down = null;
+				matchedAt.forEach((set, k) => {
+					const p = parseKey(k);
+					if (!p || p.img !== at.img || set.size !== 1) return;
+					const name = set.values().next().value;
+					const id = idOf(name);
+					if (id === null) return;
+					if (p.row < at.row && (!up || p.row > up.row)) up = { row: p.row, name: name, id: id };
+					if (p.row > at.row && (!down || p.row < down.row)) down = { row: p.row, name: name, id: id };
+				});
+				const adjacent = !!up && !!down && up.row === at.row - 1 && down.row === at.row + 1;
+				const inRange = !adjacent ? [] : cands.filter(n => {
+					const id = idOf(n);
+					if (id === null) return false;
+					return UmaSkillDeckCore.compareGameOrder(up.id, id) < 0 && UmaSkillDeckCore.compareGameOrder(id, down.id) < 0;
+				});
+				const picked = inRange.length === 1 ? inRange[0] : null;
+				res.devShortByOrder.push({ rowKey: key, texts: rs.map(r => lines[r.index].text), candidates: cands, up: up ? up.name : null, down: down ? down.name : null, adjacent: adjacent, inRange: inRange, picked: picked });
+				if (!picked) return;
+				const pn = normalizeText(picked);
+				picks.push({ name: picked, indexes: rs.filter(r => levenshtein(r.norm, pn) === 1).map(r => r.index) });
+			});
+			picks.forEach(pk => {
+				if (res.detectedSkills.has(pk.name)) return;
+				res.detectedSkills.add(pk.name);
+				res.matchReasons[pk.name] = '推定（2文字の1字違い→並びで拾い直し）';
+				res.skillSources[pk.name] = pk.indexes;
+				if (res.skillStars) res.skillStars[pk.name] = pickStarsFromSources(pk.indexes, lines);
+			});
+		}
+
 		function matchWithAllSkillNames(lines) {
 			if (!deckMode) return matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionary);
 			if (!allSkillNamesDict) allSkillNamesDict = allSkillNamesDictionary();
 			const res = matchAllSkillsWithStars(lines, allSkillNamesDict.list, allSkillNamesDict.index, ocrErrorDictionary);
+			// T179: 照合で決まった行（T157 で足す前）。K1 の上下に使う
+			const matchedAt = skillsByRowKey(res, lines);
 			pickTiedRowsByGameOrder(res, lines);
+			pickShortRowsByGameOrder(res, lines, matchedAt, allSkillNamesDict);
 			const inScope = new Set(skillList);
 			const outside = [];
 			Array.from(res.detectedSkills).forEach(name => {
