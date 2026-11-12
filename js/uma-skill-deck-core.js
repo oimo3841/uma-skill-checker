@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-10a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-12a';
 
 	/* ============================================================
 	 * 定数
@@ -1405,9 +1405,43 @@
 		return { data: null, from: '' };
 	}
 
+	/* ------------------------------------------------------------
+	 * 収録データの写し（masterCache・extraCatalogCache）は、**中身が変わったときだけ書く**（T175・決定 709）。
+	 *
+	 * それまでは開くたびに約48万字（2つ合わせて）を書き直していた（T172 の計測）。
+	 *   - 大きな値の形は前と同じ `{"data":…,"fetchedAt":…}`（JSON.stringify と同じ字面）。前の版の写しもそのまま読める。
+	 *   - 比べ方: 今ある値の字面が `{"data":<新しい中身>,"fetchedAt":` で始まれば、中身は同じ → 大きな値は書かない
+	 *     （大きな値の fetchedAt は「その中身を書いた時刻」のまま残る）。
+	 *   - 取れた時刻は `<キー>:fetchedAt` の小さな値として毎回書く（意味は前と同じ「最後に取れた時刻」）。
+	 *     大きな値の書き込みに失敗したとき（容量など）は、前と同じく握りつぶし、小さな値も書かない
+	 *     （残っている古い中身に、新しい時刻を付けないため）。
+	 * ------------------------------------------------------------ */
+	const CACHE_FETCHED_AT_SUFFIX = ':fetchedAt';
+
+	function writeCacheIfChanged(key, oldRaw, data, fetchedAt) {
+		try {
+			const head = '{"data":' + JSON.stringify(data) + ',"fetchedAt":';
+			if (typeof oldRaw !== 'string' || oldRaw.lastIndexOf(head, 0) !== 0) {
+				global.localStorage.setItem(key, head + JSON.stringify(fetchedAt) + '}');
+			}
+			global.localStorage.setItem(key + CACHE_FETCHED_AT_SUFFIX, fetchedAt);
+		} catch (e) {}
+	}
+
+	/** 写しの「最後に取れた時刻」。小さな値と大きな値の fetchedAt の新しいほう（どちらも toISOString の字面なので字の順で比べられる）。
+	 *  小さな値が無ければ（前の版の写し）大きな値の fetchedAt。前の版のページが大きな値だけを書き直したときも新しいほうを出す。 */
+	function cacheFetchedAt(key, cached) {
+		let t = (cached && typeof cached.fetchedAt === 'string') ? cached.fetchedAt : '';
+		try {
+			const s = global.localStorage.getItem(key + CACHE_FETCHED_AT_SUFFIX);
+			if (typeof s === 'string' && s > t) t = s;
+		} catch (e) {}
+		return t;
+	}
+
 	async function loadExtraCatalog(forceRefresh) {
-		let cached = null;
-		try { cached = JSON.parse(global.localStorage.getItem(STORAGE_KEY_EXTRA_CATALOG) || 'null'); } catch (e) {}
+		let cached = null, cachedRaw = null;
+		try { cachedRaw = global.localStorage.getItem(STORAGE_KEY_EXTRA_CATALOG); cached = JSON.parse(cachedRaw || 'null'); } catch (e) {}
 		const nextCache = {};
 		const nextDocs = {};
 		const entries = [];
@@ -1482,9 +1516,7 @@
 					+ '通信できないときは、ページを開き直すと直ることがあります。');
 			}
 		}
-		try {
-			global.localStorage.setItem(STORAGE_KEY_EXTRA_CATALOG, JSON.stringify({ data: nextCache, fetchedAt: nowIso() }));
-		} catch (e) {}
+		writeCacheIfChanged(STORAGE_KEY_EXTRA_CATALOG, cachedRaw, nextCache, nowIso());
 		return extraCatalogMeta;
 	}
 
@@ -1548,7 +1580,9 @@
 			const data = await fetchMasterJson(url, !!forceRefresh);
 			masterSkills = data.skills || [];
 			masterMeta = { version: data.masterVersion || '', fetchedAt: nowIso(), source: 'network' };
-			try { global.localStorage.setItem(STORAGE_KEY_MASTER, JSON.stringify({ data: data, fetchedAt: masterMeta.fetchedAt })); } catch (e) {}
+			let oldRaw = null;
+			try { oldRaw = global.localStorage.getItem(STORAGE_KEY_MASTER); } catch (e) {}
+			writeCacheIfChanged(STORAGE_KEY_MASTER, oldRaw, data, masterMeta.fetchedAt);
 			return { ok: true, source: 'network', version: masterMeta.version, count: masterSkills.length };
 		} catch (e) {
 			// フェッチ失敗時はキャッシュ→組み込みサンプルの順でフォールバックする。
@@ -1559,7 +1593,7 @@
 				const cached = JSON.parse(global.localStorage.getItem(STORAGE_KEY_MASTER) || 'null');
 				if (cached && cached.data) {
 					masterSkills = cached.data.skills || [];
-					masterMeta = { version: (cached.data.masterVersion || '') + '（キャッシュ）', fetchedAt: cached.fetchedAt || '', source: 'cache' };
+					masterMeta = { version: (cached.data.masterVersion || '') + '（キャッシュ）', fetchedAt: cacheFetchedAt(STORAGE_KEY_MASTER, cached), source: 'cache' };
 					noticeMasterFallback('cache');
 					return { ok: false, source: 'cache', version: masterMeta.version, count: masterSkills.length };
 				}
