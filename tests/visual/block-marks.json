@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-12",
 "numbering": "runtime",
-"count": 1121,
+"count": 1124,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1126,6 +1126,9 @@
   {"file":"tests/visual/blocks-175.mjs","title":"T180(1) 2列・短い親（2026-09-17_1）の 30・60・100行: 縦に伸びない・編成2つは表の右（4列目）に縦に並ぶ・表は編成 OFF と同じ行の高さ・祖2人の幅がそろう","ord":1,"marks":"VC","asserts":8},
   {"file":"tests/visual/blocks-175.mjs","title":"T180(2) 2列・短い親で 1〜160行を1行ずつ: どの行数でも伸びない・表の下に積んで入るときは今のまま（T130）・入らないときだけ4列目","ord":1,"marks":"VC","asserts":6},
   {"file":"tests/visual/blocks-175.mjs","title":"T180(3) 背の高い親（2026-09-15_6）・編成 OFF・3列の形は前と同じ（T180 の前の製品で測った寸法）","ord":1,"marks":"V","asserts":5},
-  {"file":"tests/visual/blocks-175.mjs","title":"T180(4) 4列目の欠けた所: 理論値SP OFF なら4列目は上端から・因子周回編成だけでも4列目に置く（作り物の短い親）","ord":1,"marks":"VC","asserts":4}
+  {"file":"tests/visual/blocks-175.mjs","title":"T180(4) 4列目の欠けた所: 理論値SP OFF なら4列目は上端から・因子周回編成だけでも4列目に置く（作り物の短い親）","ord":1,"marks":"VC","asserts":4},
+  {"file":"tests/visual/blocks-176.mjs","title":"T182(1) 動画のお知らせの文面は原文と1字も違わない（UmaStar はレース欄の1文あり・UmaExam はなし）・画像はページごとの1枚（alt=\"\"）で小窓に収まる／375・1280px・横スクロールなし・エラー0","ord":1,"marks":"VATC","asserts":9,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-176.mjs","title":"T182(2) 履歴の先頭は動画のお知らせ（2026/11/12・両ツール）／初めての人に0日目・30日目は自動で出て31日目は出ない／閉じると既読（ID）・開き直すと出ない／メニュー・?notice=force でも動画から開く（force は何も書かない）","ord":1,"marks":"A","asserts":12},
+  {"file":"tests/visual/blocks-176.mjs","title":"T182(3) 動画の表記は β（入口「動画β」・動画を選ぶボタンの小さな字）／動画の機能の字・読み上げ名・title に α が無い／Deck (αテスト)・イベントスキル未収録の赤字は今のまま／めろっぷのモードの名前に「（βテスト）」が無い","ord":1,"marks":"AT","asserts":7}
 ]
 }

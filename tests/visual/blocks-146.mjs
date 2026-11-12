@@ -60,7 +60,7 @@ export async function register146(env) {
 			const sp = await open({ w, theme });
 			const { page, errors } = sp;
 			const s0 = await ui(page);
-			assert(s0.mode === 'shot' && s0.labels.join('|') === '静止画|動画α' && s0.pressed.join('|') === 'true|false' && s0.stored === null, tag + '保存が空なら静止画・2つ並びの切り替え', s0);
+			assert(s0.mode === 'shot' && s0.labels.join('|') === '静止画|動画β' && s0.pressed.join('|') === 'true|false' && s0.stored === null, tag + '保存が空なら静止画・2つ並びの切り替え', s0);
 			assert(!s0.pick && s0.add && s0.ocrOnly && s0.combo === 'OCR処理＋画像結合を開始する' && s0.note === NOTE_SHOT, tag + '静止画では今のまま（追加・2つのボタン）', s0);
 			assert(Math.abs(s0.modeTop - s0.tabsTop) <= 8 && s0.rowH <= s0.tabsH + 2, tag + '切り替えはタブと同じ行（行は折り返さない）', s0);
 			assert(s0.sw <= s0.cw, tag + '横スクロールなし', s0);

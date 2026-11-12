@@ -18,7 +18,7 @@ import { startServer, REPO_ROOT } from './lib/serve.mjs';
 // 件数は data/ の実ファイルから数える（行・種を足すたびに手で付け替えない。受け入れの標準手順）
 const MELOP_ROWS_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/melop-sheet-rows.json'), 'utf8')).rows.length;
 const EFF_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-efficiency.json'), 'utf8')).entries.length;
-import { openPage as openPageRaw, withNoticeClock, currentNoticeClock, NOTICE_FIXED_TIME, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
+import { openPage as openPageRaw, withNoticeClock, currentNoticeClock, currentVideoNoticeOff, routeVideoNoticeOff, NOTICE_FIXED_TIME, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf, tokRgb } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
@@ -188,6 +188,7 @@ import { register172 } from './blocks-172.mjs';
 import { register173 } from './blocks-173.mjs';
 import { register174 } from './blocks-174.mjs';
 import { register175 } from './blocks-175.mjs';
+import { register176 } from './blocks-176.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -434,6 +435,8 @@ const browser = await chromium.launch();
 		const ctx = await newContext(o);
 		// お知らせの塊（noticeBlock・withNoticeClock の間）は、openPage を通さず自前で作る context も日付を固定する（C-260 の (a)・2026-10-31）
 		if (currentNoticeClock()) await ctx.clock.setFixedTime(new Date(currentNoticeClock()));
+		// T182: その間は、動画で取り込みのお知らせ（NOTICE_LIST の video の行）を外した「足す前」の状態で開く（lib/fixtures.mjs の withNoticeClock）
+		if (currentVideoNoticeOff()) await routeVideoNoticeOff(ctx);
 		await ctx.addInitScript(() => {
 			try {
 				if (!sessionStorage.getItem('__fxStepTab')) {
@@ -10410,7 +10413,7 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 		btnA: document.getElementById('melop-copy-btn-A').textContent.trim(),
 		btnB: document.getElementById('melop-copy-btn-B').textContent.trim(),
 	}));
-	assert(entry.label === 'めろっぷ！【LTC】専用拡張モード（βテスト）' && !entry.checked && entry.afterStitchPanel,
+	assert(entry.label === 'めろっぷ！【LTC】専用拡張モード' && !entry.checked && entry.afterStitchPanel,
 		'めろっぷ(1): 「結合画像の設定」の下にチェックボックスがあり、既定はオフ', entry);
 	assert(entry.btnA === 'めろっぷ用に★をコピー（親Aセット）' && entry.btnB === 'めろっぷ用に★をコピー（親Bセット）',
 		'めろっぷ(1): ボタンの文言', entry);
@@ -15708,6 +15711,8 @@ await register173({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register174({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T180（2026-11-12）: 2列の結合画像で、表の下に積むと入らない編成を表の右（4列目）へ（見出しは「T180」）。tests/visual/blocks-175.mjs
 await register175({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T182（2026-11-12）: 動画で取り込み（βテスト）のお知らせ・動画の表記の α → β・めろっぷの「（βテスト）」を外した（見出しは「T182」）。tests/visual/blocks-176.mjs
+await register176({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -18,7 +18,7 @@
  * このファイルは DOM を作るだけで、保存や開閉の処理は持たない（各ページの openUiNotice / closeUiNotice が持つ）。
  * 公開するグローバルは UmaAnnounce の1つだけ。
  * ============================================================ */
-const ANNOUNCE_JS_VERSION = '2026-11-01a';
+const ANNOUNCE_JS_VERSION = '2026-11-12a';
 
 (function () {
 	'use strict';
@@ -68,6 +68,57 @@ const ANNOUNCE_JS_VERSION = '2026-11-01a';
 	};
 	const STITCH_TITLE_ID = 'ui-notice-title-stitch';
 
+	/* ---------- 動画で取り込み（βテスト）のお知らせ（T182・UmaStar と UmaExam に1件ずつ。2026-11-12） ----------
+	 * 形は STITCH と同じ（中身は fill が作る。節の見出しは隠さない＝小窓の最初の行）。文面はおいもさんの原文のまま（ページごと）。
+	 * 箇条（lines）の「・」は .announce-lines li::before が付ける（文字には入れない）。tail は箇条の後ろの1文（UmaStar だけ）。
+	 * 画像はページごとに1枚（おいもさんが用意したものを横 1100px に縮めた）。画像の代わりの説明文は付けない（alt=""。決定 724）。
+	 * 既読の印は uma-special-video-notice／uma-exam-video-notice に id を書く（両ページで同じ id）。 */
+	const VIDEO_ID = '2026-11-12-video-beta';
+	const VIDEO_HEADING = '動画で取り込み（βテスト）';
+	const VIDEO_LEAD = '動画から画像の結合と OCR ができるようになりました。';
+	const VIDEO_LINES = [
+		'録画済みの動画を選ぶと画像の結合が始まります。',
+		'PC では、ゲームのウィンドウから直接取り込めます。',
+		'DMM版の横画面にも対応しました。',
+		'βテスト中の機能です。質と処理時間を改善中です。',
+	];
+	const VIDEO = {
+		special: {
+			id: VIDEO_ID,
+			date: '2026-11-12',
+			label: 'お知らせ',
+			pages: ['special'],
+			sections: [
+				{
+					heading: VIDEO_HEADING,
+					lead: VIDEO_LEAD,
+					lines: VIDEO_LINES,
+					tail: 'レース欄に「レース指定なし／本育成編成なし」を追加しました。',
+					images: [
+						{ src: 'img/announce-video-star-2026-11-12.png', alt: '' },
+					],
+				},
+			],
+		},
+		exam: {
+			id: VIDEO_ID,
+			date: '2026-11-12',
+			label: 'お知らせ',
+			pages: ['exam'],
+			sections: [
+				{
+					heading: VIDEO_HEADING,
+					lead: VIDEO_LEAD,
+					lines: VIDEO_LINES,
+					images: [
+						{ src: 'img/announce-video-exam-2026-11-12.png', alt: '' },
+					],
+				},
+			],
+		},
+	};
+	const VIDEO_TITLE_ID = 'ui-notice-title-video';
+
 	/* ---------- 新シナリオへの未対応の知らせ（暫定。段1a・2026-10-24。文面は 2026-10-25 に全面差し替え） ----------
 	 * 新シナリオ（10月26日 12:00 開始）を含むゲームの更新に、ツールが対応するまでの断り。
 	 * 既読の印は edition とは別のキー（uma-exam-scenario-notice / uma-special-scenario-notice）に ID を書く（ID は文面を差し替えても変えない）。
@@ -95,9 +146,11 @@ const ANNOUNCE_JS_VERSION = '2026-11-01a';
 	 * 並びは新しい順（同じ日付は、この並び）。date は、そのお知らせを入れた commit の日付（日本時間）。
 	 * pages＝どのツールに出すか。scenario は SCENARIO_PENDING.on が false になったら履歴から外れる（edition は ANNOUNCE.pages に従う）。
 	 * 本文は、stitch・scenario・edition とも、このファイルが作る。
-	 * 2026-11-01（C-260 の (b)）: 古いお知らせ（catalog 09/27・alpha 09/19・target 09/15・layout 09/11）を外した（本文・既読の読み書きも各ページから外した）。 */
+	 * 2026-11-01（C-260 の (b)）: 古いお知らせ（catalog 09/27・alpha 09/19・target 09/15・layout 09/11）を外した（本文・既読の読み書きも各ページから外した）。
+	 * 2026-11-12（T182）: 動画で取り込み（video）を両ツールの先頭に足した。video の行は1行で書く（検査が、この行だけを外した「足す前」の状態を作るため）。 */
 	const HISTORY_MAX = 3;
 	const NOTICE_LIST = [
+		{ kind: 'video', date: '2026/11/12', pages: ['exam', 'special'], commit: 'T182' },
 		{ kind: 'stitch', date: '2026/11/01', pages: ['special'], commit: 'T55' },
 		{ kind: 'scenario', date: '2026/10/24', pages: ['exam', 'special'], commit: '054dbee' },
 		{ kind: 'edition', date: '2026/10/11', pages: ['exam'], commit: '05540a0' },
@@ -218,6 +271,7 @@ const ANNOUNCE_JS_VERSION = '2026-11-01a';
 			'.announce-lines { margin: var(--uma-sp-1-5) 0 0; padding: 0; list-style: none; }',
 			'.announce-lines li { margin: 0; padding-left: 1em; text-indent: -1em; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }',
 			'.announce-lines li::before { content: "・"; }',
+			'.announce-tail { margin-top: var(--uma-sp-1-5); }',
 			// 画像は、ライトの見た目で作ってある（ダークでも違和感なく見えるよう、暗い面の上に縁取りをつける）
 			'.announce-fig { margin: var(--uma-sp-2) 0 0; }',
 			// 小窓の上のツール名と日付・本文と OK の間の ‹ n / N ›（2026-10-25）
@@ -266,6 +320,8 @@ const ANNOUNCE_JS_VERSION = '2026-11-01a';
 				sec.lines.forEach(function (t) { ul.appendChild(el('li', '', t)); });
 				s.appendChild(ul);
 			}
+			// 箇条の後ろの1文（T182 の UmaStar の「レース欄に…」。本文と同じ形）
+			if (sec.tail) s.appendChild(el('p', 'announce-lead announce-tail', sec.tail));
 			(sec.images || []).forEach(function (im) {
 				const fig = el('figure', 'announce-fig');
 				const img = document.createElement('img');
@@ -310,7 +366,7 @@ const ANNOUNCE_JS_VERSION = '2026-11-01a';
 	}
 
 	window.UmaAnnounce = {
-		ANNOUNCE: ANNOUNCE, TITLE_ID: TITLE_ID, STITCH: STITCH, STITCH_TITLE_ID: STITCH_TITLE_ID, fill: fill, isFor: isFor, isForced: isForced, version: ANNOUNCE_JS_VERSION,
+		ANNOUNCE: ANNOUNCE, TITLE_ID: TITLE_ID, STITCH: STITCH, STITCH_TITLE_ID: STITCH_TITLE_ID, VIDEO: VIDEO, VIDEO_TITLE_ID: VIDEO_TITLE_ID, fill: fill, isFor: isFor, isForced: isForced, version: ANNOUNCE_JS_VERSION,
 		SCENARIO_PENDING: SCENARIO_PENDING, SCENARIO_TITLE_ID: SCENARIO_TITLE_ID, fillScenario: fillScenario, isScenarioFor: isScenarioFor,
 		NOTICE_LIST: NOTICE_LIST, HISTORY_MAX: HISTORY_MAX, TOOL_NAME: TOOL_NAME, history: history, allKinds: allKinds, decorate: decorate, mountChrome: ensureChrome,
 		AUTO_OPEN_DAYS: AUTO_OPEN_DAYS, noticeAgeDays: noticeAgeDays, isFresh: isFresh, autoOpenKind: autoOpenKind,

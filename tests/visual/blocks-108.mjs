@@ -259,11 +259,11 @@ export async function register108(env) {
 					files: persons.map((p) => p.files.length).join(','), saved: localStorage.getItem('uma-special-upload-mode'), sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 			});
 			const a = await st();
-			assert(a.mode === 'shot' && a.labels.join() === '静止画,動画α' && a.alpha && a.pressed === 'true,false' && !a.pick && a.adds === 3 && JSON.stringify(a.bar) === '["OCR処理＋画像結合を開始する","画像を結合する（OCRしない）"]',
+			assert(a.mode === 'shot' && a.labels.join() === '静止画,動画β' && a.alpha && a.pressed === 'true,false' && !a.pick && a.adds === 3 && JSON.stringify(a.bar) === '["OCR処理＋画像結合を開始する","画像を結合する（OCRしない）"]',
 				`T98(5) ${w}px 静止画（初期値）: 切り替えは「静止画｜動画α」で静止画が ON・人ごとの「追加」・下は2つのボタン`, a);
 			await page.click('[data-upload-mode-btn="video"]');
 			const b = await st();
-			assert(b.mode === 'video' && b.pressed === 'false,true' && b.pick && b.pickText.replace(/α$/, '') === '動画を選ぶ' && b.adds === 0 && (b.cap ? Math.abs(b.pickW - b.capW) <= 1 && Math.abs(b.pickW + b.capW + 8 - b.colsW) <= 1 : b.pickW === b.colsW) && b.pickH === 76,
+			assert(b.mode === 'video' && b.pressed === 'false,true' && b.pick && b.pickText.replace(/β$/, '') === '動画を選ぶ' && b.adds === 0 && (b.cap ? Math.abs(b.pickW - b.capW) <= 1 && Math.abs(b.pickW + b.capW + 8 - b.colsW) <= 1 : b.pickW === b.colsW) && b.pickH === 76,
 				`T98(5) ${w}px 動画モード: 切り替えは動画が ON・「追加」の代わりにセットの幅いっぱいの「動画を選ぶ」1つ（76px。T105 段2 の「ウィンドウから取り込む」が出る環境では、2つが同じ幅で並んでセットの幅いっぱい）`, b);
 			assert(JSON.stringify(b.bar) === '["OCR処理を開始する"]' && b.files === a.files && b.saved === 'video', `T98(5) ${w}px 下は「OCR処理を開始する」だけ・入っている画像はそのまま・保存する`, b);
 			assert(b.sw <= b.iw, `T98(5) ${w}px 横スクロールなし`, b);

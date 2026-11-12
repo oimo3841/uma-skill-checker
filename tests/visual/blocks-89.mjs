@@ -84,7 +84,7 @@ export async function register89(env) {
 			});
 			const m = await read();
 			assert(m.role === 'group' && m.inRow && m.last && m.seg.right <= m.row.right, `T59(1) ${w}px 切り替えはタブの行の右端`, m);
-			assert(m.texts.join() === '静止画,動画α' && m.alphaHidden === 'true', `T59(1) ${w}px 左が「静止画」・右が「動画」に小さく「α」（読み上げない）`, m.texts);
+			assert(m.texts.join() === '静止画,動画β' && m.alphaHidden === 'true', `T59(1) ${w}px 左が「静止画」・右が「動画」に小さく「β」（読み上げない。T182 で α から β）`, m.texts);
 			assert(m.pressed.join() === 'true,false' && m.mode === 'shot' && m.fills[0] === m.colsOn && m.fills[1] === m.colsOff, `T59(1) ${w}px 初期は静止画が ON。塗りは「3列｜2列」と同じ`, m);
 			assert(m.row.h === 32 && m.seg.y >= m.row.y - 2 && m.seg.h === 32, `T59(1) ${w}px タブの行の高さは今の 32px のまま`, { row: m.row, seg: m.seg });
 			assert(m.hit.every(Boolean), `T59(1) ${w}px 押せる高さは枠の上下にも広がる（44px）`, m.hit);

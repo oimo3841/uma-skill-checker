@@ -47,7 +47,7 @@
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。special.html と共有。②の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
 	<script src="js/landscape-panel.js?v=2026-11-10a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-11-01a"></script>
+	<script src="js/announce.js?v=2026-11-12a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -1381,6 +1381,9 @@
 			<div class="notice-body">
 				<!-- 2026-11-01（C-260 の (b)）: 古いお知らせ（画面の作りの案内〔layout〕・対象スキルの選び方の案内〔target〕）の本文を外した。 -->
 
+				<!-- 動画で取り込み（βテスト）のお知らせ（T182・2026-11-12）。文面・画像は js/announce.js の VIDEO.exam が持つ。openUiNotice('video') が中身を作る -->
+				<div id="ui-notice-body-video" hidden></div>
+
 				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ。openUiNotice('edition') が中身を作る -->
 				<div id="ui-notice-body-edition" hidden></div>
 
@@ -1669,7 +1672,7 @@
 				<label class="flex items-start gap-2.5 cursor-pointer">
 					<input id="opt-melop" type="checkbox" onchange="setMelopMode(this.checked)" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
 					<div>
-						<span class="text-xs font-semibold text-slate-800">めろっぷ！【LTC】専用拡張モード（βテスト）</span>
+						<span class="text-xs font-semibold text-slate-800">めろっぷ！【LTC】専用拡張モード</span>
 						<p class="text-[11px] text-slate-500 mt-0.5">めろっぷ！【LTC】さんの因子管理シートへ★数の判定結果を貼り付けるためのボタンが出ます。</p>
 					</div>
 				</label>
@@ -3894,7 +3897,7 @@
 		const VIDEO_TEXTS = {
 			'video.entry.shot': '静止画',
 			'video.entry.video': '動画',
-			'video.entry.alpha': 'α',
+			'video.entry.alpha': 'β',   // T182（決定 746）: 動画の機能の表記を α から β に改めた
 			'video.howto.title': '撮り方',
 			'video.howto.step1': '・親から祖2の一番下までゆっくりスクロール。',
 			'video.howto.step2': '・スクロールの一時停止の前後で、スキルの行が1〜2行重なるようにする。',
@@ -10004,6 +10007,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// 画面の作りの既読の印（UI_NOTICE_*）だけは、旧UIの保存値を効かせる印として残す（閉じたときに今までどおり書く）。
 		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE）。これも別のキー
 		const EDITION_NOTICE_STORAGE_KEY = 'uma-exam-edition-notice';
+		// 動画で取り込み（βテスト）のお知らせ（T182）。文面・画像・番号は js/announce.js（UmaAnnounce.VIDEO.exam）。これも別のキー
+		const VIDEO_NOTICE_STORAGE_KEY = 'uma-exam-video-notice';
 		// 新シナリオへの未対応の知らせ（段1a）。文面・番号は js/announce.js（UmaAnnounce.SCENARIO_PENDING）。これも別のキー
 		const SCENARIO_NOTICE_STORAGE_KEY = 'uma-exam-scenario-notice';
 		let newUi = true;
@@ -10028,6 +10033,13 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		function markEditionNoticeSeen() {
 			if (hasSeenEditionNotice()) return;
 			writeStored(EDITION_NOTICE_STORAGE_KEY, UmaAnnounce.ANNOUNCE.id);
+		}
+		function hasSeenVideoNotice() {
+			return readStored(VIDEO_NOTICE_STORAGE_KEY) === UmaAnnounce.VIDEO.exam.id;
+		}
+		function markVideoNoticeSeen() {
+			if (hasSeenVideoNotice()) return;
+			writeStored(VIDEO_NOTICE_STORAGE_KEY, UmaAnnounce.VIDEO.exam.id);
 		}
 		function hasSeenScenarioNotice() {
 			return readStored(SCENARIO_NOTICE_STORAGE_KEY) === UmaAnnounce.SCENARIO_PENDING.id;
@@ -10140,6 +10152,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// 種類ごとの、本文の要素・読み上げの見出し・既読の読み書き
 		const NOTICE_KINDS = {
 			edition: { body: 'ui-notice-body-edition', title: () => UmaAnnounce.TITLE_ID, seen: hasSeenEditionNotice, mark: markEditionNoticeSeen },
+			video: { body: 'ui-notice-body-video', title: () => UmaAnnounce.VIDEO_TITLE_ID, seen: hasSeenVideoNotice, mark: markVideoNoticeSeen },
 			scenario: { body: 'ui-notice-body-scenario', title: () => UmaAnnounce.SCENARIO_TITLE_ID, seen: hasSeenScenarioNotice, mark: markScenarioNoticeSeen },
 		};
 		function noticeSeen(kind) { return NOTICE_KINDS[kind].seen(); }
@@ -10149,6 +10162,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			uiNoticeKind = NOTICE_KINDS[kind] ? kind : 'edition';
 			Object.keys(NOTICE_KINDS).forEach(k => { document.getElementById(NOTICE_KINDS[k].body).hidden = k !== uiNoticeKind; });
 			if (uiNoticeKind === 'edition') UmaAnnounce.fill(document.getElementById('ui-notice-body-edition'));
+			if (uiNoticeKind === 'video') UmaAnnounce.fill(document.getElementById('ui-notice-body-video'), UmaAnnounce.VIDEO.exam, UmaAnnounce.VIDEO_TITLE_ID);
 			if (uiNoticeKind === 'scenario') UmaAnnounce.fillScenario(document.getElementById('ui-notice-body-scenario'), 'exam');
 			const dlg = document.getElementById('ui-notice');
 			dlg.setAttribute('aria-labelledby', NOTICE_KINDS[uiNoticeKind].title());

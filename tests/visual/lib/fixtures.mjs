@@ -90,10 +90,28 @@ let scenarioPendingOff = false;
 export function setScenarioPendingOff(v) { scenarioPendingOff = !!v; }
 /** page か context に、announce.js の SCENARIO_PENDING.on を false にして返す route を足す（読み込みの前に呼ぶ） */
 export async function routeScenarioPendingOff(target) {
+	const strip = videoNoticeOff;
 	await target.route('**/js/announce.js*', async (route) => {
 		const res = await route.fetch();
-		const body = (await res.text()).replace('on: true,', 'on: false,');
+		const body = announceBody((await res.text()).replace('on: true,', 'on: false,'), strip);
 		await route.fulfill({ response: res, body });
+	});
+}
+/* T182（2026-11-12）: 動画で取り込みのお知らせ（NOTICE_LIST の先頭の video の行・両ツール）を足した。お知らせの仕組みを見る塊（日付を固定する
+ * withNoticeClock の間）は、それより前に書かれていて、履歴の件数・並び・最新の1件を直書きしている。そこで、日付を固定している間は、
+ * announce.js から video の行だけを外した「足す前」の状態で開く（仕組み・ほかのお知らせはそのまま）。video そのものは blocks-176 が、
+ * withNoticeClock(t, fn, { video: true }) で実データのまま見る。外すかどうかは route を足すときの値で決める（あとで値が戻っても、その page／context は外したまま）。 */
+let videoNoticeOff = false;
+/** いま video のお知らせを外して開くか */
+export function currentVideoNoticeOff() { return videoNoticeOff; }
+/** announce.js の本文から、NOTICE_LIST の video の行（1行）を外す */
+export function stripVideoNotice(body) { return body.replace(/^[ \t]*\{ kind: 'video',[^\n]*\n/m, ''); }
+function announceBody(body, strip) { return strip ? stripVideoNotice(body) : body; }
+/** page か context に、announce.js から video のお知らせの行を外して返す route を足す（読み込みの前に呼ぶ） */
+export async function routeVideoNoticeOff(target) {
+	await target.route('**/js/announce.js*', async (route) => {
+		const res = await route.fetch();
+		await route.fulfill({ response: res, body: stripVideoNotice(await res.text()) });
 	});
 }
 /* 2026-10-26（新シナリオの仕上げ）: 実データの on を false にした（知らせを外した）。知らせの仕組みそのもの（文面・履歴・開き方・見た目）を見る
@@ -111,17 +129,19 @@ let noticeClock = null;
 export function setNoticeClock(t) { noticeClock = t || null; }
 /** いま固定している日付（無ければ null） */
 export function currentNoticeClock() { return noticeClock; }
-/** 日付を固定して fn を回す（終われば戻す） */
-export async function withNoticeClock(t, fn) {
-	const prev = noticeClock;
+/** 日付を固定して fn を回す（終われば戻す）。T182: その間は video のお知らせを外して開く（o.video が true なら外さない＝実データ） */
+export async function withNoticeClock(t, fn, o = {}) {
+	const prev = noticeClock, prevVideo = videoNoticeOff;
 	setNoticeClock(t);
-	try { return await fn(); } finally { setNoticeClock(prev); }
+	videoNoticeOff = !o.video;
+	try { return await fn(); } finally { setNoticeClock(prev); videoNoticeOff = prevVideo; }
 }
 /** page か context に、announce.js の SCENARIO_PENDING.on を true にして返す route を足す（読み込みの前に呼ぶ） */
 export async function routeScenarioPendingOn(target) {
+	const strip = videoNoticeOff;
 	await target.route('**/js/announce.js*', async (route) => {
 		const res = await route.fetch();
-		const body = (await res.text()).replace('on: false,', 'on: true,');
+		const body = announceBody((await res.text()).replace('on: false,', 'on: true,'), strip);
 		await route.fulfill({ response: res, body });
 	});
 }
@@ -159,6 +179,8 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 		body: JSON.stringify({ dataVersion: '2026-10-03a', category: 'scenarioEventSkills', note: 'テスト用の空のファイル', entries: [] }) }));
 	if (scenarioPendingOff) await routeScenarioPendingOff(page);
 	if (scenarioPendingOn) await routeScenarioPendingOn(page);
+	// T182: 日付を固定している間は video のお知らせを外す（上の2つの route も外すので、どちらも無いときだけ足す）
+	if (videoNoticeOff && !scenarioPendingOff && !scenarioPendingOn) await routeVideoNoticeOff(page);
 	await installReadyProbe(page);
 	/* **時間ではなく「整ったこと」で待つ。**（73セッション目。2026-10-30 に networkidle をやめた）
 	 *

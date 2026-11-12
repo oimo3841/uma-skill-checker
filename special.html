@@ -67,7 +67,7 @@
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。exam.html と共有。③の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
 	<script src="js/landscape-panel.js?v=2026-11-10a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-11-01a"></script>
+	<script src="js/announce.js?v=2026-11-12a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -1098,6 +1098,9 @@
 				<i data-lucide="x" class="w-4 h-4"></i>
 			</button>
 			<div class="notice-body">
+				<!-- 動画で取り込み（βテスト）のお知らせ（T182・2026-11-12）。文面・画像は js/announce.js の VIDEO.special が持つ。openUiNotice('video') が中身を作る -->
+				<div id="ui-notice-body-video" hidden></div>
+
 				<!-- 2026-11-01（C-260 の (b)）: 古いお知らせ（画面の切り替え〔layout〕・改修中〔alpha〕・収録〔catalog〕）の本文を外した。
 				     結合画像のリニューアルのお知らせ（C-260 の (c)・2026-11-01）。文面・画像は js/announce.js の STITCH が持つ。openUiNotice('stitch') が中身を作る -->
 				<div id="ui-notice-body-stitch" hidden></div>
@@ -1865,10 +1868,10 @@
 		// 画面に出す文はすべてここから使う（キーは Handoff の文面の一覧 text-list/T59-video-texts.csv の ID と同じ）。
 		// {人}・{N} はその時の値を差し込む（videoText）
 		const VIDEO_TEXTS = {
-			// T106（決定 273）: 入口は「静止画｜動画」の2つ並びの切り替え。動画の側に小さく「α」
+			// T106（決定 273）: 入口は「静止画｜動画」の2つ並びの切り替え。動画の側に小さく「α」（T182・決定 746 で「β」に改めた）
 			'video.entry.shot': '静止画',
 			'video.entry.video': '動画',
-			'video.entry.alpha': 'α',
+			'video.entry.alpha': 'β',
 			// T106（決定 274）: 「セットをクリア」の右の「？」の中の文
 			'video.howto.title': '撮り方',
 			'video.howto.step1': '・親から祖2の一番下までゆっくりスクロール。',
@@ -6918,6 +6921,8 @@
 		const STITCH_NOTICE_STORAGE_KEY = 'uma-special-stitch-notice';
 		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE。exam と共有）。これも別のキー
 		const EDITION_NOTICE_STORAGE_KEY = 'uma-special-edition-notice';
+		// 動画で取り込み（βテスト）のお知らせ（T182）。文面・画像・番号は js/announce.js（UmaAnnounce.VIDEO.special）。これも別のキー
+		const VIDEO_NOTICE_STORAGE_KEY = 'uma-special-video-notice';
 		// 新シナリオへの未対応の知らせ（段1a）。文面・番号は js/announce.js（UmaAnnounce.SCENARIO_PENDING。exam と共有）。これも別のキー
 		const SCENARIO_NOTICE_STORAGE_KEY = 'uma-special-scenario-notice';
 		// 分類の印を結合画像に焼くか（C-58 の作業C）。**保存値が無ければ ON**（理由はチェックの脇のコメント）
@@ -6951,6 +6956,13 @@
 		function markEditionNoticeSeen() {
 			if (hasSeenEditionNotice()) return;
 			writeStored(EDITION_NOTICE_STORAGE_KEY, UmaAnnounce.ANNOUNCE.id);
+		}
+		function hasSeenVideoNotice() {
+			return readStored(VIDEO_NOTICE_STORAGE_KEY) === UmaAnnounce.VIDEO.special.id;
+		}
+		function markVideoNoticeSeen() {
+			if (hasSeenVideoNotice()) return;
+			writeStored(VIDEO_NOTICE_STORAGE_KEY, UmaAnnounce.VIDEO.special.id);
 		}
 		function hasSeenScenarioNotice() {
 			return readStored(SCENARIO_NOTICE_STORAGE_KEY) === UmaAnnounce.SCENARIO_PENDING.id;
@@ -7004,6 +7016,7 @@
 		const NOTICE_KINDS = {
 			stitch: { body: 'ui-notice-body-stitch', title: () => UmaAnnounce.STITCH_TITLE_ID, seen: hasSeenStitchNotice, mark: markStitchNoticeSeen },
 			edition: { body: 'ui-notice-body-edition', title: () => UmaAnnounce.TITLE_ID, seen: hasSeenEditionNotice, mark: markEditionNoticeSeen },
+			video: { body: 'ui-notice-body-video', title: () => UmaAnnounce.VIDEO_TITLE_ID, seen: hasSeenVideoNotice, mark: markVideoNoticeSeen },
 			scenario: { body: 'ui-notice-body-scenario', title: () => UmaAnnounce.SCENARIO_TITLE_ID, seen: hasSeenScenarioNotice, mark: markScenarioNoticeSeen },
 		};
 		function noticeSeen(kind) { return NOTICE_KINDS[kind].seen(); }
@@ -7014,6 +7027,7 @@
 			Object.keys(NOTICE_KINDS).forEach(k => { document.getElementById(NOTICE_KINDS[k].body).hidden = k !== uiNoticeKind; });
 			if (uiNoticeKind === 'stitch') UmaAnnounce.fill(document.getElementById('ui-notice-body-stitch'), UmaAnnounce.STITCH, UmaAnnounce.STITCH_TITLE_ID);
 			if (uiNoticeKind === 'edition') UmaAnnounce.fill(document.getElementById('ui-notice-body-edition'));
+			if (uiNoticeKind === 'video') UmaAnnounce.fill(document.getElementById('ui-notice-body-video'), UmaAnnounce.VIDEO.special, UmaAnnounce.VIDEO_TITLE_ID);
 			if (uiNoticeKind === 'scenario') UmaAnnounce.fillScenario(document.getElementById('ui-notice-body-scenario'), 'special');
 			const dlg = document.getElementById('ui-notice');
 			dlg.setAttribute('aria-labelledby', NOTICE_KINDS[uiNoticeKind].title());
