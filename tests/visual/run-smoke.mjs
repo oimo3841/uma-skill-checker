@@ -185,6 +185,7 @@ import { register169 } from './blocks-169.mjs';
 import { register170 } from './blocks-170.mjs';
 import { register171 } from './blocks-171.mjs';
 import { register172 } from './blocks-172.mjs';
+import { register173 } from './blocks-173.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15697,6 +15698,8 @@ await register170({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register171({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T174（2026-11-12）: 白で塗ったあとに行が取れない動画の画を画像全体の OCR に回さず外す（見出しは「T174」）。tests/visual/blocks-172.mjs
 await register172({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T175（2026-11-12）: 収録データの写しを中身が変わったときだけ書く・取れた時刻は小さな値で毎回（見出しは「T175」）。tests/visual/blocks-173.mjs
+await register173({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

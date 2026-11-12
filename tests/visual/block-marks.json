@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-12",
 "numbering": "runtime",
-"count": 1111,
+"count": 1113,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1116,6 +1116,8 @@
   {"file":"tests/visual/blocks-171.mjs","title":"T173 ―― exam.html: 未読の赤い点は5回光って止まり、点は出たまま。新しい結果でまた5回光る","ord":1,"marks":"VAC","asserts":6},
   {"file":"tests/visual/blocks-171.mjs","title":"T173 ―― special.html: 未読の赤い点は5回光って止まり、点は出たまま。新しい結果でまた5回光る","ord":1,"marks":"VAC","asserts":6},
   {"file":"tests/visual/blocks-172.mjs","title":"T174 ―― special.html: 白で塗ったあとに行が取れず、結合画像に1行も受け持っていない動画の画は画像全体の OCR に回さず外す（ほかは今までどおり）","ord":1,"marks":"VASC","asserts":10},
-  {"file":"tests/visual/blocks-172.mjs","title":"T174 ―― exam.html: 白で塗ったあとに行が取れず、結合画像に1行も受け持っていない動画の画は画像全体の OCR に回さず外す（ほかは今までどおり）","ord":1,"marks":"VASC","asserts":10}
+  {"file":"tests/visual/blocks-172.mjs","title":"T174 ―― exam.html: 白で塗ったあとに行が取れず、結合画像に1行も受け持っていない動画の画は画像全体の OCR に回さず外す（ほかは今までどおり）","ord":1,"marks":"VASC","asserts":10},
+  {"file":"tests/visual/blocks-173.mjs","title":"T175 ―― special.html: 収録データの写しは中身が同じなら書かない（取れた時刻だけ小さな値で毎回書く）。中身が変わったら書く","ord":1,"marks":"SC","asserts":9,"review":"名前で分けられない assert が 67%"},
+  {"file":"tests/visual/blocks-173.mjs","title":"T175 ―― uma-skill-deck.html: 通信が切れてキャッシュに落ちたとき、時刻は「最後に取れた時刻」（前の版の写しは大きな値の時刻）。書き込みの失敗は握りつぶす","ord":1,"marks":"AT","asserts":5,"review":"名前で分けられない assert が 40%"}
 ]
 }
