@@ -187,6 +187,7 @@ import { register171 } from './blocks-171.mjs';
 import { register172 } from './blocks-172.mjs';
 import { register173 } from './blocks-173.mjs';
 import { register174 } from './blocks-174.mjs';
+import { register175 } from './blocks-175.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15705,6 +15706,8 @@ await register172({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register173({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T179（2026-11-12）: ★を置き場所で数える（S7）・2文字の名前の1字違いを並びで拾い直す（K1）・UmaExam に並びの拾い直しを写す（見出しは「T179」）。tests/visual/blocks-174.mjs
 await register174({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T180（2026-11-12）: 2列の結合画像で、表の下に積むと入らない編成を表の右（4列目）へ（見出しは「T180」）。tests/visual/blocks-175.mjs
+await register175({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

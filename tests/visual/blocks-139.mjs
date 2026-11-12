@@ -4,7 +4,8 @@
 //  (1) 3列目は上から 理論値SP → 星取表 → ①本育成編成 → ②因子周回編成。編成は1列に6枚（見出しは今の文のまま・3列目の幅いっぱい）。
 //      OFF の欄は詰める。上段は無い（1列目・2列目は上端から）。新しいモード（理論値SP・本育成編成を出さない）の形も同じ規則で詰まる。
 //  (2) 星取表の行が多いとき: 編成を置くために表の行を縮めるのは3列の表の下限（rowMin。rowCap 行を超えれば rowMinOver）まで。
-//      それでも入らなければ3列目が左より長くなり、画像がその分だけ縦に伸びる。編成が OFF なら T98 のまま（下限なしで左の下端に収める）。
+//      それでも入らなければ、編成2つを表の右（4列目）へ移し、表は編成 OFF と同じ行の高さにする（T180・決定 728。前は3列目が左より長くなり画像が縦に伸びた）。
+//      編成が OFF なら T98 のまま（下限なしで左の下端に収める）。4列目の細かい検査は blocks-175（見出し「T180」）。
 //  (3) 3列の形は変えていない（上段に 理論値SP｜本育成編成（3列×2行）｜因子周回編成（3列×2行））。
 //  (4) 「結合画像の設定」の模式図（2列）: 3列目に 理論値SP → 星取表 → 本育成編成 → 因子周回編成（1列に6つ）。編成だけ ON でも3列目が出る。
 // 期待値は製品の値を読まずに書く（並びの規則と枚数）。寸法は製品の STITCH_LAYOUT を読む（並びの検査であって寸法の検査ではない）。スキル名は書かない（恒久ルール1）。
@@ -89,7 +90,7 @@ export async function register139(env) {
 	});
 
 	/* ── (2) 星取表の行が多いとき ── */
-	await block('T130(2) 2列: 星取表の行が多いと編成の分だけ表の行を縮める（3列の表の下限まで）・それでも入らなければ画像が縦に伸びる・編成 OFF は今のまま', async () => {
+	await block('T130(2) 2列: 星取表の行が多いと編成の分だけ表の行を縮める（3列の表の下限まで）・それでも入らなければ編成を表の右（4列目）へ（T180）・編成 OFF は今のまま', async () => {
 		const { ctx, page, errors } = await openSp();
 		const r = await page.evaluate(async () => {
 			const L = STITCH_LAYOUT;
@@ -102,12 +103,14 @@ export async function register139(env) {
 		});
 		const { L } = r;
 		// 合成の人の列（親 2600＋上の欄 1000）では、左の下端まで 3,400px 前後。編成2つで 988px 使う
-		assert(r.midNo.table.rowH === L.rowMax && r.mid.table.rowH < L.rowMax && r.mid.table.rowH > L.rowMinOver && r.mid.col3.bottom <= r.mid.leftBottom && r.mid.ch === r.mid.leftBottom + L.margin,
-			'T130(2): 70行: 編成の分だけ表の行を縮めて、画像を伸ばさずに収める（下限より上）', { rowH: r.mid.table.rowH, noCards: r.midNo.table.rowH, c3: r.mid.col3.bottom, lb: r.mid.leftBottom });
-		assert(r.manyNo.table.rowH > L.rowMinOver && r.many.table.rowH === L.rowMinOver && r.many.col3.bottom > r.many.leftBottom && r.many.ch === r.many.col3.bottom + L.margin,
-			'T130(2): 150行: 表は下限（rowCap 行を超えるときの rowMinOver）で止め、3列目が左より長くなった分だけ画像が伸びる', { rowH: r.many.table.rowH, noCards: r.manyNo.table.rowH, c3: r.many.col3.bottom, lb: r.many.leftBottom, ch: r.many.ch });
-		assert(r.hugeNo.table.rowH < L.rowMinOver && r.hugeNo.table.y + r.hugeNo.table.h <= r.hugeNo.leftBottom && r.hugeNo.ch === r.hugeNo.leftBottom + L.margin && r.huge.table.rowH === r.hugeNo.table.rowH && r.huge.col3.bottom > r.huge.leftBottom,
-			'T130(2): 250行: 編成 OFF は T98 のまま（下限なしで左の下端に収める）・編成 ON でも表は同じ大きさ（編成のためにそれ以上は縮めない）', { rowH: r.huge.table.rowH, noCards: r.hugeNo.table.rowH, lb: r.hugeNo.leftBottom });
+		assert(!r.mid.side && !r.mid.col4 && r.midNo.table.rowH === L.rowMax && r.mid.table.rowH < L.rowMax && r.mid.table.rowH > L.rowMinOver && r.mid.col3.bottom <= r.mid.leftBottom && r.mid.ch === r.mid.leftBottom + L.margin,
+			'T130(2): 70行: 編成の分だけ表の行を縮めて、表の下に積んだまま画像を伸ばさずに収める（下限より上）', { rowH: r.mid.table.rowH, noCards: r.midNo.table.rowH, c3: r.mid.col3.bottom, lb: r.mid.leftBottom });
+		assert(r.manyNo.table.rowH > L.rowMinOver && r.many.side && r.many.table.rowH === r.manyNo.table.rowH && r.many.col3.bottom <= r.many.leftBottom && r.many.col4.bottom <= r.many.leftBottom
+			&& r.many.roster.x === r.many.col4.x && r.many.ch === r.many.leftBottom + L.margin,
+			'T130(2)・T180: 150行: 下限の行で積むと入らないので、編成は表の右（4列目）へ。表は編成 OFF と同じ行の高さで、画像は伸びない', { rowH: r.many.table.rowH, noCards: r.manyNo.table.rowH, c3: r.many.col3.bottom, c4: r.many.col4, lb: r.many.leftBottom, ch: r.many.ch });
+		assert(r.hugeNo.table.rowH < L.rowMinOver && r.hugeNo.table.y + r.hugeNo.table.h <= r.hugeNo.leftBottom && r.hugeNo.ch === r.hugeNo.leftBottom + L.margin && r.huge.table.rowH === r.hugeNo.table.rowH
+			&& r.huge.side && r.huge.col4.bottom <= r.huge.leftBottom && r.huge.ch === r.huge.leftBottom + L.margin,
+			'T130(2)・T180: 250行: 編成 OFF は T98 のまま（下限なしで左の下端に収める）・編成 ON でも表は同じ大きさで、編成は4列目（画像は伸びない）', { rowH: r.huge.table.rowH, noCards: r.hugeNo.table.rowH, lb: r.hugeNo.leftBottom });
 		assert(jsErrors(errors).length === 0, 'T130(2): コンソールエラー0', jsErrors(errors).slice(0, 3));
 		await ctx.close();
 	});

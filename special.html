@@ -5307,7 +5307,10 @@
 		 *  ・祖の2人は同じ縮小率で、見出しと間を含めた2人の高さの合計を1列目（見出し＋親の上の欄＋因子）の高さにそろえる（拡大しない）。
 		 *  ・欠けた所は詰める: 理論値SP・星取表・本育成編成・因子周回編成がすべて OFF なら3列目は無い。
 		 *    星取表は、入りきらなければ行の高さを縮めて下端（枠の見かたの行の下端。無ければ親の列の下端）までに収める。
-		 *    編成を置くために縮めるのは3列の表の下限まで（T130）。それでも入らなければ3列目が左より長くなり、画像がその分だけ縦に伸びる。
+		 *    編成を置くために縮めるのは3列の表の下限まで（T130）。
+		 *  ・T180（決定 728）: 下限まで縮めても編成が入らない（表の下に積むと左の下端を超える）ときだけ、編成2つを表の右（4列目）に
+		 *    縦に並べる。4列目の幅は理論値SP の欄と同じで、表の上端から。表は編成が無いとき（T98）と同じく左の下端まで使う（字は小さくならない）。
+		 *    画像の幅は4列目の分（間＋spW）だけ広がる。入るときは今のまま（表の下に積む）。
 		 *  ・画像の画素数が maxPixels を超えるときは全体を同じ割合で縮める。
 		 * ------------------------------------------------------------ */
 		const STITCH_MODAL_GREEN_MIN = 0.7;   // 小窓の上端の緑の帯（「ウマ娘詳細」）とみなす横幅の割合
@@ -5400,29 +5403,35 @@
 			const leftBottom = legend ? legendY + lh : personsY + colH;
 			// 3列目: 上端から 理論値SP → 星取表 → ①本育成編成 → ②因子周回編成（T130。OFF の欄は詰める。欄の間は topAfter）。
 			// 編成は1列に6枚（cardCols×cardRows 枚）。星取表は下端を左の下端までに収めるよう行を縮める（T98）が、
-			// 編成を置くために縮めるのは3列の表の下限（rowMin。rowCap 行を超えれば rowMinOver）まで。それでも入らなければ3列目が左より長くなる
+			// 編成を置くために縮めるのは3列の表の下限（rowMin。rowCap 行を超えれば rowMinOver）まで。
+			// T180: それでも入らなければ、編成を表の右（4列目）へ移し、表は編成が無いときと同じ行の高さ（rowOld）にする
 			const has3 = hasSp || !!data || cardKeys.length > 0;
 			const spH = L.topHeadH + L.topHeadGap + L.spLine1H + L.spRows * L.spRowH;
 			const cardN = L.cardCols * L.cardRows;
 			const cardsH = L.topHeadH + L.topHeadGap + cardN * L.cardH + (cardN - 1) * L.cardGap;
 			const tableY = bodyY + (hasSp ? spH + L.topAfter : 0);
 			const cardsTotal = cardKeys.length * cardsH + cardKeys.length * L.topAfter;
-			let rowH = 0, tc = null;
+			let rowH = 0, tc = null, side = false;
 			if (data) {
 				const n = data.rows.length;
 				const rowOld = Math.max(1, Math.min(L.rowMax, Math.floor((leftBottom - tableY) / (n + 2))));
 				const rowFit = Math.max(1, Math.min(L.rowMax, Math.floor((leftBottom - tableY - cardsTotal) / (n + 2))));
 				const floorRh = n > L.rowCap ? L.rowMinOver : L.rowMin;
 				rowH = Math.max(rowFit, Math.min(rowOld, floorRh));
+				// T180（決定 728）: 下限で止めた表の下に編成を積むと左の下端を超える → 編成は4列目へ・表は左の下端まで（T98 と同じ）
+				if (cardKeys.length && rowH > rowFit) { side = true; rowH = rowOld; }
 				tc = stitchDrawTable(data, rowH);
 			}
-			const col3W = has3 ? Math.max(hasSp || cardKeys.length ? L.spW : 0, tc ? tc.width : 0) : 0;
+			const col3W = has3 ? Math.max(hasSp || (cardKeys.length && !side) ? L.spW : 0, tc ? tc.width : 0) : 0;
 			const col3X = L.margin + spanW + L.gap;
-			const W0 = L.margin + spanW + (has3 ? L.gap + col3W : 0) + L.margin;
-			let cardsY = tc ? tableY + tc.height + L.topAfter : (hasSp ? tableY : bodyY);
+			const col4X = col3X + col3W + L.gap;
+			const W0 = L.margin + spanW + (has3 ? L.gap + col3W : 0) + (side ? L.gap + L.spW : 0) + L.margin;
+			let cardsY = side ? tableY : (tc ? tableY + tc.height + L.topAfter : (hasSp ? tableY : bodyY));
 			const cardYs = cardKeys.map(() => { const y = cardsY; cardsY += cardsH + L.topAfter; return y; });
-			const col3Bottom = cardKeys.length ? cardYs[cardYs.length - 1] + cardsH : Math.max(hasSp ? bodyY + spH : 0, tc ? tableY + tc.height : 0);
-			const H0 = Math.max(leftBottom, col3Bottom) + L.margin;
+			const cardsBottom = cardKeys.length ? cardYs[cardYs.length - 1] + cardsH : 0;
+			const tableBottom = Math.max(hasSp ? bodyY + spH : 0, tc ? tableY + tc.height : 0);
+			const col3Bottom = (cardKeys.length && !side) ? cardsBottom : tableBottom;
+			const H0 = Math.max(leftBottom, col3Bottom, side ? cardsBottom : 0) + L.margin;
 			// 画素数の上限（iOS の Canvas の面積）。超えるときは全体を同じ割合で縮める
 			const scale = W0 * H0 > L.maxPixels ? Math.sqrt(L.maxPixels / (W0 * H0)) : 1;
 			const out = document.createElement('canvas');
@@ -5437,16 +5446,19 @@
 			const layout = { cols: 2, width: out.width, height: out.height, scale: scale, logical: { width: W0, height: H0 },
 				bodyY: bodyY, personsY: personsY, colH: colH, grandScale: gScale, bar: null, top: null, parent: null, grands: [],
 				legend: null, sp: null, table: null, roster: null, factor: null,
-				col3: has3 ? { x: col3X, y: bodyY, w: col3W, bottom: col3Bottom } : null, leftBottom: leftBottom };
+				col3: has3 ? { x: col3X, y: bodyY, w: col3W, bottom: col3Bottom } : null, leftBottom: leftBottom,
+				side: side, col4: side ? { x: col4X, y: tableY, w: L.spW, bottom: cardsBottom } : null };
 			if (!noBar) {
 				layout.bar = { x: L.margin, y: L.margin, w: W0 - L.margin * 2, h: L.barH };
 				layout.barFit = stitchDrawTitleBar(ctx, L.margin, L.margin, W0 - L.margin * 2, L.barH, parts.barText || '');
 			}
 			// 3列目の編成（T130）: 見出し（今の文のまま）＋1列に6枚。幅は3列目の幅で、上限は理論値SP の欄の幅（spW・400px。決定 499）。左に寄せる
-			const cardColW = Math.min(col3W, L.spW);
+			// T180: 4列目に置くときは、幅は spW（理論値SP の欄と同じ）
+			const cardColW = side ? L.spW : Math.min(col3W, L.spW);
+			const cardX = side ? col4X : col3X;
 			cardKeys.forEach((k, i) => {
-				const cards = stitchDrawTopCards(ctx, col3X, cardYs[i], cardColW, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor, 1);
-				layout[k] = { x: col3X, y: cardYs[i], w: cardColW, h: cardsH, cards: cards };
+				const cards = stitchDrawTopCards(ctx, cardX, cardYs[i], cardColW, k === 'roster' ? STITCH_TOP_HEAD_ROSTER : STITCH_TOP_HEAD_FACTOR, k === 'roster' ? top.roster : top.factor, 1);
+				layout[k] = { x: cardX, y: cardYs[i], w: cardColW, h: cardsH, cards: cards };
 			});
 			let x = L.margin;
 			if (parent) {
