@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-11",
+"generated": "2026-11-12",
 "numbering": "runtime",
-"count": 1109,
+"count": 1111,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1114,6 +1114,8 @@
   {"file":"tests/visual/blocks-169.mjs","title":"T167(3) カーソルの無い動画は何も変えない（横画面・縦画面とも、余白のほかは素材の画をそのまま）","ord":1,"marks":"V","asserts":2},
   {"file":"tests/visual/blocks-170.mjs","title":"T171 ―― exam.html: [蹄鉄] の「置きたかった行」は同じ行が2枚に写った重なりを除いて数える（蹄鉄を置く数は変えない）","ord":1,"marks":"VC","asserts":3},
   {"file":"tests/visual/blocks-171.mjs","title":"T173 ―― exam.html: 未読の赤い点は5回光って止まり、点は出たまま。新しい結果でまた5回光る","ord":1,"marks":"VAC","asserts":6},
-  {"file":"tests/visual/blocks-171.mjs","title":"T173 ―― special.html: 未読の赤い点は5回光って止まり、点は出たまま。新しい結果でまた5回光る","ord":1,"marks":"VAC","asserts":6}
+  {"file":"tests/visual/blocks-171.mjs","title":"T173 ―― special.html: 未読の赤い点は5回光って止まり、点は出たまま。新しい結果でまた5回光る","ord":1,"marks":"VAC","asserts":6},
+  {"file":"tests/visual/blocks-172.mjs","title":"T174 ―― special.html: 白で塗ったあとに行が取れず、結合画像に1行も受け持っていない動画の画は画像全体の OCR に回さず外す（ほかは今までどおり）","ord":1,"marks":"VASC","asserts":10},
+  {"file":"tests/visual/blocks-172.mjs","title":"T174 ―― exam.html: 白で塗ったあとに行が取れず、結合画像に1行も受け持っていない動画の画は画像全体の OCR に回さず外す（ほかは今までどおり）","ord":1,"marks":"VASC","asserts":10}
 ]
 }

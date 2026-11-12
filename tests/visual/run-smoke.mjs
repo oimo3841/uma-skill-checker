@@ -184,6 +184,7 @@ import { register168 } from './blocks-168.mjs';
 import { register169 } from './blocks-169.mjs';
 import { register170 } from './blocks-170.mjs';
 import { register171 } from './blocks-171.mjs';
+import { register172 } from './blocks-172.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15694,6 +15695,8 @@ await register169({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register170({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T173（2026-11-11）: 未読の赤い点の脈動を5回で止める・新しい結果でまた5回光る（見出しは「T173」）。tests/visual/blocks-171.mjs
 await register171({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T174（2026-11-12）: 白で塗ったあとに行が取れない動画の画を画像全体の OCR に回さず外す（見出しは「T174」）。tests/visual/blocks-172.mjs
+await register172({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

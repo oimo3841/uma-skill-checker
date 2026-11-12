@@ -2503,7 +2503,16 @@
 			const pl = ((canvas && canvas._sourcePlacements) || []).filter(p => p.srcY1 > p.srcY0);
 			if (!pl.length) return null;
 			const last = pl.reduce((a, b) => (b.outY0 + b.srcY1 - b.srcY0 > a.outY0 + a.srcY1 - a.srcY0 ? b : a));
-			return files[last.fileIndex] ? { file: files[last.fileIndex], y: last.srcY1 } : null;
+			// used … その画が結合画像に受け持った高さ（元の画の px。T174 の videoTailIsThin が使う）
+			const used = pl.filter(p => p.fileIndex === last.fileIndex).reduce((s, p) => s + p.srcY1 - p.srcY0, 0);
+			return files[last.fileIndex] ? { file: files[last.fileIndex], y: last.srcY1, used: used } : null;
+		}
+		// 結合画像のいちばん下を受け持った画が、結合画像に1行ぶんも受け持っていないか（T174・決定 703）。受け持った高さが元の画の幅の 6%
+		// （1行の高さは幅の約 8%）未満なら、その画にしか写っていない行は無い。白で塗ったあとに行が取れないとき、画像全体を読まずに外す見分けに使う。
+		// 1行以上受け持った画は今までどおり画像全体を読む（UmaExam の録画の親A の最後の画〔131px〕は、画像全体の読みが一覧の末尾の行を拾っていた）
+		function videoTailIsThin(video, naturalW) {
+			const tc = video && video.tailCut;
+			return !!(tc && tc.used >= 0 && naturalW > 0 && tc.used < naturalW * 0.06);
 		}
 		function noteVideoUnusedFiles(v, files, canvas, label) {
 			v.unusedFiles = videoUnusedFiles(files, canvas);
@@ -3037,7 +3046,7 @@
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
-				let base = null, detection = null, img = null, cutNext = false;
+				let base = null, detection = null, img = null, cutNext = false, cutTail = false;
 				try {
 					img = await loadImage(file);
 					base = toBaseCanvas(img);
@@ -3088,7 +3097,7 @@
 					if (vk >= 0) {
 						videoState.naturalH = img.naturalHeight;
 						maskVideoFrameMargins(base, diag);
-						cutVideoTail(base, video, file, img.naturalHeight, diag);
+						cutTail = cutVideoTail(base, video, file, img.naturalHeight, diag);
 						cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
 					}
 					const thumbSaved = maskScrollbarThumb(base, diag);
@@ -3116,6 +3125,12 @@
 				} else if (cutNext) {
 					// 次の人の帯から上に自分の行がほとんど無い画（次の人の1枚目など）。画像全体を読むと次の人のスキルが混ざるので読まない（T93）
 					diag.push('→ 次の人の帯から上で行が取れないため、この画は OCR しない（動画の画）');
+					devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+					continue;
+				} else if (cutTail && videoTailIsThin(video, img.naturalWidth)) {
+					// 結合画像に使った所より下を白で塗ったあと（cutVideoTail）に行が取れず、結合画像にも1行ぶん受け持っていない画は、画像全体を読まない（T174・決定 703）。
+					// 読む行がほぼ残っていない画で、読むと能力の表などの無駄な文字が混ざり時間がのびる。行は無いままにする（印の確かめに当たらない）
+					diag.push('→ 白で塗ったあとに行が取れず、結合画像に受け持った所も1行に満たない（' + video.tailCut.used + 'px）画のため、OCR と印の確かめから外します（動画の画）');
 					devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
 					continue;
 				} else {
