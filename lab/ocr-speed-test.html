@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="robots" content="noindex, nofollow, noarchive" />
+	<meta name="referrer" content="no-referrer" />
+	<!-- 外へは何も送らない。フォームの送信は禁止。通信は OCR のエンジン（tesseract.js）が自分の部品と日本語の辞書を読む GET だけ
+	     （製品の UmaStar・UmaExam と同じ読み先: cdnjs・unpkg・tessdata.projectnaptha.com。2026-11-13 に実際の読み先を記録して確かめた）。画像はこの端末の中だけで読む。
+	     wasm（OCR のエンジン本体）を動かすために 'unsafe-eval' 'wasm-unsafe-eval'、エンジンの Worker（blob:）のために worker-src blob: が要る。
+	     エンジンは wasm を data: の URL から読む（WebKit で確かめた。止めると別の道で動くが製品と同じ動きにならない）ので connect-src に data: を入れる（data: は外へ出ない） -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdnjs.cloudflare.com https://unpkg.com; worker-src blob: https://unpkg.com; child-src blob:; connect-src https://unpkg.com https://tessdata.projectnaptha.com data:; style-src 'unsafe-inline'; img-src blob: data:; form-action 'none'; base-uri 'none'" />
+	<title>OCR の速さの試し（作業用）</title>
+	<!--
+		T184（2026-11-13）OCR の速さ Step 0 の試しのページ。おいもさんの決定 445・761。
+		**ツール本体には組み込まない**（lab/capture-test.html・lab/video-diag.html と同じ扱い。どのページからもリンクしない）。
+
+		■ 何を比べるか
+		- 今の読み方: 押してから OCR のエンジンを1本作り、画像を1枚ずつ「整える → 認識（2回）」の順に読む（special.html の processImages と同じ順）。
+		- 並べて読む（案4）: エンジンを N 本作り、主のスレッドが画像を整えながら、空いたエンジンに認識を渡す（1本は「整える」と「認識」を重ねるだけ）。
+		- 先に用意する（案2）: 画像を選んだ時点でエンジンを作っておき、押してからは読むだけにする。読んだあとも閉じずに次に使う。
+		- 時間: 用意（エンジンを作る）・画像の処理（主のスレッドで整える時間の合計）・認識（最初の認識の始まりから最後の終わりまで）・合計（押してから終わるまで）・
+		  画面の引っかかり（50ms ごとの時計がいちばん遅れた時間）。
+		- 結果が同じか: 認識1回ごとに読めた行の文字の指紋を取り、同じ画像の組の「今の読み方」の回と比べて、違った回数を出す。
+
+		■ 製品と同じにするために
+		- 画像の整え方は製品と同じ関数を使う。凍結の js/common.js は読み込むだけ。special.html の中の6つの関数は lab/ocr-speed-test-product.js に一字も変えずに写した
+		  （tests/visual/blocks-177.mjs が製品と同じかを確かめる）。緑因子・青赤因子・照合（スキルの名前に当てる）は入れていない（時間の約1割。報告に書いた）。
+		- エンジンは製品と同じ tesseract.js 4.0.2・同じ設定（jpn・psm 6・dpi 300）。日本語の辞書は製品と同じ読み先なので、同じ端末なら製品の読み込みの控えを使う。
+
+		■ 白いページ（メモリが足りずにページが読み直された）を見分ける
+		- 押した時点で「試しの途中」の印を端末に残し、終わったら消す。開いたときに印が残っていれば、前の試しは最後まで終わらなかったと表に出す。
+		- 結果の表もこの端末に残す（このページの中だけ。外へ送らない）。
+	-->
+	<style>
+		:root { color-scheme: light dark; --bg: #fff; --fg: #1d1d1f; --sub: #666; --line: #d0d0d0; --ok: #0a7d32; --ng: #b3261e; --warn: #9a5b00; --box: #f4f4f4; --accent: #2457c5; --accent-fg: #fff; }
+		@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #161616; --fg: #eee; --sub: #aaa; --line: #444; --ok: #6fd28f; --ng: #ff8a80; --warn: #f0b860; --box: #232323; --accent: #8fb0ff; --accent-fg: #111; } }
+		* { box-sizing: border-box; }
+		body { margin: 0; padding: 10px 16px 48px; background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, system-ui, sans-serif; }
+		main { max-width: 760px; margin: 0 auto; }
+		h1 { font-size: 17px; margin: 4px 0 6px; }
+		h2 { font-size: 15px; margin: 18px 0 6px; }
+		p { margin: 4px 0; }
+		.sub { color: var(--sub); font-size: 12px; }
+		.box { background: var(--box); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+		label.opt { display: flex; gap: 8px; align-items: center; padding: 6px 0; }
+		label.opt input { width: 20px; height: 20px; flex: none; }
+		button { font: inherit; font-size: 15px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+		button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; width: 100%; }
+		button:disabled { opacity: .45; }
+		.row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+		.row > button { flex: 1 1 140px; }
+		#state { margin-top: 6px; }
+		#progress { margin-top: 8px; min-height: 1.5em; font-variant-numeric: tabular-nums; }
+		.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 8px; }
+		table { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 640px; width: 100%; }
+		th, td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: right; white-space: nowrap; }
+		th:nth-child(2), td:nth-child(2), th:last-child, td:last-child { text-align: left; }
+		tr.lost td { color: var(--ng); }
+		.ok { color: var(--ok); } .ng { color: var(--ng); } .warn { color: var(--warn); }
+		textarea { width: 100%; min-height: 120px; font: 11px/1.4 ui-monospace, Menlo, monospace; background: var(--box); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+		input[type=file] { max-width: 100%; font-size: 14px; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>OCR の速さの試し（作業用）</h1>
+	<p class="sub">画像はこの端末の中だけで読みます（外へ送りません）。結果もこの端末の中にだけ残ります。製品の画面からはリンクしていません。</p>
+
+	<h2>1. 画像を選ぶ</h2>
+	<div class="box">
+		<input id="files" type="file" accept="image/*" multiple />
+		<p id="files-info" class="sub">まだ選んでいません。UmaStar で読むスクショ（継承の画面）を、何人分でもまとめて選べます。</p>
+	</div>
+
+	<h2>2. 読み方を選ぶ</h2>
+	<div class="box" id="modes">
+		<label class="opt"><input type="radio" name="mode" value="seq" checked /> 今の読み方（エンジン1本・1枚ずつ順に）</label>
+		<label class="opt"><input type="radio" name="mode" value="p1" /> 並べて読む 1本（整える間に認識を進める）</label>
+		<label class="opt"><input type="radio" name="mode" value="p2" /> 並べて読む 2本</label>
+		<label class="opt"><input type="radio" name="mode" value="p3" /> 並べて読む 3本</label>
+		<label class="opt"><input type="radio" name="mode" value="p4" /> 並べて読む 4本</label>
+		<label class="opt" style="border-top:1px solid var(--line); margin-top:4px; padding-top:10px"><input type="checkbox" id="prewarm" /> エンジンを先に用意する（画像を選んだら用意を始め、読んだあとも閉じずに使い回す）</label>
+		<p id="state" class="sub">エンジン: 用意していません</p>
+	</div>
+
+	<div class="row"><button id="go" class="primary" type="button" disabled>読み取りを始める</button></div>
+	<p id="progress" class="sub"></p>
+
+	<h2>3. 結果</h2>
+	<p id="lost-note" class="ng" hidden></p>
+	<div class="scroll"><table id="results">
+		<thead><tr><th>#</th><th>読み方</th><th>枚数</th><th>用意</th><th>画像の処理</th><th>認識</th><th>合計</th><th>引っかかり</th><th>認識の回数</th><th>今の読み方との違い</th><th>状態</th></tr></thead>
+		<tbody></tbody>
+	</table></div>
+	<p class="sub">秒。「用意」は押してからエンジンを作った時間（先に用意したときは、押す前に済んだ時間をかっこに）。「合計」は押してから全部読み終わるまで。「引っかかり」は画面がいちばん長く止まった時間。</p>
+	<div class="row">
+		<button id="copy" type="button">結果をコピー</button>
+		<button id="clear" type="button">結果を消す</button>
+	</div>
+	<p id="copy-msg" class="sub"></p>
+	<textarea id="out" readonly aria-label="コピーする結果"></textarea>
+	<p id="env" class="sub"></p>
+</main>
+
+<script src="../js/common.js?v=2026-09-26a"></script>
+<script src="ocr-speed-test-product.js?v=2026-11-13a"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+<script>
+(function () {
+	'use strict';
+	const PAGE_VERSION = '2026-11-13a';
+	const STORE = 'uma-lab-ocr-speed:v1';
+	const PARAMS = { tessedit_pageseg_mode: '6', preserve_interword_spaces: '1', user_defined_dpi: '300' };   // special.html の processImages と同じ
+	const MODES = {
+		seq: { label: '今の読み方（1本・順に）', n: 1, pipe: false },
+		p1: { label: '並べて読む 1本', n: 1, pipe: true },
+		p2: { label: '並べて読む 2本', n: 2, pipe: true },
+		p3: { label: '並べて読む 3本', n: 3, pipe: true },
+		p4: { label: '並べて読む 4本', n: 4, pipe: true }
+	};
+	const $ = (id) => document.getElementById(id);
+	const sec = (ms) => (ms / 1000).toFixed(1);
+	const now = () => performance.now();
+
+	/* ── 端末に残す記録（このページの中だけ） ── */
+	function load() { try { const v = JSON.parse(localStorage.getItem(STORE) || 'null'); if (v && Array.isArray(v.runs)) return v; } catch (e) { /* 読めなければ空 */ } return { runs: [], running: null, baselines: {} }; }
+	function save(s) { try { localStorage.setItem(STORE, JSON.stringify(s)); } catch (e) { /* 残せなくても試しは続ける */ } }
+	let store = load();
+	if (!store.baselines) store.baselines = {};
+
+	/* ── 選んだ画像 ── */
+	let files = [];
+	let setKey = '';
+	function hash(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); }
+	$('files').addEventListener('change', (e) => {
+		files = Array.from(e.target.files || []).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+		const bytes = files.reduce((s, f) => s + f.size, 0);
+		setKey = files.length ? hash(files.map((f) => f.name + ':' + f.size).join('|')) : '';
+		$('files-info').textContent = files.length ? files.length + '枚（合計 ' + (bytes / 1048576).toFixed(1) + ' MB・組の印 ' + setKey + '）' : 'まだ選んでいません。';
+		$('go').disabled = !files.length || busy;
+		if (files.length && $('prewarm').checked) prepare(modeNow().n);
+	});
+	const modeKey = () => (document.querySelector('input[name=mode]:checked') || {}).value || 'seq';
+	const modeNow = () => MODES[modeKey()];
+	document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', () => { if ($('prewarm').checked && files.length) prepare(modeNow().n); }));
+	$('prewarm').addEventListener('change', () => { if ($('prewarm').checked) { if (files.length) prepare(modeNow().n); } else dropReady(); });
+
+	/* ── 画面の引っかかり（50ms ごとの時計の遅れの最大） ── */
+	function lagMeter() {
+		let last = now(), max = 0;
+		const id = setInterval(() => { const t = now(); max = Math.max(max, t - last - 50); last = t; }, 50);
+		return { stop() { clearInterval(id); const t = now(); max = Math.max(max, t - last - 50); return Math.max(0, max); } };
+	}
+
+	/* ── エンジン ── */
+	async function makeWorker() {
+		const w = await Tesseract.createWorker();
+		await w.loadLanguage('jpn');
+		await w.initialize('jpn');
+		await w.setParameters(PARAMS);
+		return w;
+	}
+	async function makeWorkers(n) { return Promise.all(Array.from({ length: n }, () => makeWorker())); }
+	async function closeAll(ws) { for (const w of ws || []) { try { await w.terminate(); } catch (e) { /* 閉じられなくてもよい */ } } }
+	let ready = null;   // 先に用意したエンジン { n, promise, ms, lag, workers }
+	function setState(t) { $('state').textContent = 'エンジン: ' + t; }
+	function prepare(n, force) {
+		if (busy && !force) return;
+		if (ready && ready.n === n) return ready.promise;
+		dropReady();
+		const r = { n, ms: null, lag: null, workers: null };
+		const t0 = now(), lag = lagMeter();
+		setState(n + '本を用意中…');
+		r.promise = makeWorkers(n).then((ws) => { r.workers = ws; r.ms = now() - t0; r.lag = lag.stop(); if (ready === r) setState(n + '本を用意済み（' + sec(r.ms) + '秒・引っかかり ' + sec(r.lag) + '秒）'); else closeAll(ws); return ws; },
+			(e) => { lag.stop(); if (ready === r) { ready = null; setState('用意に失敗しました（' + e + '）'); } throw e; });
+		ready = r;
+		return r.promise;
+	}
+	function dropReady() {
+		if (!ready) return;
+		const r = ready; ready = null;
+		if (r.workers) closeAll(r.workers); // 用意中のものは、終わったところで閉じる（prepare の then）
+		setState('用意していません');
+	}
+
+	/* ── 画像を整える（special.html の processPersonImages の1枚ぶんと同じ順・同じ関数。動画の画の扱いは無い） ── */
+	async function prepareImage(file) {
+		const diag = [];
+		const img = await loadImage(file);
+		const base = toBaseCanvas(img);
+		const quality = assessImageQuality(base);
+		if (!quality.ok) return { skipped: true, variants: [], rows: 0 };
+		const thumbSaved = maskScrollbarThumb(base, diag);
+		const detection = detectSkillRows(base, diag);
+		if (!detection) restoreScrollbarThumb(base, thumbSaved, diag);
+		let target, rows = 0;
+		if (detection) {
+			computeRowStarCountsSpecial(base, detection);
+			target = stackRowsWithMeta(base, detection.rows).canvas;
+			rows = detection.rows.length;
+		} else {
+			target = scaleCanvas(base, 1800);
+		}
+		// C-240: 二値化の反転は認識にかけない（[二値化, 元の画像] の2つ）
+		const pre = preprocessVariants(target, true);
+		return { skipped: false, variants: pre.length === 3 ? [pre[0], pre[2]] : pre, rows, detected: !!detection };
+	}
+	const linesOf = (data, detected) => (detected ? extractLinesWithBBox(data) : extractLines(data)).map((l) => l.text);
+
+	/* ── 1回の試し ── */
+	let busy = false;
+	async function run() {
+		if (busy || !files.length) return;
+		busy = true;
+		$('go').disabled = true;
+		const key = modeKey(), m = MODES[key], prewarm = $('prewarm').checked;
+		const rec = { no: store.runs.length + 1, at: new Date().toISOString(), mode: key, label: m.label, n: m.n, prewarm, images: files.length, set: setKey,
+			prepMs: null, prepBeforeMs: null, imageMs: 0, recogMs: null, totalMs: null, lagMs: null, jobs: 0, rows: 0, lines: 0, chars: 0, skipped: 0, diff: null, status: 'running' };
+		store.running = rec; save(store);
+		const progress = (t) => { $('progress').textContent = t; };
+		const t0 = now(), lag = lagMeter();
+		let workers = null;
+		try {
+			// 用意
+			progress('エンジンを用意しています…');
+			if (prewarm) {
+				const r = ready && ready.n === m.n ? ready : null;
+				const tw = now();
+				workers = await (r ? r.promise : prepare(m.n, true));
+				rec.prepMs = now() - tw;   // 押してから待った分（済んでいれば 0 に近い）
+				rec.prepBeforeMs = ready ? ready.ms : null;
+			} else {
+				const tp = now();
+				workers = await makeWorkers(m.n);
+				rec.prepMs = now() - tp;
+			}
+			// 読む
+			const fps = [];   // 認識1回ごとの指紋（画像の順・前処理の順）
+			let firstStart = null, lastEnd = null, doneJobs = 0, totalJobs = null;
+			const tick = () => progress('読んでいます… 認識 ' + doneJobs + (totalJobs ? '／' + totalJobs : '') + '回');
+			const recognize = async (w, canvas, k, detected) => {
+				const ts = now(); if (firstStart === null) firstStart = ts;
+				const res = await w.recognize(canvas);
+				lastEnd = now();
+				const ls = linesOf(res.data, detected);
+				rec.lines += ls.length; rec.chars += ls.join('').length;
+				fps[k] = hash(ls.join('\n'));
+				doneJobs++; tick();
+			};
+			if (!m.pipe) {
+				// 今の読み方: 1枚ずつ、整えて → 認識（2回）を待ってから次へ
+				let k = 0;
+				for (const f of files) {
+					const ti = now(); const p = await prepareImage(f); rec.imageMs += now() - ti;
+					if (p.skipped) { rec.skipped++; continue; }
+					rec.rows += p.rows;
+					for (const v of p.variants) await recognize(workers[0], v, k++, p.detected);
+				}
+				rec.jobs = k;
+			} else {
+				// 並べて読む: 主のスレッドが整えて列に積み、空いたエンジンが先頭から取る（列は 2×本数まで。メモリを抑える）
+				const queue = []; let produced = false, k = 0;
+				const waiters = [];
+				const notify = () => { waiters.splice(0).forEach((w) => w()); };
+				const waitChange = () => new Promise((res) => { waiters.push(res); });
+				const consumers = workers.map(async (w) => {
+					for (;;) {
+						if (queue.length) { const j = queue.shift(); notify(); await recognize(w, j.canvas, j.k, j.detected); notify(); continue; }
+						if (produced) return;
+						await waitChange();
+					}
+				});
+				for (const f of files) {
+					while (queue.length >= 2 * m.n) await waitChange();
+					const ti = now(); const p = await prepareImage(f); rec.imageMs += now() - ti;
+					if (p.skipped) { rec.skipped++; continue; }
+					rec.rows += p.rows;
+					for (const v of p.variants) queue.push({ canvas: v, k: k++, detected: p.detected });
+					notify();
+				}
+				totalJobs = k; produced = true; notify();
+				await Promise.all(consumers);
+				rec.jobs = k;
+			}
+			rec.recogMs = firstStart === null ? 0 : lastEnd - firstStart;
+			rec.totalMs = now() - t0;
+			// 今の読み方の回との比べ
+			const fpKey = fps.join(',');
+			if (key === 'seq') { store.baselines[setKey] = fps; rec.diff = 'base'; }
+			else if (store.baselines[setKey]) { const b = store.baselines[setKey]; let d = Math.abs(b.length - fps.length); for (let i = 0; i < Math.min(b.length, fps.length); i++) if (b[i] !== fps[i]) d++; rec.diff = d; }
+			rec.fp = hash(fpKey);
+			rec.status = 'done';
+			progress('終わりました（合計 ' + sec(rec.totalMs) + '秒）');
+		} catch (e) {
+			rec.status = 'error';
+			rec.error = String(e && e.message || e).slice(0, 200);
+			progress('止まりました: ' + rec.error);
+		} finally {
+			rec.lagMs = lag.stop();
+			if (performance.memory) rec.heapMB = Math.round(performance.memory.usedJSHeapSize / 1048576);
+			// 先に用意するときは閉じずに次へ使い回す（案2）。そうでなければ閉じる
+			if (!(prewarm && ready && ready.workers === workers)) await closeAll(workers);
+			store.runs.push(rec);
+			if (store.runs.length > 80) store.runs = store.runs.slice(-80);
+			store.running = null; save(store);
+			busy = false;
+			$('go').disabled = !files.length;
+			render();
+		}
+	}
+	$('go').addEventListener('click', run);
+
+	/* ── 表とコピー ── */
+	function diffText(r) {
+		if (r.status !== 'done') return '—';
+		if (r.diff === 'base') return '（これが基準）';
+		if (r.diff === null || r.diff === undefined) return '比べる相手なし';
+		return r.diff === 0 ? '同じ' : '違う ' + r.diff + '回';
+	}
+	function statusText(r) { return r.status === 'done' ? '終わった' : r.status === 'lost' ? '途中で止まった（ページが読み直された見込み）' : r.status === 'error' ? '失敗: ' + (r.error || '') : r.status; }
+	const comboText = (r) => r.label + (r.prewarm ? '・先に用意' : '');
+	const prepText = (r) => (r.prepMs == null ? '—' : sec(r.prepMs) + (r.prewarm && r.prepBeforeMs != null ? '（' + sec(r.prepBeforeMs) + '）' : ''));
+	const v = (x) => (x == null ? '—' : sec(x));
+	function render() {
+		const tb = document.querySelector('#results tbody');
+		tb.textContent = '';
+		store.runs.slice().reverse().forEach((r) => {
+			const tr = document.createElement('tr');
+			if (r.status === 'lost') tr.className = 'lost';
+			[r.no, comboText(r), r.images, prepText(r), v(r.imageMs), v(r.recogMs), v(r.totalMs), v(r.lagMs), r.jobs || '—', diffText(r), statusText(r)].forEach((c, i) => {
+				const td = document.createElement('td'); td.textContent = String(c);
+				if (i === 9) td.className = r.diff === 0 || r.diff === 'base' ? 'ok' : typeof r.diff === 'number' ? 'ng' : '';
+				tr.appendChild(td);
+			});
+			tb.appendChild(tr);
+		});
+		$('out').value = copyText();
+	}
+	function envText() {
+		const n = navigator;
+		return '端末: ' + n.userAgent + ' / 論理コア ' + (n.hardwareConcurrency || '?') + (n.deviceMemory ? ' / メモリの目安 ' + n.deviceMemory + 'GB' : '') + ' / 画面 ' + screen.width + 'x' + screen.height + ' @' + (window.devicePixelRatio || 1);
+	}
+	function copyText() {
+		const head = ['T184 OCR の速さの試し（lab/ocr-speed-test.html 版 ' + PAGE_VERSION + '）', envText(),
+			'#	読み方	枚数	用意	（先に用意した時間）	画像の処理	認識	合計	引っかかり	認識の回数	行	文字	違い	状態	時刻	組の印'];
+		const rows = store.runs.map((r) => [r.no, comboText(r), r.images, v(r.prepMs), r.prepBeforeMs == null ? '' : sec(r.prepBeforeMs), v(r.imageMs), v(r.recogMs), v(r.totalMs), v(r.lagMs), r.jobs, r.rows, r.chars, diffText(r), statusText(r), r.at.replace('T', ' ').slice(0, 19), r.set].join('\t'));
+		return head.concat(rows).join('\n');
+	}
+	$('copy').addEventListener('click', async () => {
+		const t = copyText();
+		$('out').value = t;
+		try { await navigator.clipboard.writeText(t); $('copy-msg').textContent = 'コピーしました（' + store.runs.length + '回分）。'; }
+		catch (e) { $('out').focus(); $('out').select(); $('copy-msg').textContent = '自動でコピーできませんでした。下の枠を長押しして、すべて選択 → コピーしてください。'; }
+	});
+	$('clear').addEventListener('click', () => {
+		if (!confirm('この端末に残した結果（' + store.runs.length + '回分）を消しますか？')) return;
+		store = { runs: [], running: null, baselines: {} }; save(store); render();
+		$('lost-note').hidden = true;
+	});
+
+	/* ── 開いたとき: 前の試しが途中で終わっていないか ── */
+	if (store.running) {
+		const r = store.running;
+		r.status = 'lost';
+		store.runs.push(r); store.running = null; save(store);
+		$('lost-note').hidden = false;
+		$('lost-note').textContent = '前の試し（#' + r.no + '・' + comboText(r) + '・' + r.images + '枚）は最後まで終わりませんでした。ページが読み直された（白いページになった）見込みです。';
+	}
+	$('env').textContent = envText() + ' / ページの版 ' + PAGE_VERSION;
+	render();
+	window.__ocrSpeedTest = { MODES, PAGE_VERSION, prepareImage, store: () => store };   // 検査（blocks-177）が見る
+})();
+</script>
+</body>
+</html>

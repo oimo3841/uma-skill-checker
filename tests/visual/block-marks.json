@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-12",
+"generated": "2026-11-13",
 "numbering": "runtime",
-"count": 1124,
+"count": 1128,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1129,6 +1129,10 @@
   {"file":"tests/visual/blocks-175.mjs","title":"T180(4) 4列目の欠けた所: 理論値SP OFF なら4列目は上端から・因子周回編成だけでも4列目に置く（作り物の短い親）","ord":1,"marks":"VC","asserts":4},
   {"file":"tests/visual/blocks-176.mjs","title":"T182(1) 動画のお知らせの文面は原文と1字も違わない（UmaStar はレース欄の1文あり・UmaExam はなし）・画像はページごとの1枚（alt=\"\"）で小窓に収まる／375・1280px・横スクロールなし・エラー0","ord":1,"marks":"VATC","asserts":9,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-176.mjs","title":"T182(2) 履歴の先頭は動画のお知らせ（2026/11/12・両ツール）／初めての人に0日目・30日目は自動で出て31日目は出ない／閉じると既読（ID）・開き直すと出ない／メニュー・?notice=force でも動画から開く（force は何も書かない）","ord":1,"marks":"A","asserts":12},
-  {"file":"tests/visual/blocks-176.mjs","title":"T182(3) 動画の表記は β（入口「動画β」・動画を選ぶボタンの小さな字）／動画の機能の字・読み上げ名・title に α が無い／Deck (αテスト)・イベントスキル未収録の赤字は今のまま／めろっぷのモードの名前に「（βテスト）」が無い","ord":1,"marks":"AT","asserts":7}
+  {"file":"tests/visual/blocks-176.mjs","title":"T182(3) 動画の表記は β（入口「動画β」・動画を選ぶボタンの小さな字）／動画の機能の字・読み上げ名・title に α が無い／Deck (αテスト)・イベントスキル未収録の赤字は今のまま／めろっぷのモードの名前に「（βテスト）」が無い","ord":1,"marks":"AT","asserts":7},
+  {"file":"tests/visual/blocks-177.mjs","title":"T184(1) OCR の速さの試しのページ: 開く・横スクロールなし・エラー0・noindex・CSP・製品からリンクしていない","ord":1,"marks":"VATC","asserts":9},
+  {"file":"tests/visual/blocks-177.mjs","title":"T184(2) 試しのページの関数の写しが special.html と一字も違わない","ord":1,"marks":"*","asserts":4,"review":"印が決まらない（健全性と分けられない assert だけ）"},
+  {"file":"tests/visual/blocks-177.mjs","title":"T184(3) 今の読み方・並べて読む 2本・先に用意して並べて読む 1本で、結果が出て、今の読み方と同じ","ord":1,"marks":"AT","asserts":13},
+  {"file":"tests/visual/blocks-177.mjs","title":"T184(4) 試しの途中でページが読み直されたら「途中で止まった」と出る・(5) 通信は同じ場所と作り物のエンジンの GET だけ","ord":1,"marks":"ASC","asserts":6}
 ]
 }

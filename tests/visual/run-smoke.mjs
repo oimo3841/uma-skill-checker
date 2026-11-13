@@ -189,6 +189,7 @@ import { register173 } from './blocks-173.mjs';
 import { register174 } from './blocks-174.mjs';
 import { register175 } from './blocks-175.mjs';
 import { register176 } from './blocks-176.mjs';
+import { register177 } from './blocks-177.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15713,6 +15714,8 @@ await register174({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register175({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T182（2026-11-12）: 動画で取り込み（βテスト）のお知らせ・動画の表記の α → β・めろっぷの「（βテスト）」を外した（見出しは「T182」）。tests/visual/blocks-176.mjs
 await register176({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T184（2026-11-13）: OCR の速さの試しのページ lab/ocr-speed-test.html（作業用。製品は変えていない。見出しは「T184」）。tests/visual/blocks-177.mjs
+await register177({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
