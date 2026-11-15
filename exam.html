@@ -5352,7 +5352,8 @@
 					if (worker.room) await worker.room();
 					// 画像全体の読み（行の検出に失敗した画）は、同じエンジンで前に読んだ画像全体に結果が左右されるので、池の「順に読む列」（1本が積んだ順に読む）へ（T185）
 					const job = Promise.resolve().then(() => (!detection && worker.recognizeInOrder) ? worker.recognizeInOrder(variants[v]) : worker.recognize(variants[v])).then(res => ({ res: res }), err => ({ err: err }));
-					if (!worker.prepared) await job;
+					// 画像全体（幅 1800 の大きな画）は読み終わりを待ってから次へ（今までと同じく大きな画を1枚ずつ持つ。スマホのメモリのため）
+					if (!worker.prepared || !detection) await job;
 					reads.push({ job: job, file: file, i: i, detection: detection, placements: placements, rowStars: rowStars });
 				}
 			}
