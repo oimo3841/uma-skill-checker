@@ -324,7 +324,9 @@ export async function register178(env) {
 			const mk = (tag, w) => { const c = document.createElement('canvas'); c.width = w; c.height = 60; c.__tag = tag; return c; };
 			const s = await UmaOcrPool.open();
 			const n = UmaOcrPool.sizeFor();
-			const jobs = [['A1', true, 300], ['n1', false, 101], ['n2', false, 133], ['A2', true, 301], ['n3', false, 157], ['n4', false, 171], ['A3', true, 302], ['n5', false, 199]]
+			// 画像全体（A）と小さな画（n）を交互に積む。A の待ち時間は画ごとに違う（並べて読むと別のエンジンに散る）
+			const jobs = [['A1', true, 300], ['n1', false, 101], ['A2', true, 331], ['n2', false, 133], ['A3', true, 317], ['n3', false, 157], ['A4', true, 352],
+				['n4', false, 171], ['A5', true, 309], ['n5', false, 199], ['A6', true, 344], ['n6', false, 121]]
 				.map(([t, ord, w]) => (ord ? s.recognizeInOrder(mk(t, w)) : s.recognize(mk(t, w))));
 			await Promise.all(jobs);
 			const log1 = window.__tess.log.slice();
@@ -343,7 +345,7 @@ export async function register178(env) {
 		});
 		const ordered = r.log1.filter(([, t]) => /^A/.test(t));
 		const owner = ordered.length ? ordered[0][0] : null;
-		assert(ordered.length === 3 && ordered.every(([id]) => id === owner) && ordered.map(([, t]) => t).join(',') === 'A1,A2,A3', 'T185(6) 順に読む列は1本のエンジンが積んだ順に読む', r.log1);
+		assert(ordered.length === 6 && ordered.every(([id]) => id === owner) && ordered.map(([, t]) => t).join(',') === 'A1,A2,A3,A4,A5,A6', 'T185(6) 順に読む列は1本のエンジンが積んだ順に読む', r.log1);
 		assert(new Set(r.log1.filter(([, t]) => /^n/.test(t)).map(([id]) => id)).size >= 2, 'T185(6) ほかの読みは池のエンジンに分かれる（並べて読む）', r.log1);
 		assert(r.st1.dirty === 1 && r.inits1[owner] === r.inits0[owner] + 1 && Object.keys(r.inits1).every((k) => Number(k) === owner || r.inits1[k] === r.inits0[k]),
 			'T185(6) OCR が終わったら、順に読む列を読んだエンジンだけを初期化し直す', { owner, inits0: r.inits0, inits1: r.inits1, st1: r.st1 });
