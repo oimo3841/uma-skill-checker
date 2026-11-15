@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-15",
 "numbering": "runtime",
-"count": 1134,
+"count": 1138,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1139,6 +1139,10 @@
   {"file":"tests/visual/blocks-178.mjs","title":"T185(3) 使い回しと閉じる時機: 読み終わっても閉じない・2回目は先に用意していた・pagehide で閉じる・使わない時間（5分）で閉じる","ord":1,"marks":"VAC","asserts":8,"review":"名前で分けられない assert が 38%"},
   {"file":"tests/visual/blocks-178.mjs","title":"T185(4) エンジンを作るのに失敗したら本数を1つ減らして続ける・1本も作れなければ今までの読み方に戻る（結果は同じ）","ord":1,"marks":"VAC","asserts":8,"review":"名前で分けられない assert が 38%"},
   {"file":"tests/visual/blocks-178.mjs","title":"T185(5) 並べて読んでも照合に渡す行・結果・％の表示は今までの読み方と同じ・同時に N 本走る・同時に2つの OCR は走らない（UmaStar・UmaExam）","ord":1,"marks":"VAC","asserts":12},
-  {"file":"tests/visual/blocks-178.mjs","title":"T185(6) 画像全体の読み（行の検出に失敗した画）は1回の OCR の中で1本のエンジンが積んだ順に読み、OCR のあとにそのエンジンを初期化し直す","ord":1,"marks":"C","asserts":7}
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(6) 画像全体の読み（行の検出に失敗した画）は1回の OCR の中で1本のエンジンが積んだ順に読み、OCR のあとにそのエンジンを初期化し直す","ord":1,"marks":"C","asserts":7},
+  {"file":"tests/visual/blocks-179.mjs","title":"T186(1) UmaExam の静止画のサムネイル: 幅 336px の縮小画像・枠の高さは今のまま 56px・描き直しでは同じ URL・消した画像とクリアしたセットの URL は手放す・元の File は持つ・親Bセットも同じ","ord":1,"marks":"VSC","asserts":10},
+  {"file":"tests/visual/blocks-179.mjs","title":"T186(2) UmaExam の動画: タイルは縮小画像・結合画像は Blob の URL で②と引き出しが同じ URL・作り直すと古い URL を手放す・PNG の中身は今の作りと同じ","ord":1,"marks":"VA","asserts":13,"review":"名前で分けられない assert が 31%"},
+  {"file":"tests/visual/blocks-179.mjs","title":"T186(3) UmaExam の静止画の「OCR処理＋画像結合」: 親A・親B の結合画像は Blob の URL・中身は今の作りと同じ・コメントのコピーのボタンは今のまま","ord":1,"marks":"SC","asserts":4},
+  {"file":"tests/visual/blocks-179.mjs","title":"T186(4) UmaExam の保存: スマホは共有のシートに手元の Blob（中身は表示の画像と同じ・名前は今と同じ）・PC は今の名前でダウンロード","ord":1,"marks":"ATS","asserts":5}
 ]
 }

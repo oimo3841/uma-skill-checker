@@ -191,6 +191,7 @@ import { register175 } from './blocks-175.mjs';
 import { register176 } from './blocks-176.mjs';
 import { register177 } from './blocks-177.mjs';
 import { register178 } from './blocks-178.mjs';
+import { register179 } from './blocks-179.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15719,6 +15720,8 @@ await register176({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register177({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T185（2026-11-15）: OCR を並べて読む（案4）・エンジンを先に用意して使い回す（案2）。js/ocr-pool.js（見出しは「T185」）。tests/visual/blocks-178.mjs
 await register178({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T186（2026-11-15）: UmaExam のメモリを減らす（②のサムネイル・動画のタイルを縮小画像に・結合画像を PNG の object URL に。UmaStar の T133 と同じ作り。見出しは「T186」）。tests/visual/blocks-179.mjs
+await register179({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

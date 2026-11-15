@@ -114,8 +114,8 @@ export async function register146(env) {
 		const btn = box && box.querySelector('[data-video-refresh]');
 		const cols = document.querySelector('#personset-A-wrap .upload-cols');
 		return {
-			// src は長い data URL なので、長さと末尾だけ（ログが大きくならないように）
-			box: !!box, img: img ? img.src.slice(0, 22) : null, src: img ? img.src.length + ':' + img.src.slice(-32) : null, h: img ? img.naturalHeight : 0,
+			// src は PNG の object URL（T186。前は長い data URL だった）。長さと末尾だけ（ログが大きくならないように）
+			box: !!box, img: img ? img.src.slice(0, 5) : null, src: img ? img.src.length + ':' + img.src.slice(-32) : null, h: img ? img.naturalHeight : 0,
 			dl: !!(box && box.querySelector('.video-dl-btn')), head: box ? (box.querySelector('.video-result-head p') || null) === null : null,
 			note: !!(box && box.querySelector('.video-refresh-note')),
 			btn: !!btn, disabled: btn ? btn.disabled : null, state: btn ? btn.getAttribute('data-state') : null, label: btn ? btn.textContent.trim() : null,
@@ -137,7 +137,7 @@ export async function register146(env) {
 			const res = await runVideo(page);
 			assert(res && res.ok === true && res.stitched === true, tag + '取り込みと自動の結合が成功', res);
 			const s = await panel(page);
-			assert(s.box && s.img === 'data:image/png;base64,' && s.dl && s.head, tag + '②の枠の中に結合画像（見出しなし・ダウンロードはアイコン）', s);
+			assert(s.box && s.img === 'blob:' && s.dl && s.head, tag + '②の枠の中に結合画像（見出しなし・ダウンロードはアイコン）', s);
 			assert(s.video.every(Boolean) && s.files.every((n) => n > 0) && s.tiles === 3, tag + '3人の枠に動画の画（「動画の画像」の1行）', s);
 			assert(s.n.select === 1 && s.n.compose === 3 && s.n.stitchOne === 0, tag + '取り込みは1回・3人とも composePerson', s.n);
 			assert(s.tab === '親Aセット' && s.badge === null, tag + 'タブと②の枚数に動画の画は数えない', { tab: s.tab, badge: s.badge });
