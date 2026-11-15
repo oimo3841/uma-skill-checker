@@ -67,7 +67,7 @@ function grabQuery(sources) {
 }
 
 const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html', 'card-event-input.html',
-	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'];
+	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js', 'js/ocr-pool.js'];
 // 15セッション目: exam.html を「変更してはいけないファイル」から外し、
 // special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
 const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
@@ -142,6 +142,8 @@ const landscapeVer = /LANDSCAPE_PANEL_JS_VERSION = '([^']+)'/.exec(read('js/land
 const stitchShareVer = /STITCH_SHARE_JS_VERSION = '([^']+)'/.exec(read('js/stitch-share.js'))[1];
 // T126: 人ごとの結合画像を Deck α の登録の画面へ渡す部品 js/deck-alpha-images.js も同じ運用（special.html・exam.html・deck-alpha-register.html が読む）
 const deckImagesVer = /DECK_ALPHA_IMAGES_JS_VERSION = '([^']+)'/.exec(read('js/deck-alpha-images.js'))[1];
+// T185: OCR のエンジンの池 js/ocr-pool.js も同じ運用（special.html・exam.html が読む）
+const ocrPoolVer = /OCR_POOL_JS_VERSION = '([^']+)'/.exec(read('js/ocr-pool.js'))[1];
 /* 71セッション目・段7: マスター（uma-skill-deck-skills.json）の取得URLに ?v= が付いた。
    ここだけ形が違う ―― 版の正本は**JSONの中の masterVersion**（ファイル名には版が付かない）で、
    core.js の MASTER_JSON_VERSION がそれを写して ?v= に使う。**写し間違いを落とす。**
@@ -198,6 +200,8 @@ for (const [p, pat, ver, name] of [
 	['special.html', /js\/deck-alpha-images\.js\?v=([0-9a-z-]+)/g, deckImagesVer, 'deck-alpha-images.js'],
 	['exam.html', /js\/deck-alpha-images\.js\?v=([0-9a-z-]+)/g, deckImagesVer, 'deck-alpha-images.js'],
 	['deck-alpha-register.html', /js\/deck-alpha-images\.js\?v=([0-9a-z-]+)/g, deckImagesVer, 'deck-alpha-images.js'],
+	['special.html', /js\/ocr-pool\.js\?v=([0-9a-z-]+)/g, ocrPoolVer, 'ocr-pool.js'],
+	['exam.html', /js\/ocr-pool\.js\?v=([0-9a-z-]+)/g, ocrPoolVer, 'ocr-pool.js'],
 	['special.html', /js\/skillset-cards\.js\?v=([0-9a-z-]+)/g, skillsetVer, 'skillset-cards.js'],
 	['special.html', /js\/skillset-ocr\.js\?v=([0-9a-z-]+)/g, skillsetOcrVer, 'skillset-ocr.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
@@ -281,6 +285,7 @@ const VERSIONED = [
 	['js/landscape-panel.js', landscapeVer, /LANDSCAPE_PANEL_JS_VERSION = '([^']+)'/],
 	['js/stitch-share.js', stitchShareVer, /STITCH_SHARE_JS_VERSION = '([^']+)'/],
 	['js/deck-alpha-images.js', deckImagesVer, /DECK_ALPHA_IMAGES_JS_VERSION = '([^']+)'/],
+	['js/ocr-pool.js', ocrPoolVer, /OCR_POOL_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
 	// マスターは JSON の中の masterVersion が版。**中身を変えたのに版を据え置く**と
 	// ?v= も動かず、公開側の10分キャッシュに古い本文が残り続ける（71セッション目・段7）。
@@ -537,8 +542,8 @@ console.log('\n=== 4. 消したclassがJSに掴まれていないか ===');
 // classList/className は「JSが既に参照を持つ要素」にしか作用しないので同ページ内のみ危険。
 // querySelector 系は文書全体を探すのでファイル横断で危険。
 const SIBLINGS = {
-	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
-	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js'],
+	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js', 'js/ocr-pool.js'],
+	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js', 'js/ocr-pool.js'],
 	'uma-skill-deck.html': ['uma-skill-deck.html', 'js/uma-skill-deck.js', 'js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck-core.js': ['js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck.js': ['js/uma-skill-deck.js'],
@@ -570,7 +575,7 @@ for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleg
 		check(r.status === 0, `${p} の<script>#${i} が構文エラーなし`, (r.stderr || '').slice(0, 160));
 	});
 }
-for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js']) {
+for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js', 'js/announce.js', 'js/video-frames.js', 'js/pc-capture.js', 'js/landscape-panel.js', 'js/stitch-share.js', 'js/deck-alpha-images.js', 'js/ocr-pool.js']) {
 	const r = spawnSync(process.execPath, ['--check', path.join(REPO_ROOT, p)], { encoding: 'utf8' });
 	check(r.status === 0, p + ' が構文エラーなし', (r.stderr || '').slice(0, 160));
 }

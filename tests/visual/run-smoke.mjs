@@ -190,6 +190,7 @@ import { register174 } from './blocks-174.mjs';
 import { register175 } from './blocks-175.mjs';
 import { register176 } from './blocks-176.mjs';
 import { register177 } from './blocks-177.mjs';
+import { register178 } from './blocks-178.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15716,6 +15717,8 @@ await register175({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register176({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T184（2026-11-13）: OCR の速さの試しのページ lab/ocr-speed-test.html（作業用。製品は変えていない。見出しは「T184」）。tests/visual/blocks-177.mjs
 await register177({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T185（2026-11-15）: OCR を並べて読む（案4）・エンジンを先に用意して使い回す（案2）。js/ocr-pool.js（見出しは「T185」）。tests/visual/blocks-178.mjs
+await register178({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

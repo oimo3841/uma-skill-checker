@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-13",
+"generated": "2026-11-15",
 "numbering": "runtime",
-"count": 1128,
+"count": 1134,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1133,6 +1133,12 @@
   {"file":"tests/visual/blocks-177.mjs","title":"T184(1) OCR の速さの試しのページ: 開く・横スクロールなし・エラー0・noindex・CSP・製品からリンクしていない","ord":1,"marks":"VATC","asserts":9},
   {"file":"tests/visual/blocks-177.mjs","title":"T184(2) 試しのページの関数の写しが special.html と一字も違わない","ord":1,"marks":"*","asserts":4,"review":"印が決まらない（健全性と分けられない assert だけ）"},
   {"file":"tests/visual/blocks-177.mjs","title":"T184(3) 今の読み方・並べて読む 2本・先に用意して並べて読む 1本で、結果が出て、今の読み方と同じ","ord":1,"marks":"AT","asserts":13},
-  {"file":"tests/visual/blocks-177.mjs","title":"T184(4) 試しの途中でページが読み直されたら「途中で止まった」と出る・(5) 通信は同じ場所と作り物のエンジンの GET だけ","ord":1,"marks":"ASC","asserts":6}
+  {"file":"tests/visual/blocks-177.mjs","title":"T184(4) 試しの途中でページが読み直されたら「途中で止まった」と出る・(5) 通信は同じ場所と作り物のエンジンの GET だけ","ord":1,"marks":"ASC","asserts":6},
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(1) OCR の池の本数（スマホ 2・PC はコア 8 以上で 3・少なければ 2）・両ページが版つきで読む・スキルセットの OCR と index.html は使わない","ord":1,"marks":"C","asserts":9,"review":"名前で分けられない assert が 78%"},
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(2) 先に用意の時機: ページを開いたときは用意しない・画像を選んだときに用意する・自動の検査では用意しない・動画は組み立てのあと","ord":1,"marks":"AC","asserts":7},
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(3) 使い回しと閉じる時機: 読み終わっても閉じない・2回目は先に用意していた・pagehide で閉じる・使わない時間（5分）で閉じる","ord":1,"marks":"VAC","asserts":8,"review":"名前で分けられない assert が 38%"},
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(4) エンジンを作るのに失敗したら本数を1つ減らして続ける・1本も作れなければ今までの読み方に戻る（結果は同じ）","ord":1,"marks":"VAC","asserts":8,"review":"名前で分けられない assert が 38%"},
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(5) 並べて読んでも照合に渡す行・結果・％の表示は今までの読み方と同じ・同時に N 本走る・同時に2つの OCR は走らない（UmaStar・UmaExam）","ord":1,"marks":"VAC","asserts":12},
+  {"file":"tests/visual/blocks-178.mjs","title":"T185(6) 画像全体の読み（行の検出に失敗した画）は1回の OCR の中で1本のエンジンが積んだ順に読み、OCR のあとにそのエンジンを初期化し直す","ord":1,"marks":"C","asserts":7}
 ]
 }

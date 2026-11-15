@@ -46,6 +46,8 @@
 	<script src="js/pc-capture.js?v=2026-11-11b"></script>
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。special.html と共有。②の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
 	<script src="js/landscape-panel.js?v=2026-11-10a"></script>
+	<!-- OCR のエンジンの池（T185。並べて読む・先に用意して使い回す。exam.html / special.html で共有。processImages が使う。スキルセットの OCR は使わない） -->
+	<script src="js/ocr-pool.js?v=2026-11-15a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
 	<script src="js/announce.js?v=2026-11-12a"></script>
 	<style>
@@ -4527,8 +4529,24 @@
 			return {
 				sec,
 				lap(name, extra) { const now = performance.now(); if (name) parts.push(name + ' ' + sec(now - at) + (extra || '')); at = now; },
+				note(text) { if (text) parts.push(text); },   // 秒を数えない段（T185 の OCR の内訳）
 				line(head) { return '[時間] ' + head + ': ' + parts.concat(['合計 ' + sec(performance.now() - t0)]).join('・'); }
 			};
+		}
+		/* OCR の [時間] の行の内訳（T185）。並べて読むと人ごとの時間が重なるので、エンジンの本数（先に用意していたか）・認識の回数と
+		 * エンジンの時間の合計・主のスレッドの整えの合計・人ごとの終わりの時刻（押してから）を出す。pool が null なら今までの読み方（1本） */
+		function ocrTimeDetail(pool, prepMs, ends, sec) {
+			const parts = [];
+			if (pool) {
+				parts.push('エンジン ' + pool.size() + '本（' + (pool.warm ? '先に用意していた' : '押してから用意') + '）');
+				parts.push('認識 ' + pool.stats.recognize + '回（エンジンの時間の合計 ' + sec(pool.stats.recognizeMs) + (pool.stats.ordered ? '・うち画像全体 ' + pool.stats.ordered + '回は1本で順に' : '') + (pool.stats.failed ? '・失敗 ' + pool.stats.failed + '回' : '') + '）');
+				parts.push('整える ' + sec(prepMs));
+			} else {
+				parts.push('エンジン 1本（今までの読み方）');
+				parts.push('読み取り ' + sec(prepMs));
+			}
+			if (ends.length) parts.push('終わり ' + ends.join('／'));
+			return parts.join('・');
 		}
 		// 選ぶ処理（selectFrames）の中の段（読む・選ぶ・取り直す。横画面では、くっきりした画を探す時間も）
 		function selectTimeDetail(sel, sec) {
@@ -4589,6 +4607,8 @@
 				clock.lap('組み立て（結合画像）');
 				lastVideoTimeLine = clock.line(capture ? '取り込み' : '動画');
 				devGeometry.push(lastVideoTimeLine);
+				// T185（決定 765）: 動画・取り込みは組み立て（結合画像）が終わってから OCR のエンジンを先に用意する（取り込みの最中には持たない）
+				if (window.UmaOcrPool) UmaOcrPool.prewarm(capture ? '取り込みの組み立てのあと' : '動画の組み立てのあと');
 				document.getElementById('video-progress').remove();
 				if (capture) clearCaptureStage(setIdx);
 				return { ok: true, stitched };
@@ -4839,6 +4859,8 @@
 			renderPersonImageList(personIdx);
 			updateProcessBtn();
 			cropLandscapeFiles(personIdx, added);
+			// T185（決定 765）: 画像を選んだときに OCR のエンジンを先に用意する（ページを開いたときには用意しない）
+			if (added.length && window.UmaOcrPool) UmaOcrPool.prewarm('画像を選んだ');
 		}
 
 		/* DMM版の横画面の画像（T145）: 入れた画像のうち横長でパネルが見つかったものを、パネルを切り出した画像に置き換える（js/landscape-panel.js）。
@@ -5220,6 +5242,7 @@
 			// 結果画像に印を焼くための行の座標（画像ごと・files と同じ並び）。
 			// 行を検出できなかった画像・画質で飛ばした画像のところは null のまま残す。
 			const geometry = files.map(() => null);
+			const reads = [];   // 認識の頼み（画像・前処理の順。T185）
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
@@ -5323,23 +5346,35 @@
 				// common.js（凍結）は変えずに、ここで2番目を落とす。めろっぷのいちばん上の段の読み取りは3つのまま。
 				const pre = usePre ? preprocessVariants(target, multi) : [target];
 				const variants = pre.length === 3 ? [pre[0], pre[2]] : pre;
+				// T185（決定 763）: 池（js/ocr-pool.js）の worker なら、読みを列に積んで次の画像を整えに進む（列が 2×本数 に達したら空くまで待つ）。
+				// 行は下で「画像・前処理」の順に並べ直すので、照合に渡す行は今までと同じ。ふつうの worker（池を作れなかったとき・検査）は今までどおり1回ずつ待つ（special.html と同じ）
 				for (let v = 0; v < variants.length; v++) {
-					try {
-						const res = await worker.recognize(variants[v]);
-						if (detection) {
-							const rawLines = extractLinesWithBBox(res.data);
-							// 第2引数以降で「どの画像のどの行から来たOCR行か」を持たせる。
-							// 同じ画像を前処理違いで読み直した結果は同じ rowKey になり、
-							// 判定側が「同じ項目の読み直し」と「別の項目」を区別できる。
-							const withStars = attachStarsToLines(rawLines, placements, rowStars, i);
-							lines.push.apply(lines, withStars);
-						} else {
-							const rawLines = extractLines(res.data).map(l => Object.assign({}, l, { stars: null, starsReliable: false, rowKey: null }));
-							lines.push.apply(lines, rawLines);
-						}
-					} catch (err) {
-						console.error('OCR failed: ' + file.name, err);
+					if (worker.room) await worker.room();
+					// 画像全体の読み（行の検出に失敗した画）は、同じエンジンで前に読んだ画像全体に結果が左右されるので、池の「順に読む列」（1本が積んだ順に読む）へ（T185）
+					const job = Promise.resolve().then(() => (!detection && worker.recognizeInOrder) ? worker.recognizeInOrder(variants[v]) : worker.recognize(variants[v])).then(res => ({ res: res }), err => ({ err: err }));
+					if (!worker.prepared) await job;
+					reads.push({ job: job, file: file, i: i, detection: detection, placements: placements, rowStars: rowStars });
+				}
+			}
+			if (worker.prepared) worker.prepared();   // この人の整えが終わった（呼び出し元は次の人の整えに進む）
+			for (const r of reads) {
+				const got = await r.job;
+				try {
+					if (got.err) throw got.err;
+					const res = got.res;
+					if (r.detection) {
+						const rawLines = extractLinesWithBBox(res.data);
+						// 第2引数以降で「どの画像のどの行から来たOCR行か」を持たせる。
+						// 同じ画像を前処理違いで読み直した結果は同じ rowKey になり、
+						// 判定側が「同じ項目の読み直し」と「別の項目」を区別できる。
+						const withStars = attachStarsToLines(rawLines, r.placements, r.rowStars, r.i);
+						lines.push.apply(lines, withStars);
+					} else {
+						const rawLines = extractLines(res.data).map(l => Object.assign({}, l, { stars: null, starsReliable: false, rowKey: null }));
+						lines.push.apply(lines, rawLines);
 					}
+				} catch (err) {
+					console.error('OCR failed: ' + r.file.name, err);
 				}
 			}
 			return { lines: lines, skipped: skipped, warned: warned, geometry: geometry };
@@ -5383,10 +5418,16 @@
 			const multi = true;
 			const wantPreview = document.getElementById('opt-preview').checked;
 
-			let worker = null;
+			let worker = null;   // 認識に使う worker（池の worker か、池を作れなかったときの1本）
+			let solo = null;     // 池を作れなかったときの今までの1本（終わりに閉じる）
+			let pool = null;     // T185（決定 763〜765）: エンジンの池の1回（js/ocr-pool.js）。読み終わっても閉じない（5分・ページを離れたときに閉じる）
 			let anySuccess = false;
 			const skippedAll = [];
 			const warnedAll = [];
+			const ocrT0 = performance.now();
+			const ocrEnds = [];  // 人ごとの読み取りが終わった時刻（押してから）
+			const readEnds = persons.map(() => null);
+			let ocrPrepMs = 0;   // 主のスレッドの整えの合計
 
 			// めろっぷ！【LTC】専用拡張モード（C-101）のときだけ、行の並びのデータを読む。
 			// 読めなければこの回は拡張モードなしで判定する（いつもの判定には影響しない）。
@@ -5427,29 +5468,69 @@
 				}
 			}
 
+			ocrStage = '準備';
 			try {
 				setProgress(0, 'OCRエンジンを初期化中…');
-				worker = await Tesseract.createWorker();
-				await worker.loadLanguage('jpn');
-				await worker.initialize('jpn');
-				await worker.setParameters({
-					tessedit_pageseg_mode: '6',
-					preserve_interword_spaces: '1',
-					user_defined_dpi: '300'
-				});
+				pool = window.UmaOcrPool ? await UmaOcrPool.open() : null;
+				if (!pool) {
+					// 池を1本も作れなかったときは今までの読み方（1本・順に読む）
+					worker = solo = await Tesseract.createWorker();
+					await worker.loadLanguage('jpn');
+					await worker.initialize('jpn');
+					await worker.setParameters({
+						tessedit_pageseg_mode: '6',
+						preserve_interword_spaces: '1',
+						user_defined_dpi: '300'
+					});
+				}
 				ocrClock.lap('準備（OCR の読み込み）');
+				ocrStage = '読み取り';
 
 				// T123（決定 406）: ％の分母は画像のある人数（前は6枠の数で、3人だと 33% で止まって見えた）。分子は先に済んだ人数
 				const ocrTotal = run.files.filter(f => f.length > 0).length;
 				let ocrDone = 0;
+				// T185: 主のスレッドは人ごと・画像ごとに今と同じ順で整え、認識は池のエンジンが並べて読む（processPersonImages は整え終わると prepared を呼ぶ）。
+				// いちばん上の段（めろっぷの経路）・緑因子も同じ池で読む。照合は下で人ごとに今と同じ順に行う（照合に渡す行の並び・中身は今と同じ）
+				const runs = persons.map(() => null), tops = persons.map(() => null), greens = persons.map(() => null), melopSlots = persons.map(() => -1);
+				const wantTop = !!(run.melop || run.eff), deckTop = !wantTop && !!(run.deck && melopSheet), wantGreen = !!(run.deck && examGreenNames);
+				let firstShown = false;
 				for (let p = 0; p < persons.length; p++) {
 					const files = run.files[p];
 					if (files.length === 0) continue;
-					setProgress(ocrDone / ocrTotal, PERSON_LABELS[p] + 'を処理中…');
-					ocrClock.lap(ocrStage);
-					ocrStage = PERSON_LABELS[p];
-					ocrDone++;
-					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview, (run.videos && run.videos[p]) || null);
+					// ％は今のまま（決定 473）: 人ごとの区切り。池のときは、その人の結果を待つところで進める
+					if (!pool) { setProgress(ocrDone / ocrTotal, PERSON_LABELS[p] + 'を処理中…'); ocrDone++; }
+					else if (!firstShown) { setProgress(0, PERSON_LABELS[p] + 'を処理中…'); firstShown = true; }
+					const tp = performance.now();
+					let prepDone = null;
+					const prepared = new Promise(r => { prepDone = r; });
+					if (pool) worker = pool.worker(prepDone);
+					const job = processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview, (run.videos && run.videos[p]) || null);
+					job.then(() => { readEnds[p] = performance.now() - ocrT0; }, () => {});
+					runs[p] = job;
+					await Promise.race([prepared, job]);
+					ocrPrepMs += performance.now() - tp;
+					// めろっぷ！【LTC】専用拡張モード（C-101）・効率で選ぶ（C-136）・Deck (αテスト) へ送るぶん（T104・232）のいちばん上の段。
+					// 開発ログの【めろっぷ】の行は今までどおりこの人の行のすぐあとに出す（場所を取っておき、下で入れる）
+					if (wantTop) {
+						melopSlots[p] = devGeometry.length;
+						devGeometry.push(null);
+						tops[p] = readMelopTopRow(worker, files, melopSheet);
+						tops[p].catch(() => {});
+						if (!pool) await tops[p];
+					} else if (deckTop) {
+						tops[p] = readMelopTopRow(worker, files, melopSheet).catch(() => null);
+						if (!pool) await tops[p];
+					}
+					// T104: Deck (αテスト) へ送るときの緑因子（継承固有）。読めなくても判定は続ける
+					if (wantGreen) {
+						greens[p] = readGreenFactor(worker, files).catch(() => null);
+						if (!pool) await greens[p];
+					}
+				}
+				for (let p = 0; p < persons.length; p++) {
+					if (!runs[p]) continue;
+					if (pool) { if (ocrDone > 0) setProgress(ocrDone / ocrTotal, PERSON_LABELS[p] + 'を処理中…'); ocrDone++; }   // 1人目は整えの前に出してある
+					const result = await runs[p];
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
@@ -5464,29 +5545,28 @@
 					personGeometry[p] = result.geometry;
 					// めろっぷ！【LTC】専用拡張モード（C-101）。上の判定の結果には触らず、別に持つ。
 					// 効率で選ぶ（C-136）も同じ照合（564行の辞書・いちばん上の段）を使う
-					if (run.melop || run.eff) {
-						const top = await readMelopTopRow(worker, files, melopSheet);
+					if (wantTop) {
+						const top = await tops[p];
 						personMelop[p] = { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) };
-						devGeometry.push('【めろっぷ ' + PERSON_LABELS[p] + '】' + (top.found
+						devGeometry[melopSlots[p]] = '【めろっぷ ' + PERSON_LABELS[p] + '】' + (top.found
 							? (top.file + ' / 青 ' + (top.blue ? (top.blue.name || '読めず「' + top.blue.text + '」') + '★' + top.blue.stars : 'なし') +
 								' / 赤 ' + (top.red ? (top.red.name || '読めず「' + top.red.text + '」') + '★' + top.red.stars : 'なし') +
 								' / 固有★' + top.uniqueStars + ' / 右隣 ' + top.extraLines.map(l => l.text).join('｜'))
-							: 'いちばん上の段が見つからない'));
-					} else if (run.deck && melopSheet) {
+							: 'いちばん上の段が見つからない');
+					} else if (deckTop) {
 						// T104（232）: 同じ読み取りを Deck (αテスト) へ送るぶんとして通す。コピーのボタンを出すかは今までどおり run.melop だけで決める
 						try {
-							const top = await readMelopTopRow(worker, files, melopSheet);
-							personMelop[p] = { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) };
+							const top = await tops[p];
+							personMelop[p] = top ? { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) } : null;
 						} catch (e) { personMelop[p] = null; }
 					}
 					// T179（決定 734）: いつもの判定への並びでの拾い直し（同点の行・2文字の名前の1字違いの行）。対象の範囲に入っている名前だけを足す。
 					// 上の564行の照合（personMelop）があればその結果を使う（照合を2回通さない）。無ければここで照合する
 					if (melopSheet && skillOrderPosById) addOrderPicksInScope(personResults[p], result.lines, melopSheet, run, personMelop[p] ? personMelop[p].res : null);
-					// T104: Deck (αテスト) へ送るときの緑因子（継承固有）。読めなくても判定は続ける
-					if (run.deck && examGreenNames) {
-						try { personGreen[p] = await readGreenFactor(worker, files); } catch (e) { personGreen[p] = null; }
-					}
+					if (wantGreen) personGreen[p] = await greens[p];
+					ocrEnds.push(PERSON_LABELS[p] + ' ' + ocrClock.sec(readEnds[p] != null ? readEnds[p] : performance.now() - ocrT0));
 				}
+				ocrStage = null;
 			} catch (err) {
 				console.error(err);
 				errorWrap.classList.remove('hidden');
@@ -5495,8 +5575,12 @@
 				endOwnBusy();
 				return false;
 			} finally {
-				if (worker) { try { await worker.terminate(); } catch (e) {} }
-				ocrClock.lap(ocrStage);
+				if (pool) pool.close();
+				if (solo) { try { await solo.terminate(); } catch (e) {} }
+				devGeometry = devGeometry.filter(x => x !== null);   // 入れずに終わった【めろっぷ】の行の場所（途中で止まったとき）
+				// T185: [時間] の行。人ごとの認識が重なるので、準備・エンジンの本数（先に用意していたか）・整えの合計・認識の合計・人ごとの終わりの時刻（押してから）で出す
+				if (ocrStage) ocrClock.lap(ocrStage);
+				else ocrClock.note(ocrTimeDetail(pool, ocrPrepMs, ocrEnds, ocrClock.sec));
 				devGeometry.push(ocrClock.line('OCR'));
 			}
 
