@@ -123,9 +123,10 @@ export async function register86(env) {
 				const m = await page.evaluate(MEASURE);
 				const mk = MOCK[tool][w];
 				const tag = 'T56(1) ' + name + ' ' + w + 'px';
-				assert(m.tabs.length === 2 && m.tabs[0].label === '親Aセット' && m.tabs[1].label === '＋親Bセット' && m.tabs[0].sel === 'true' && m.tabs[1].sel === 'false'
+				// T188（決定 783・784）: 3つ目のタブ「本育成結果」（色の付かないタブ）が加わった。親A・親B のタブの幅はモックのまま
+				assert(m.tabs.length === 3 && m.tabs[0].label === '親Aセット' && m.tabs[1].label === '＋親Bセット' && m.tabs[2].label === '本育成結果' && m.tabs[0].sel === 'true' && m.tabs[1].sel === 'false' && m.tabs[2].sel === 'false'
 					&& m.tabs.every((t) => !t.cut && t.h === 30) && m.tabs[0].w === MOCK.tabs[w].a && m.tabs[1].w === MOCK.tabs[w].b && m.tabsH === 30
-					&& /person-col-blue/.test(m.tabs[0].cls) && /person-col-red/.test(m.tabs[1].cls) && m.tabs.every((t) => /uma-subtab--tinted/.test(t.cls)),
+					&& /person-col-blue/.test(m.tabs[0].cls) && /person-col-red/.test(m.tabs[1].cls) && m.tabs.slice(0, 2).every((t) => /uma-subtab--tinted/.test(t.cls)) && !/uma-subtab--tinted/.test(m.tabs[2].cls),
 					tag + ': タブは「親Aセット」（選択・青）「＋親Bセット」（赤）・高さ 30・幅はモックと同じ・字が「…」で切れない', { tabs: m.tabs, h: m.tabsH });
 				assert(m.setPanelTexts.length === 0, tag + ': セットの見出し（「親Aセット（…）」）が無い', m.setPanelTexts);
 				assert(m.clear && m.clear.w === 57 && m.clear.h === 17 && m.clear.y - m.setPanel.y === 11 && m.setPanel.r - m.clear.r === 15,
@@ -203,11 +204,12 @@ export async function register86(env) {
 			const l0 = await label();
 			await page.evaluate(() => { addPersonFiles(3, [new File([new Uint8Array([137, 80, 78, 71])], 'b.png', { type: 'image/png' })]); });
 			const l1 = await label();
-			assert(l0 === '親Aセット*,＋親Bセット' && l1 === '親Aセット*,親Bセット+1枚', tag + ': 親B に画像が入ると「＋親Bセット」→「親Bセット」＋「1枚」', { l0, l1 });
+			// T188: 3つ目のタブ「本育成結果」（枚数は本育成結果の画像だけ。親B の画像では付かない）
+			assert(l0 === '親Aセット*,＋親Bセット,本育成結果' && l1 === '親Aセット*,親Bセット+1枚,本育成結果', tag + ': 親B に画像が入ると「＋親Bセット」→「親Bセット」＋「1枚」', { l0, l1 });
 			await page.click('#personset-tabs [data-tab-id="1"]');
 			const v1 = await vis(); const l2 = await label();
 			const kept = await page.evaluate(() => persons[3].files.length);
-			assert(!v1.A && v1.B && l2 === '親Aセット,親Bセット+1枚*' && kept === 1, tag + ': 押すと親Bセットのパネル（画像は保持）', { v1, l2, kept });
+			assert(!v1.A && v1.B && l2 === '親Aセット,親Bセット+1枚*,本育成結果' && kept === 1, tag + ': 押すと親Bセットのパネル（画像は保持）', { v1, l2, kept });
 			await page.focus('#personset-tabs [data-tab-id="1"]');
 			await page.keyboard.press('ArrowLeft');
 			const v2 = await vis();

@@ -192,6 +192,7 @@ import { register176 } from './blocks-176.mjs';
 import { register177 } from './blocks-177.mjs';
 import { register178 } from './blocks-178.mjs';
 import { register179 } from './blocks-179.mjs';
+import { register180 } from './blocks-180.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -1130,7 +1131,9 @@ await block('special.html（UmaStar OCR）', async () => {
 	const setTabs = await page.evaluate(() => [...document.querySelectorAll('#personset-tabs .uma-subtab')].map(t => ({
 		label: t.querySelector('.uma-subtab-label').textContent, selected: t.getAttribute('aria-selected'), tinted: t.classList.contains('uma-subtab--tinted') })));
 	// T56（C-258 の (2)-6）: 親B に画像が無いあいだは「＋親Bセット」（入ると「親Bセット」。blocks-86 の T56画像アップロード(4) が見る）
-	assert(setTabs.length === 2 && setTabs[0].label === '親Aセット' && setTabs[0].selected === 'true' && setTabs[1].label === '＋親Bセット' && setTabs.every(t => t.tinted),
+	// T188（決定 783・784）: 3つ目のタブ「本育成結果」が加わった（色の付かないタブ。中身は blocks-180 が見る）
+		assert(setTabs.length === 3 && setTabs[0].label === '親Aセット' && setTabs[0].selected === 'true' && setTabs[1].label === '＋親Bセット' && setTabs.slice(0, 2).every(t => t.tinted)
+			&& setTabs[2].label === '本育成結果' && setTabs[2].selected === 'false' && !setTabs[2].tinted,
 		'special: ③に親A／親Bセットのタブがあり、既定は親A', setTabs);
 	await page.click('#personset-tabs .uma-subtab[data-tab-id="1"]');
 	await page.waitForTimeout(300);
@@ -15722,6 +15725,8 @@ await register177({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register178({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T186（2026-11-15）: UmaExam のメモリを減らす（②のサムネイル・動画のタイルを縮小画像に・結合画像を PNG の object URL に。UmaStar の T133 と同じ作り。見出しは「T186」）。tests/visual/blocks-179.mjs
 await register179({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T188（2026-11-16）: 本育成結果（③／②の3つ目のタブ・js/skill-result.js）・動画の1〜3人・入れる人（見出しは「T188」）。tests/visual/blocks-180.mjs
+await register180({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

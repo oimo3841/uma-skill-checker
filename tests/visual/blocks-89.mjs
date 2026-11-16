@@ -23,7 +23,8 @@ const MOCK = {
 	err: {
 		unreadable: '動画を読み込めませんでした。このブラウザでは再生できない形式かもしれません（例: iPhone で撮った動画を Android で開いたとき）。撮った端末で開き直すか、スクショで入れてください。',
 		noscreen: '動画の中に継承の画面（因子の一覧）が見つかりませんでした。因子の一覧を開いてから撮り直してください。',
-		split: (n) => '親・祖1・祖2 の区切りが見つからず、人ごとに分けられませんでした（見つかったのは ' + n + '人）。',
+		// T188（決定 772）: 1〜3人を受け入れるので、0人・4人以上のときの文に直した（文は案）。前は「親・祖1・祖2 の区切りが見つからず、人ごとに分けられませんでした（見つかったのは N人）。」
+		split: (n) => '人ごとに分けられませんでした（見つかった人の区切りは ' + n + '人分。取り込めるのは親から祖2 までの1〜3人分です）。',
 		fast: 'スクロールが速すぎて、画面をつなげられない所がありました。スクロールの一時停止の前後で、スキルの行が1〜2行重なるように撮り直してください。'
 	},
 	warn: (who) => who + ' の結合の一部がずれているかもしれません。結果の画像を見て、ずれていたら動画を撮り直すか、スクショで入れ直してください。'
@@ -270,10 +271,16 @@ export async function register89(env) {
 		await sp.page.evaluate(() => onVideoChosen(new File([new Uint8Array(64)], 'broken.mp4', { type: 'video/mp4' })));
 		const dec = await sp.page.evaluate(() => (document.querySelector('#video-error .video-error-text') || {}).textContent);
 		assert(dec === MOCK.err.unreadable + MOCK.keep, 'T59(7) 本物の読めないファイル → 読めない動画の文', dec);
-		await runSynth(sp.page, { path: 'short' });
-		await waitRun(sp.page);
+		// T188（決定 772）: 1〜3人は受け入れるので、止まるのは0人・4人以上。作り物の動画の部品の選ぶ処理を差し替え、4人に分かれたことにする
+		await pickVideo(sp.page);
+		await sp.page.evaluate(async () => {
+			const real = window.UmaVideoFrames;
+			const two = () => ({ files: [new File([new Uint8Array(8)], 'a.png'), new File([new Uint8Array(8)], 'b.png')], shifts: [0], uncertain: [false], still: [], anchorY: 0 });
+			window.UmaVideoFrames = Object.assign({}, real, { selectFrames: async () => ({ persons: [two(), two(), two(), two()], tm: {} }) });
+			try { await onVideoChosen(__synth.make({}).source); } finally { window.UmaVideoFrames = real; }
+		});
 		const sp1 = await sp.page.evaluate(() => (document.querySelector('#video-error .video-error-text') || {}).textContent);
-		assert(sp1 === MOCK.err.split(1) + MOCK.keep, 'T59(7) 人が3人でない（見つかったのは 1人）→ 人が分けられない文（数はその時の値）', sp1);
+		assert(sp1 === MOCK.err.split(4) + MOCK.keep, 'T59(7) 人が4人以上（見つかったのは 4人）→ 人が分けられない文（数はその時の値）', sp1);
 		assert(await sameAsBefore(sp.page), 'T59(7) どの失敗でも枠の画像は元のまま', null);
 		const other = await sp.page.evaluate(() => ({ prog: !!document.getElementById('video-progress'), sum: !!document.getElementById('video-summary'), video: persons.some((p) => p.video), op: getComputedStyle(document.getElementById('personset-A-wrap')).opacity }));
 		assert(!other.prog && !other.sum && !other.video && other.op === '1', 'T59(7) 失敗の後は進捗の箱が消え、知らせは出ず、枠は元の濃さ', other);
@@ -284,7 +291,7 @@ export async function register89(env) {
 		await waitRun(sp.page);
 		const cleared = await sp.page.evaluate(() => ({ err: !!document.getElementById('video-error'), sum: !!document.getElementById('video-summary') }));
 		assert(!cleared.err && !cleared.sum, 'T59(7) 次に取り込むと失敗の箱は消える', cleared);
-		assert(jsErrors(sp.errors).filter((e) => !/作り物の失敗|動画を読めない|人が3人に分かれない/.test(e)).length === 0, 'T59(7) コンソールのエラー0（失敗の記録を除く）', sp.errors);
+		assert(jsErrors(sp.errors).filter((e) => !/作り物の失敗|動画を読めない|人が3人に分かれない|人が1〜3人に分かれない/.test(e)).length === 0, 'T59(7) コンソールのエラー0（失敗の記録を除く）', sp.errors);
 		await sp.ctx.close();
 	});
 

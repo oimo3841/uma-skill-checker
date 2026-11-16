@@ -59,6 +59,8 @@
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
+	<!-- 本育成結果（T188・決定 775・783〜788）。③のタブ「本育成結果」の中身（スキル画面のスクショを1枚にまとめる・OCR なし） -->
+	<script src="js/skill-result.js?v=2026-11-16a"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-11a"></script>
@@ -685,6 +687,17 @@
 		.stitch-cols-btn i { display: inline-flex; gap: 2px; }
 		.stitch-cols-btn i b { display: block; width: 5px; height: 12px; border-radius: 1px; background: currentColor; }
 		.stitch-cols-btn i b.is-wide { width: 8px; }
+		/* 入れる人（T188・決定 791）: 「形」の2択の下に、ラベル＋3択（見た目は .stitch-cols-btn と同じ。押せない組は薄く） */
+		.stitch-persons { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0 0 var(--uma-sp-1-5); }
+		.stitch-persons-label { font-size: 11px; font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }
+		.stitch-persons-seg { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-persons-seg .stitch-cols-btn { min-height: 36px; font-size: 12px; padding: 0 4px; }
+		.stitch-persons-seg .stitch-cols-btn:disabled { opacity: .4; cursor: default; }
+		/* 本育成結果のタブ（T188）を見ている間は、親A・親B のための部品を隠す。「静止画｜動画」は場所を残して見えなくする（タブの帯の幅を変えない） */
+		body.skillres-on #stitch-set-note, body.skillres-on #tier-marks-row, body.skillres-on #tier-marks-status, body.skillres-on #stitch-parts-panel,
+		body.skillres-on #adv-opts, body.skillres-on #preview-wrap, body.skillres-on #dev-wrap, body.skillres-on #quality-warn-wrap, body.skillres-on #error-wrap,
+		body.skillres-on #video-progress, body.skillres-on #video-error { display: none !important; }
+		body.skillres-on #upload-mode { visibility: hidden; }
 		/* 2列の模式図（T98。T106 で実際の比率に。下の .w2-* の値は幅を 100 とした実測） */
 		.stitch-wire-sheet--2 { gap: calc(1.5 * var(--u)); padding: calc(1.2 * var(--u)); width: fit-content; max-width: 100%; }
 		.stitch-wire-2 { display: flex; gap: calc(1 * var(--u)); align-items: stretch; }
@@ -752,6 +765,9 @@
 			#stitch-parts-panel .stitch-cols { margin: 0 0 var(--uma-sp-1); }
 			#stitch-parts-panel .stitch-cols-btn { min-height: 36px; font-size: 12px; gap: 3px; }
 			#stitch-parts-panel .stitch-show-list { grid-column: 1 / -1; }
+			/* 入れる人（T188）: 狭い画面では行いっぱいに置き、字と余白を詰める（模式図を右へ押し出さない） */
+			#stitch-parts-panel .stitch-persons { grid-column: 1 / -1; gap: var(--uma-sp-1); margin: 0 0 var(--uma-sp-1); }
+			#stitch-parts-panel .stitch-persons-seg .stitch-cols-btn { min-height: 32px; font-size: 11px; padding: 0 2px; white-space: nowrap; }
 			#stitch-parts-panel .stitch-show-item { padding-top: 3px; padding-bottom: 3px; }
 			#stitch-parts-panel .stitch-wire { align-self: flex-start; --u: min(1.5px, calc((100vw - 258px) / 100)); }
 			/* 下からのシートの上限（shell.css は引き出しの半分）を、このパネルだけ広げる。「画像を更新」まで見えるように */
@@ -1301,6 +1317,8 @@
 			<input id="video-file-input" type="file" accept="video/*" multiple class="hidden" onchange="onVideoFileInput(this)" />
 			<div id="personset-A-wrap" class="mb-3"></div>
 			<div id="personset-B-wrap" class="mb-3" hidden></div>
+			<!-- 本育成結果（T188）。タブ「本育成結果」を選んでいる間だけ見せる（selectSkillResultTab）。中身は js/skill-result.js -->
+			<div id="skillres-wrap" class="mb-3" hidden></div>
 
 			<!-- 「高度な解析オプション」は T56（C-258 の (2)-8）で、このパネルのいちばん下の「!」へ移した（#adv-opts） -->
 
@@ -1347,7 +1365,7 @@
 			<!-- 結合の注記。**exam.html と同じ文面**にしてある（段1）。
 			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。</p>
+			<p id="stitch-set-note" class="mt-1.5 text-[11px] text-slate-400 text-center">※親Aセット・親Bセットそれぞれで1枚にまとめて結合画像を生成します。</p>
 
 			<!-- 分類の印を結合画像に付けるかの切り替え（C-58 の作業C。段5〔C-227〕から印ではなく種類の枠。保存キー・id は同じ）。結果画像の見た目が変わる設定なので、
 			     切り替えてもその場では何も変わらない引き出しの中ではなく、**結合を始める場所**に置く
@@ -1803,7 +1821,8 @@
 			const bar = document.getElementById('upload-bar');
 			const panel = document.getElementById('step-panel-2');
 			if (!bar || !panel) return;
-			const shown = panel.getClientRects().length > 0;
+			// 本育成結果のタブ（T188）を見ている間は欄を出さない（OCR・親A／親B の結合のボタンだけなので）
+			const shown = panel.getClientRects().length > 0 && !(typeof skillResultTab !== 'undefined' && skillResultTab);
 			if (bar.hidden !== !shown) bar.hidden = !shown;
 			if (shown) {
 				const pr = panel.getBoundingClientRect();
@@ -1838,19 +1857,46 @@
 				const label = i > 0 && n === 0 ? '＋' + set.label : set.label;
 				// 枚数は動画から取った分を数えない（T106 の (8)）
 				const shown = [0, 1, 2].reduce((c, r) => c + personShownCount(persons[i * 3 + r]), 0);
-				return { id: String(i), label: label, count: shown > 0 ? shown + '枚' : null, selected: i === activePersonSet,
+				return { id: String(i), label: label, count: shown > 0 ? shown + '枚' : null, selected: !skillResultTab && i === activePersonSet,
 					className: 'uma-subtab--tinted ' + HUE_CLASS[set.hue], title: set.label };
 			});
+			// T188（決定 783・784）: 3つ目のタブ「本育成結果」。枚数はこのタブの画像だけ（persons には入れないので、ステップのタブの枚数・OCR には混ざらない）
+			if (window.UmaSkillResult) {
+				const n = UmaSkillResult.count();
+				items.push({ id: 'skill', label: '本育成結果', count: n > 0 ? n + '枚' : null, selected: skillResultTab, className: 'skillres-tab', title: '本育成結果' });
+			}
 			slot.innerHTML = UmaSkillDeckCore.tabStrip.html(items, { act: 'personset-tab', ariaLabel: '因子元のセット' });
 			PERSON_SETS.forEach((set, i) => {
 				const wrap = document.getElementById('personset-' + set.id + '-wrap');
-				if (wrap) wrap.hidden = i !== activePersonSet;
+				if (wrap) wrap.hidden = skillResultTab || i !== activePersonSet;
 			});
+			applySkillResultTab();
+		}
+		/* 本育成結果のタブ（T188）。選んでいる間は、OCR・結合のボタンの欄・「結合画像の設定」・「静止画｜動画」など、親A・親B のための部品を隠す
+		 * （body の skillres-on。隠し方は CSS。下に固定したボタンの欄は syncUploadBar が出さない）。activePersonSet は最後に見ていたセットのまま持つ */
+		var skillResultTab = false;   // var: 読み込みの途中で renderPersonSetTabs・syncUploadBar が先に呼ばれても困らないように
+		function applySkillResultTab() {
+			const wrap = document.getElementById('skillres-wrap');
+			if (wrap) wrap.hidden = !skillResultTab;
+			document.body.classList.toggle('skillres-on', skillResultTab);
+			if (typeof syncUploadBar === 'function') syncUploadBar();
 		}
 		function selectPersonSet(idx) {
-			activePersonSet = Number(idx) || 0;
+			skillResultTab = idx === 'skill';
+			if (!skillResultTab) activePersonSet = Number(idx) || 0;
 			renderPersonSetTabs();
 		}
+		document.addEventListener('DOMContentLoaded', () => {
+			const wrap = document.getElementById('skillres-wrap');
+			if (!wrap || !window.UmaSkillResult) return;
+			UmaSkillResult.mount(wrap, {
+				stitchOnePerson: (files, label) => stitchOnePerson(files, label),
+				attachSaveName: (a) => stitchAttachSaveName(a, currentStitchSaveName),
+				toast: (text) => showToast(text),
+				onChange: () => renderPersonSetTabs()
+			});
+			renderPersonSetTabs();
+		});
 		function onPersonSetTabKeydown(ev) {
 			if (window.UmaSkillDeckCore) UmaSkillDeckCore.tabStrip.keydown(ev, (id) => selectPersonSet(id));
 		}
@@ -1909,7 +1955,10 @@
 			'video.warn.blurry': '動画の画 {N}枚がぼやけていて読み取れませんでした。',
 			'video.err.unreadable': '動画を読み込めませんでした。このブラウザでは再生できない形式かもしれません（例: iPhone で撮った動画を Android で開いたとき）。撮った端末で開き直すか、スクショで入れてください。',
 			'video.err.noscreen': '動画の中に継承の画面（因子の一覧）が見つかりませんでした。因子の一覧を開いてから撮り直してください。',
-			'video.err.split': '親・祖1・祖2 の区切りが見つからず、人ごとに分けられませんでした（見つかったのは {N}人）。',
+			// T188（決定 772）: 1〜3人を受け入れるので、この文は0人・4人以上のときだけ出る（文は案。おいもさんの確かめ待ち）
+			'video.err.split': '人ごとに分けられませんでした（見つかった人の区切りは {N}人分。取り込めるのは親から祖2 までの1〜3人分です）。',
+			// T188（決定 789）: 2枚以上あって途中までの人（文は案）
+			'video.warn.partial': '{人} は一覧の最後まで写っていないようです。結合画像は写っている所までです。',
 			'video.err.fast': 'スクロールが速すぎて、画面をつなげられない所がありました。スクロールの一時停止の前後で、スキルの行が1〜2行重なるように撮り直してください。',
 			'video.err.keep': '入っていた画像はそのままです。',
 			'video.toast.cancel': '取り消しました。入っていた画像はそのままです'
@@ -2120,8 +2169,10 @@
 		}
 
 		// 段: 0 読み込み・1〜3 人（親・祖1・祖2）・4 完了。割合は部品の onProgress の ratio（読む 0〜0.45・選ぶ 0.45〜0.75・取り直す 0.75〜1）
-		function renderVideoProgress(setIdx, step, ratio) {
-			const names = [videoText('video.prog.read')].concat(videoSetMembers(setIdx).map(p => videoText('video.prog.person', { 人: p })), [videoText('video.prog.done')]);
+		// count … 人の段の数（T188。取り込みが終わって1人・2人と分かったときだけ渡す。完了の段は 1＋count。省略は3人）
+		function renderVideoProgress(setIdx, step, ratio, count) {
+			const n = count >= 1 && count <= 3 ? count : 3;
+			const names = [videoText('video.prog.read')].concat(videoSetMembers(setIdx).slice(0, n).map(p => videoText('video.prog.person', { 人: p })), [videoText('video.prog.done')]);
 			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
 			let el = document.getElementById('video-progress');
 			if (!el) {
@@ -2140,7 +2191,7 @@
 				if (videoBusy && videoBusy.capture) captureStage(setIdx).appendChild(el);
 				else insertVideoBox(el);
 			}
-			el.querySelector('.video-prog-label').textContent = names[step] + (step < 4 ? '…' : '');
+			el.querySelector('.video-prog-label').textContent = names[step] + (step < names.length - 1 ? '…' : '');
 			el.querySelector('.video-prog-pct').textContent = pct + '%';
 			el.querySelector('.video-prog-bar').style.width = pct + '%';
 			el.querySelector('.video-steps').innerHTML = names.map((n, i) => {
@@ -2153,10 +2204,39 @@
 			if (!videoBusy) return;
 			let step = videoBusy.step;
 			if (p.phase === 'read') step = 0;
-			else if (p.phase === 'select') step = Math.max(step, 1 + Math.max(0, Math.min(2, (p.persons || 1) - 1)));
-			else if (p.phase === 'grab') step = Math.max(step, 3);
+			else if (p.phase === 'select') {
+				step = Math.max(step, 1 + Math.max(0, Math.min(2, (p.persons || 1) - 1)));
+				if (p.persons) videoBusy.seen = Math.max(videoBusy.seen || 0, p.persons);
+			}
+			// 取り直す段は、選ぶ段で見つけた最後の人（T188: 1人・2人の動画で、居ない祖2 の段へ飛ばない。人の数が来なければ今までどおり祖2）
+			else if (p.phase === 'grab') step = Math.max(step, 1 + Math.max(0, Math.min(2, (videoBusy.seen || 3) - 1)));
 			videoBusy.step = step;
 			renderVideoProgress(videoBusy.setIdx, step, p.ratio || 0);
+		}
+		/* 動画の人の数（T188・決定 772・789）。selectFrames が分けた人（persons）から、入れる人を決める。
+		 *  - 最後の人が1枚しか無ければ外す（親の一覧を最後までスクロールすると、次の人の頭が必ず写る。T187）
+		 *  - 残りが1〜3人なら通す。0人・4人以上は止める（error。found は見つかった人数）
+		 *  - partial … 途中までの人の番号（0〜2）か -1。3人に満たず、外した人も無い（次の人の頭が写っていない）とき、最後の人は一覧の最後まで写っていない見込み。
+		 *    3人のときの祖2 は、一覧の終わりの先が「継承の履歴」で次の人が無いので見分けない（今までどおり） */
+		function videoPersonsToKeep(list) {
+			const keep = (list || []).slice();
+			let dropped = false;
+			if (keep.length > 1 && keep[keep.length - 1].files.length <= 1) { keep.pop(); dropped = true; }
+			if (keep.length < 1 || keep.length > 3) return { error: true, found: (list || []).length };
+			return { keep: keep, dropped: dropped, partial: keep.length < 3 && !dropped ? keep.length - 1 : -1 };
+		}
+		// 途中までの人（T188・決定 789）。セットごとに人のラベルか null。結合画像の上に video.warn.partial を出す。その人の枠を変えたら消す（videoTouched）
+		const videoPartial = [null, null];
+		function appendPartialNote(setIdx, box, canvas) {
+			const label = videoPartial[setIdx];
+			if (!label || !box.firstElementChild) return;
+			// 「入れる人」で外した人なら出さない
+			if (canvas && canvas._personLabels && canvas._personLabels.indexOf(label) < 0) return;
+			const vw = document.createElement('div');
+			vw.className = 'video-partial mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 flex gap-2';
+			vw.setAttribute('role', 'status');
+			vw.innerHTML = videoSvgTri('text-amber-500') + '<div>' + escapeHtml(videoText('video.warn.partial', { 人: label })) + '</div>';
+			box.firstElementChild.insertBefore(vw, box.firstElementChild.firstChild);
 		}
 
 		// 失敗の文（e.code ごと。人が3人でないときは code 'persons'）。長すぎる動画の失敗は出さない（V1-2 では上限を設けない。C-259）
@@ -2315,6 +2395,7 @@
 			box.className = 'video-result';
 			appendStitchResultBlock(box, PERSON_SETS[setIdx], canvas);
 			appendSmallWindowNote(setIdx, box);
+			appendPartialNote(setIdx, box, canvas);
 			// ③では見出し「親Aセット」を出さず（T106 の (9)）、「PNGをダウンロード」は控えめなアイコンのボタンにする（T106 の (10)。引き出しの中は今のまま）
 			const dl = box.querySelector('a.uma-btn');
 			if (dl) {
@@ -2387,6 +2468,9 @@
 		function videoTouched(personIdx) {
 			if (!persons[personIdx].video) return;
 			persons[personIdx].video = null;
+			// 途中までの人の知らせも、その人の枠を変えたら消す（T188）
+			const si = Math.floor(personIdx / 3);
+			if (videoPartial[si] === PERSON_LABELS[personIdx]) videoPartial[si] = null;
 			// ③の中の結合画像も古くなるので外し、3列を出す（T82）
 			clearVideoResult(Math.floor(personIdx / 3));
 		}
@@ -2463,17 +2547,26 @@
 				if (pcVideo) { selOpts.debug = debug; selOpts.effectVote = false; }
 				sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
 				clock.lap('選ぶ', selectTimeDetail(sel, clock.sec));
-				if (sel.persons.length !== 3) { const e = new Error('人が3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = sel.persons.length; throw e; }
+				// T188（決定 772・789）: 1〜3人を受け入れる。1枚しか写っていない最後の人（次の人の頭だけ）は外す。0人・4人以上は止める
+				const kept = videoPersonsToKeep(sel.persons);
+				if (kept.error) { const e = new Error('人が1〜3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = kept.found; throw e; }
+				if (kept.dropped) devGeometry.push('[動画] 最後の人は1枚だけ（次の人の頭）なので外しました（' + sel.persons.length + '人 → ' + kept.keep.length + '人）');
+				sel.persons = kept.keep;
 				if (pcVideo && window.UmaPcCapture) { await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal); clock.lap('カーソルを消す'); }
-				sel.persons.forEach((p, r) => {
+				[0, 1, 2].forEach(r => {
 					const idx = setIdx * 3 + r;
+					const p = sel.persons[r];
+					// 入らなかった枠は空にする（前の画像を残さない）
+					if (!p) { persons[idx].files = []; persons[idx].video = null; return; }
 					const frames = p.files.slice();
 					persons[idx].files = frames;
 					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), ages: p.ages ? p.ages.slice() : null, anchorY: p.anchorY, expanded: false };
 				});
+				videoPartial[setIdx] = kept.partial >= 0 ? PERSON_LABELS[setIdx * 3 + kept.partial] : null;
 				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + ': ' + sel.persons.map(p => p.files.length).join('／') + '枚を入れました（置き換え・'
-					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）');
-				renderVideoProgress(setIdx, 4, 1);
+					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）'
+					+ (videoPartial[setIdx] ? '・' + videoPartial[setIdx] + ' は途中まで（次の人の頭が写っていない）' : ''));
+				renderVideoProgress(setIdx, 1 + sel.persons.length, 1, sel.persons.length);
 				clearVideoResult(setIdx);
 				[0, 1, 2].forEach(r => renderPersonImageList(setIdx * 3 + r));
 				// 自動の結合が終わるまで進捗の箱は「完了 100%」のまま残す。結合は取り消せないので「取り消す」は押せなくする
@@ -2764,6 +2857,8 @@
 			updateTierMarksStatus();
 			// 画像が増減したら、結合画像の「画像を更新」が押せるかも見直す（T96）
 			updateStitchRefreshUi();
+			// 入れる人の押せる組も見直す（T188）
+			syncStitchPersonsUi();
 		}
 
 		/* ============================================================
@@ -5238,8 +5333,11 @@
 		 * 表が使える高さ（room）＝人の見出し＋人の高さ＋枠の見かたの行（表の列は下まで使う）。
 		 * 返り値 { fit, room, rowH, metrics, tableW, width, height, grown, capped }
 		 */
-		function stitchMidLayout(people, data, legendH, topH, noBar) {
+		// minW … 画像の幅の下限（省略は L.minW）。T188（決定 790）: 1人・2人のときは composeFamilyImage が小さくして、幅を人数ぶんに詰める
+		// （人の大きさを決める幅〔base〕は今までどおり L.minW から。詰めるのは右の余白だけ）
+		function stitchMidLayout(people, data, legendH, topH, noBar, minW) {
 			const L = STITCH_LAYOUT;
+			const floorW = minW >= 0 ? minW : L.minW;
 			const headH = L.headIcon + L.headGap;
 			const below = legendH ? L.legendGap + legendH : 0;
 			// 上段（T37）があれば中段はその下。高さの計算と画素数の上限は上段の高さも含めて見る
@@ -5250,7 +5348,7 @@
 			const at = (avail, tableW) => {
 				const fit = stitchFitPersons(people, avail);
 				const room = fit.height + headH + below;
-				const width = Math.max(L.minW, L.margin * 2 + (data ? tableW + L.gap : 0) + fit.width);
+				const width = Math.max(floorW, L.margin * 2 + (data ? tableW + L.gap : 0) + fit.width);
 				return { fit: fit, room: room, width: width };
 			};
 			const heightOf = (g, rowH) => midY + Math.max(g.room, data ? (n + 2) * rowH : 0) + L.margin;
@@ -5320,7 +5418,10 @@
 			const topH = parts.top ? stitchTopRowH(parts.top.show) : 0;
 			// タイトルのバー（T98・決定 161・162）: parts.title が false のときだけ描かず、上を詰める。ON のときは今までと同じ座標
 			const noBar = parts.title === false;
-			const mid = stitchMidLayout(people, data, legendH, topH, noBar);
+			// T188（決定 790）: 1人・2人のときは幅を人数ぶんに詰める（右が白く空かない。UmaExam と同じ）。上段（理論値SP・編成）を描くときは、
+			// カードが小さくなりすぎないよう、幅の下限を3人のときの 2/3 にする。3人のときは今までどおり
+			const minW = people.length >= 3 ? STITCH_LAYOUT.minW : (parts.top ? Math.round(STITCH_LAYOUT.minW * 2 / 3) : 0);
+			const mid = stitchMidLayout(people, data, legendH, topH, noBar, minW);
 			const W = mid.width, H = mid.height;
 			const midY = stitchMidTop(topH, noBar);
 			const headH = L.headIcon + L.headGap;
@@ -5575,7 +5676,9 @@
 			const opt = parts || stitchPartsNow();
 			const baseIdx = setIdx * 3;
 			const idxs = [0, 1, 2].map(r => baseIdx + r);
-			const activeIndexes = idxs.filter(i => persons[i].files.length > 0);
+			// 入れる人（T188・決定 791〜793）: 3人｜親と祖1｜親だけ。絞るのは結合画像だけ（OCR・照合結果・Deck へ送るぶんは全員のまま）
+			const upTo = opt.persons >= 1 && opt.persons <= 3 ? opt.persons : 3;
+			const activeIndexes = idxs.filter(i => persons[i].files.length > 0 && i - baseIdx < upTo);
 			if (activeIndexes.length === 0) return null;
 
 			const stitched = {};
@@ -5650,6 +5753,7 @@
 			});
 			result._stitchWarnings = allWarnings;
 			result._videoWarnLabels = videoWarnLabels;
+			result._personLabels = Object.keys(stitched).map(i => PERSON_LABELS[i]);   // 結合画像に入れた人（T188。途中までの人の知らせに使う）
 			result._markCount = markCount;
 			result._geneFrameCount = geneFrameCount;
 			return result;
@@ -6155,11 +6259,41 @@
 		}
 		// 結合画像に使う設定。新UI は「結合画像の設定」。旧UI は今までどおり（種類の枠は tierMarksEnabled・ほかは材料があれば描く・3列・バーあり）。legacy で見分ける
 		function stitchPartsNow() {
-			if (deckMode) return Object.assign({ legacy: false }, stitchPartsShown());
-			return Object.assign(stitchPartsAll(true), { marker: tierMarksEnabled, legacy: true });
+			if (deckMode) return Object.assign({ legacy: false, persons: stitchPersonsEffective() }, stitchPartsShown());
+			// 旧UI には「結合画像の設定」が無いので、入れる人はいつも全員（T188）
+			return Object.assign(stitchPartsAll(true), { marker: tierMarksEnabled, legacy: true, persons: 3 });
 		}
 		function sameStitchParts(a, b) {
-			return !!a && !!b && a.legacy === b.legacy && STITCH_CHECK_KEYS.every(k => !!a[k] === !!b[k]) && (a.cols || 3) === (b.cols || 3);
+			return !!a && !!b && a.legacy === b.legacy && STITCH_CHECK_KEYS.every(k => !!a[k] === !!b[k]) && (a.cols || 3) === (b.cols || 3) && (a.persons || 3) === (b.persons || 3);
+		}
+		/* 入れる人（T188・決定 791〜793）: 「結合画像の設定」の中の「3人｜親と祖1｜親だけ」。取り込み直さずに、「画像を更新」と同じ形で結合だけ作り直す。
+		 * 保存しない（開き直すと3人）。絞るのは結合画像だけ（OCR は入っている全員を読む）。
+		 * 押せるのは、画像のある人がいる組だけ（どちらのセットにも祖2 の画像が無ければ「3人」は押せない。祖1 も無ければ「親と祖1」も押せない）。
+		 * 実際に使う値（stitchPersonsEffective）は、選んだ値と画像のある人の数の小さいほう（画像を足すと選んだ値まで戻る） */
+		const STITCH_PERSONS_LABELS = { 3: '3人', 2: '親と祖1', 1: '親だけ' };
+		var stitchPersonsSel = 3;   // var: 読み込みの途中で updateProcessBtn が先に呼ばれても困らないように
+		function stitchPersonsMax() {
+			let m = 0;
+			PERSON_SETS.forEach((set, si) => { [0, 1, 2].forEach(r => { if (persons[si * 3 + r].files.length) m = Math.max(m, r + 1); }); });
+			return m;
+		}
+		function stitchPersonsEffective() {
+			const m = stitchPersonsMax();
+			return m ? Math.min(stitchPersonsSel, m) : stitchPersonsSel;
+		}
+		function setStitchPersons(n) {
+			const v = Number(n);
+			if (!(v >= 1 && v <= 3)) return;
+			stitchPersonsSel = v;
+			syncStitchPartsUi();
+		}
+		function syncStitchPersonsUi() {
+			const eff = stitchPersonsEffective(), m = stitchPersonsMax();
+			document.querySelectorAll('[data-stitch-persons]').forEach(b => {
+				const n = Number(b.getAttribute('data-stitch-persons'));
+				b.setAttribute('aria-pressed', String(n === eff));
+				b.disabled = m > 0 && n > m;
+			});
 		}
 
 		// opts.idPrefix … チェックの id の接頭辞（③は ''、引き出しは 'drawer-'）
@@ -6180,7 +6314,11 @@
 			const colsBtn = (n, bars) => '<button type="button" class="stitch-cols-btn" data-stitch-cols="' + n + '" aria-pressed="false" onclick="setStitchCols(' + n + ')">' +
 				'<i aria-hidden="true">' + bars + '</i><span>' + n + '列</span></button>';
 			const seg = '<div class="stitch-cols" role="group" aria-label="結合画像の形">' +
-				colsBtn(3, '<b></b><b></b><b></b>') + colsBtn(2, '<b class="is-wide"></b><b></b>') + '</div>';
+				colsBtn(3, '<b></b><b></b><b></b>') + colsBtn(2, '<b class="is-wide"></b><b></b>') + '</div>' +
+				// 入れる人（T188・決定 791）。形の2択の下に同じ見た目の3択
+				'<div class="stitch-persons" role="group" aria-label="結合画像に入れる人"><span class="stitch-persons-label">入れる人</span><div class="stitch-persons-seg">' +
+				[3, 2, 1].map(n => '<button type="button" class="stitch-cols-btn" data-stitch-persons="' + n + '" aria-pressed="false" onclick="setStitchPersons(' + n + ')"><span>' + STITCH_PERSONS_LABELS[n] + '</span></button>').join('') +
+				'</div></div>';
 			// 模式図: 帯 → 上段（理論値SP｜本育成編成｜因子周回編成。OFF の欄は消して左へ詰める）→ 星取表＋3人の列 → 枠の見かた。
 			// 人の列の行の枠は、分類マーカーが OFF なら全部緑・ON なら種類の色（.is-marker）。遺伝子の行はいつも遺伝子の色
 			const cards = '<i></i><i></i><i></i><i></i><i></i>';
@@ -6274,6 +6412,7 @@
 				panel.querySelectorAll('[data-stitch-wire-cols]').forEach(el => { el.hidden = Number(el.getAttribute('data-stitch-wire-cols')) !== cols; });
 				panel.querySelectorAll('.stitch-wire-sheet').forEach(el => el.classList.toggle('is-marker', !!stitchParts.marker));
 			});
+			syncStitchPersonsUi();
 			updateTierMarksStatus();
 			// 設定が変わったので、「画像を更新」が押せるかも見直す
 			updateStitchRefreshUi();

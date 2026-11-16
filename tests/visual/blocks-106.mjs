@@ -166,7 +166,8 @@ export async function register106(env) {
 			return out;
 		}, KEYS);
 		const all7 = ['none', 'marker', 'roster', 'factor', 'sp', 'table', 'all'];
-		all7.forEach((n) => assert(r[n].bar && r[n].heads === 1 && r[n].W >= 2206, 'T96(3): ' + n + ': タイトルのバーと人の見出しはいつも描く', { bar: r[n].bar, heads: r[n].heads, W: r[n].W }));
+		// T188（決定 790）: 1人のときは幅を人数ぶんに詰めるので、幅は 2206 未満になる（上段を描くときの下限は 2206 の 2/3）
+		all7.forEach((n) => assert(r[n].bar && r[n].heads === 1 && r[n].W >= 1000, 'T96(3): ' + n + ': タイトルのバーと人の見出しはいつも描く', { bar: r[n].bar, heads: r[n].heads, W: r[n].W }));
 		assert(r.simpleStyle && r.simpleStyle.frame === '#2F9E1F' && r.simpleStyle.tint === '#E6F5DA' && r.simpleStyle.marker === null, 'T96(3): シンプルの枠の色は #2F9E1F・塗り #E6F5DA', r.simpleStyle);
 		assert(!r.none.top && !r.none.table && !r.none.legend && r.none.mark === 2 && r.none.green > 100 && r.none.teal === 0 && r.none.ochre === 0 && r.none.bodyY === 28 + 70 + 20,
 			'T96(3): 全部 OFF: 上段・星取表・枠の見かたなし。②のスキル2行を同じ緑の枠（種類の色は出ない）・中段はバーのすぐ下', r.none);

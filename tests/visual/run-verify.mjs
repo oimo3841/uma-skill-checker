@@ -593,7 +593,8 @@ fs.rmSync(tmp, { recursive: true, force: true });
 	// 「※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。」に短縮した。
 	// → 以前の「special と exam で同じ文面」の検査は外し、special が従来のまま・exam が決めた文面であることを見る
 	const noteOf = (p, head) => {
-		const m = new RegExp('<p class="mt-1\\.5 text-\\[11px\\] text-slate-400 text-center">(' + head + '[^<]*)</p>').exec(read(p));
+		// T188: 本育成結果のタブで隠すため、注記に id="stitch-set-note" を付けた（id は有っても無くてもよい）
+		const m = new RegExp('<p (?:id="[^"]*" )?class="mt-1\\.5 text-\\[11px\\] text-slate-400 text-center">(' + head + '[^<]*)</p>').exec(read(p));
 		return m ? m[1] : null;
 	};
 	// → T57（C-258 の T56 への回答 3）: special と exam を同じ短い文面にした。両方がその文面であることを見る

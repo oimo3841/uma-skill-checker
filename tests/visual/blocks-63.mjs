@@ -374,7 +374,7 @@ export async function register63(env) {
 			CanvasRenderingContext2D.prototype.fillText = function (s, x, y) { texts.push({ s: String(s), color: this.fillStyle }); return o.apply(this, arguments); };
 			__compose({ c: [__person(1179, 2342), null, null], bar: text });
 			CanvasRenderingContext2D.prototype.fillText = o;
-			return { shown, text, plain, noUma, badUma, cardAsUma, legacy, noUmaNoRace, onlyUma, umaId: snap.set && snap.set.umaId, filterTexts, bar: b, top: px(xs, b.y + 3), mid: px(xs, b.y + b.h / 2), bottom: px(xs, b.y + b.h - 3), corner: px(b.x + 3, b.y + 3), edgeMid: px(b.x + 3, b.y + b.h / 2), long, fit: lay._layout.barFit, barTexts: texts.filter((t) => t.s === text) };
+			return { shown, text, plain, noUma, badUma, cardAsUma, legacy, noUmaNoRace, onlyUma, umaId: snap.set && snap.set.umaId, filterTexts, bar: b, layW: lay._layout.width, top: px(xs, b.y + 3), mid: px(xs, b.y + b.h / 2), bottom: px(xs, b.y + b.h - 3), corner: px(b.x + 3, b.y + 3), edgeMid: px(b.x + 3, b.y + b.h / 2), long, fit: lay._layout.barFit, barTexts: texts.filter((t) => t.s === text) };
 		});
 		const umaText = umaBarText('uma-0001');
 		assert(r.umaId === 'uma-0001' && /^\[.+\].+/.test(umaText), '結合画像の構成(7): 写しに①の育成ウマ娘（uma-0001。題つき）', { umaId: r.umaId, umaText });
@@ -386,7 +386,8 @@ export async function register63(env) {
 			'結合画像の構成(7): 育成ウマ娘が未設定・引けない ID・カードの ID・旧UI（写しにセットなし）は抜く（「セット名｜レース条件」）', r);
 		assert(r.noUmaNoRace === '名前のあるセット' && r.onlyUma === umaText, '結合画像の構成(7): 抜けた部分の「｜」は付けない（セット名だけ・育成ウマ娘だけ）', { a: r.noUmaNoRace, b: r.onlyUma });
 		assert(![r.text, r.plain, r.noUma, r.badUma, r.legacy, r.noUmaNoRace, r.onlyUma].some((s) => /｜｜|^｜|｜$|読み込めません|[①②③]/.test(s)), '結合画像の構成(7): タイトルに「｜｜」・端の「｜」・「読み込めません」・①②③ が無い', r);
-		assert(r.bar.h === 70 && r.bar.x === 28 && r.bar.w === 2206 - 56, '結合画像の構成(7): 全幅（余白を除く）・高さ70', r.bar);
+		// T188（決定 790）: 1人の画像は幅を人数ぶんに詰める（前は 2206 で固定）。バーは今の画像の全幅（余白を除く）
+		assert(r.bar.h === 70 && r.bar.x === 28 && r.bar.w === r.layW - 56 && r.layW < 2206, '結合画像の構成(7): 全幅（余白を除く）・高さ70', { bar: r.bar, W: r.layW });
 		const near = (a, hex, tol) => { const v = parseInt(hex.slice(1), 16); return Math.abs(a[0] - ((v >> 16) & 255)) <= tol && Math.abs(a[1] - ((v >> 8) & 255)) <= tol && Math.abs(a[2] - (v & 255)) <= tol; };
 		assert(near(r.top, '#94D709', 6) && near(r.mid, '#82CE0A', 6) && near(r.bottom, '#6BC20C', 6), '結合画像の構成(7): 上・中・下の色が読んだ値のグラデーション', { top: r.top, mid: r.mid, bottom: r.bottom });
 		assert(r.corner.join() === '255,255,255' && near(r.edgeMid, '#82CE0A', 12), '結合画像の構成(7): 両端が丸い（角は白地・端の中ほどは帯の色）', { corner: r.corner, edgeMid: r.edgeMid });
