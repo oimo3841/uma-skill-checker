@@ -4,15 +4,20 @@
  * - 結合は凍結の js/stitch.js の stitchOnePerson をそのまま呼ぶ（呼び出し側が host.stitchOnePerson で渡す）。
  *   上の欄（タイトル「ウマ娘詳細」〜タブ）は結合では捨てられるので、ここで1枚目から足す（形2・T187）。左右は小窓の端で切る（ゲームの背景を落とす）。
  *   右のスクロールのつまみ（切れ切れに写る）は、つまみの列を右隣の地の色で塗る。
- * - 形は「1列｜2列」（785）。2列の見せ方は案を3つ持ち、決まるまで切り替えられる（既定は1列）。タイトルのバーは付けない（786）。
+ * - タブの中に本育成結果用の「結合画像の設定」（T189・決定 804）: 「1列｜2列」と「スキルの数」（入れる／入れない）。今後足す情報もこの欄に加える。
+ *   形（T189・決定 794・803）: 1列 … 上の欄の下に一覧（数を入れるときは上の欄の下に帯）。
+ *   2列・数なし … 案2（高さをそろえる: 左に上の欄＋一覧の前半、右に後半。左右の高さがそろう所で分ける）。
+ *   2列・数あり … 案4（左の列の上に上の欄、右の列の上に上の欄と同じ高さの「情報の箱」〔スキルの数〕。その下に左右とも一覧を半分ずつ）。
+ *   既定は 1列・数を入れない。設定は覚えない（開き直すと既定）。タイトルのバーは付けない（786）。
  * - つなぎ目の「一致度が低い」は、本育成結果用の文で出す（787）。
- * - スキルの数（全部・固有・進化・金・白）は、OCR を使わず行の色で数える試し（788。表示の置き場所は案。決定を待つ）。
+ * - スキルの数（全部・固有・進化・金・白）は、OCR を使わず行の色で数える（788・795・797）。数は保存する画像の中だけに入れる（796。画面の欄には出さない）。
+ *   添え書き「色で数えた目安です」は画像に入れず、設定の欄の「スキルの数」の横に出す。
  * - メモリは T133・T186 と同じ作り: サムネイルは幅 336px の縮小画像・結合画像は Blob の object URL・使わなくなった URL は手放す。
  * 文の案はすべて SR_TEXTS（キーは報告の文の案の一覧と同じ）。
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-16a';
+	const SKILL_RESULT_JS_VERSION = '2026-11-17a';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -20,16 +25,12 @@
 		'sr.btn.clear': 'クリア',
 		'sr.btn.build': '1枚にまとめる',
 		'sr.btn.busy': 'まとめています…',
+		'sr.settings': '結合画像の設定',
 		'sr.form': '形',
-		'sr.form2': '2列の見せ方（試し）',
-		'sr.v.half': '案1 一覧を半分',
-		'sr.v.even': '案2 高さをそろえる',
-		'sr.v.span': '案3 上の欄を上に',
-		'sr.info': 'スキルの数の表示（試し）',
-		'sr.info.none': 'なし',
-		'sr.info.panel': '欄の中',
-		'sr.info.image': '画像の中',
-		'sr.info.both': '両方',
+		'sr.cols1': '1列',
+		'sr.cols2': '2列',
+		'sr.opt.count': 'スキルの数',
+		'sr.box.title': 'スキルの数',
 		'sr.one': '1枚だけのときは、選んだ画像をそのまま出します。',
 		'sr.stale': '画像が変わりました。「1枚にまとめる」を押すと作り直します。',
 		'sr.warn': 'つなぎ目の一部で、スキルの行がずれているかもしれません。行が抜けたり重なったりしていないか見てください。',
@@ -181,7 +182,120 @@
 		return out;
 	}
 
-	/** 情報の帯（画像の中に置く案）。幅 w */
+	// 情報の箱・帯の色（スキルの種類の見本の四角。ゲームのパネルの色に近いもの）
+	const KIND_SWATCH = {
+		unique: ['#7FD8F5', '#F7A8F2'], evo: ['#FFC4E6', '#FF8FD0'], gold: ['#FFE27A', '#FFB01F'], white: ['#E4E2F2', '#C6C3E3']
+	};
+	const INK = '#3B2A1A';
+	function swatch(x, sx, sy, s, kind) {
+		const c = KIND_SWATCH[kind];
+		const g = x.createLinearGradient(sx, 0, sx + s, 0);
+		g.addColorStop(0, c[0]); g.addColorStop(1, c[1]);
+		const r = Math.max(2, s * 0.22);
+		x.beginPath();
+		x.moveTo(sx + r, sy); x.arcTo(sx + s, sy, sx + s, sy + s, r); x.arcTo(sx + s, sy + s, sx, sy + s, r); x.arcTo(sx, sy + s, sx, sy, r); x.arcTo(sx, sy, sx + s, sy, r); x.closePath();
+		x.fillStyle = g; x.fill();
+		x.lineWidth = Math.max(1, s * 0.06); x.strokeStyle = 'rgba(80,60,120,.35)'; x.stroke();
+	}
+	/** 上の欄の緑の帯（「ウマ娘詳細」）の高さと色。右寄り（幅の 90%）の列を上から見て、緑の続く行。無ければ null */
+	function headBand(head) {
+		if (!head) return null;
+		const W = head.width, H = Math.min(head.height, Math.round(head.height * 0.3));
+		const d = head.getContext('2d', { willReadFrequently: true }).getImageData(Math.floor(W * 0.9), 0, 1, H).data;
+		const green = (i) => d[i + 1] > 150 && d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 60;
+		let y = 0;
+		while (y < H && green(y * 4)) y++;
+		if (y < 8) return null;
+		const m = Math.floor(y / 2) * 4;
+		return { h: y, color: 'rgb(' + d[m] + ',' + d[m + 1] + ',' + d[m + 2] + ')' };
+	}
+	/**
+	 * 情報の箱（2列・数ありの案4。右の列の上・上の欄と同じ高さ）。幅 w・高さ h。
+	 * 上に上の欄と同じ高さ・色の緑の帯（見出し「スキルの数」）、その下の白いカードに「スキル 69」と「（固有 1・進化 1・金 7・白 60）」（決定 797 の文の形を2行に分けたもの）。
+	 * 今後この欄に情報を足すときは、カードの行を足す。
+	 */
+	function infoBox(w, h, counts, head) {
+		const c = mk(w, h);
+		const x = c.getContext('2d');
+		x.fillStyle = 'rgb(242,242,242)';
+		x.fillRect(0, 0, w, h);
+		const hb = headBand(head);
+		const bandH = hb ? hb.h : Math.round(w * 0.065);
+		x.fillStyle = hb ? hb.color : 'rgb(140,203,30)';
+		x.fillRect(0, 0, w, bandH);
+		x.textBaseline = 'middle';
+		x.textAlign = 'center';
+		const tf = Math.round(bandH * 0.56);
+		x.font = 'bold ' + tf + 'px sans-serif';
+		x.lineJoin = 'round';
+		x.lineWidth = Math.max(2, tf * 0.16);
+		x.strokeStyle = 'rgba(40,110,10,.85)';
+		x.strokeText(t('sr.box.title'), w / 2, bandH * 0.52);
+		x.fillStyle = '#ffffff';
+		x.fillText(t('sr.box.title'), w / 2, bandH * 0.52);
+		// カード
+		const m = Math.round(w * 0.035);
+		const cx = m, cy = bandH + m, cw = w - m * 2, ch = h - bandH - m * 2;
+		if (ch < 20) return c;
+		const r = Math.round(w * 0.02);
+		x.beginPath();
+		x.moveTo(cx + r, cy); x.arcTo(cx + cw, cy, cx + cw, cy + ch, r); x.arcTo(cx + cw, cy + ch, cx, cy + ch, r); x.arcTo(cx, cy + ch, cx, cy, r); x.arcTo(cx, cy, cx + cw, cy, r); x.closePath();
+		x.fillStyle = '#ffffff'; x.fill();
+		x.lineWidth = Math.max(2, Math.round(w * 0.003)); x.strokeStyle = 'rgb(214,212,228)'; x.stroke();
+		// 1行目「スキル 69」: 見出しの語と大きな数
+		let f1 = Math.round(Math.min(ch * 0.16, w * 0.09));
+		const word = 'スキル', num = String(counts.all);
+		let f1n, w1, w2;
+		for (;;) {
+			f1n = Math.round(f1 * 1.9);
+			x.font = 'bold ' + f1 + 'px sans-serif'; w1 = x.measureText(word + ' ').width;
+			x.font = 'bold ' + f1n + 'px sans-serif'; w2 = x.measureText(num).width;
+			if (w1 + w2 <= cw * 0.9 || f1 <= 10) break;
+			f1--;
+		}
+		// 2行目「（固有 1・進化 1・金 7・白 60）」: 名前の前に種類の色の四角
+		const items = [['unique', '固有', counts.unique], ['evo', '進化', counts.evo], ['gold', '金', counts.gold], ['white', '白', counts.white]];
+		let f2 = Math.round(f1 * 0.78);
+		let line2W;
+		const measure2 = () => {
+			x.font = 'bold ' + f2 + 'px sans-serif';
+			const sw = f2 * 0.9, sp = f2 * 0.25;
+			let tw = x.measureText('（').width + x.measureText('）').width;
+			items.forEach(([, name, n], i) => { tw += sw + sp + x.measureText(name + ' ' + n).width + (i < items.length - 1 ? x.measureText('・').width : 0); });
+			return tw;
+		};
+		while ((line2W = measure2()) > cw * 0.92 && f2 > 9) f2--;
+		const blockH = f1n * 1.05 + f2 * 0.9 + f2 * 1.2;
+		const top = cy + Math.max(0, (ch - blockH) / 2);
+		// 1行目
+		const y1 = top + f1n * 0.55;
+		let sx = cx + (cw - (w1 + w2)) / 2;
+		x.textAlign = 'left';
+		x.textBaseline = 'alphabetic';
+		x.fillStyle = INK;
+		x.font = 'bold ' + f1 + 'px sans-serif';
+		x.fillText(word + ' ', sx, y1 + f1n * 0.36);
+		x.font = 'bold ' + f1n + 'px sans-serif';
+		x.fillText(num, sx + w1, y1 + f1n * 0.36);
+		// 2行目
+		const y2 = top + f1n * 1.05 + f2 * 0.9 + f2 * 0.6;
+		x.font = 'bold ' + f2 + 'px sans-serif';
+		x.textBaseline = 'middle';
+		sx = cx + (cw - line2W) / 2;
+		const put = (s) => { x.fillStyle = INK; x.fillText(s, sx, y2); sx += x.measureText(s).width; };
+		put('（');
+		items.forEach(([kind, name, n], i) => {
+			const sw = f2 * 0.9;
+			swatch(x, sx, y2 - sw / 2, sw, kind);
+			sx += sw + f2 * 0.25;
+			put(name + ' ' + n);
+			if (i < items.length - 1) put('・');
+		});
+		put('）');
+		return c;
+	}
+
+	/** 情報の帯（1列で数を入れるとき・803。上の欄の下に置く）。幅 w */
 	function infoBand(w, counts) {
 		const h = Math.round(w * 0.075);
 		const c = mk(w, h);
@@ -202,8 +316,9 @@
 
 	/**
 	 * 結合の結果（stitchOnePerson の Canvas）と1枚目の画から、出す画像を組み立てる。
-	 * o.cols 1|2・o.variant 'half'|'even'|'span'（2列のとき）・o.counts（情報の帯を描くとき countSkills の値。無ければ描かない）
-	 * 返す Canvas に _sr（{ band, headH, listH, split, thumb, cols, variant }）を添える。o.parts を渡すと、上の欄・一覧（切ったもの）を作り直さずに使う
+	 * o.cols 1|2・o.counts（スキルの数を入れるとき countSkills の値。無ければ入れない）
+	 *   1列: 上の欄＋（数があれば帯）＋一覧。2列: 数なしは案2（variant 'even'）・数ありは案4（variant 'side'）
+	 * 返す Canvas に _sr（{ band, headH, listH, split, thumb, cols, variant, info, topH }）を添える
 	 */
 	function prepareParts(list, first) {
 		const pl = (list._sourcePlacements || [])[0];
@@ -221,38 +336,43 @@
 	function compose(parts, o) {
 		const { head, body, w } = parts;
 		const headH = head ? head.height : 0, listH = body.height;
-		const info = o.counts ? infoBand(w, o.counts) : null;
-		const infoH = info ? info.height : 0;
+		const counts = o.counts || null;
 		const G = Math.max(8, Math.round(w * 0.014));
-		let out, split = null;
+		let out, split = null, variant = null, topH = headH;
 		if (o.cols !== 2) {
+			// 1列（803）: 数を入れるときは上の欄の下に帯
+			const info = counts ? infoBand(w, counts) : null;
+			const infoH = info ? info.height : 0;
 			out = mk(w, headH + infoH + listH);
 			const x = out.getContext('2d');
 			if (head) x.drawImage(head, 0, 0);
 			if (info) x.drawImage(info, 0, headH);
 			x.drawImage(body, 0, headH + infoH);
-		} else if (o.variant === 'span') {
+			topH = headH + infoH;
+		} else if (counts) {
+			// 案4（794）: 左の上に上の欄・右の上に同じ高さの情報の箱。その下に一覧を半分ずつ（左右の下端がそろう所＝一覧の真ん中に近い行の間で分ける）
+			variant = 'side';
+			topH = headH || Math.round(w * 0.3);
 			split = findRowGap(body, listH / 2, listH * 0.3, listH * 0.7);
-			const rightH = listH - split, colH = Math.max(split, rightH);
-			const W2 = w * 2 + G;
-			out = mk(W2, headH + infoH + colH);
+			const rightH = listH - split;
+			out = mk(w * 2 + G, topH + Math.max(split, rightH));
 			const x = out.getContext('2d');
-			if (head) x.drawImage(head, Math.round((W2 - w) / 2), 0);
-			if (info) x.drawImage(infoBand(W2, o.counts), 0, headH);
-			x.drawImage(body, 0, 0, w, split, 0, headH + infoH, w, split);
-			x.drawImage(body, 0, split, w, rightH, w + G, headH + infoH, w, rightH);
+			if (head) x.drawImage(head, 0, 0);
+			x.drawImage(infoBox(w, topH, counts, head), w + G, 0);
+			x.drawImage(body, 0, 0, w, split, 0, topH, w, split);
+			x.drawImage(body, 0, split, w, rightH, w + G, topH, w, rightH);
 		} else {
-			const target = o.variant === 'even' ? (listH - headH - infoH) / 2 : listH / 2;
-			split = findRowGap(body, Math.max(listH * 0.15, target), listH * 0.1, listH * 0.9);
-			const leftH = headH + infoH + split, rightH = listH - split;
+			// 案2（794）: 左に上の欄＋一覧の前半、右に後半。左右の高さがそろう所で分ける
+			variant = 'even';
+			split = findRowGap(body, Math.max(listH * 0.15, (listH - headH) / 2), listH * 0.1, listH * 0.9);
+			const leftH = headH + split, rightH = listH - split;
 			out = mk(w * 2 + G, Math.max(leftH, rightH));
 			const x = out.getContext('2d');
 			if (head) x.drawImage(head, 0, 0);
-			if (info) x.drawImage(info, 0, headH);
-			x.drawImage(body, 0, 0, w, split, 0, headH + infoH, w, split);
+			x.drawImage(body, 0, 0, w, split, 0, headH, w, split);
 			x.drawImage(body, 0, split, w, rightH, w + G, 0, w, rightH);
 		}
-		out._sr = { band: parts.band, headH, listH, split, thumb: parts.thumb, cols: o.cols === 2 ? 2 : 1, variant: o.cols === 2 ? (o.variant || 'half') : null, info: !!info };
+		out._sr = { band: parts.band, headH, listH, split, thumb: parts.thumb, cols: o.cols === 2 ? 2 : 1, variant, info: !!counts, topH };
 		return out;
 	}
 
@@ -303,7 +423,7 @@
 		files: [],
 		thumbs: new Map(),    // File → { url, ready, dead }
 		thumbQueue: Promise.resolve(),
-		cols: 1, variant: 'half', info: 'none',
+		cols: 1, withCount: false,   // 結合画像の設定（804）。既定は 1列・スキルの数を入れない。覚えない
 		built: null,          // { files, list, first, parts, counts, one } 作ったときの材料（形を変えたらここから組み直す）
 		png: null,            // { url, blob, canvas }
 		busy: false
@@ -336,9 +456,19 @@
 	}
 	function sameFiles(a, b) { return a.length === b.length && a.every((f, i) => f === b[i]); }
 
-	function seg(name, items, cur) {
-		return '<div class="sr-seg" role="group" data-sr-seg="' + name + '" style="--sr-n:' + items.length + '">' + items.map(([v, label]) =>
-			'<button type="button" class="sr-seg-btn" data-sr-' + name + '="' + v + '" aria-pressed="' + String(String(cur) === String(v)) + '">' + esc(label) + '</button>').join('') + '</div>';
+	/** 本育成結果用の「結合画像の設定」（804）。見た目は因子の結合画像の「結合画像の設定」（.stitch-show・.stitch-cols・.stitch-show-item）にそろえる。
+	 *  1枚だけのときは画像をそのまま出すので、2列と数は押せない */
+	function settingsHtml(one) {
+		const colsBtn = (n, bars) => '<button type="button" class="sr-cols-btn" data-sr-cols="' + n + '" aria-pressed="' + String((one ? 1 : st.cols) === n) + '"' + (one && n === 2 ? ' disabled' : '') + '>' +
+			'<i aria-hidden="true">' + bars + '</i><span>' + esc(t('sr.cols' + n)) + '</span></button>';
+		return '<div class="sr-show" data-sr-settings>' +
+			'<p class="sr-show-title"><i data-lucide="sliders-horizontal"></i><span>' + esc(t('sr.settings')) + '</span></p>' +
+			'<div class="sr-cols" role="group" aria-label="' + esc(t('sr.form')) + '">' + colsBtn(1, '<b class="is-wide"></b>') + colsBtn(2, '<b></b><b></b>') + '</div>' +
+			'<div class="sr-show-list">' +
+				'<label class="sr-show-item' + (one ? ' is-off' : '') + '"><input type="checkbox" class="sr-show-check" data-sr-opt="count"' + (st.withCount && !one ? ' checked' : '') + (one ? ' disabled' : '') + ' />' +
+					'<span>' + esc(t('sr.opt.count')) + '<span class="sr-show-sub">' + esc(t('sr.count.note')) + '</span></span></label>' +
+			'</div>' +
+		'</div>';
 	}
 	function render() {
 		const r = st.root;
@@ -358,17 +488,13 @@
 					return '<div class="sr-thumb"><img ' + (th.url ? 'src="' + th.url + '"' : 'data-sr-thumb="' + i + '"') + ' alt="" /><span class="sr-thumb-no">' + (i + 1) + '</span>' +
 						'<button type="button" class="sr-thumb-x" data-sr-remove="' + i + '" aria-label="' + (i + 1) + '枚目を外す">×</button></div>';
 				}).join('') + '</div>' : '') +
-				'<div class="sr-form">' +
-					'<p class="sr-form-label">' + esc(t('sr.form')) + '</p>' + seg('cols', [[1, '1列'], [2, '2列']], one ? 1 : st.cols) +
-					(st.cols === 2 && !one ? '<p class="sr-form-label">' + esc(t('sr.form2')) + '</p>' + seg('variant', [['half', t('sr.v.half')], ['even', t('sr.v.even')], ['span', t('sr.v.span')]], st.variant) : '') +
-					'<p class="sr-form-label">' + esc(t('sr.info')) + '</p>' + seg('info', [['none', t('sr.info.none')], ['panel', t('sr.info.panel')], ['image', t('sr.info.image')], ['both', t('sr.info.both')]], st.info) +
-				'</div>' +
+				settingsHtml(one) +
 				'<button type="button" class="uma-btn uma-btn--primary w-full sr-build" data-sr-act="build"' + (n && !st.busy && (!st.built || stale) ? '' : ' disabled') + '><span>' + esc(st.busy ? t('sr.btn.busy') : t('sr.btn.build')) + '</span></button>' +
 				(one ? '<p class="sr-note">' + esc(t('sr.one')) + '</p>' : '') +
 				(stale ? '<p class="sr-note" data-sr-stale>' + esc(t('sr.stale')) + '</p>' : '') +
 				'<div class="sr-result" data-sr-result></div>' +
 			'</div>';
-		if (one) r.querySelectorAll('[data-sr-cols]').forEach((b) => { b.disabled = b.getAttribute('data-sr-cols') === '2'; });
+		if (window.lucide && r.querySelector('[data-lucide]')) { try { window.lucide.createIcons(); } catch (e) { /* アイコンが無くても動く */ } }
 		r.querySelectorAll('img[data-sr-thumb]').forEach((img) => {
 			const f = st.files[Number(img.getAttribute('data-sr-thumb'))];
 			if (f) thumbOf(f).ready.then((url) => { if (url && img.isConnected) { img.src = url; img.removeAttribute('data-sr-thumb'); } });
@@ -403,13 +529,6 @@
 		if (window.UmaStitchShare) UmaStitchShare.attach(a, () => png.blob);
 		head.appendChild(a);
 		block.appendChild(head);
-		if (b.counts && (st.info === 'panel' || st.info === 'both')) {
-			const c = document.createElement('p');
-			c.className = 'sr-count';
-			c.setAttribute('data-sr-count', '');
-			c.innerHTML = '<b>' + esc(t('sr.count', b.counts)) + '</b><small>' + esc(t('sr.count.note')) + '</small>';
-			block.appendChild(c);
-		}
 		const img = document.createElement('img');
 		img.className = 'sr-img';
 		img.alt = '';
@@ -429,11 +548,17 @@
 	async function recompose() {
 		const b = st.built;
 		if (!b) return;
+		// 設定を続けて変えたとき、前の組み直しが後から終わって古い形を出さないように、いちばん新しい頼みだけを使う
+		const gen = st.gen = (st.gen || 0) + 1;
 		let canvas;
 		if (b.one) canvas = b.first;
-		else canvas = compose(b.parts, { cols: st.cols, variant: st.variant, counts: (st.info === 'image' || st.info === 'both') ? b.counts : null });
+		else canvas = compose(b.parts, { cols: st.cols, counts: st.withCount ? b.counts : null });
 		const png = await toPng(canvas);
-		if (st.built !== b) { if (png.blob) URL.revokeObjectURL(png.url); return; }
+		if (st.built !== b || gen !== st.gen) {
+			if (png.blob) URL.revokeObjectURL(png.url);
+			if (canvas !== b.first) canvas.width = canvas.height = 0;
+			return;
+		}
 		setPng(png);
 		if (canvas !== b.first && b.last && b.last !== canvas) { b.last.width = b.last.height = 0; }
 		b.last = canvas === b.first ? null : canvas;
@@ -482,16 +607,19 @@
 		changed();
 	}
 	function onClick(e) {
-		const el = e.target.closest && e.target.closest('[data-sr-act],[data-sr-remove],[data-sr-cols],[data-sr-variant],[data-sr-info]');
+		const el = e.target.closest && e.target.closest('[data-sr-act],[data-sr-remove],[data-sr-cols]');
 		if (!el || !st.root.contains(el) || el.disabled) return;
 		if (el.hasAttribute('data-sr-remove')) { st.files.splice(Number(el.getAttribute('data-sr-remove')), 1); changed(); return; }
 		const act = el.getAttribute('data-sr-act');
 		if (act === 'clear') { st.files = []; setPng(null); st.built = null; changed(); return; }
 		if (act === 'build') { build(); return; }
 		if (el.hasAttribute('data-sr-cols')) st.cols = Number(el.getAttribute('data-sr-cols')) === 2 ? 2 : 1;
-		else if (el.hasAttribute('data-sr-variant')) st.variant = el.getAttribute('data-sr-variant');
-		else if (el.hasAttribute('data-sr-info')) st.info = el.getAttribute('data-sr-info');
-		if (st.built && sameFiles(st.built.files, st.files)) recompose(); else render();
+		settingChanged();
+	}
+	// 設定を変えたら、作った材料から組み直す（結合はやり直さない）
+	function settingChanged() {
+		render();   // 押した形・チェックをすぐ映す（画像は組み直しが終わったら替わる）
+		if (st.built && sameFiles(st.built.files, st.files)) recompose();
 	}
 	// 見た目（2つのページで同じ。ページの CSS の変数〔css/tokens.css〕を使う。ダークでも変数が切り替わる）
 	const SR_CSS = [
@@ -505,14 +633,26 @@
 		'.sr-thumb img{width:100%;height:100%;object-fit:cover;display:block}',
 		'.sr-thumb-no{position:absolute;left:3px;bottom:3px;min-width:18px;height:18px;border-radius:9px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}',
 		'.sr-thumb-x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:11px;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer}',
-		'.sr-form{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 10px}',
-		'.sr-form-label{margin:0;font-size:11px;font-weight:700;color:var(--uma-text-heading)}',
-		'.sr-seg{display:grid;grid-template-columns:repeat(var(--sr-n),1fr);border:1px solid var(--uma-border-strong);border-radius:var(--uma-r-lg);overflow:hidden}',
-		'.sr-seg-btn{min-height:36px;border:0;background:var(--uma-surface);color:var(--uma-text-heading);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;line-height:1.3}',
-		'.sr-seg-btn+.sr-seg-btn{border-left:1px solid var(--uma-border-strong)}',
-		'.sr-seg-btn[aria-pressed="true"]{background:var(--uma-surface-inverse);color:var(--uma-text-inverse)}',
-		'.sr-seg-btn:disabled{opacity:.4;cursor:default}',
-		'.sr-seg-btn:focus-visible{outline:2px solid var(--uma-focus-ring);outline-offset:-2px}',
+		// 本育成結果用の「結合画像の設定」（804）。値は special.html・exam.html の .stitch-show・.stitch-cols・.stitch-show-item と同じ
+		'.sr-show{padding:var(--uma-sp-3);border:1px solid var(--uma-border);border-radius:var(--uma-r-xl);background:var(--uma-surface-muted);text-align:left}',
+		'.sr-show-title{margin:0 0 var(--uma-sp-1-5);font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs);font-weight:700;color:var(--uma-text-heading);display:flex;align-items:center;gap:var(--uma-sp-1-5)}',
+		'.sr-show-title svg{width:14px;height:14px;color:var(--uma-stitch-accent)}',
+		'.sr-cols{display:grid;grid-template-columns:1fr 1fr;margin:0 0 var(--uma-sp-1-5);border:1px solid var(--uma-border-strong);border-radius:var(--uma-r-lg);overflow:hidden}',
+		'.sr-cols-btn{min-height:40px;border:0;background:var(--uma-surface);color:var(--uma-text-heading);font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}',
+		'.sr-cols-btn+.sr-cols-btn{border-left:1px solid var(--uma-border-strong)}',
+		'.sr-cols-btn:focus-visible{outline:2px solid var(--uma-focus-ring);outline-offset:-2px}',
+		'.sr-cols-btn[aria-pressed="true"]{background:var(--uma-surface-inverse);color:var(--uma-text-inverse)}',
+		'.sr-cols-btn:disabled{opacity:.4;cursor:default}',
+		'.sr-cols-btn i{display:inline-flex;gap:2px}',
+		'.sr-cols-btn i b{display:block;width:5px;height:12px;border-radius:1px;background:currentColor}',
+		'.sr-cols-btn i b.is-wide{width:12px}',
+		'.sr-show-list{display:flex;flex-direction:column;gap:var(--uma-sp-0-5)}',
+		'.sr-show-item{display:flex;align-items:flex-start;gap:var(--uma-sp-2);padding:var(--uma-sp-1) var(--uma-sp-1-5);border-radius:var(--uma-r-md);font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs);font-weight:600;color:var(--uma-text-heading);cursor:pointer;transition:background-color var(--uma-transition)}',
+		'.sr-show-item:hover{background:var(--uma-surface)}',
+		'.sr-show-item.is-off{opacity:.45;cursor:not-allowed}',
+		'.sr-show-check{flex-shrink:0;width:1rem;height:1rem;margin-top:1px;accent-color:var(--uma-control-mark);cursor:pointer}',
+		'.sr-show-item.is-off .sr-show-check{cursor:not-allowed}',
+		'.sr-show-sub{margin-left:var(--uma-sp-2);font-weight:400;color:var(--uma-text-subtle)}',
 		'.sr-note{margin:0;font-size:11px;color:var(--uma-text-muted);text-align:center}',
 		'.sr-result-block{display:flex;flex-direction:column;gap:8px;margin-top:4px}',
 		'.sr-result-head{display:flex;align-items:center;justify-content:space-between;gap:8px}',
@@ -521,9 +661,6 @@
 		'.sr-warn{border:1px solid var(--uma-warn-border);background:var(--uma-warn-bg);color:var(--uma-warn-text);border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.6}',
 		'.sr-warn p{margin:0}.sr-warn-head{font-weight:700;margin-bottom:2px!important}',
 		'.sr-fail{border:1px solid var(--uma-danger-border);background:var(--uma-danger-bg);color:var(--uma-danger-text);border-radius:8px;padding:10px 12px;font-size:12px}',
-		'.sr-count{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:13px;color:var(--uma-text-heading);background:var(--uma-surface-muted);border-radius:8px;padding:8px 10px}',
-		'.sr-count small{font-size:11px;color:var(--uma-text-muted)}',
-		'@media (max-width:480px){.sr-form{grid-template-columns:1fr}}'
 	].join('\n');
 	function injectStyle() {
 		if (document.getElementById('sr-style')) return;
@@ -539,18 +676,19 @@
 		st.host = host || {};
 		root.addEventListener('click', onClick);
 		root.addEventListener('change', (e) => {
-			if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-sr-input')) { addFiles(e.target.files); e.target.value = ''; }
+			if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-sr-input')) { addFiles(e.target.files); e.target.value = ''; return; }
+			if (e.target && e.target.getAttribute && e.target.getAttribute('data-sr-opt') === 'count') { st.withCount = !!e.target.checked; settingChanged(); }
 		});
 		render();
 	}
 
 	window.UmaSkillResult = Object.freeze({
 		version: SKILL_RESULT_JS_VERSION, texts: SR_TEXTS,
-		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap,
+		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap, infoBox, infoBand,
 		count: () => st.files.length,
 		files: () => st.files.slice(),
 		// 検査用: 今の状態（URL・形・作ったか）
-		peek: () => ({ files: st.files.length, cols: st.cols, variant: st.variant, info: st.info, built: !!st.built, url: st.png ? st.png.url : null,
+		peek: () => ({ files: st.files.length, cols: st.cols, withCount: st.withCount, built: !!st.built, url: st.png ? st.png.url : null,
 			thumbs: Array.from(st.thumbs.values()).map((x) => x.url), counts: st.built ? st.built.counts : null, sr: st.built && st.built.last ? st.built.last._sr : null }),
 		addFiles, build
 	});

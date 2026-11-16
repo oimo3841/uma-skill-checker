@@ -1,8 +1,10 @@
-// T188（2026-11-16・決定 772〜793）: 本育成結果（③／②の3つ目のタブ・js/skill-result.js）と、動画の1〜3人・「入れる人」の検査。
+// T188（2026-11-16・決定 772〜793）・T189（2026-11-17・決定 794〜804）: 本育成結果（③／②の3つ目のタブ・js/skill-result.js）と、動画の1〜3人・「入れる人」の検査。
 // run-smoke.mjs の末尾から register180() で呼ばれる（塊の見出しはすべて「T188」で始まる。`npm run test:visual -- --only=T188` で回せる）。
 //
 //  (1) 本育成結果（UmaStar・UmaExam）: タブ・関係のない部品を隠す・persons に混ざらない（OCR・タブの枚数・処理のボタン）・結合（凍結の stitchOnePerson）＋上の欄・
-//      つまみを消す・1列｜2列（案3つ）・色で数えるスキルの数・1枚だけ・サムネイル 336px と URL の手放し・保存と共有は別のボタン。
+//      つまみを消す・色で数えるスキルの数・1枚だけ・サムネイル 336px と URL の手放し・保存と共有は別のボタン。
+//      T189（決定 794・803・804）: タブの中の「結合画像の設定」（1列｜2列・スキルの数）。2列・数なしは案2、2列・数ありは案4（右上に情報の箱）、1列・数ありは帯。
+//      試しの切り替え（案1・案3・数の表示の置き場所）が無いこと・画面の欄に数を出さないこと・続けて押しても最後の設定の画像が出ること。
 //      画像は作り物のスキル画面（SKILL_SYNTH。ゲームの画面は使わない）。
 //  (2) 動画の1〜3人（UmaStar・UmaExam）: blocks-80 の作り物の動画（SYNTH）を途中で切る。1人・2人・途中までの人・1枚だけの人・3人・0人／4人以上の止め・進み具合の段。
 //      UmaStar の3列は1人・2人で幅を人数ぶんに詰める（790）。
@@ -140,7 +142,7 @@ export async function register180(env) {
 
 	for (const file of ['special', 'exam']) {
 		const NAME = file === 'special' ? 'UmaStar' : 'UmaExam';
-		await block('T188(1) ' + NAME + ' の本育成結果: タブ・関係のない部品を隠す・persons に混ざらない（OCR・処理のボタン）・結合＋上の欄・つまみを消す・1列｜2列の案・色で数える数・1枚だけ・サムネイル 336px・保存は別のボタン', async () => {
+		await block('T188(1) ' + NAME + ' の本育成結果: タブ・関係のない部品を隠す・persons に混ざらない（OCR・処理のボタン）・結合＋上の欄・つまみを消す・色で数える数・T189 の結合画像の設定（1列｜2列・スキルの数。2列は案2／案4・1列は帯）・1枚だけ・サムネイル 336px・保存は別のボタン', async () => {
 			const sp = await open(file, { w: 390, h: 844, fakeNav: true });
 			const { page, errors } = sp;
 			const tabs = await page.evaluate(() => [...document.querySelectorAll('#personset-tabs .uma-subtab')].map((b) => b.textContent.trim()));
@@ -170,31 +172,70 @@ export async function register180(env) {
 			assert(r1.sr && Array.isArray(r1.sr.thumb), 'T188(1) ' + NAME + ' 右のスクロールのつまみの列を見つけて塗った', r1.sr && r1.sr.thumb);
 			const c = r1.counts || {};
 			assert(c.all === r1.truth.all && c.unique === r1.truth.unique && c.evo === r1.truth.evo && c.gold === r1.truth.gold && c.white === r1.truth.white, 'T188(1) ' + NAME + ' 色で数えたスキルの数が正しい（全部・固有・進化・金・白）', { counts: { all: c.all, unique: c.unique, evo: c.evo, gold: c.gold, white: c.white }, truth: r1.truth });
-			// 2列（案3つ）: 幅は2列ぶん・URL は替わり、前の URL は手放す
-			await page.evaluate(() => document.querySelector('[data-sr-cols="2"]').click());
-			await waitBuilt(page, r1.url);
-			const urls = [r1.url];
-			const shapes = {};
-			for (const v of ['half', 'even', 'span']) {
-				const prev = urls[urls.length - 1];
-				if (v !== 'half') { await page.evaluate((v) => document.querySelector('[data-sr-variant="' + v + '"]').click(), v); await waitBuilt(page, prev); }
+			// T189（決定 794・803・804）: タブの中の「結合画像の設定」（1列｜2列・スキルの数）。試しの切り替え（案1・案3・数の表示の置き場所）は無い。既定は 1列・数を入れない
+			const ui = await page.evaluate(() => {
+				const box = document.querySelector('[data-sr-settings]');
+				const vis = (el) => !!(el && el.getClientRects().length);
+				return { box: vis(box), title: box && (box.querySelector('.sr-show-title') || {}).textContent, cols: box ? [...box.querySelectorAll('[data-sr-cols]')].map((b) => b.textContent.trim() + ':' + b.getAttribute('aria-pressed')) : [],
+					count: !!(box && box.querySelector('input[type="checkbox"][data-sr-opt="count"]')), checked: !!(box && box.querySelector('[data-sr-opt="count"]').checked),
+					trials: document.querySelectorAll('[data-sr-variant],[data-sr-info],[data-sr-count]').length, hasStitchCls: !!(box && box.closest('[data-stitch-show-panel]')) };
+			});
+			assert(ui.box && /結合画像の設定/.test(ui.title || '') && ui.cols.join(',') === '1列:true,2列:false' && ui.count && !ui.checked && ui.trials === 0 && !ui.hasStitchCls,
+				'T189 ' + NAME + ' 本育成結果のタブの中に「結合画像の設定」（1列｜2列・スキルの数）。既定は 1列・数を入れない・試しの切り替えは無い', ui);
+			const setForm = async (cols, count) => {
+				const prev = (await imgSize(page)).src;
+				const now = await page.evaluate(() => UmaSkillResult.peek());
+				if (now.cols !== cols) await page.evaluate((c) => document.querySelector('[data-sr-cols="' + c + '"]').click(), cols);
+				if (now.withCount !== count) await page.evaluate(() => document.querySelector('[data-sr-opt="count"]').click());
+				await waitBuilt(page, prev);
+				await page.waitForFunction(({ cols, count }) => { const p = UmaSkillResult.peek(); const im = document.querySelector('.sr-img');
+					return p.sr && p.sr.cols === cols && p.sr.info === count && im && im.getAttribute('src') === p.url && im.complete && im.naturalWidth > 0; }, { cols, count }, { timeout: 60000 });
 				const s = await imgSize(page);
 				const p = await page.evaluate(() => UmaSkillResult.peek());
-				shapes[v] = { w: s.w, h: s.h, split: p.sr && p.sr.split, variant: p.sr && p.sr.variant };
-				urls.push(s.src);
-			}
-			assert(Object.values(shapes).every((s) => s.w > s1.w * 2 - 1 && s.h < s1.h && s.split > 0), 'T188(1) ' + NAME + ' 2列は幅が2列ぶん・高さは1列より低い（案1〜3）', shapes);
-			assert(shapes.even.h <= shapes.half.h && shapes.span.variant === 'span', 'T188(1) ' + NAME + ' 案2（高さをそろえる）は案1 より低いか同じ・案3 は上の欄を上に', shapes);
+				return { w: s.w, h: s.h, src: s.src, sr: p.sr, pressed: await page.evaluate(() => [...document.querySelectorAll('[data-sr-cols]')].map((b) => b.getAttribute('aria-pressed')).join(',') + '|' + document.querySelector('[data-sr-opt="count"]').checked) };
+			};
+			// 画素を読む（検査用）: 結合画像の (x, y) の色
+			const px = (src, pts) => page.evaluate(async ({ src, pts }) => { const im = new Image(); im.src = src; await im.decode(); const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+				const x = c.getContext('2d'); x.drawImage(im, 0, 0); return pts.map(([a, b]) => Array.from(x.getImageData(a, b, 1, 1).data.slice(0, 3))); }, { src, pts });
+			const urls = [r1.url];
+			// 1列＋数（803）: 上の欄の下に帯 → 帯の分だけ高い・一覧は帯の下から
+			const c1n = await setForm(1, true); urls.push(c1n.src);
+			assert(c1n.w === s1.w && c1n.h > s1.h && c1n.sr.variant === null && c1n.sr.info === true && c1n.sr.topH > c1n.sr.headH && c1n.pressed === 'true,false|true',
+				'T189 ' + NAME + ' 1列・数あり: 上の欄の下に帯（画像が帯の分だけ高い）', c1n);
+			// 2列・数なし（794 案2）: 左に上の欄＋前半・右に後半。左右の高さがそろう（差は1行ぶんより小さい）
+			const ev = await setForm(2, false); urls.push(ev.src);
+			const evL = ev.sr.headH + ev.sr.split, evR = ev.sr.listH - ev.sr.split;
+			assert(ev.sr.variant === 'even' && ev.w > s1.w * 2 - 1 && ev.h < s1.h && Math.abs(evL - evR) < 160 && ev.h === Math.max(evL, evR) && ev.pressed === 'false,true|false',
+				'T189 ' + NAME + ' 2列・数なしは案2（高さをそろえる）: 幅は2列ぶん・左（上の欄＋前半）と右（後半）の高さがそろう', { ev, evL, evR });
+			// 2列・数あり（794 案4）: 左上に上の欄・右上に同じ高さの情報の箱・その下に一覧を半分ずつ（左右の下端がそろう）
+			const sd = await setForm(2, true); urls.push(sd.src);
+			const sdL = sd.sr.split, sdR = sd.sr.listH - sd.sr.split;
+			assert(sd.sr.variant === 'side' && sd.sr.topH === sd.sr.headH && sd.w === ev.w && sd.h === sd.sr.headH + Math.max(sdL, sdR) && Math.abs(sdL - sdR) < 160 && sd.pressed === 'false,true|true',
+				'T189 ' + NAME + ' 2列・数ありは案4: 右の上に上の欄と同じ高さの箱・その下に左右とも一覧を半分ずつ（下端がそろう）', { sd, sdL, sdR });
+			// 案4 の右上の箱: 上は上の欄と同じ緑の帯、下は白いカード。左上（上の欄）は1列のときの上の欄と同じ画素
+			const half = Math.round((sd.w - s1.w * 2) / 2);
+			const colors = await px(sd.src, [[sd.w - 20, 10], [s1.w + half * 2 + Math.round(s1.w * 0.9), Math.round(sd.sr.headH * 0.6)]]);
+			assert(colors[0][1] > 150 && colors[0][1] > colors[0][2] + 60 && colors[1].every((v) => v >= 240), 'T189 ' + NAME + ' 案4 の右上の箱: 上に緑の帯・中は白いカード', colors);
 			const dead = await Promise.all(urls.slice(0, -1).map((u) => alive(page, u)));
 			assert(dead.every((x) => x === false) && (await alive(page, urls[urls.length - 1])), 'T188(1) ' + NAME + ' 形を変えると前の結合画像の URL を手放す・今の URL は読める', dead);
-			// 情報の表示（試し）: 欄の中に数の行・画像の中は帯の分だけ高くなる
-			await page.evaluate(() => document.querySelector('[data-sr-cols="1"]').click());
-			await waitBuilt(page, urls[urls.length - 1]);
-			const u1 = (await imgSize(page)).src;
-			await page.evaluate(() => document.querySelector('[data-sr-info="both"]').click());
-			await waitBuilt(page, u1);
-			const info = await page.evaluate(() => ({ line: (document.querySelector('[data-sr-count]') || {}).textContent || '', h: document.querySelector('.sr-img').naturalHeight }));
-			assert(/スキル \d+/.test(info.line) && info.h > s1.h, 'T188(1) ' + NAME + ' 情報の表示（両方）: 欄の中に数の行・画像の中に帯（画像が高くなる）', info);
+			// 続けて押す（2列→数→1列）: 最後の設定の形だけが出る（前の組み直しが後から終わって古い形を出さない）
+			//   最初の頼みの PNG 化（toBlob）だけを 1.5秒遅らせて、前の頼みが後から終わる形を必ず作る
+			await page.evaluate(() => {
+				const orig = HTMLCanvasElement.prototype.toBlob;
+				let n = 0;
+				HTMLCanvasElement.prototype.toBlob = function (cb, ...a) { const self = this; if (n++ === 0) setTimeout(() => orig.call(self, cb, ...a), 1500); else orig.call(self, cb, ...a); };
+				window.__restoreToBlob = () => { HTMLCanvasElement.prototype.toBlob = orig; };
+				document.querySelector('[data-sr-opt="count"]').click(); document.querySelector('[data-sr-cols="1"]').click(); document.querySelector('[data-sr-opt="count"]').click();
+			});
+			await page.waitForFunction(() => { const p = UmaSkillResult.peek(); return p.sr && p.sr.cols === 1 && p.sr.info === true; }, null, { timeout: 30000 }).catch(() => {});
+			await page.waitForTimeout(3000);
+			await page.evaluate(() => window.__restoreToBlob());
+			const last = await page.evaluate(() => { const p = UmaSkillResult.peek(); return { cols: p.sr && p.sr.cols, info: p.sr && p.sr.info, src: document.querySelector('.sr-img').getAttribute('src') === p.url, h: document.querySelector('.sr-img').naturalHeight }; });
+			assert(last.cols === 1 && last.info === true && last.src && last.h === c1n.h, 'T189 ' + NAME + ' 設定を続けて押しても、最後の設定（1列・数あり）の画像が出る', last);
+			// 画面の欄の中には数を出さない（数は画像の中だけ・796）
+			const panelText = await page.evaluate(() => document.querySelector('[data-sr-result]').textContent);
+			assert(!/スキル \d+（/.test(panelText), 'T189 ' + NAME + ' 画面の欄の中にスキルの数の行は出さない（数は画像の中だけ）', panelText.slice(0, 80));
+			urls.push(await page.evaluate(() => UmaSkillResult.peek().url));
 			// 保存: iPhone は共有のシートに手元の Blob（PNG のバイトは表示と同じ）・名前は今の決まり（日付_番号）
 			const shared = await page.evaluate(async () => {
 				window.__dev.ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
