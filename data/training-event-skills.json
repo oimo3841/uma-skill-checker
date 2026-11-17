@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-11-16b",
+	"dataVersion": "2026-11-17a",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -29771,6 +29771,28 @@
 									"skillId": "393",
 									"name": "追尾",
 									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "ティアラ、その完全無欠の輝き",
+					"condition": "阪神JF・トリプルティアラ(桜花賞・オークス・秋華賞)・ヴィクトリアマイルで1着、エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジュニアの阪神JF・クラシックのエリザベス女王杯",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "289",
+									"name": "ハイピッチ",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "326",
+									"name": "間隙を突いて",
+									"hintLevel": 1
 								}
 							]
 						}

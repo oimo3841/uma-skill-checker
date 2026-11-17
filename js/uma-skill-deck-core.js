@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-17a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-17b';
 
 	/* ============================================================
 	 * 定数
@@ -104,7 +104,7 @@
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
 		'data/recommended-skills.json': '2026-10-21a',
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
-		'data/training-event-skills.json': '2026-11-16b',
+		'data/training-event-skills.json': '2026-11-17a',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
 		'data/skill-evolutions.json': '2026-11-16a',
 		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）
