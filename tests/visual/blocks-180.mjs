@@ -8,6 +8,7 @@
 //      T191（2026-11-17・決定 806〜820）: 「スキル・継承・育成情報」の行を入れない。2列は上段を左右に分ける（左 帯と顔の欄・右 「スピード〜賢さ」と適性。
 //      数ありは右の適性の下にスキル情報の欄・数なしは同じ並びで空ける）。1列・数ありは適性の下にスキル情報の欄。欄の左右の端は「スピード〜賢さ」の欄にそろえる。
 //      欄の文・字の大きさの3段・上下の真ん中・間隔・縁と影の色。設定をページごとに覚える（読めないときは既定）。
+//      T192（2026-11-17・決定 822・823）: 欄の「（」と固有の四角の間はほかの間と同じ・項目と項目の間だけを見本の比（37÷14.25）で広げる。
 //      画像は作り物のスキル画面（SKILL_SYNTH。ゲームの画面は使わない）。
 //  (2) 動画の1〜3人（UmaStar・UmaExam）: blocks-80 の作り物の動画（SYNTH）を途中で切る。1人・2人・途中までの人・1枚だけの人・3人・0人／4人以上の止め・進み具合の段。
 //      UmaStar の3列は1人・2人で幅を人数ぶんに詰める（790）。
@@ -245,12 +246,17 @@ export async function register180(env) {
 				const offs = p.map((q) => Math.round(((q.top + q.bottom) / 2 - mid) * 100) / 100);
 				const gaps = [];
 				for (let i = 1; i < p.length; i++) gaps.push(Math.round((p[i].l - p[i - 1].r) * 100) / 100);
-				// 一定の間隔: スキル→合計（0）・四角→名前・名前→数・数→次の四角（3〜14）
-				const fixed = [gaps[0]].concat(gaps.slice(3, 14));
+				// 一定の間隔（T192・822・823）: スキル→合計（0）・四角→名前（3・6・9・12）・名前→数（4・7・10・13）
+				const fixed = [0, 3, 4, 6, 7, 9, 10, 12, 13].map((i) => gaps[i]);
+				const nameNum = [4, 7, 10, 13].map((i) => gaps[i]);
+				// 項目と項目の間（数→次の四角: 5・8・11）は見本の比（37 ÷ 14.25）で広い・「（」→固有の四角（2）はほかの間と同じ
+				const item = [5, 8, 11].map((i) => gaps[i]);
+				const avg = fixed.reduce((a, b) => a + b, 0) / fixed.length;
 				const px = { name: p[0].px, num: p[5].px, all: p[1].px };
-				return { text, want, offs, gaps, fixed, px,
-					ok: text === want && offs.every((o) => Math.abs(o) <= 0.75) && Math.max(...fixed) - Math.min(...fixed) <= 0.6 && px.name < px.num && px.num < px.all &&
-						gaps[2] > gaps[gaps.length - 1] + px.name * 0.3 };
+				const itemWide = Math.min(...item) > Math.max(...nameNum) + 1 && Math.max(...item) - Math.min(...item) <= 0.6 && Math.abs(item[0] / avg - 37 / 14.25) < 0.05;
+				const parenSame = Math.abs(gaps[2] - avg) <= 1;
+				return { text, want, offs, gaps, fixed, item, avg: Math.round(avg * 100) / 100, ratio: Math.round(item[0] / avg * 1000) / 1000, px, itemWide, parenSame,
+					ok: text === want && offs.every((o) => Math.abs(o) <= 0.75) && Math.max(...fixed) - Math.min(...fixed) <= 0.6 && px.name < px.num && px.num < px.all && itemWide && parenSame };
 			};
 			const urls = [r1.url];
 			// 1列・数なし（既定・T191 818）: 上の欄は帯〜適性（「スキル・継承・育成情報」の行の手前まで）・その下に一覧
@@ -270,7 +276,9 @@ export async function register180(env) {
 			assert(c1n.w === s1.w && near(cd1.x, HEAD.statsL) && near(cd1.x + cd1.w, HEAD.statsR) && cd1.y > HEAD.aptEnd && c1n.h > cd1.y + cd1.h && c1n.h === c1n.sr.topH + listH && c1n.sr.topH < c1n.sr.headH + 1 &&
 				near(cd1.h, Math.round(36 * s1.w / 745)) && sc1n.tabRows === 0 && c1n.pressed === 'true,false|true',
 				'T191 ' + NAME + ' 1列・数あり: 適性の下にスキル情報の欄（左右の端は「スピード〜賢さ」の欄と同じ・高さは見本の比）・「スキル…」の行は無い', { card: cd1, h: c1n.h, topH: c1n.sr.topH, tabRows: sc1n.tabRows, pressed: c1n.pressed });
-			assert(k1.ok, 'T191 ' + NAME + ' スキル情報の欄の文「スキル N（■固有 n　■進化 n　■金 n　■白 n）」・字の大きさは名前<数<合計・目に見える部分の上下の真ん中がそろう・間隔が一定・「（」の後に空き', k1);
+			assert(k1.ok, 'T191 ' + NAME + ' スキル情報の欄の文「スキル N（■固有 n　■進化 n　■金 n　■白 n）」・字の大きさは名前<数<合計・目に見える部分の上下の真ん中がそろう・間隔が一定（項目と項目の間だけ広い）', k1);
+			assert(k1.itemWide, 'T192 ' + NAME + ' 1列: スキル情報の欄の項目と項目の間（数と次の■）が名前と数の間より広い（見本の比 37÷14.25）', { item: k1.item, gaps: k1.gaps, ratio: k1.ratio });
+			assert(k1.parenSame, 'T192 ' + NAME + ' 1列: スキル情報の欄の「（」と固有の■の間がほかの間と同じ（±1px）', { paren: k1.gaps[2], avg: k1.avg });
 			assert(sc1n.ink > 200 && Math.abs(sc1n.inkMid - (cd1.y + cd1.h / 2)) <= 2.5 && sc1n.inside.every((v) => v === 255) &&
 				Math.abs(sc1n.edge[0] - 0xAD) < 16 && Math.abs(sc1n.edge[2] - 0xB8) < 16 && Math.abs(sc1n.shadow[0] - 0xC1) < 10 && Math.abs(sc1n.shadow[2] - 0xCC) < 10,
 				'T191 ' + NAME + ' スキル情報の欄の画素: 白いカード・灰色の縁（#ADAAB8）・下の影（#C1BFCC）・茶色の字が真ん中', sc1n);
@@ -298,6 +306,7 @@ export async function register180(env) {
 			assert(sd.w === ev.w && sd.h === ev.h && sd.sr.topH === ev.sr.topH && sd.sr.split === ev.sr.split && near(cd2.x, s1.w + G + HEAD.statsL) && near(cd2.x + cd2.w, s1.w + G + HEAD.statsR) &&
 				cd2.y > rightH && cd2.y + cd2.h < sd.sr.topH && sc2.tabRows === 0 && sc2.ink > 200 && Math.abs(sc2.inkMid - (cd2.y + cd2.h / 2)) <= 2.5 && k2.ok && sd.pressed === 'false,true|true',
 				'T191 ' + NAME + ' 2列・数あり: 数なしと同じ並び・右の適性の下にスキル情報の欄（左右の端は「スピード〜賢さ」の欄と同じ）', { card: cd2, topH: sd.sr.topH, scan: sc2, k2 });
+			assert(k2.itemWide && k2.parenSame, 'T192 ' + NAME + ' 2列: スキル情報の欄の項目と項目の間だけが広い（見本の比）・「（」と固有の■の間はほかの間と同じ（±1px）', { item: k2.item, paren: k2.gaps[2], avg: k2.avg, ratio: k2.ratio });
 			const dead = await Promise.all(urls.slice(0, -1).map((u) => alive(page, u)));
 			assert(dead.every((x) => x === false) && (await alive(page, urls[urls.length - 1])), 'T188(1) ' + NAME + ' 形を変えると前の結合画像の URL を手放す・今の URL は読める', dead);
 			// 続けて押す（2列→数→1列）: 最後の設定の形だけが出る（前の組み直しが後から終わって古い形を出さない）

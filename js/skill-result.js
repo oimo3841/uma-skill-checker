@@ -18,7 +18,7 @@
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-17c';
+	const SKILL_RESULT_JS_VERSION = '2026-11-17d';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -282,10 +282,13 @@
 	 * 白いカード・灰色の縁（約2px・#ADAAB8）・下に影（約3px・#C1BFCC）・角の丸み 8px。字は #794016 に薄い影（#DECDBC・右下へ約1px）。端末の太い書体。
 	 * 文「スキル 69（■固有 1　■進化 1　■金 7　■白 60）」。字の大きさは3段（名前 < 数 < 合計）。
 	 * 上下は、字・数・四角それぞれの目に見える部分（actualBoundingBox）の真ん中をカードの真ん中にそろえる。
-	 * 間隔（四角と名前・名前と数・項目と項目・「スキル」と合計）は目に見える部分どうしで同じ幅 gap。「（」と固有の四角の間は半角ぶん足す。行はカードの真ん中に置く。
+	 * 間隔（四角と名前・名前と数・「スキル」と合計・「（」と固有の四角）は目に見える部分どうしで同じ幅 gap。行はカードの真ん中に置く。
+	 * 項目と項目の間（「固有 1」の「1」と「■進化」の■など）だけは gap × CARD_ITEM_GAP_RATIO（T192・決定 822・823）。
 	 * 戻り値: 置いた物の一覧（検査用。目に見える部分の左右・上下）
 	 */
 	const CARD_INK = '#794016', CARD_INK_SHADOW = '#DECDBC', CARD_BORDER = '#ADAAB8', CARD_SHADOW = '#C1BFCC';
+	// 見本 T191-mock-2col-count-zoom.png の画素で測った比: 項目と項目の間 37px（3か所とも）÷ 名前と数の間 14.25px（14・14・13・16 の平均）
+	const CARD_ITEM_GAP_RATIO = 37 / 14.25;
 	const CARD_FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif';
 	function cardMetrics(w) {
 		const k = w / 745;
@@ -322,12 +325,11 @@
 			const putAdv = (p) => { const prev = list[list.length - 1]; const penPrev = prev.inkL + prev.l; const pen = penPrev + prev.adv; p.inkL = pen - p.l; p.inkR = pen + p.r; at = p.inkR; list.push(p); return p; };
 			putInk(text(t('sr.card.all'), fs.name), 0);
 			putInk(text(String(counts.all), fs.all), gap);
-			const open = putAdv(text('（', fs.name));
-			// 「（」の送りの右端（目に見える部分ではなく字の箱の右端）から、半角ぶん（名前の字の 0.5 倍）＋ gap を空けて固有の四角
-			const openRight = open.inkL + open.l + open.adv;
-			at = openRight + fs.name * 0.5 - gap;
+			// 「（」と固有の四角の間は、目に見える部分どうしでほかの間と同じ gap（T192・823。半角ぶん足すのはやめた）
+			putAdv(text('（', fs.name));
 			items.forEach(([kind, name, n], i) => {
-				putInk({ kind: 'sq', sw: kind, size: sq }, gap);
+				// 項目と項目の間（前の数と次の四角）だけを見本の比で広げる（T192・822）
+				putInk({ kind: 'sq', sw: kind, size: sq }, i === 0 ? gap : gap * CARD_ITEM_GAP_RATIO);
 				putInk(text(name, fs.name), gap);
 				putInk(text(String(n), fs.num), gap);
 			});
