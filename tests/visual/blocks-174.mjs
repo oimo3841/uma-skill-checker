@@ -147,7 +147,7 @@ export async function register174(env) {
 				};
 				let def, cur;
 				try { def = main('default'); cur = main('curated'); } finally { targetScopeMode = keepMode; rebuildSkillList(); }
-				// 効率を指定の対象（471種）に巨歩が入っている
+				// 効率を指定の対象（472種。2026-11-17 の DA03 で 471→472）に巨歩が入っている
 				let effHas = null;
 				try { const eff = await loadEffData(); effHas = eff.targets.some((t) => t.name === '巨歩'); } catch (e) { effHas = 'エラー ' + e.message; }
 				const src = String(processImages);

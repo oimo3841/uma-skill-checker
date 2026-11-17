@@ -73,8 +73,10 @@ export async function register32(env) {
 	// 変わったのはカードの並び（種別の順→ID の降順）に従う配列の順だけ: CANON は4つとも同じ（T67 の変更後に測って一致）。solo271 はカードが無いので変わらない
 	// 2026-11-10（DA01・衣装 uma-0273 の受け入れ）: solo271 は 710f4b24fcf599ba から 7b2b0574b18fc64e に（CANON e79c7a8e1fd9a6ec→f51bcf1d494f95fe）。変わったのは新しい衣装の1行だけ:
 	// uma-0273 を除いた272衣装では 710f4b24fcf599ba・CANON e79c7a8e1fd9a6ec のまま（一致を確かめた）。real・r2・vary は変わらない
-	const HASH = { solo271: '7b2b0574b18fc64e', real: 'dfe31ce0c3722f6b', r2: '97a3462802fc5e54', vary: '9265b3639458bec3' };
-	const CANON = { solo271: 'f51bcf1d494f95fe', real: '0a1a56e7d28cb8f8', r2: '3a5cdf27564fec57', vary: '8d022e98a6cc681b' };   // 並べ替えた形。変更前（d2e8499）で測った値
+	// 2026-11-17（DA03・衣装 uma-0274 の受け入れ）: solo271 は 7b2b0574b18fc64e から 484fcd7637e8ec11 に（CANON f51bcf1d494f95fe→39f2bf0436606258）。変わったのは新しい衣装の1行だけ:
+	// uma-0274 を除いた273衣装では 7b2b0574b18fc64e・CANON f51bcf1d494f95fe のまま（一致を確かめた）。real・r2・vary は変わらない
+	const HASH = { solo271: '484fcd7637e8ec11', real: 'dfe31ce0c3722f6b', r2: '97a3462802fc5e54', vary: '9265b3639458bec3' };
+	const CANON = { solo271: '39f2bf0436606258', real: '0a1a56e7d28cb8f8', r2: '3a5cdf27564fec57', vary: '8d022e98a6cc681b' };   // 並べ替えた形。変更前（d2e8499）で測った値
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });
@@ -100,7 +102,7 @@ export async function register32(env) {
 			return { solo271: await hex(solo.map((t) => t.raw).join('\n')), n: solo.length, real: await hex(x.real.raw), r2: await hex(x.r2.raw), vary: await hex(x.vary.raw),
 				canon: { solo271: await hex(solo.map((t) => t.canon).join('\n')), real: await hex(x.real.canon), r2: await hex(x.r2.canon), vary: await hex(x.vary.canon) } };
 		}, { umas: UMAS, REAL: R1, R2, VARY, ACQ });
-		assert(got.n === 273 && got.solo271 === HASH.solo271 && got.canon.solo271 === CANON.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
+		assert(got.n === 274 && got.solo271 === HASH.solo271 && got.canon.solo271 === CANON.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
 		assert(got.real === HASH.real && got.r2 === HASH.r2 && got.vary === HASH.vary && ['real', 'r2', 'vary'].every((k) => got.canon[k] === CANON[k]), '◎合算(1) REAL・絞り込み・VARY の出力ハッシュが変更前と同一', got);
 		assert(jsErrors(sp.errors).length === 0, '◎合算(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
