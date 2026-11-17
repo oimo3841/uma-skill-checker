@@ -1,7 +1,7 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-15",
+"generated": "2026-11-17",
 "numbering": "runtime",
 "count": 1138,
 "overrides": [],
@@ -310,7 +310,7 @@
   {"file":"tests/visual/blocks-33.mjs","title":"◎ボタン(3) 保存: 「入」で切り替えると keepCircleIds に従来どおり書かれる／書き出し→取り込み→「元に戻す」で保存データが書き換わらない（ルール28）","ord":1,"marks":"ASC","asserts":6},
   {"file":"tests/visual/blocks-34.mjs","title":"取得切替(1) 計算: すべて最大の段階を選ぶと従来と同一（acquire 系を外したデータと一致。ビコーペガサス1件を除く）／既定は user の分だけ減る（user を空にしたデータと一致）／固定の編成の前後の数","ord":1,"marks":"C","asserts":6},
   {"file":"tests/visual/blocks-34.mjs","title":"取得切替(1b) 計算: 無効な保存値は未選択／true は番号0／段階の番号だけが効く（範囲外は無効）／選んだ段階のスキルだけを数える／結果の切り替えに従う","ord":1,"marks":"VATC","asserts":7},
-  {"file":"tests/visual/blocks-34.mjs","title":"取得切替(1c) 数: user のイベント 274件（段階あり 25／段階なし 249）・ゲーム内の選択肢が複数で段階なし・衣装ごとの件数の分布が、データから独立に数えた値と一致する","ord":1,"marks":"AC","asserts":2},
+  {"file":"tests/visual/blocks-34.mjs","title":"取得切替(1c) 数: user のイベント 275件（段階あり 25／段階なし 250）・ゲーム内の選択肢が複数で段階なし・衣装ごとの件数の分布が、データから独立に数えた値と一致する","ord":1,"marks":"AC","asserts":2},
   {"file":"tests/visual/blocks-34.mjs","title":"取得切替(1d) 計算: ビコーペガサス「ターフの上のヒーロー」は、段階 k を選ぶと従来の「ゲーム内の選択肢 k を選んだ」と同じ数え方になる","ord":1,"marks":"AC","asserts":2},
   {"file":"tests/visual/blocks-34.mjs","title":"取得切替(2) 小窓: 段階ありは段階のボタン（条件文の灰色の行・補足文つき）／段階なしは条件を文にした1ボタン（灰色の行なし）／ゲーム内の選択肢が複数なら選択肢の下に別の段／choices は出ない／fixed は読み取り専用のまま／既定は何も選ばず押せる","ord":1,"marks":"VATC","asserts":15},
   {"file":"tests/visual/blocks-34.mjs","title":"取得切替(2b) 押す（段階なし）: 押すと保存・合計が変わる・右の「取得できるスキル」に出る／もう一度押すと解除（鍵も項目も消える）／元に戻すは1操作で1回","ord":1,"marks":"VATC","asserts":12},

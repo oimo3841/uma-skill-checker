@@ -75,8 +75,10 @@ export async function register32(env) {
 	// uma-0273 を除いた272衣装では 710f4b24fcf599ba・CANON e79c7a8e1fd9a6ec のまま（一致を確かめた）。real・r2・vary は変わらない
 	// 2026-11-17（DA03・衣装 uma-0274 の受け入れ）: solo271 は 7b2b0574b18fc64e から 484fcd7637e8ec11 に（CANON f51bcf1d494f95fe→39f2bf0436606258）。変わったのは新しい衣装の1行だけ:
 	// uma-0274 を除いた273衣装では 7b2b0574b18fc64e・CANON f51bcf1d494f95fe のまま（一致を確かめた）。real・r2・vary は変わらない
-	const HASH = { solo271: '484fcd7637e8ec11', real: 'dfe31ce0c3722f6b', r2: '97a3462802fc5e54', vary: '9265b3639458bec3' };
-	const CANON = { solo271: '39f2bf0436606258', real: '0a1a56e7d28cb8f8', r2: '3a5cdf27564fec57', vary: '8d022e98a6cc681b' };   // 並べ替えた形。変更前（d2e8499）で測った値
+	// 2026-11-17（DA04・uma-0274 の隠しイベント「ティアラ、その完全無欠の輝き」〔user〕。training-event-skills 2026-11-17a）: solo271 は 484fcd7637e8ec11 から ea00241a25c2bc89 に
+	// （CANON 39f2bf0436606258→92c882bf15260c00）。この塊は user のイベントをすべて選んだ編成で取るので、uma-0274 の1行だけが変わる: uma-0274 を除いた273衣装では 7b2b0574b18fc64e・CANON f51bcf1d494f95fe のまま（一致を確かめた）。real・r2・vary は変わらない
+	const HASH = { solo271: 'ea00241a25c2bc89', real: 'dfe31ce0c3722f6b', r2: '97a3462802fc5e54', vary: '9265b3639458bec3' };
+	const CANON = { solo271: '92c882bf15260c00', real: '0a1a56e7d28cb8f8', r2: '3a5cdf27564fec57', vary: '8d022e98a6cc681b' };   // 並べ替えた形。変更前（d2e8499）で測った値
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });
