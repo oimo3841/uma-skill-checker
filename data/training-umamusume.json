@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-11-10a",
+	"dataVersion": "2026-11-16a",
 	"category": "trainingUmamusume",
-	"nextSerial": "uma-0274",
+	"nextSerial": "uma-0275",
 	"note": "育成ウマ娘（勝負服ごと）。initialSkills は★ごとの初期スキルで、minStar が現在の★以下の行のうち minStar が最大のものを使う（各行はその★での全部であって、前の行との差分ではない）。awakeningSkills は覚醒レベルごと。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus は done（確かめて載せた）／none（無いと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。releaseOrder は実装の順の番号（整数）で、1 がいちばん古く、新しいほど大きい（重複・欠番なし）。同じお知らせで2人が実装されたときは、お知らせで先に書かれている方が大きい番号。新しい衣装は、公式のお知らせのガチャの告知の日付の順で、今の最大の次から続ける。実装日（日付）は持たない。",
 	"entries": [
 		{
@@ -21330,6 +21330,83 @@
 				"awakening": "done"
 			},
 			"releaseOrder": 273
+		},
+		{
+			"id": "uma-0274",
+			"title": "白光のレガリア",
+			"charaName": "デアリングタクト",
+			"initialStar": 3,
+			"initialSkills": [
+				{
+					"minStar": 3,
+					"skills": [
+						{
+							"skillId": "ex-1708",
+							"name": "灰雪の冠"
+						}
+					]
+				}
+			],
+			"awakeningSkills": [
+				{
+					"level": 0,
+					"skills": [
+						{
+							"skillId": "313",
+							"name": "押し通る！"
+						},
+						{
+							"skillId": "383",
+							"name": "阿吽の呼吸"
+						},
+						{
+							"skillId": "ex-1706",
+							"name": "静寂を裂いて"
+						}
+					]
+				},
+				{
+					"level": 2,
+					"skills": [
+						{
+							"skillId": "406",
+							"name": "連綿"
+						}
+					]
+				},
+				{
+					"level": 3,
+					"skills": [
+						{
+							"skillId": "ex-1707",
+							"name": "ワイルドハント"
+						}
+					]
+				},
+				{
+					"level": 4,
+					"skills": [
+						{
+							"skillId": "331",
+							"name": "好戦的"
+						}
+					]
+				},
+				{
+					"level": 5,
+					"skills": [
+						{
+							"skillId": "ex-0643",
+							"name": "独立独歩"
+						}
+					]
+				}
+			],
+			"dataStatus": {
+				"initial": "done",
+				"awakening": "done"
+			},
+			"releaseOrder": 274
 		}
 	]
 }

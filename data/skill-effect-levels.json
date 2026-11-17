@@ -1,6 +1,6 @@
 {
 	"category": "skillEffectLevel",
-	"dataVersion": "2026-11-10a",
+	"dataVersion": "2026-11-16a",
 	"stages": [
 		{
 			"key": "ほんのちょっと",
@@ -9067,6 +9067,36 @@
 		{
 			"skillId": "ex-1705",
 			"name": "万果豊穣",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1706",
+			"name": "静寂を裂いて",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "ex-1707",
+			"name": "ワイルドハント",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-1708",
+			"name": "灰雪の冠",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-1710",
+			"name": "ディアナの弓矢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1711",
+			"name": "雪中の松柏",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-1712",
+			"name": "忘れじの雪景色",
 			"maxStage": "副詞なし"
 		}
 	],

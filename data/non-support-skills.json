@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-11-10a",
+	"dataVersion": "2026-11-16a",
 	"category": "nonSupportSkill",
 	"entries": [
 		{
@@ -113,6 +113,10 @@
 		{
 			"skillId": "ex-1688",
 			"name": "直情"
+		},
+		{
+			"skillId": "ex-1706",
+			"name": "静寂を裂いて"
 		}
 	]
 }

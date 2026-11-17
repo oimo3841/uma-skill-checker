@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-11-10a",
+	"dataVersion": "2026-11-16a",
 	"category": "extendedSkill",
-	"nextSerial": "ex-1706",
+	"nextSerial": "ex-1713",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -35195,6 +35195,165 @@
 				"trackVenue": [],
 				"effect": [
 					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1706",
+			"name": "静寂を裂いて",
+			"tags": {
+				"distance": [],
+				"style": [
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1707",
+			"name": "ワイルドハント",
+			"tags": {
+				"distance": [],
+				"style": [
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1708",
+			"name": "灰雪の冠",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [
+					"turf"
+				],
+				"phase": [
+					"final_stage",
+					"mid",
+					"midpoint"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1710",
+			"name": "ディアナの弓矢",
+			"tags": {
+				"distance": [],
+				"style": [
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"extend",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1711",
+			"name": "雪中の松柏",
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"final_stage"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1712",
+			"name": "忘れじの雪景色",
+			"tags": {
+				"distance": [
+					"mile"
+				],
+				"style": [
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"late"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"move_forward"
 				],
 				"scenario": [],
 				"passive": [],

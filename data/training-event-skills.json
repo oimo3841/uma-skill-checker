@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-11-10b",
+	"dataVersion": "2026-11-16b",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -29696,6 +29696,81 @@
 									"skillId": "189",
 									"name": "まっしぐら",
 									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"umaId": "uma-0274",
+			"status": "done",
+			"events": [
+				{
+					"eventName": "北の大地のまにまに",
+					"condition": "",
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "229",
+									"name": "会心の一歩",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "秋華賞の後に",
+					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "311",
+									"name": "足がかり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "ジャパンCの後に",
+					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0987",
+										"name": "怯むことなく",
+										"hintLevel": 3
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"eventName": "宝塚記念の後に",
+					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "393",
+									"name": "追尾",
+									"hintLevel": 3
 								}
 							]
 						}

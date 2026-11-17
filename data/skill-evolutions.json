@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-11-10a",
+	"dataVersion": "2026-11-16a",
 	"category": "skillEvolution",
 	"entries": [
 		{
@@ -4756,6 +4756,23 @@
 			"baseSkillId": "ex-0657",
 			"evolvedSkillIds": [
 				"ex-1705"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0274",
+			"baseSkillId": "ex-1707",
+			"evolvedSkillIds": [
+				"ex-1710"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0274",
+			"baseSkillId": "ex-0643",
+			"evolvedSkillIds": [
+				"ex-1711",
+				"ex-1712"
 			]
 		},
 		{
