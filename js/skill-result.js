@@ -10,7 +10,7 @@
  *   2列 … 上段の左に「ウマ娘詳細」の帯と顔の欄、右に「スピード〜賢さ」の欄と適性。数を入れるときは右の適性の下の隙間にスキル情報の欄（数なしは同じ並びで隙間を空ける）。
  *          その下に一覧を左右に半分ずつ。
  *   既定は 1列・数を入れない。設定はページごとに覚える（809。host.storageKey の localStorage・読めないときは既定）。タイトルのバーは付けない（786）。
- * - つなぎ目の「一致度が低い」は、本育成結果用の文で出す（787）。
+ * - つなぎ目の「一致度が低い」は、本育成結果用の文で出す（787）。知らせの出た継ぎ目は元の2枚から測り直し、重なりの少ない次点だけが理由なら外す（T191・811 の案。reviewSeamWarnings）。
  * - スキルの数（全部・固有・進化・金・白）は、OCR を使わず行の色で数える（788・795・797）。数は保存する画像の中だけに入れる（796。画面の欄には出さない）。
  *   添え書き「色で数えた目安です」は画像に入れず、設定の欄の「スキルの数」の横に出す。
  * - メモリは T133・T186 と同じ作り: サムネイルは幅 336px の縮小画像・結合画像は Blob の object URL・使わなくなった URL は手放す。
@@ -18,7 +18,7 @@
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-17b';
+	const SKILL_RESULT_JS_VERSION = '2026-11-17c';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -623,6 +623,82 @@
 		b.last = canvas === b.first ? null : canvas;
 		render();
 	}
+	/*
+	 * つなぎ目の知らせの見直し（T191・811。案。採るかどうかはおいもさんが決める）。
+	 * 凍結の stitch.js は、継ぎ目の不一致率が 3% 未満でも、最良の位置から 40行より離れた「次点」との比が 2 未満なら「一致度が低い」と知らせる。
+	 * 素材 IMG_4520〜4526 の画像4→5 では、次点が重なり 64行（下限 60行のすぐ上・行の間の明るい所どうし）の位置で、比が 1.04 になって知らせが出ていた
+	 * （結合の位置は正しい。別の物差しでも最良・結合画像は元の行と同じ）。重なりが少ない位置は判断の材料が足りないので、次点に数えない。
+	 * ここでは、知らせの出た継ぎ目だけを、元の2枚から同じ物差し（灰色の差が 24 を超える画素の割合・左右1割を外す・2行／3列おき）で測り直し、
+	 *   結合の決めた位置が最良（±1行）で不一致率が 3% 未満、かつ「40行より離れ、重なりが SEAM_MIN_EVIDENCE 行以上の位置」の次点との比が 2 以上なら、知らせを外す。
+	 * それ以外（位置が最良でない・不一致率が高い・測れない）は今までどおり知らせる。
+	 */
+	const SEAM_MIN_EVIDENCE = 120;
+	function seamGray(c, y0, y1) {
+		const x0 = Math.floor(c.width * 0.1), x1 = c.width - x0, w = x1 - x0, h = y1 - y0;
+		const d = c.getContext('2d', { willReadFrequently: true }).getImageData(x0, y0, w, h).data;
+		const g = new Uint8Array(w * h);
+		for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
+		return { g, w, h };
+	}
+	/** 上の画 A と下の画 B（同じ窓の灰色）で、下を d 行ずらして重ねたときの不一致率（d ごと。白どうしの位置は Infinity） */
+	function seamRates(A, B) {
+		const w = A.w, h = A.h, rates = new Float64Array(Math.max(0, h - 60) + 1).fill(Infinity);
+		for (let d = 1; d <= h - 60; d++) {
+			let bad = 0, tot = 0, ink = 0;
+			for (let y = 0; y < h - d; y += 2) {
+				const ra = (y + d) * w, rb = y * w;
+				for (let x = 0; x < w; x += 3) {
+					const a = A.g[ra + x], b = B.g[rb + x];
+					if (a < 240 || b < 240) ink++;
+					if (Math.abs(a - b) > 24) bad++;
+					tot++;
+				}
+			}
+			if (tot && ink >= tot * 0.05) rates[d] = bad / tot;
+		}
+		return rates;
+	}
+	/** 測り直しの判定（検査はここも直接呼ぶ）。rates・結合の決めた位置 d・窓の高さ h → { ok, best, rate, second, secondD, ratio } */
+	function judgeSeam(rates, d, h) {
+		let best = -1, rate = Infinity;
+		for (let k = 1; k < rates.length; k++) if (rates[k] < rate) { rate = rates[k]; best = k; }
+		let second = Infinity, secondD = -1;
+		for (let k = 1; k < rates.length; k++) if (Math.abs(k - d) > 40 && h - k >= SEAM_MIN_EVIDENCE && rates[k] < second) { second = rates[k]; secondD = k; }
+		const ratio = second / rate;
+		const ok = best > 0 && Math.abs(best - d) <= 1 && rate < 0.03 && (!isFinite(second) || ratio >= 2);
+		return { ok, best, rate, second: isFinite(second) ? second : null, secondD, ratio: isFinite(ratio) ? ratio : null };
+	}
+	/** 知らせの出た継ぎ目を測り直す。戻り値 { warnings（残す知らせ）, review（継ぎ目ごとの結果） } */
+	async function reviewSeamWarnings(files, list) {
+		const warns = (list._stitchWarnings || []).slice();
+		const pl = list._sourcePlacements || [];
+		const review = [];
+		if (!warns.length || pl.length < 2) return { warnings: warns, review };
+		const keep = [];
+		for (const msg of warns) {
+			const m = /画像(\d+)→(\d+)/.exec(msg);
+			const k = m ? Number(m[1]) : -1;
+			if (k < 0 || !pl[k] || !pl[k + 1]) { keep.push(msg); continue; }
+			let a = null, b = null;
+			try {
+				const d = (pl[k + 1].outY0 - pl[k + 1].srcY0) - (pl[k].outY0 - pl[k].srcY0);
+				a = await fileCanvas(files[pl[k].fileIndex]);
+				b = await fileCanvas(files[pl[k + 1].fileIndex]);
+				const y0 = pl[0].srcY0, y1 = Math.min(pl[0].srcY1, a.height, b.height);
+				if (a.width !== b.width || y1 - y0 < 200) throw new Error('窓が小さい');
+				const r = judgeSeam(seamRates(seamGray(a, y0, y1), seamGray(b, y0, y1)), d, y1 - y0);
+				review.push(Object.assign({ seam: k, d }, r));
+				if (!r.ok) keep.push(msg);
+			} catch (e) {
+				review.push({ seam: k, ok: false, error: String(e && e.message || e) });
+				keep.push(msg);
+			} finally {
+				if (a) a.width = a.height = 0;
+				if (b) b.width = b.height = 0;
+			}
+		}
+		return { warnings: keep, review };
+	}
 	async function build() {
 		if (st.busy || !st.files.length) return;
 		const files = st.files.slice();
@@ -637,7 +713,8 @@
 				const list = await st.host.stitchOnePerson(files, t('sr.title'));
 				const parts = prepareParts(list, first);
 				const counts = countSkills(parts.body);
-				built = { files, one: false, first: null, parts, counts, warnings: (list._stitchWarnings || []).slice() };
+				const seams = await reviewSeamWarnings(files, list);
+				built = { files, one: false, first: null, parts, counts, warnings: seams.warnings, seamReview: seams.review };
 				list.width = list.height = 0;
 				first.width = first.height = 0;
 			}
@@ -763,12 +840,13 @@
 
 	window.UmaSkillResult = Object.freeze({
 		version: SKILL_RESULT_JS_VERSION, texts: SR_TEXTS,
-		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap, headLayout, drawSkillCard, cardMetrics,
+		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap, headLayout, drawSkillCard, cardMetrics, reviewSeamWarnings, judgeSeam,
 		count: () => st.files.length,
 		files: () => st.files.slice(),
 		// 検査用: 今の状態（URL・形・作ったか）
 		peek: () => ({ files: st.files.length, cols: st.cols, withCount: st.withCount, built: !!st.built, url: st.png ? st.png.url : null,
-			thumbs: Array.from(st.thumbs.values()).map((x) => x.url), counts: st.built ? st.built.counts : null, sr: st.built && st.built.last ? st.built.last._sr : null }),
+			thumbs: Array.from(st.thumbs.values()).map((x) => x.url), counts: st.built ? st.built.counts : null, sr: st.built && st.built.last ? st.built.last._sr : null,
+			warnings: st.built ? (st.built.warnings || []).slice() : [], seamReview: st.built ? st.built.seamReview || [] : [] }),
 		addFiles, build
 	});
 })();

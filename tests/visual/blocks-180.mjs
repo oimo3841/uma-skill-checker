@@ -46,7 +46,7 @@ window.__skillSynth = (function () {
 	function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 	// 帯の両端の色。パネルの左寄り（28〜45%）・右寄り（72〜92%）の平均が、本物の素材で測った色（js/skill-result.js の classifyPanel の注）になるように逆算した
 	const KIND = { white: [[246, 239, 233], [191, 191, 222]], gold: [[234, 245, 253], [255, 194, 40]], evo: [[235, 243, 222], [255, 157, 220]], unique: [[169, 252, 229], [250, 179, 251]] };
-	function build(rows) {
+	function build(rows, seed) {
 		const kinds = [];
 		for (let i = 0; i < rows * 2 - 1; i++) kinds.push(i === 0 ? 'unique' : i === 5 ? 'evo' : (i % 7 === 3 ? 'gold' : 'white'));
 		const docH = GAP + rows * (ROW + GAP);
@@ -54,7 +54,7 @@ window.__skillSynth = (function () {
 		const d = doc.getContext('2d');
 		d.scale(S, S);
 		d.fillStyle = 'rgb(242,242,242)'; d.fillRect(0, 0, W, docH);
-		const r = rng(11);
+		const r = rng(seed || 11);
 		const cw = Math.floor((W - PADX - 40 - 14) / 2);   // 右のパネルは x=560 まで（その右につまみの溝）
 		kinds.forEach((k, i) => {
 			const row = Math.floor(i / 2), col = i % 2;
@@ -95,8 +95,8 @@ window.__skillSynth = (function () {
 		x.fillStyle = 'rgb(225,225,225)'; x.fillRect(16 + Math.round((W - 32) * 0.32), 405, Math.round((W - 32) * 0.68), 36);
 		x.fillStyle = 'rgb(170,150,120)'; x.fillRect(200, LIST_B + 50, 200, 60);   // 「閉じる」
 	}
-	async function make(n, rows) {
-		const b = build(rows);
+	async function make(n, rows, seed) {   // seed: 名前の字の形の乱数（違う値にすると一覧の中身が違う画になる。T191）
+		const b = build(rows, seed);
 		const maxS = b.docH - WIN;
 		const files = [];
 		for (let i = 0; i < n; i++) {
@@ -369,6 +369,53 @@ export async function register180(env) {
 			await sp.ctx.close();
 		});
 	}
+
+	// T191（811 の案）: つなぎ目の知らせの見直し（js/skill-result.js の reviewSeamWarnings・judgeSeam）
+	await block('T188(4) UmaStar 本育成結果のつなぎ目の知らせの見直し（T191 の案）: 重なりの少ない次点だけが理由の知らせは外す・位置がずれた継ぎ目と不一致率の高い継ぎ目は今までどおり知らせる', async () => {
+		const sp = await open('special', { w: 390, h: 844 });
+		const { page, errors } = sp;
+		// (a) 判定だけ: 素材 IMG_4520〜4526 の画像4→5 と同じ形（窓 872行・結合の位置 564 で 0.72%・重なり 64行の位置 808 で 0.75%・重なり 186行の位置 686 で 2.87%）
+		const judge = await page.evaluate(() => {
+			const mk = (pairs) => { const r = new Float64Array(813).fill(0.2); pairs.forEach(([d, v]) => { r[d] = v; }); return r; };
+			const real = UmaSkillResult.judgeSeam(mk([[564, 0.0072], [808, 0.0075], [686, 0.0287]]), 564, 872);
+			const wide = UmaSkillResult.judgeSeam(mk([[564, 0.0072], [700, 0.0075]]), 564, 872);           // 重なり 172行の次点が近い → 残す
+			const high = UmaSkillResult.judgeSeam(mk([[564, 0.035], [686, 0.2]]), 564, 872);               // 不一致率 3% 以上 → 残す
+			const moved = UmaSkillResult.judgeSeam(mk([[564, 0.02], [400, 0.005]]), 564, 872);             // 結合の位置が最良でない → 残す
+			return { real, wide, high, moved };
+		});
+		assert(judge.real.ok === true && judge.real.secondD === 686 && judge.wide.ok === false && judge.high.ok === false && judge.moved.ok === false,
+			'T191 つなぎ目の判定: 重なり 120行未満の次点は数えない（素材の画像4→5 の形は外す）・重なりのある近い次点・不一致率 3% 以上・位置が最良でない は残す', judge);
+		// (b) 作り物の画で: 正しくつながった継ぎ目に知らせが付いていたら外す。結合の位置を1行ぶん（156px）ずらした継ぎ目は残す
+		const fake = await page.evaluate(async () => {
+			const files = await __skillSynth.make(4, 14);
+			const list = await stitchOnePerson(files, '本育成結果');
+			const orig = (list._stitchWarnings || []).slice();
+			const pl = list._sourcePlacements.map((p) => Object.assign({}, p));
+			const msg = '本育成結果: 画像1→2の継ぎ目は一致度が低く(不一致率0.7%)、結合位置がズレている可能性があります。';
+			const fakeList = (placements) => ({ _stitchWarnings: [msg], _sourcePlacements: placements });
+			const good = await UmaSkillResult.reviewSeamWarnings(files, fakeList(pl));
+			const moved = pl.map((p) => Object.assign({}, p));
+			moved[2].srcY0 += 156; moved[2].outY0 += 0;
+			const bad = await UmaSkillResult.reviewSeamWarnings(files, fakeList(moved));
+			return { orig, good: { n: good.warnings.length, r: good.review[0] }, bad: { n: bad.warnings.length, r: bad.review[0] } };
+		});
+		assert(fake.good.n === 0 && fake.good.r.ok === true && fake.bad.n === 1 && fake.bad.r.ok === false,
+			'T191 作り物の画: 正しい継ぎ目の知らせは外す・位置を1行ぶんずらした継ぎ目の知らせは残す', fake);
+		// (c) 画面の流れ: 一覧の中身が違う2枚（4枚に分けた1枚目と、名前の字の形が違う一覧の2枚目）をまとめると、知らせが今までどおり出る
+		await page.click('#personset-tabs [data-tab-id="skill"]');
+		await page.evaluate(async () => {
+			const a = (await __skillSynth.make(4, 14, 11))[0], b = (await __skillSynth.make(4, 14, 77))[1];
+			UmaSkillResult.addFiles([new File([a], 'skill-a.png', { type: 'image/png' }), new File([b], 'skill-b.png', { type: 'image/png' })]);
+		});
+		await page.evaluate(STUB_OCR);
+		await page.evaluate(() => document.querySelector('[data-sr-act="build"]').click());
+		await waitBuilt(page);
+		const shown = await page.evaluate(() => { const p = UmaSkillResult.peek(); const w = document.querySelector('.sr-warn'); return { warnings: p.warnings.length, review: p.seamReview, text: w ? w.textContent : null }; });
+		assert(shown.warnings >= 1 && shown.review.length >= 1 && shown.review.every((r) => r.ok === false) && /スキルの行がずれているかもしれません/.test(shown.text || ''),
+			'T191 一覧の中身が違う2枚をまとめると、つなぎ目の知らせが今までどおり画面に出る', shown);
+		assert(jsErrors(errors).length === 0, 'T188(4) コンソールのエラー0', jsErrors(errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 
 	// 作り物の動画を切って取り込む（t=0 は切らない。'short' は親の途中で終わる軌跡）
 	const importSynth = (page, t) => page.evaluate((t) => {
