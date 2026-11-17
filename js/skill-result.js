@@ -5,10 +5,11 @@
  *   上の欄（タイトル「ウマ娘詳細」〜タブ）は結合では捨てられるので、ここで1枚目から足す（形2・T187）。左右は小窓の端で切る（ゲームの背景を落とす）。
  *   右のスクロールのつまみ（切れ切れに写る）は、つまみの列を右隣の地の色で塗る。
  * - タブの中に本育成結果用の「結合画像の設定」（T189・決定 804）: 「1列｜2列」と「スキルの数」（入れる／入れない）。今後足す情報もこの欄に加える。
- *   形（T189・決定 794・803）: 1列 … 上の欄の下に一覧（数を入れるときは上の欄の下に帯）。
- *   2列・数なし … 案2（高さをそろえる: 左に上の欄＋一覧の前半、右に後半。左右の高さがそろう所で分ける）。
- *   2列・数あり … 案4（左の列の上に上の欄、右の列の上に上の欄と同じ高さの「情報の箱」〔スキルの数〕。その下に左右とも一覧を半分ずつ）。
- *   既定は 1列・数を入れない。設定は覚えない（開き直すと既定）。タイトルのバーは付けない（786）。
+ *   形（T191・決定 806・816〜818）: 「スキル・継承・育成情報」の行はどの形でも入れない。
+ *   1列 … 上の欄（帯〜適性）の下に一覧。数を入れるときは、上の欄の下に「スキル情報の欄」（左右の端は「スピード〜賢さ」の欄にそろえる）。
+ *   2列 … 上段の左に「ウマ娘詳細」の帯と顔の欄、右に「スピード〜賢さ」の欄と適性。数を入れるときは右の適性の下の隙間にスキル情報の欄（数なしは同じ並びで隙間を空ける）。
+ *          その下に一覧を左右に半分ずつ。
+ *   既定は 1列・数を入れない。設定はページごとに覚える（809。host.storageKey の localStorage・読めないときは既定）。タイトルのバーは付けない（786）。
  * - つなぎ目の「一致度が低い」は、本育成結果用の文で出す（787）。
  * - スキルの数（全部・固有・進化・金・白）は、OCR を使わず行の色で数える（788・795・797）。数は保存する画像の中だけに入れる（796。画面の欄には出さない）。
  *   添え書き「色で数えた目安です」は画像に入れず、設定の欄の「スキルの数」の横に出す。
@@ -17,7 +18,7 @@
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-17a';
+	const SKILL_RESULT_JS_VERSION = '2026-11-17b';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -30,13 +31,17 @@
 		'sr.cols1': '1列',
 		'sr.cols2': '2列',
 		'sr.opt.count': 'スキルの数',
-		'sr.box.title': 'スキルの数',
 		'sr.one': '1枚だけのときは、選んだ画像をそのまま出します。',
 		'sr.stale': '画像が変わりました。「1枚にまとめる」を押すと作り直します。',
 		'sr.warn': 'つなぎ目の一部で、スキルの行がずれているかもしれません。行が抜けたり重なったりしていないか見てください。',
 		'sr.fail': '画像をまとめられませんでした: {msg}',
 		'sr.done': '本育成結果の画像をまとめました',
-		'sr.count': 'スキル {all}（固有 {unique}・進化 {evo}・金 {gold}・白 {white}）',
+		// スキル情報の欄の語（T191・820。画像の中で「スキル 69（■固有 1　■進化 1　■金 7　■白 60）」の形に並べる。括弧・四角・数は drawSkillCard が足す）
+		'sr.card.all': 'スキル',
+		'sr.card.unique': '固有',
+		'sr.card.evo': '進化',
+		'sr.card.gold': '金',
+		'sr.card.white': '白',
 		'sr.count.note': '色で数えた目安です',
 		'sr.dl': 'PNGをダウンロード',
 		'sr.title': '本育成結果'
@@ -182,11 +187,10 @@
 		return out;
 	}
 
-	// 情報の箱・帯の色（スキルの種類の見本の四角。ゲームのパネルの色に近いもの）
+	// スキル情報の欄の四角の色（スキルの種類の見本。ゲームのパネルの色に近いもの。T189 と同じ）
 	const KIND_SWATCH = {
 		unique: ['#7FD8F5', '#F7A8F2'], evo: ['#FFC4E6', '#FF8FD0'], gold: ['#FFE27A', '#FFB01F'], white: ['#E4E2F2', '#C6C3E3']
 	};
-	const INK = '#3B2A1A';
 	function swatch(x, sx, sy, s, kind) {
 		const c = KIND_SWATCH[kind];
 		const g = x.createLinearGradient(sx, 0, sx + s, 0);
@@ -197,7 +201,72 @@
 		x.fillStyle = g; x.fill();
 		x.lineWidth = Math.max(1, s * 0.06); x.strokeStyle = 'rgba(80,60,120,.35)'; x.stroke();
 	}
-	/** 上の欄の緑の帯（「ウマ娘詳細」）の高さと色。右寄り（幅の 90%）の列を上から見て、緑の続く行。無ければ null */
+	function roundRect(x, rx, ry, rw, rh, r) {
+		x.beginPath();
+		x.moveTo(rx + r, ry); x.arcTo(rx + rw, ry, rx + rw, ry + rh, r); x.arcTo(rx + rw, ry + rh, rx, ry + rh, r); x.arcTo(rx, ry + rh, rx, ry, r); x.arcTo(rx, ry, rx + rw, ry, r); x.closePath();
+	}
+
+	/**
+	 * 上の欄（「ウマ娘詳細」の帯〜「スキル・継承・育成情報」の行）の区切り（T191・決定 806・816）。地の行（左右とも明るく緑の無い行）で区切られた塊を見る:
+	 *   帯と顔の欄 … 0〜faceEnd ／ 「スピード〜賢さ」の欄 … 緑の枠の行（幅の 80% 超が緑）から始まる塊（statsTop〜statsEnd・左右の端 statsL〜statsR）／
+	 *   適性 … その下〜aptEnd ／ 「スキル・継承・育成情報」の行 … いちばん下の塊（tabsTop〜。左寄りだけが緑）。
+	 * 見つからない所は null（呼ぶ側が今の上の欄のまま使う）。bg は地の色。
+	 */
+	function headLayout(head) {
+		if (!head || head.width < 50 || head.height < 50) return null;
+		const W = head.width, H = head.height, d = pixels(head);
+		const x0 = Math.floor(W * 0.01), x1 = Math.ceil(W * 0.99);
+		const green = (i) => d[i + 1] > 150 && d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 60;
+		const rows = [];
+		for (let y = 0; y < H; y++) {
+			let g = 0, light = 0, n = 0;
+			for (let x = x0; x < x1; x += 2) {
+				const i = (y * W + x) * 4;
+				n++;
+				if (green(i)) g++;
+				if (d[i] >= 236 && d[i + 1] >= 236 && d[i + 2] >= 236) light++;
+			}
+			rows.push({ g: g / n, bg: g === 0 && light === n });
+		}
+		const band = headBand(head);
+		const from = band ? band.h : 0;
+		// 「スピード〜賢さ」の欄: 帯より下で、地の行のすぐ下（間に縁のにじみの行が2行まで）にある緑の枠の行
+		const bgAbove = (y) => { for (let k = 1; k <= 3; k++) if (y - k >= 0 && rows[y - k].bg) return y - k; return -1; };
+		let statsTop = -1;
+		for (let y = Math.max(3, from); y < H; y++) if (rows[y].g >= 0.8 && bgAbove(y) >= 0) { statsTop = y; break; }
+		let faceEnd = -1, statsEnd = -1;
+		if (statsTop > 0) {
+			faceEnd = bgAbove(statsTop) + 1;
+			while (faceEnd > from && rows[faceEnd - 1].bg) faceEnd--;
+			statsEnd = statsTop;
+			while (statsEnd < H && !rows[statsEnd].bg) statsEnd++;
+		}
+		// 「スキル・継承・育成情報」の行: 下の地の行を飛ばした、いちばん下の塊。左寄りだけが緑（緑の割合 15〜60%）
+		let tabsTop = -1, aptEnd = -1;
+		let y = H - 1;
+		while (y > 0 && rows[y].bg) y--;
+		let e = y;
+		while (e > 0 && !rows[e].bg) e--;
+		const top = e + 1;
+		let tabsGreen = 0;
+		for (let k = top; k <= y; k++) if (rows[k].g >= 0.15 && rows[k].g <= 0.6) tabsGreen++;
+		if (y > top && tabsGreen >= (y - top + 1) * 0.5 && top > (statsEnd > 0 ? statsEnd : from)) {
+			tabsTop = top;
+			aptEnd = top;
+			while (aptEnd > 0 && rows[aptEnd - 1].bg) aptEnd--;
+		}
+		let statsL = -1, statsR = -1;
+		if (statsTop > 0) {
+			const sy = Math.min(H - 1, statsTop + 1);
+			for (let x = 0; x < W; x++) if (green((sy * W + x) * 4)) { if (statsL < 0) statsL = x; statsR = x + 1; }
+		}
+		let bg = 'rgb(249,249,249)';
+		const by = faceEnd >= 0 && faceEnd < statsTop ? faceEnd : (aptEnd >= 0 && aptEnd < tabsTop ? aptEnd : -1);
+		if (by >= 0) { const i = (by * W + Math.floor(W / 2)) * 4; bg = 'rgb(' + d[i] + ',' + d[i + 1] + ',' + d[i + 2] + ')'; }
+		const ok = statsTop > 0 && statsEnd > statsTop && tabsTop > statsEnd && aptEnd > statsEnd && statsR - statsL > W * 0.5;
+		return { ok, faceEnd, statsTop, statsEnd, aptEnd, tabsTop, statsL, statsR, bg };
+	}
+	/** 上の欄の緑の帯（「ウマ娘詳細」）の高さ。右寄り（幅の 90%）の列を上から見て、緑の続く行。無ければ null */
 	function headBand(head) {
 		if (!head) return null;
 		const W = head.width, H = Math.min(head.height, Math.round(head.height * 0.3));
@@ -205,120 +274,98 @@
 		const green = (i) => d[i + 1] > 150 && d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 60;
 		let y = 0;
 		while (y < H && green(y * 4)) y++;
-		if (y < 8) return null;
-		const m = Math.floor(y / 2) * 4;
-		return { h: y, color: 'rgb(' + d[m] + ',' + d[m + 1] + ',' + d[m + 2] + ')' };
+		return y < 8 ? null : { h: y };
 	}
+
 	/**
-	 * 情報の箱（2列・数ありの案4。右の列の上・上の欄と同じ高さ）。幅 w・高さ h。
-	 * 上に上の欄と同じ高さ・色の緑の帯（見出し「スキルの数」）、その下の白いカードに「スキル 69」と「（固有 1・進化 1・金 7・白 60）」（決定 797 の文の形を2行に分けたもの）。
-	 * 今後この欄に情報を足すときは、カードの行を足す。
+	 * スキル情報の欄（T191・決定 815・819・820）。見本（幅 1504 に縮めた2列の画像）の値を、一覧の幅 w に合わせて大きくして使う（k = w / 745）。
+	 * 白いカード・灰色の縁（約2px・#ADAAB8）・下に影（約3px・#C1BFCC）・角の丸み 8px。字は #794016 に薄い影（#DECDBC・右下へ約1px）。端末の太い書体。
+	 * 文「スキル 69（■固有 1　■進化 1　■金 7　■白 60）」。字の大きさは3段（名前 < 数 < 合計）。
+	 * 上下は、字・数・四角それぞれの目に見える部分（actualBoundingBox）の真ん中をカードの真ん中にそろえる。
+	 * 間隔（四角と名前・名前と数・項目と項目・「スキル」と合計）は目に見える部分どうしで同じ幅 gap。「（」と固有の四角の間は半角ぶん足す。行はカードの真ん中に置く。
+	 * 戻り値: 置いた物の一覧（検査用。目に見える部分の左右・上下）
 	 */
-	function infoBox(w, h, counts, head) {
-		const c = mk(w, h);
-		const x = c.getContext('2d');
-		x.fillStyle = 'rgb(242,242,242)';
-		x.fillRect(0, 0, w, h);
-		const hb = headBand(head);
-		const bandH = hb ? hb.h : Math.round(w * 0.065);
-		x.fillStyle = hb ? hb.color : 'rgb(140,203,30)';
-		x.fillRect(0, 0, w, bandH);
-		x.textBaseline = 'middle';
-		x.textAlign = 'center';
-		const tf = Math.round(bandH * 0.56);
-		x.font = 'bold ' + tf + 'px sans-serif';
-		x.lineJoin = 'round';
-		x.lineWidth = Math.max(2, tf * 0.16);
-		x.strokeStyle = 'rgba(40,110,10,.85)';
-		x.strokeText(t('sr.box.title'), w / 2, bandH * 0.52);
-		x.fillStyle = '#ffffff';
-		x.fillText(t('sr.box.title'), w / 2, bandH * 0.52);
-		// カード
-		const m = Math.round(w * 0.035);
-		const cx = m, cy = bandH + m, cw = w - m * 2, ch = h - bandH - m * 2;
-		if (ch < 20) return c;
-		const r = Math.round(w * 0.02);
-		x.beginPath();
-		x.moveTo(cx + r, cy); x.arcTo(cx + cw, cy, cx + cw, cy + ch, r); x.arcTo(cx + cw, cy + ch, cx, cy + ch, r); x.arcTo(cx, cy + ch, cx, cy, r); x.arcTo(cx, cy, cx + cw, cy, r); x.closePath();
-		x.fillStyle = '#ffffff'; x.fill();
-		x.lineWidth = Math.max(2, Math.round(w * 0.003)); x.strokeStyle = 'rgb(214,212,228)'; x.stroke();
-		// 1行目「スキル 69」: 見出しの語と大きな数
-		let f1 = Math.round(Math.min(ch * 0.16, w * 0.09));
-		const word = 'スキル', num = String(counts.all);
-		let f1n, w1, w2;
-		for (;;) {
-			f1n = Math.round(f1 * 1.9);
-			x.font = 'bold ' + f1 + 'px sans-serif'; w1 = x.measureText(word + ' ').width;
-			x.font = 'bold ' + f1n + 'px sans-serif'; w2 = x.measureText(num).width;
-			if (w1 + w2 <= cw * 0.9 || f1 <= 10) break;
-			f1--;
-		}
-		// 2行目「（固有 1・進化 1・金 7・白 60）」: 名前の前に種類の色の四角
-		const items = [['unique', '固有', counts.unique], ['evo', '進化', counts.evo], ['gold', '金', counts.gold], ['white', '白', counts.white]];
-		let f2 = Math.round(f1 * 0.78);
-		let line2W;
-		const measure2 = () => {
-			x.font = 'bold ' + f2 + 'px sans-serif';
-			const sw = f2 * 0.9, sp = f2 * 0.25;
-			let tw = x.measureText('（').width + x.measureText('）').width;
-			items.forEach(([, name, n], i) => { tw += sw + sp + x.measureText(name + ' ' + n).width + (i < items.length - 1 ? x.measureText('・').width : 0); });
-			return tw;
-		};
-		while ((line2W = measure2()) > cw * 0.92 && f2 > 9) f2--;
-		const blockH = f1n * 1.05 + f2 * 0.9 + f2 * 1.2;
-		const top = cy + Math.max(0, (ch - blockH) / 2);
-		// 1行目
-		const y1 = top + f1n * 0.55;
-		let sx = cx + (cw - (w1 + w2)) / 2;
-		x.textAlign = 'left';
-		x.textBaseline = 'alphabetic';
-		x.fillStyle = INK;
-		x.font = 'bold ' + f1 + 'px sans-serif';
-		x.fillText(word + ' ', sx, y1 + f1n * 0.36);
-		x.font = 'bold ' + f1n + 'px sans-serif';
-		x.fillText(num, sx + w1, y1 + f1n * 0.36);
-		// 2行目
-		const y2 = top + f1n * 1.05 + f2 * 0.9 + f2 * 0.6;
-		x.font = 'bold ' + f2 + 'px sans-serif';
-		x.textBaseline = 'middle';
-		sx = cx + (cw - line2W) / 2;
-		const put = (s) => { x.fillStyle = INK; x.fillText(s, sx, y2); sx += x.measureText(s).width; };
-		put('（');
-		items.forEach(([kind, name, n], i) => {
-			const sw = f2 * 0.9;
-			swatch(x, sx, y2 - sw / 2, sw, kind);
-			sx += sw + f2 * 0.25;
-			put(name + ' ' + n);
-			if (i < items.length - 1) put('・');
-		});
-		put('）');
-		return c;
+	const CARD_INK = '#794016', CARD_INK_SHADOW = '#DECDBC', CARD_BORDER = '#ADAAB8', CARD_SHADOW = '#C1BFCC';
+	const CARD_FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif';
+	function cardMetrics(w) {
+		const k = w / 745;
+		return { k, h: Math.round(36 * k), border: Math.max(2, Math.round(2 * k)), shadow: Math.max(2, Math.round(3 * k)), radius: Math.round(8 * k), ts: Math.max(1, Math.round(1 * k)), gap: Math.round(12 * k) };
 	}
-
-	/** 情報の帯（1列で数を入れるとき・803。上の欄の下に置く）。幅 w */
-	function infoBand(w, counts) {
-		const h = Math.round(w * 0.075);
-		const c = mk(w, h);
-		const x = c.getContext('2d');
-		x.fillStyle = '#F4F7EF';
-		x.fillRect(0, 0, w, h);
-		x.fillStyle = '#7ED321';
-		x.fillRect(0, h - Math.max(2, Math.round(h * 0.05)), w, Math.max(2, Math.round(h * 0.05)));
-		x.fillStyle = '#3B2A1A';
-		x.textBaseline = 'middle';
-		x.textAlign = 'center';
-		let fs = Math.round(h * 0.42);
-		const text = t('sr.count', counts);
-		do { x.font = 'bold ' + fs + 'px sans-serif'; } while (x.measureText(text).width > w * 0.94 && --fs > 8);
-		x.fillText(text, w / 2, h * 0.48);
-		return c;
+	function drawSkillCard(x, cx, cy, cw, m, counts) {
+		const ch = m.h;
+		// 影（下へ）→ カード（白・灰色の縁）
+		roundRect(x, cx, cy + m.shadow, cw, ch, m.radius);
+		x.fillStyle = CARD_SHADOW; x.fill();
+		roundRect(x, cx + m.border / 2, cy + m.border / 2, cw - m.border, ch - m.border, Math.max(1, m.radius - m.border / 2));
+		x.fillStyle = '#ffffff'; x.fill();
+		x.lineWidth = m.border; x.strokeStyle = CARD_BORDER; x.stroke();
+		const mid = cy + ch / 2;
+		const inner = cw - m.border * 2;
+		// 字の大きさ（名前 < 数 < 合計）。幅に入らなければ全体を縮める
+		let base = ch * 0.56;   // 見本の字の高さ（名前の漢字がカードの高さの約 55%）に合わせた
+		const items = ['unique', 'evo', 'gold', 'white'].map((kind) => [kind, t('sr.card.' + kind), counts[kind]]);
+		let pieces, total;
+		const layout = () => {
+			const fs = { name: base, num: base * 1.12, all: base * 1.32 };
+			const gap = base * 0.42, sq = base * 0.74;
+			const font = (px) => 'bold ' + px.toFixed(2) + 'px ' + CARD_FONT;
+			const text = (s, px) => {
+				x.font = font(px);
+				const t = x.measureText(s);
+				return { kind: 'text', s, px, adv: t.width, l: t.actualBoundingBoxLeft, r: t.actualBoundingBoxRight, asc: t.actualBoundingBoxAscent, desc: t.actualBoundingBoxDescent };
+			};
+			const list = [];
+			// 置く: 目に見える部分の左端 at に置く（字は x の位置を測った値でずらす）
+			let at = 0;
+			const putInk = (p, gapBefore) => { at += gapBefore; p.inkL = at; p.inkR = at + (p.kind === 'text' ? p.l + p.r : p.size); at = p.inkR; list.push(p); return p; };
+			// 字の送り（advance）で続ける（「69」→「（」・最後の数→「）」は字の形のまま）
+			const putAdv = (p) => { const prev = list[list.length - 1]; const penPrev = prev.inkL + prev.l; const pen = penPrev + prev.adv; p.inkL = pen - p.l; p.inkR = pen + p.r; at = p.inkR; list.push(p); return p; };
+			putInk(text(t('sr.card.all'), fs.name), 0);
+			putInk(text(String(counts.all), fs.all), gap);
+			const open = putAdv(text('（', fs.name));
+			// 「（」の送りの右端（目に見える部分ではなく字の箱の右端）から、半角ぶん（名前の字の 0.5 倍）＋ gap を空けて固有の四角
+			const openRight = open.inkL + open.l + open.adv;
+			at = openRight + fs.name * 0.5 - gap;
+			items.forEach(([kind, name, n], i) => {
+				putInk({ kind: 'sq', sw: kind, size: sq }, gap);
+				putInk(text(name, fs.name), gap);
+				putInk(text(String(n), fs.num), gap);
+			});
+			putAdv(text('）', fs.name));
+			pieces = list;
+			total = list[list.length - 1].inkR - list[0].inkL;
+		};
+		layout();
+		if (total > inner * 0.92) { base *= (inner * 0.92) / total; layout(); }
+		const sx = cx + (cw - total) / 2 - pieces[0].inkL;
+		const out = [];
+		pieces.forEach((p) => {
+			const L = sx + p.inkL;
+			if (p.kind === 'sq') {
+				const top = mid - p.size / 2;
+				swatch(x, L, top, p.size, p.sw);
+				out.push({ kind: 'sq', s: p.sw, l: L, r: L + p.size, top, bottom: top + p.size });
+				return;
+			}
+			x.font = 'bold ' + p.px.toFixed(2) + 'px ' + CARD_FONT;
+			x.textAlign = 'left';
+			x.textBaseline = 'alphabetic';
+			const px = L + p.l;
+			const py = mid + (p.asc - p.desc) / 2;
+			x.fillStyle = CARD_INK_SHADOW; x.fillText(p.s, px + m.ts, py + m.ts);
+			x.fillStyle = CARD_INK; x.fillText(p.s, px, py);
+			out.push({ kind: 'text', s: p.s, px: Math.round(p.px * 10) / 10, l: L, r: L + p.l + p.r, top: py - p.asc, bottom: py + p.desc });
+		});
+		return out;
 	}
 
 	/**
-	 * 結合の結果（stitchOnePerson の Canvas）と1枚目の画から、出す画像を組み立てる。
-	 * o.cols 1|2・o.counts（スキルの数を入れるとき countSkills の値。無ければ入れない）
-	 *   1列: 上の欄＋（数があれば帯）＋一覧。2列: 数なしは案2（variant 'even'）・数ありは案4（variant 'side'）
-	 * 返す Canvas に _sr（{ band, headH, listH, split, thumb, cols, variant, info, topH }）を添える
+	 * 結合の結果（stitchOnePerson の Canvas）と1枚目の画から、出す画像を組み立てる（T191・決定 806・816・817・818）。
+	 * o.cols 1|2・o.counts（スキルの数を入れるとき countSkills の値。無ければ入れない）。「スキル・継承・育成情報」の行はどの形でも入れない。
+	 *   1列: 上の欄（帯〜適性）＋（数があれば）スキル情報の欄＋一覧。
+	 *   2列: 上段の左に帯と顔の欄・右に「スピード〜賢さ」と適性（数があれば適性の下の隙間にスキル情報の欄。数なしは同じ並びで隙間を空ける）。その下に一覧を左右に半分ずつ。
+	 * 上の欄の区切りが見つからない画では、上の欄（の「スキル…」の行より上）をそのまま左上（1列は上）に置く。
+	 * 返す Canvas に _sr（{ band, headH, listH, split, thumb, cols, variant, info, topH, head, card, pieces }）を添える
 	 */
 	function prepareParts(list, first) {
 		const pl = (list._sourcePlacements || [])[0];
@@ -331,48 +378,60 @@
 		const body = mk(w, list.height);
 		body.getContext('2d').drawImage(list, L0, 0, w, list.height, 0, 0, w, list.height);
 		const thumb = eraseScrollThumb(body);
-		return { band, head, body, headH, thumb, w };
+		const layout = head ? headLayout(head) : null;
+		return { band, head, body, headH, thumb, w, layout };
 	}
 	function compose(parts, o) {
 		const { head, body, w } = parts;
 		const headH = head ? head.height : 0, listH = body.height;
 		const counts = o.counts || null;
+		const lay = parts.layout || null;
+		const ok = !!(lay && lay.ok);
+		const m = cardMetrics(w);
 		const G = Math.max(8, Math.round(w * 0.014));
-		let out, split = null, variant = null, topH = headH;
+		const bg = lay ? lay.bg : 'rgb(249,249,249)';
+		// 上の欄から使う所: 帯〜適性（「スキル…」の行は入れない）
+		const cutEnd = lay && lay.tabsTop > 0 ? lay.tabsTop : headH;
+		const aptEnd = lay && lay.aptEnd > 0 ? lay.aptEnd : cutEnd;
+		const cardL = ok ? lay.statsL : Math.round(w * 0.016), cardW = (ok ? lay.statsR : Math.round(w * 0.984)) - cardL;
+		const block = m.gap + m.h + m.shadow + m.gap;   // スキル情報の欄の上下の空きを含む高さ
+		let out, split = null, variant = null, topH, card = null, pieces = null;
 		if (o.cols !== 2) {
-			// 1列（803）: 数を入れるときは上の欄の下に帯
-			const info = counts ? infoBand(w, counts) : null;
-			const infoH = info ? info.height : 0;
-			out = mk(w, headH + infoH + listH);
+			// 1列（817・818）: 上の欄（帯〜適性）＋スキル情報の欄＋一覧。数なしは「スキル…」の行の手前まで
+			const top = counts ? aptEnd : cutEnd;
+			topH = top + (counts ? block : 0);
+			out = mk(w, topH + listH);
 			const x = out.getContext('2d');
-			if (head) x.drawImage(head, 0, 0);
-			if (info) x.drawImage(info, 0, headH);
-			x.drawImage(body, 0, headH + infoH);
-			topH = headH + infoH;
-		} else if (counts) {
-			// 案4（794）: 左の上に上の欄・右の上に同じ高さの情報の箱。その下に一覧を半分ずつ（左右の下端がそろう所＝一覧の真ん中に近い行の間で分ける）
-			variant = 'side';
-			topH = headH || Math.round(w * 0.3);
-			split = findRowGap(body, listH / 2, listH * 0.3, listH * 0.7);
-			const rightH = listH - split;
-			out = mk(w * 2 + G, topH + Math.max(split, rightH));
-			const x = out.getContext('2d');
-			if (head) x.drawImage(head, 0, 0);
-			x.drawImage(infoBox(w, topH, counts, head), w + G, 0);
-			x.drawImage(body, 0, 0, w, split, 0, topH, w, split);
-			x.drawImage(body, 0, split, w, rightH, w + G, topH, w, rightH);
+			x.fillStyle = bg; x.fillRect(0, 0, w, topH);
+			if (head) x.drawImage(head, 0, 0, w, top, 0, 0, w, top);
+			if (counts) {
+				card = { x: cardL, y: top + m.gap, w: cardW, h: m.h };
+				pieces = drawSkillCard(x, card.x, card.y, card.w, m, counts);
+			}
+			x.drawImage(body, 0, topH);
 		} else {
-			// 案2（794）: 左に上の欄＋一覧の前半、右に後半。左右の高さがそろう所で分ける
-			variant = 'even';
-			split = findRowGap(body, Math.max(listH * 0.15, (listH - headH) / 2), listH * 0.1, listH * 0.9);
-			const leftH = headH + split, rightH = listH - split;
-			out = mk(w * 2 + G, Math.max(leftH, rightH));
+			// 2列（806・816）: 上段の左に帯と顔の欄・右に「スピード〜賢さ」と適性＋スキル情報の欄。その下に一覧を半分ずつ（左右の下端がそろう所＝真ん中に近い行の間で分ける）
+			variant = 'split';
+			const leftH = ok ? lay.faceEnd : cutEnd;
+			const rightTop = ok ? lay.faceEnd : 0, rightH = ok ? aptEnd - lay.faceEnd : 0;
+			topH = Math.max(leftH, rightH + block);
+			split = findRowGap(body, listH / 2, listH * 0.3, listH * 0.7);
+			const rightL = listH - split;
+			out = mk(w * 2 + G, topH + Math.max(split, rightL));
 			const x = out.getContext('2d');
-			if (head) x.drawImage(head, 0, 0);
-			x.drawImage(body, 0, 0, w, split, 0, headH, w, split);
-			x.drawImage(body, 0, split, w, rightH, w + G, 0, w, rightH);
+			x.fillStyle = bg; x.fillRect(0, 0, w, topH); x.fillRect(w + G, 0, w, topH);
+			if (head && leftH) x.drawImage(head, 0, 0, w, leftH, 0, 0, w, leftH);
+			if (head && rightH) x.drawImage(head, 0, rightTop, w, rightH, w + G, 0, w, rightH);
+			if (counts) {
+				card = { x: w + G + cardL, y: rightH + m.gap, w: cardW, h: m.h };
+				pieces = drawSkillCard(x, card.x, card.y, card.w, m, counts);
+			}
+			x.drawImage(body, 0, 0, w, split, 0, topH, w, split);
+			x.drawImage(body, 0, split, w, rightL, w + G, topH, w, rightL);
 		}
-		out._sr = { band: parts.band, headH, listH, split, thumb: parts.thumb, cols: o.cols === 2 ? 2 : 1, variant, info: !!counts, topH };
+		out._sr = { band: parts.band, headH, listH, split, thumb: parts.thumb, cols: o.cols === 2 ? 2 : 1, variant, info: !!counts, topH,
+			head: lay ? { ok: lay.ok, faceEnd: lay.faceEnd, statsTop: lay.statsTop, statsEnd: lay.statsEnd, aptEnd: lay.aptEnd, tabsTop: lay.tabsTop, statsL: lay.statsL, statsR: lay.statsR } : null,
+			gap: G, card, pieces };
 		return out;
 	}
 
@@ -423,7 +482,7 @@
 		files: [],
 		thumbs: new Map(),    // File → { url, ready, dead }
 		thumbQueue: Promise.resolve(),
-		cols: 1, withCount: false,   // 結合画像の設定（804）。既定は 1列・スキルの数を入れない。覚えない
+		cols: 1, withCount: false,   // 結合画像の設定（804）。既定は 1列・スキルの数を入れない。ページごとに覚える（809・loadSettings／saveSettings）
 		built: null,          // { files, list, first, parts, counts, one } 作ったときの材料（形を変えたらここから組み直す）
 		png: null,            // { url, blob, canvas }
 		busy: false
@@ -616,8 +675,27 @@
 		if (el.hasAttribute('data-sr-cols')) st.cols = Number(el.getAttribute('data-sr-cols')) === 2 ? 2 : 1;
 		settingChanged();
 	}
-	// 設定を変えたら、作った材料から組み直す（結合はやり直さない）
+	// 設定（1列｜2列・スキルの数）をページごとに覚える（T191・809）。保存の読み書きは try/catch で包み、読めないとき・形の違う値は既定（1列・数なし）
+	function loadSettings() {
+		st.cols = 1; st.withCount = false;
+		const key = st.host && st.host.storageKey;
+		if (!key) return;
+		try {
+			const v = JSON.parse(localStorage.getItem(key) || 'null');
+			if (v && typeof v === 'object') {
+				st.cols = v.cols === 2 ? 2 : 1;
+				st.withCount = v.count === true;
+			}
+		} catch (e) { st.cols = 1; st.withCount = false; }
+	}
+	function saveSettings() {
+		const key = st.host && st.host.storageKey;
+		if (!key) return;
+		try { localStorage.setItem(key, JSON.stringify({ cols: st.cols, count: st.withCount })); } catch (e) { /* 保存できなくても動く（覚えないだけ） */ }
+	}
+	// 設定を変えたら、覚えて、作った材料から組み直す（結合はやり直さない）
 	function settingChanged() {
+		saveSettings();
 		render();   // 押した形・チェックをすぐ映す（画像は組み直しが終わったら替わる）
 		if (st.built && sameFiles(st.built.files, st.files)) recompose();
 	}
@@ -669,11 +747,12 @@
 		s.textContent = SR_CSS;
 		document.head.appendChild(s);
 	}
-	/** host = { stitchOnePerson(files, label), attachSaveName(link), toast(text), onChange(n) } */
+	/** host = { stitchOnePerson(files, label), attachSaveName(link), toast(text), onChange(n), storageKey（設定を覚える localStorage のキー。ページごと） } */
 	function mount(root, host) {
 		injectStyle();
 		st.root = root;
 		st.host = host || {};
+		loadSettings();
 		root.addEventListener('click', onClick);
 		root.addEventListener('change', (e) => {
 			if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-sr-input')) { addFiles(e.target.files); e.target.value = ''; return; }
@@ -684,7 +763,7 @@
 
 	window.UmaSkillResult = Object.freeze({
 		version: SKILL_RESULT_JS_VERSION, texts: SR_TEXTS,
-		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap, infoBox, infoBand,
+		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap, headLayout, drawSkillCard, cardMetrics,
 		count: () => st.files.length,
 		files: () => st.files.slice(),
 		// 検査用: 今の状態（URL・形・作ったか）

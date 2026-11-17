@@ -3,8 +3,11 @@
 //
 //  (1) 本育成結果（UmaStar・UmaExam）: タブ・関係のない部品を隠す・persons に混ざらない（OCR・タブの枚数・処理のボタン）・結合（凍結の stitchOnePerson）＋上の欄・
 //      つまみを消す・色で数えるスキルの数・1枚だけ・サムネイル 336px と URL の手放し・保存と共有は別のボタン。
-//      T189（決定 794・803・804）: タブの中の「結合画像の設定」（1列｜2列・スキルの数）。2列・数なしは案2、2列・数ありは案4（右上に情報の箱）、1列・数ありは帯。
+//      T189（決定 794・803・804）: タブの中の「結合画像の設定」（1列｜2列・スキルの数）。
 //      試しの切り替え（案1・案3・数の表示の置き場所）が無いこと・画面の欄に数を出さないこと・続けて押しても最後の設定の画像が出ること。
+//      T191（2026-11-17・決定 806〜820）: 「スキル・継承・育成情報」の行を入れない。2列は上段を左右に分ける（左 帯と顔の欄・右 「スピード〜賢さ」と適性。
+//      数ありは右の適性の下にスキル情報の欄・数なしは同じ並びで空ける）。1列・数ありは適性の下にスキル情報の欄。欄の左右の端は「スピード〜賢さ」の欄にそろえる。
+//      欄の文・字の大きさの3段・上下の真ん中・間隔・縁と影の色。設定をページごとに覚える（読めないときは既定）。
 //      画像は作り物のスキル画面（SKILL_SYNTH。ゲームの画面は使わない）。
 //  (2) 動画の1〜3人（UmaStar・UmaExam）: blocks-80 の作り物の動画（SYNTH）を途中で切る。1人・2人・途中までの人・1枚だけの人・3人・0人／4人以上の止め・進み具合の段。
 //      UmaStar の3列は1人・2人で幅を人数ぶんに詰める（790）。
@@ -69,12 +72,25 @@ window.__skillSynth = (function () {
 		kinds.forEach((k) => truth[k]++);
 		return { doc, docH, truth };
 	}
+	// 上の欄（T191）: 「ウマ娘詳細」の帯（100〜150）・顔の欄（150〜260）・地・「スピード〜賢さ」の欄（270〜318。緑の枠・x 20〜580）・地・
+	// 適性の札3行（328〜375）・地・「スキル・継承・育成情報」の行（405〜441）。座標は 600×1300（画は2倍）。「スピード〜賢さ」の欄は x 40〜560
 	function head(x) {
 		x.fillStyle = 'rgb(120,170,220)'; x.fillRect(0, 0, W, H);
 		x.fillStyle = 'rgb(90,200,40)'; x.fillRect(10, 100, W - 20, 50);           // 「ウマ娘詳細」の緑の帯
 		x.fillStyle = '#fff'; x.fillRect(10, 150, W - 20, LIST_B + 160 - 150);      // 小窓の地
+		x.fillStyle = 'rgb(200,215,230)'; x.fillRect(10, 150, W - 20, 110);        // 顔の欄の背景
 		const r = rng(3);
-		for (let k = 0; k < 40; k++) { x.fillStyle = 'rgb(' + Math.floor(80 + r() * 150) + ',' + Math.floor(60 + r() * 150) + ',' + Math.floor(40 + r() * 150) + ')'; x.fillRect(20 + Math.floor(r() * 520), 160 + Math.floor(r() * 230), 20 + Math.floor(r() * 50), 10 + Math.floor(r() * 30)); }
+		for (let k = 0; k < 30; k++) { x.fillStyle = 'rgb(' + Math.floor(80 + r() * 150) + ',' + Math.floor(60 + r() * 150) + ',' + Math.floor(40 + r() * 150) + ')'; x.fillRect(20 + Math.floor(r() * 520), 160 + Math.floor(r() * 60), 20 + Math.floor(r() * 50), 10 + Math.floor(r() * 30)); }
+		// 「スピード〜賢さ」の欄: 緑の見出しの行と枠、中は白
+		x.fillStyle = 'rgb(90,200,40)'; x.fillRect(40, 270, 520, 48);   // 左右の端は小窓の端から 30 内側（スキル情報の欄の既定の端と見分けるため）
+		x.fillStyle = '#fff'; x.fillRect(42, 282, 516, 34);
+		x.fillStyle = 'rgb(70,45,30)'; for (let c = 0; c < 5; c++) x.fillRect(40 + c * 110, 290, 60, 18);
+		// 適性の札（3行・左に見出し）
+		for (let row = 0; row < 3; row++) {
+			const y = 328 + row * 17;
+			x.fillStyle = 'rgb(110,70,40)'; x.fillRect(30, y + 2, 60, 9);
+			for (let c = 0; c < (row === 0 ? 2 : 4); c++) { x.fillStyle = 'rgb(225,205,185)'; x.fillRect(110 + c * 116, y, 104, 13); x.fillStyle = '#fff'; x.fillRect(112 + c * 116, y + 2, 100, 9); x.fillStyle = 'rgb(240,120,40)'; x.fillRect(196 + c * 116, y + 2, 10, 9); }
+		}
 		x.fillStyle = 'rgb(90,200,40)'; x.fillRect(16, 405, Math.round((W - 32) * 0.32), 36);   // タブ「スキル」（幅の 32%）
 		x.fillStyle = 'rgb(225,225,225)'; x.fillRect(16 + Math.round((W - 32) * 0.32), 405, Math.round((W - 32) * 0.68), 36);
 		x.fillStyle = 'rgb(170,150,120)'; x.fillRect(200, LIST_B + 50, 200, 60);   // 「閉じる」
@@ -142,7 +158,7 @@ export async function register180(env) {
 
 	for (const file of ['special', 'exam']) {
 		const NAME = file === 'special' ? 'UmaStar' : 'UmaExam';
-		await block('T188(1) ' + NAME + ' の本育成結果: タブ・関係のない部品を隠す・persons に混ざらない（OCR・処理のボタン）・結合＋上の欄・つまみを消す・色で数える数・T189 の結合画像の設定（1列｜2列・スキルの数。2列は案2／案4・1列は帯）・1枚だけ・サムネイル 336px・保存は別のボタン', async () => {
+		await block('T188(1) ' + NAME + ' の本育成結果: タブ・関係のない部品を隠す・persons に混ざらない（OCR・処理のボタン）・結合＋上の欄・つまみを消す・色で数える数・T189 の結合画像の設定（1列｜2列・スキルの数）・T191 の上段の分け方とスキル情報の欄・設定を覚える・1枚だけ・サムネイル 336px・保存は別のボタン', async () => {
 			const sp = await open(file, { w: 390, h: 844, fakeNav: true });
 			const { page, errors } = sp;
 			const tabs = await page.evaluate(() => [...document.querySelectorAll('#personset-tabs .uma-subtab')].map((b) => b.textContent.trim()));
@@ -194,28 +210,94 @@ export async function register180(env) {
 				const p = await page.evaluate(() => UmaSkillResult.peek());
 				return { w: s.w, h: s.h, src: s.src, sr: p.sr, pressed: await page.evaluate(() => [...document.querySelectorAll('[data-sr-cols]')].map((b) => b.getAttribute('aria-pressed')).join(',') + '|' + document.querySelector('[data-sr-opt="count"]').checked) };
 			};
-			// 画素を読む（検査用）: 結合画像の (x, y) の色
-			const px = (src, pts) => page.evaluate(async ({ src, pts }) => { const im = new Image(); im.src = src; await im.decode(); const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
-				const x = c.getContext('2d'); x.drawImage(im, 0, 0); return pts.map(([a, b]) => Array.from(x.getImageData(a, b, 1, 1).data.slice(0, 3))); }, { src, pts });
+			// 画素を調べる（検査用）: 結合画像の中の
+			//   tabRows … 「スキル・継承・育成情報」の行（左寄り 10% が緑・60% が灰色 225 の行）の数（列の左端 cols ごと）
+			//   card    … 矩形 r の中の茶色の字（#794016 に近い）の画素の数と、字の上下の真ん中・縁・影・中の色
+			const scan = (src, cols, r) => page.evaluate(async ({ src, cols, r, w }) => {
+				const im = new Image(); im.src = src; await im.decode();
+				const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+				const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
+				const d = x.getImageData(0, 0, c.width, c.height).data, W = c.width;
+				const at = (a, b) => { const i = (Math.round(b) * W + Math.round(a)) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+				let tabRows = 0;
+				for (const cx of cols) for (let y = 0; y < c.height; y++) {
+					const g = at(cx + w * 0.1, y), s = at(cx + w * 0.6, y);
+					if (g[1] > 150 && g[1] > g[0] + 30 && g[1] > g[2] + 60 && Math.abs(s[0] - 225) < 8 && Math.abs(s[2] - 225) < 8) tabRows++;
+				}
+				let ink = 0, iy0 = Infinity, iy1 = -1;
+				if (r) for (let y = Math.floor(r.y); y < r.y + r.h; y++) for (let a = Math.floor(r.x); a < r.x + r.w; a++) {
+					const p = at(a, y);
+					if (Math.abs(p[0] - 121) < 30 && Math.abs(p[1] - 64) < 30 && Math.abs(p[2] - 22) < 30) { ink++; iy0 = Math.min(iy0, y); iy1 = Math.max(iy1, y); }
+				}
+				return { tabRows, ink, inkMid: ink ? (iy0 + iy1 + 1) / 2 : null,
+					edge: r ? at(r.x + 1, r.y + r.h / 2) : null, inside: r ? at(r.x + 12, r.y + 4) : null, shadow: r ? at(r.x + r.w / 2, r.y + r.h + 2) : null };
+			}, { src, cols, r, w: s1.w });
+			// 作り物の画の上の欄（SKILL_SYNTH の head。帯の上端 y=200 を 0 とした行・小窓の左端 x=20 を 0 とした列）
+			const HEAD = { faceEnd: 320, statsTop: 340, aptEnd: 550, tabsTop: 610, statsL: 60, statsR: 1100 };
+			const near = (a, b, e = 1) => Math.abs(a - b) <= e;
+			const listH = r1.sr.listH;
+			// スキル情報の欄の中身（T191・820）: 文と字の大きさの3段・上下の真ん中・間隔・「（」の空き
+			const cardOk = (sr, counts) => {
+				const p = sr.pieces || [], cd = sr.card;
+				const text = p.map((q) => q.kind === 'sq' ? '■' + q.s : q.s).join('|');
+				const want = ['スキル', counts.all, '（', '■unique', '固有', counts.unique, '■evo', '進化', counts.evo, '■gold', '金', counts.gold, '■white', '白', counts.white, '）'].join('|');
+				const mid = cd.y + cd.h / 2;
+				const offs = p.map((q) => Math.round(((q.top + q.bottom) / 2 - mid) * 100) / 100);
+				const gaps = [];
+				for (let i = 1; i < p.length; i++) gaps.push(Math.round((p[i].l - p[i - 1].r) * 100) / 100);
+				// 一定の間隔: スキル→合計（0）・四角→名前・名前→数・数→次の四角（3〜14）
+				const fixed = [gaps[0]].concat(gaps.slice(3, 14));
+				const px = { name: p[0].px, num: p[5].px, all: p[1].px };
+				return { text, want, offs, gaps, fixed, px,
+					ok: text === want && offs.every((o) => Math.abs(o) <= 0.75) && Math.max(...fixed) - Math.min(...fixed) <= 0.6 && px.name < px.num && px.num < px.all &&
+						gaps[2] > gaps[gaps.length - 1] + px.name * 0.3 };
+			};
 			const urls = [r1.url];
-			// 1列＋数（803）: 上の欄の下に帯 → 帯の分だけ高い・一覧は帯の下から
+			// 1列・数なし（既定・T191 818）: 上の欄は帯〜適性（「スキル・継承・育成情報」の行の手前まで）・その下に一覧
+			const sc1 = await scan(s1.src, [0], null);
+			// 1列の画像は形を変えると URL を手放すので、あとで2列の上段と比べるために写しておく
+			const s1data = await page.evaluate(async (u) => { const b = await (await fetch(u)).blob(); return await new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); }); }, s1.src);
+			assert(r1.sr.head && r1.sr.head.ok && near(r1.sr.head.faceEnd, HEAD.faceEnd) && near(r1.sr.head.statsTop, HEAD.statsTop) && near(r1.sr.head.aptEnd, HEAD.aptEnd) && near(r1.sr.head.tabsTop, HEAD.tabsTop) &&
+				near(r1.sr.head.statsL, HEAD.statsL) && near(r1.sr.head.statsR, HEAD.statsR),
+				'T191 ' + NAME + ' 上の欄の区切り（帯と顔の欄・「スピード〜賢さ」の欄と左右の端・適性・「スキル・継承・育成情報」の行）を見つける', r1.sr.head);
+			assert(s1.h === HEAD.tabsTop + listH && r1.sr.card === null && sc1.tabRows === 0,
+				'T191 ' + NAME + ' 1列・数なし: 「スキル・継承・育成情報」の行を入れない（上の欄はその行の手前まで・画像の中にその行が無い）', { h: s1.h, want: HEAD.tabsTop + listH, tabRows: sc1.tabRows });
+			// 1列・数あり（817）: 適性の下にスキル情報の欄（左右の端は「スピード〜賢さ」の欄にそろえる）・その下に一覧
 			const c1n = await setForm(1, true); urls.push(c1n.src);
-			assert(c1n.w === s1.w && c1n.h > s1.h && c1n.sr.variant === null && c1n.sr.info === true && c1n.sr.topH > c1n.sr.headH && c1n.pressed === 'true,false|true',
-				'T189 ' + NAME + ' 1列・数あり: 上の欄の下に帯（画像が帯の分だけ高い）', c1n);
-			// 2列・数なし（794 案2）: 左に上の欄＋前半・右に後半。左右の高さがそろう（差は1行ぶんより小さい）
+			const cd1 = c1n.sr.card || {};
+			const sc1n = await scan(c1n.src, [0], cd1);
+			const k1 = cardOk(c1n.sr, r1.counts);
+			assert(c1n.w === s1.w && near(cd1.x, HEAD.statsL) && near(cd1.x + cd1.w, HEAD.statsR) && cd1.y > HEAD.aptEnd && c1n.h > cd1.y + cd1.h && c1n.h === c1n.sr.topH + listH && c1n.sr.topH < c1n.sr.headH + 1 &&
+				near(cd1.h, Math.round(36 * s1.w / 745)) && sc1n.tabRows === 0 && c1n.pressed === 'true,false|true',
+				'T191 ' + NAME + ' 1列・数あり: 適性の下にスキル情報の欄（左右の端は「スピード〜賢さ」の欄と同じ・高さは見本の比）・「スキル…」の行は無い', { card: cd1, h: c1n.h, topH: c1n.sr.topH, tabRows: sc1n.tabRows, pressed: c1n.pressed });
+			assert(k1.ok, 'T191 ' + NAME + ' スキル情報の欄の文「スキル N（■固有 n　■進化 n　■金 n　■白 n）」・字の大きさは名前<数<合計・目に見える部分の上下の真ん中がそろう・間隔が一定・「（」の後に空き', k1);
+			assert(sc1n.ink > 200 && Math.abs(sc1n.inkMid - (cd1.y + cd1.h / 2)) <= 2.5 && sc1n.inside.every((v) => v === 255) &&
+				Math.abs(sc1n.edge[0] - 0xAD) < 16 && Math.abs(sc1n.edge[2] - 0xB8) < 16 && Math.abs(sc1n.shadow[0] - 0xC1) < 10 && Math.abs(sc1n.shadow[2] - 0xCC) < 10,
+				'T191 ' + NAME + ' スキル情報の欄の画素: 白いカード・灰色の縁（#ADAAB8）・下の影（#C1BFCC）・茶色の字が真ん中', sc1n);
+			// 2列・数なし（806・816）: 上段の左に帯と顔の欄、右に「スピード〜賢さ」と適性（隙間は空ける）。その下に一覧を半分ずつ
 			const ev = await setForm(2, false); urls.push(ev.src);
-			const evL = ev.sr.headH + ev.sr.split, evR = ev.sr.listH - ev.sr.split;
-			assert(ev.sr.variant === 'even' && ev.w > s1.w * 2 - 1 && ev.h < s1.h && Math.abs(evL - evR) < 160 && ev.h === Math.max(evL, evR) && ev.pressed === 'false,true|false',
-				'T189 ' + NAME + ' 2列・数なしは案2（高さをそろえる）: 幅は2列ぶん・左（上の欄＋前半）と右（後半）の高さがそろう', { ev, evL, evR });
-			// 2列・数あり（794 案4）: 左上に上の欄・右上に同じ高さの情報の箱・その下に一覧を半分ずつ（左右の下端がそろう）
+			const G = ev.w - s1.w * 2;
+			const evL = ev.sr.split, evR = listH - ev.sr.split;
+			const rightH = HEAD.aptEnd - HEAD.faceEnd;
+			const scEv = await scan(ev.src, [0, s1.w + G], { x: s1.w + G + HEAD.statsL, y: rightH, w: HEAD.statsR - HEAD.statsL, h: ev.sr.topH - rightH });
+			assert(ev.sr.variant === 'split' && G > 0 && G < 40 && ev.sr.topH >= HEAD.faceEnd && ev.sr.topH > rightH && ev.h === ev.sr.topH + Math.max(evL, evR) && Math.abs(evL - evR) < 160 && ev.sr.card === null &&
+				scEv.tabRows === 0 && scEv.ink === 0 && ev.pressed === 'false,true|false',
+				'T191 ' + NAME + ' 2列・数なし: 上段を左右に分け（左 帯と顔の欄・右 「スピード〜賢さ」と適性）、右の適性の下は空ける・その下に一覧を半分ずつ・「スキル…」の行は無い', { w: ev.w, h: ev.h, topH: ev.sr.topH, split: ev.sr.split, evL, evR, scan: scEv });
+			// 上段の画素: 左上は帯（緑）、右上は「スピード〜賢さ」の見出し（緑）。左の帯の下（顔の欄）と右の上（「スピード〜賢さ」の欄）は1列の上の欄の同じ所と同じ
+			const same = await page.evaluate(async ({ a, b, pts }) => {
+				const load = async (src) => { const im = new Image(); im.src = src; await im.decode(); const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0); return x; };
+				const A = await load(a), B = await load(b);
+				return pts.map(([ax, ay, bx, by]) => { const p = A.getImageData(ax, ay, 1, 1).data, q = B.getImageData(bx, by, 1, 1).data; return p[0] === q[0] && p[1] === q[1] && p[2] === q[2]; });
+			}, { a: s1data, b: ev.src, pts: [[300, 50, 300, 50], [500, 200, 500, 200], [300, HEAD.statsTop + 10, s1.w + G + 300, HEAD.statsTop - HEAD.faceEnd + 10], [600, HEAD.aptEnd - 10, s1.w + G + 600, HEAD.aptEnd - HEAD.faceEnd - 10]] });
+			assert(same.every(Boolean), 'T191 ' + NAME + ' 2列の上段: 左は1列の上の欄の帯と顔の欄・右は「スピード〜賢さ」〜適性（同じ画素）', same);
+			// 2列・数あり: 同じ並びで、右の適性の下の隙間にスキル情報の欄（左右の端は「スピード〜賢さ」の欄にそろえる）
 			const sd = await setForm(2, true); urls.push(sd.src);
-			const sdL = sd.sr.split, sdR = sd.sr.listH - sd.sr.split;
-			assert(sd.sr.variant === 'side' && sd.sr.topH === sd.sr.headH && sd.w === ev.w && sd.h === sd.sr.headH + Math.max(sdL, sdR) && Math.abs(sdL - sdR) < 160 && sd.pressed === 'false,true|true',
-				'T189 ' + NAME + ' 2列・数ありは案4: 右の上に上の欄と同じ高さの箱・その下に左右とも一覧を半分ずつ（下端がそろう）', { sd, sdL, sdR });
-			// 案4 の右上の箱: 上は上の欄と同じ緑の帯、下は白いカード。左上（上の欄）は1列のときの上の欄と同じ画素
-			const half = Math.round((sd.w - s1.w * 2) / 2);
-			const colors = await px(sd.src, [[sd.w - 20, 10], [s1.w + half * 2 + Math.round(s1.w * 0.9), Math.round(sd.sr.headH * 0.6)]]);
-			assert(colors[0][1] > 150 && colors[0][1] > colors[0][2] + 60 && colors[1].every((v) => v >= 240), 'T189 ' + NAME + ' 案4 の右上の箱: 上に緑の帯・中は白いカード', colors);
+			const cd2 = sd.sr.card || {};
+			const sc2 = await scan(sd.src, [0, s1.w + G], cd2);
+			const k2 = cardOk(sd.sr, r1.counts);
+			assert(sd.w === ev.w && sd.h === ev.h && sd.sr.topH === ev.sr.topH && sd.sr.split === ev.sr.split && near(cd2.x, s1.w + G + HEAD.statsL) && near(cd2.x + cd2.w, s1.w + G + HEAD.statsR) &&
+				cd2.y > rightH && cd2.y + cd2.h < sd.sr.topH && sc2.tabRows === 0 && sc2.ink > 200 && Math.abs(sc2.inkMid - (cd2.y + cd2.h / 2)) <= 2.5 && k2.ok && sd.pressed === 'false,true|true',
+				'T191 ' + NAME + ' 2列・数あり: 数なしと同じ並び・右の適性の下にスキル情報の欄（左右の端は「スピード〜賢さ」の欄と同じ）', { card: cd2, topH: sd.sr.topH, scan: sc2, k2 });
 			const dead = await Promise.all(urls.slice(0, -1).map((u) => alive(page, u)));
 			assert(dead.every((x) => x === false) && (await alive(page, urls[urls.length - 1])), 'T188(1) ' + NAME + ' 形を変えると前の結合画像の URL を手放す・今の URL は読める', dead);
 			// 続けて押す（2列→数→1列）: 最後の設定の形だけが出る（前の組み直しが後から終わって古い形を出さない）
@@ -259,6 +341,30 @@ export async function register180(env) {
 			await page.click('#personset-tabs [data-tab-id="0"]');
 			const back = await page.evaluate(() => ({ wrap: !!document.getElementById('skillres-wrap').getClientRects().length, setA: !!document.getElementById('personset-A-wrap').getClientRects().length, bar: !document.getElementById('upload-bar').hidden, mode: getComputedStyle(document.getElementById('upload-mode')).visibility }));
 			assert(!back.wrap && back.setA && back.bar && back.mode === 'visible', 'T188(1) ' + NAME + ' 親Aセットへ戻ると、③／②の部品が戻る', back);
+			// 設定を覚える（T191・809）: ページごとのキー。開き直すと前の設定・読めない値や読み出しの失敗は既定（1列・数なし）
+			const KEY = file === 'special' ? 'uma-special-skillres-form' : 'uma-exam-skillres-form';
+			const OTHER = file === 'special' ? 'uma-exam-skillres-form' : 'uma-special-skillres-form';
+			await page.click('#personset-tabs [data-tab-id="skill"]');
+			await page.evaluate(() => document.querySelector('[data-sr-act="clear"]').click());
+			await page.evaluate(() => document.querySelector('[data-sr-cols="2"]').click());
+			const saved = await page.evaluate(({ KEY, OTHER }) => ({ v: localStorage.getItem(KEY), other: localStorage.getItem(OTHER) }), { KEY, OTHER });
+			assert(saved.v === '{"cols":2,"count":true}' && saved.other === null, 'T191 ' + NAME + ' 設定（2列・数あり）をこのページのキーに覚える・もう一方のページのキーには書かない', saved);
+			const reopen = async () => {
+				await reloadReady(page);
+				for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('#ui-notice-ok').catch(() => {});
+				await page.evaluate(() => selectStepTab(2));
+				await page.click('#personset-tabs [data-tab-id="skill"]');
+				return page.evaluate(() => { const p = UmaSkillResult.peek(); return p.cols + '/' + p.withCount + '|' + [...document.querySelectorAll('[data-sr-cols]')].map((b) => b.getAttribute('aria-pressed')).join(',') + '|' + document.querySelector('[data-sr-opt="count"]').checked; });
+			};
+			const kept = await reopen();
+			assert(kept === '2/true|false,true|true', 'T191 ' + NAME + ' 開き直すと、覚えた設定（2列・数あり）が押された形で出る', kept);
+			await page.evaluate((KEY) => localStorage.setItem(KEY, '{壊れた'), KEY);
+			const broken = await reopen();
+			assert(broken === '1/false|true,false|false', 'T191 ' + NAME + ' 保存の値が読めないときは既定（1列・数なし）', broken);
+			await page.evaluate((KEY) => localStorage.setItem(KEY, '{"cols":2,"count":true}'), KEY);
+			await page.addInitScript((KEY) => { const g = Storage.prototype.getItem; Storage.prototype.getItem = function (k) { if (k === KEY) throw new Error('読めない（検査）'); return g.call(this, k); }; }, KEY);
+			const thrown = await reopen();
+			assert(thrown === '1/false|true,false|false', 'T191 ' + NAME + ' 保存の読み出しが失敗しても既定（1列・数なし）で開く', thrown);
 			assert(jsErrors(errors).length === 0, 'T188(1) ' + NAME + ' コンソールのエラー0', jsErrors(errors).slice(0, 3));
 			await sp.ctx.close();
 		});

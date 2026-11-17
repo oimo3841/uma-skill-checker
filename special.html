@@ -60,7 +60,7 @@
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
 	<!-- 本育成結果（T188・決定 775・783〜788）。③のタブ「本育成結果」の中身（スキル画面のスクショを1枚にまとめる・OCR なし） -->
-	<script src="js/skill-result.js?v=2026-11-17a"></script>
+	<script src="js/skill-result.js?v=2026-11-17b"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-11a"></script>
@@ -1893,7 +1893,8 @@
 				stitchOnePerson: (files, label) => stitchOnePerson(files, label),
 				attachSaveName: (a) => stitchAttachSaveName(a, currentStitchSaveName),
 				toast: (text) => showToast(text),
-				onChange: () => renderPersonSetTabs()
+				onChange: () => renderPersonSetTabs(),
+				storageKey: 'uma-special-skillres-form'
 			});
 			renderPersonSetTabs();
 		});
