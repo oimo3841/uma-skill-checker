@@ -280,8 +280,14 @@ export async function register122(env) {
 				await startCapture(page);
 				const again = await state(page);
 				assert(again.box && again.stop === '取り込みを止める', 'T105 PC取り込み(30) もう一度取り込める', again);
+				// T191（812・814）: 1回目（上の else）と同じ形にする。止める前に少し待ち、#cap-fail か #video-error のどちらかを 30秒まで待つ。
+				// 時間切れのときは、開発ログ（devGeometry）の末尾と進み具合の箱の文を NG の詳しさに出す（電池・待機の中で止まった回を見分けるため）
+				await page.waitForTimeout(600);
 				await page.click('#cap-stop');
-				await page.waitForFunction(() => document.getElementById('cap-fail'));
+				const ended = await page.waitForFunction(() => document.getElementById('cap-fail') || document.getElementById('video-error'), null, { timeout: 30000 })
+					.then(() => null, () => page.evaluate(() => ({ log: (typeof devGeometry !== 'undefined' ? devGeometry : []).slice(-8),
+						progress: (document.getElementById('video-progress') || {}).textContent || null, stage: ((document.getElementById('cap-box') || {}).textContent || '').slice(0, 200) })));
+				assert(ended === null, 'T105 PC取り込み(30) もう一度の取り込みを止めると、失敗の文か動画の知らせが出る（30秒まで待つ）', ended);
 			}
 			await page.click('[data-upload-mode-btn="shot"]');
 			const m = await page.evaluate(() => ({ fail: !!document.getElementById('cap-fail'), on: document.querySelector('#personset-A-wrap .upload-set-panel').classList.contains('cap-on') }));
