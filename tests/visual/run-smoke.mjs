@@ -193,6 +193,7 @@ import { register177 } from './blocks-177.mjs';
 import { register178 } from './blocks-178.mjs';
 import { register179 } from './blocks-179.mjs';
 import { register180 } from './blocks-180.mjs';
+import { register182 } from './blocks-182.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15727,6 +15728,8 @@ await register178({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register179({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T188（2026-11-16）: 本育成結果（③／②の3つ目のタブ・js/skill-result.js）・動画の1〜3人・入れる人（見出しは「T188」）。tests/visual/blocks-180.mjs
 await register180({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T193（2026-11-18）: 本育成結果の動画（入口・流れ・失敗と取り消し・ウィンドウから取り込む・数え方の直し。見出しは「T193」）。tests/visual/blocks-182.mjs
+await register182({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

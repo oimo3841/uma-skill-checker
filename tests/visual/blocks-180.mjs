@@ -119,9 +119,40 @@ window.__skillSynth = (function () {
 		window.__skillTruth = b.truth;
 		return files;
 	}
-	return { make, W, H };
+	// T193: スクロールしながら撮った動画のまね（UmaVideoFrames.canvasSource の形。blocks-182）。keys … [[時刻, 一覧のずれ（600×1300 の座標）], …] を直線でつなぐ。
+	// ずれが負のときは一覧を下へ引っぱりすぎた所（一覧の上に地 242 が空く。録画の先頭で一覧が跳ね返る所のまね）。
+	// keys を省くと: 0〜1秒は -60 で止まる → 1.3秒で 0 → 止まる → 500 ずつ止まりながら一番下まで（-60 と 0 の両方のコマが選ばれるよう、1回のずれを帯の 77% にする）。
+	// over … 引っぱりすぎの量（既定 60。0 なら引っぱらない）。window.__skillTruth に正しい数
+	function video(rows, seed, keys, over) {
+		const b = build(rows, seed);
+		const maxS = b.docH - WIN;
+		const o = over == null ? 60 : over;
+		const K = keys || (() => { const k = [[0, -o], [1, -o], [1.3, 0], [2.3, 0]]; let t = 2.3, s = 0; while (s < maxS) { s = Math.min(maxS, s + 500); k.push([t + 0.7, s], [t + 1.7, s]); t += 1.7; } return k; })();
+		const at = (t) => { if (t <= K[0][0]) return K[0][1]; for (let i = 1; i < K.length; i++) if (t <= K[i][0]) { const [t0, s0] = K[i - 1], [t1, s1] = K[i]; return s0 + (s1 - s0) * (t - t0) / (t1 - t0); } return K[K.length - 1][1]; };
+		const full = document.createElement('canvas'); full.width = W * S; full.height = H * S;
+		const fx = full.getContext('2d');
+		window.__skillTruth = b.truth;
+		return UmaVideoFrames.canvasSource({ kind: 'canvas:skill', width: W * S, height: H * S, duration: K[K.length - 1][0], exact: true,
+			draw(t, ctx, dw, dh) {
+				const s = Math.round(at(t) * S);
+				fx.setTransform(S, 0, 0, S, 0, 0);
+				head(fx);
+				fx.setTransform(1, 0, 0, 1, 0, 0);
+				fx.fillStyle = 'rgb(242,242,242)'; fx.fillRect(0, LIST_T * S, W * S, WIN * S);
+				const sy = Math.max(0, s), oy = Math.max(0, -s), h = Math.min(WIN * S - oy, b.doc.height - sy);
+				if (h > 0) fx.drawImage(b.doc, 0, sy, W * S, h, 0, LIST_T * S + oy, W * S, h);
+				fx.setTransform(S, 0, 0, S, 0, 0);
+				fx.fillStyle = 'rgb(215,215,215)'; fx.fillRect(568, LIST_T, 8, WIN);
+				const th = Math.round(WIN * WIN / b.docH), ty = LIST_T + Math.round((WIN - th) * Math.max(0, Math.min(1, at(t) / maxS)));
+				fx.fillStyle = 'rgb(120,120,135)'; fx.fillRect(568, ty, 8, th);
+				fx.setTransform(1, 0, 0, 1, 0, 0);
+				ctx.drawImage(full, 0, 0, dw, dh);
+			} });
+	}
+	return { make, video, W, H };
 })();
 `;
+export { SKILL_SYNTH, TESS_STUB, STUB_OCR };
 
 /** OCR を回さない（blocks-179 と同じ差し替え）。processPersonImages の呼ばれた回数と、結合に渡った canvas を控える */
 function STUB_OCR() {
@@ -169,7 +200,8 @@ export async function register180(env) {
 				const vis = (id) => { const el = document.getElementById(id); return !!(el && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden'); };
 				return { wrap: vis('skillres-wrap'), setA: vis('personset-A-wrap'), bar: vis('upload-bar'), settings: vis(file === 'special' ? 'stitch-parts-panel' : 'stitch-show-panel'), mode: getComputedStyle(document.getElementById('upload-mode')).visibility, note: vis('stitch-set-note'), adv: vis('adv-opts') };
 			}, file);
-			assert(hid.wrap && !hid.setA && !hid.bar && !hid.settings && hid.mode === 'hidden' && !hid.note && !hid.adv, 'T188(1) ' + NAME + ' 本育成結果を選ぶと欄が出て、OCR のボタンの欄・結合画像の設定・静止画｜動画・注記・「!」は隠れる', hid);
+			// T193: 本育成結果にも動画の入口ができたので「静止画｜動画」は見せる（前は隠していた）
+			assert(hid.wrap && !hid.setA && !hid.bar && !hid.settings && hid.mode === 'visible' && !hid.note && !hid.adv, 'T188(1) ' + NAME + ' 本育成結果を選ぶと欄が出て、OCR のボタンの欄・結合画像の設定・注記・「!」は隠れる（静止画｜動画は T193 から見せる）', hid);
 			// 画像を選ぶ（作り物の4枚）
 			await page.evaluate(async () => { UmaSkillResult.addFiles(await __skillSynth.make(4, 14)); });
 			await page.waitForFunction(() => [...document.querySelectorAll('.sr-thumb img')].length === 4 && [...document.querySelectorAll('.sr-thumb img')].every((im) => im.getAttribute('src') && im.complete && im.naturalWidth > 0), null, { timeout: 30000 });

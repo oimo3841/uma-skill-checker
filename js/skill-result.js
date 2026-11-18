@@ -14,11 +14,16 @@
  * - スキルの数（全部・固有・進化・金・白）は、OCR を使わず行の色で数える（788・795・797）。数は保存する画像の中だけに入れる（796。画面の欄には出さない）。
  *   添え書き「色で数えた目安です」は画像に入れず、設定の欄の「スキルの数」の横に出す。
  * - メモリは T133・T186 と同じ作り: サムネイルは幅 336px の縮小画像・結合画像は Blob の object URL・使わなくなった URL は手放す。
- * 文の案はすべて SR_TEXTS（キーは報告の文の案の一覧と同じ）。
+ * - 動画（T193・決定 774 の続き）: 入口は親A と同じ。タブの行の右端の「静止画｜動画」（ページの uploadMode。body の data-upload-mode）が「動画」のとき、
+ *   「画像を選ぶ」の代わりに「動画を選ぶ β」「ウィンドウから取り込む β」（PC だけ）。スマホの縦の録画・DMM版の横画面の録画（UmaLandscape.wrapSource）・
+ *   PC のウィンドウの取り込み（UmaPcCapture）を、親A と同じ部品（UmaVideoFrames.openSource・selectFrames・UmaPcCapture.removePointer）でコマに分け、
+ *   選んだコマを静止画と同じ組み立て（build → host.stitchOnePerson）に渡す。録画の先頭で一覧を引っぱりすぎたコマは外す（trimLeadingOverscroll）。
+ *   コマは静止画と同じく st.files に入れ、親A と同じく「動画の画像」の1行（押すと全部）で見せる。タブの枚数には数えない（親A と同じ）。
+ * 文の案はすべて SR_TEXTS（キーは報告の文の案の一覧と同じ）。動画の文は親A のもの（host.video.text）を使い、本育成結果に専用の文だけ SR_TEXTS に置く。
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-17d';
+	const SKILL_RESULT_JS_VERSION = '2026-11-18a';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -44,7 +49,14 @@
 		'sr.card.white': '白',
 		'sr.count.note': '色で数えた目安です',
 		'sr.dl': 'PNGをダウンロード',
-		'sr.title': '本育成結果'
+		'sr.title': '本育成結果',
+		// 動画の入口（T193）。ほかの文は親A の動画の文（ページの VIDEO_TEXTS。host.video.text）をそのまま使う。ここは本育成結果に専用の文だけ
+		// （親A の文が「因子の画面」「親から祖2」を言う所）
+		'sr.lead.video': '本育成のスキル画面を、スキルの一覧の一番下までゆっくりスクロールした動画から、1枚の画像にまとめます（OCR はしません）。',
+		'sr.video.howto1': '・スキルの一覧の一番下までゆっくりスクロール。',
+		'sr.video.err.noscreen': '動画の中に本育成のスキル画面（スキルの一覧）が見つかりませんでした。スキルの一覧を開いてから撮り直してください。',
+		'sr.cap.fail.band': 'ゲームのスキル画面を見つけられませんでした。スキルの一覧を開いてから取り込んでください。',
+		'sr.cap.fail.toofew': '動きが読み取れませんでした。スキルの一覧をスクロールしてください。'
 	};
 	function t(key, vars) {
 		return SR_TEXTS[key].replace(/\{([^}]+)\}/g, (m, k) => (vars && k in vars) ? String(vars[k]) : m);
@@ -161,12 +173,17 @@
 		const pinkR = R.r > 225 && R.b > 170 && R.r - R.g > 35;
 		if (pinkR && L.b > L.r + 8) return 'unique';
 		if (pinkR && L.r >= L.b) return 'evo';
+		// T193: 動画のタッチの光（白っぽい輪・蹄鉄）が金の右寄りに乗ると、右の色が白っぽくなって白に数えていた（スマホの録画の「正々堂々」R(231,214,187)）。
+		// 右が金でもピンクでもないとき、左寄りが金寄り（R が B より 30 を超えて高い）で右も暖色（R が B より高い）なら金とする。
+		// 測った左寄り: 金 (242〜253, 225〜232, 145〜174)・光の乗った金 (236,226,194)・白 (224〜240, 223〜240, 229〜245)・固有 (195〜199, 223〜225, 235〜238)・進化は右がピンクなので先に決まる
+		if (L.r > 225 && L.g > 200 && L.r - L.b > 30 && R.r - R.b > 15) return 'gold';
 		return 'white';
 	}
 	function countSkills(list) {
 		const W = list.width, H = list.height, d = pixels(list);
 		const halves = [[Math.floor(W * 0.03), Math.floor(W * 0.495)], [Math.floor(W * 0.505), Math.floor(W * 0.965)]];
 		const out = { all: 0, unique: 0, evo: 0, gold: 0, white: 0, panels: [] };
+		const runs = [];
 		halves.forEach(([xa, xb], col) => {
 			// その列の真ん中の縦の線で、パネルのある行（明るくない行）が 40px 以上続く所をパネルとする
 			const xs = [xa + Math.floor((xb - xa) * 0.55), xa + Math.floor((xb - xa) * 0.8)];
@@ -176,12 +193,26 @@
 				if (!dark(y)) { y++; continue; }
 				let e = y;
 				while (e < H && dark(e)) e++;
-				if (e - y >= Math.max(40, W * 0.045)) {
-					const kind = classifyPanel(d, W, y, e, xa, xb);
-					out[kind]++; out.all++;
-					out.panels.push({ col, y0: y, y1: e, kind });
-				}
+				if (e - y >= Math.max(40, W * 0.045)) runs.push({ col, y0: y, y1: e, xa, xb });
 				y = e + 1;
+			}
+		});
+		// T193: 動画のタッチの光（輪・蹄鉄・星）が行の間をふさぐと、上下2枚のパネルが1つのまとまりになる（スマホの録画の「アグレッシブ」と「正々堂々」）。
+		// ふつうのパネルの高さ（まとまりの高さの中央値）の 1.5倍を超えるまとまりは、パネルの高さと行の間（同じ列の隣のまとまりとの間の中央値）で割って分ける
+		const med = (a) => { const s = a.slice().sort((p, q) => p - q); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+		const h = med(runs.map((r) => r.y1 - r.y0));
+		const gaps = [];
+		for (let k = 1; k < runs.length; k++) if (runs[k].col === runs[k - 1].col) gaps.push(runs[k].y0 - runs[k - 1].y1);
+		const g = med(gaps);
+		runs.forEach((r) => {
+			const len = r.y1 - r.y0;
+			const n = h > 0 && len > h * 1.5 ? Math.max(1, Math.round((len + g) / (h + g))) : 1;
+			const sub = (len - (n - 1) * g) / n;
+			for (let k = 0; k < n; k++) {
+				const y0 = Math.round(r.y0 + k * (sub + g)), y1 = n === 1 ? r.y1 : Math.round(y0 + sub);
+				const kind = classifyPanel(d, W, y0, y1, r.xa, r.xb);
+				out[kind]++; out.all++;
+				out.panels.push(n === 1 ? { col: r.col, y0, y1, kind } : { col: r.col, y0, y1, kind, split: n });
 			}
 		});
 		return out;
@@ -230,8 +261,9 @@
 		}
 		const band = headBand(head);
 		const from = band ? band.h : 0;
-		// 「スピード〜賢さ」の欄: 帯より下で、地の行のすぐ下（間に縁のにじみの行が2行まで）にある緑の枠の行
-		const bgAbove = (y) => { for (let k = 1; k <= 3; k++) if (y - k >= 0 && rows[y - k].bg) return y - k; return -1; };
+		// 「スピード〜賢さ」の欄: 帯より下で、地の行のすぐ下（間に縁のにじみの行が4行まで）にある緑の枠の行
+		// （T193: 動画のコマは圧縮で枠の上の縁が3行にじむ〔スマホの録画で地の行 443・にじみ 444〜446・緑の枠 447〕。静止画は1行）
+		const bgAbove = (y) => { for (let k = 1; k <= 5; k++) if (y - k >= 0 && rows[y - k].bg) return y - k; return -1; };
 		let statsTop = -1;
 		for (let y = Math.max(3, from); y < H; y++) if (rows[y].g >= 0.8 && bgAbove(y) >= 0) { statsTop = y; break; }
 		let faceEnd = -1, statsEnd = -1;
@@ -487,7 +519,12 @@
 		cols: 1, withCount: false,   // 結合画像の設定（804）。既定は 1列・スキルの数を入れない。ページごとに覚える（809・loadSettings／saveSettings）
 		built: null,          // { files, list, first, parts, counts, one } 作ったときの材料（形を変えたらここから組み直す）
 		png: null,            // { url, blob, canvas }
-		busy: false
+		busy: false,
+		// 動画（T193）
+		video: null,          // 今の st.files が動画から来たとき { files: [File], expanded, small, kind }。画像を足す・外すと null（親A の videoTouched と同じ）
+		vbusy: null,          // 動画の処理中 { ctrl, capture, step }
+		stageEl: null,        // 進み具合・失敗・取り込みの箱（render で作り直さない。中の video を止めないため）
+		capArea: null         // 取り込みの途中で見つけた領域（小さい窓の知らせに使う）
 	};
 	function thumbOf(file) {
 		let th = st.thumbs.get(file);
@@ -537,16 +574,22 @@
 		const n = st.files.length;
 		const stale = !!(st.built && !sameFiles(st.built.files, st.files));
 		const one = n === 1;
+		// 動画から来た画は、親A と同じく「動画の画像」の1行（押すと全部）で見せる（T193）
+		const tile = !!(n && st.video && !st.video.expanded);
+		const imgOf = (f, i) => { const th = thumbOf(f); return '<img ' + (th.url ? 'src="' + th.url + '"' : 'data-sr-thumb="' + i + '"') + ' alt="" />'; };
 		r.innerHTML =
-			'<div class="sr-panel" data-sr-panel>' +
-				'<p class="sr-lead">' + esc(t('sr.lead')) + '</p>' +
+			'<div class="sr-panel' + (st.stageEl && st.stageEl.querySelector('.cap-box') ? ' sr-cap-on' : '') + '" data-sr-panel>' +
+				'<p class="sr-lead sr-lead-shot">' + esc(t('sr.lead')) + '</p>' +
+				(videoOffered() ? '<p class="sr-lead sr-lead-video">' + esc(t('sr.lead.video')) + '</p>' + videoRowHtml() : '') +
 				'<div class="sr-pick-row">' +
 					'<label class="uma-btn uma-btn--secondary sr-pick"><input type="file" accept="image/*" multiple hidden data-sr-input /><span>' + esc(t('sr.btn.pick')) + '</span></label>' +
-					(n ? '<button type="button" class="sr-clear" data-sr-act="clear">' + esc(t('sr.btn.clear')) + '</button>' : '') +
+					(n ? '<button type="button" class="sr-clear" data-sr-act="clear"' + (st.vbusy ? ' disabled' : '') + '>' + esc(t('sr.btn.clear')) + '</button>' : '') +
 				'</div>' +
-				(n ? '<div class="sr-thumbs" data-sr-thumbs>' + st.files.map((f, i) => {
-					const th = thumbOf(f);
-					return '<div class="sr-thumb"><img ' + (th.url ? 'src="' + th.url + '"' : 'data-sr-thumb="' + i + '"') + ' alt="" /><span class="sr-thumb-no">' + (i + 1) + '</span>' +
+				'<div data-sr-stage></div>' +
+				(tile ? '<div class="sr-thumbs" data-sr-thumbs><button type="button" class="video-tile" data-sr-act="vtile">' + imgOf(st.files[0], 0) +
+					esc(vt('video.tile.text')) + '<small>' + esc(vt('video.tile.hint')) + '</small></button></div>' : '') +
+				(n && !tile ? '<div class="sr-thumbs" data-sr-thumbs>' + st.files.map((f, i) => {
+					return '<div class="sr-thumb">' + imgOf(f, i) + '<span class="sr-thumb-no">' + (i + 1) + '</span>' +
 						'<button type="button" class="sr-thumb-x" data-sr-remove="' + i + '" aria-label="' + (i + 1) + '枚目を外す">×</button></div>';
 				}).join('') + '</div>' : '') +
 				settingsHtml(one) +
@@ -555,6 +598,13 @@
 				(stale ? '<p class="sr-note" data-sr-stale>' + esc(t('sr.stale')) + '</p>' : '') +
 				'<div class="sr-result" data-sr-result></div>' +
 			'</div>';
+		// 進み具合・取り込みの箱は作り直さずに差し込む（取り込みの映像を止めない）
+		const slot = r.querySelector('[data-sr-stage]');
+		if (slot && st.stageEl) {
+			slot.replaceWith(st.stageEl);
+			const m = st.stageEl.querySelector('video');
+			if (m && m.paused) m.play().catch(() => { /* 流れなくても取り込みは続く */ });
+		}
 		if (window.lucide && r.querySelector('[data-lucide]')) { try { window.lucide.createIcons(); } catch (e) { /* アイコンが無くても動く */ } }
 		r.querySelectorAll('img[data-sr-thumb]').forEach((img) => {
 			const f = st.files[Number(img.getAttribute('data-sr-thumb'))];
@@ -570,6 +620,14 @@
 		if (!b || !st.png || !sameFiles(b.files, st.files)) return;
 		const block = document.createElement('div');
 		block.className = 'sr-result-block';
+		// DMM版の横画面の小さい窓（親A の appendSmallWindowNote と同じ文・同じ箱。T193）
+		if (st.video && st.video.small && st.host.video) {
+			const vw = document.createElement('div');
+			vw.className = 'video-small-window rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 flex gap-2';
+			vw.setAttribute('role', 'status');
+			vw.innerHTML = (st.host.video.svgTri ? st.host.video.svgTri('text-amber-500') : '') + '<div>' + esc(vt('video.warn.window')) + '</div>';
+			block.appendChild(vw);
+		}
 		if (b.warnings && b.warnings.length) {
 			const w = document.createElement('div');
 			w.className = 'sr-warn';
@@ -732,6 +790,259 @@
 			if (box) box.innerHTML = '<div class="sr-fail" role="alert">' + esc(t('sr.fail', { msg: (e && e.message) || String(e) })) + '</div>';
 		}
 	}
+	/* ───────── 動画（T193） ───────── */
+	// 親A の動画の文（ページの VIDEO_TEXTS）。ページが渡さないとき（動画の無いページ）は動画の入口を出さない
+	function vt(key, vars) { const v = st.host && st.host.video; return v && v.text ? v.text(key, vars) : key; }
+	function videoOffered() { return !!(st.host && st.host.video && window.UmaVideoFrames); }
+	function captureOffered() { const v = st.host && st.host.video; return !!(v && v.captureOffered && v.captureOffered() && window.UmaPcCapture); }
+	function videoRowHtml() {
+		const v = st.host.video, dis = st.vbusy || st.busy ? ' disabled' : '';
+		const alpha = '<span class="video-alpha" aria-hidden="true">' + esc(vt('video.entry.alpha')) + '</span>';
+		return '<div class="sr-video-row video-pick-row"><input type="file" accept="video/*" hidden data-sr-video-input />' +
+			'<button type="button" class="video-pick-btn" data-sr-act="video"' + dis + '>' + (v.svg || '') + '<span>' + esc(vt('video.btn.pick')) + '</span>' + alpha + '</button>' +
+			(captureOffered() ? '<button type="button" class="video-capture-btn" data-sr-act="capture"' + dis + '>' + (v.svgWindow || '') + '<span>' + esc(vt('video.btn.capture')) + '</span>' + alpha + '</button>' : '') +
+			'</div>';
+	}
+	function stage() {
+		if (!st.stageEl) { st.stageEl = document.createElement('div'); st.stageEl.className = 'sr-video-stage'; }
+		return st.stageEl;
+	}
+	function clearStage() { if (st.stageEl) st.stageEl.textContent = ''; }
+	/* 進み具合（親A の renderVideoProgress と同じ箱・同じ文。段は 読み込み → 「本育成結果 のフレームを選んでいます」→ 完了） */
+	function renderProgress(step, ratio) {
+		const names = [vt('video.prog.read'), vt('video.prog.person', { 人: t('sr.title') }), vt('video.prog.done')];
+		const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+		const s = stage();
+		let el = s.querySelector('.sr-video-progress');
+		if (!el) {
+			el = document.createElement('div');
+			el.className = 'sr-video-progress p-4 rounded-xl bg-green-50 border border-green-200';
+			el.setAttribute('role', 'status');
+			el.setAttribute('aria-live', 'polite');
+			el.innerHTML = '<div class="flex justify-between text-xs font-semibold text-green-900 mb-2"><span class="flex items-center gap-1.5">' + (st.host.video.svgSpin || '')
+				+ '<span class="video-prog-label"></span></span><span class="video-prog-pct"></span></div>'
+				+ '<div class="h-2 bg-green-200/70 rounded-full overflow-hidden"><div class="video-prog-bar h-full bg-green-600 rounded-full"></div></div>'
+				+ '<ol class="video-steps"></ol>'
+				+ '<div class="video-prog-foot"><small>' + esc(vt('video.prog.foot')) + '</small>'
+				+ '<button type="button" class="uma-btn uma-btn--secondary" data-sr-act="abort" style="min-height:44px">' + esc(vt('video.btn.abort')) + '</button></div>';
+			s.appendChild(el);
+		}
+		el.querySelector('.video-prog-label').textContent = names[step] + (step < names.length - 1 ? '…' : '');
+		el.querySelector('.video-prog-pct').textContent = pct + '%';
+		el.querySelector('.video-prog-bar').style.width = pct + '%';
+		el.querySelector('.video-steps').innerHTML = names.map((n, i) => {
+			const k = i < step ? 'done' : (i === step ? 'now' : 'todo');
+			return '<li data-st="' + k + '"><i>' + (k === 'done' ? '✓' : (k === 'now' ? '▸' : '・')) + '</i>' + esc(n) + '</li>';
+		}).join('');
+	}
+	function onVideoProgress(p) {
+		if (!st.vbusy) return;
+		const step = p.phase === 'read' ? 0 : 1;
+		st.vbusy.step = Math.max(st.vbusy.step, step);
+		renderProgress(st.vbusy.step, p.ratio || 0);
+	}
+	// 失敗の文（親A の videoErrorKey と同じ分け方。画面が見つからないときだけ本育成結果の文）
+	function videoErrorText(e) {
+		const c = e && e.code;
+		if (c === 'band' || c === 'too-few') return t('sr.video.err.noscreen');
+		if (c === 'too-many' || c === 'track') return vt('video.err.fast');
+		return vt('video.err.unreadable');
+	}
+	function showVideoError(e) {
+		const el = document.createElement('div');
+		el.className = 'sr-video-error rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 flex gap-2';
+		el.setAttribute('role', 'alert');
+		el.innerHTML = (st.host.video.svgTri ? st.host.video.svgTri('text-red-500') : '') + '<div class="video-error-text">' + esc(videoErrorText(e)) + '<br>' + esc(vt('video.err.keep')) + '</div>';
+		stage().appendChild(el);
+	}
+	// 取り込みの失敗（親A の showCaptureFail と同じ箱・「もう一度」）。画面が見つからない・動かないは本育成結果の文
+	function showCaptureFail(kind) {
+		const text = kind === 'band' || kind === 'toofew' ? t('sr.cap.fail.' + kind) : vt('video.cap.fail.' + kind);
+		stage().innerHTML = '<div class="cap-fail sr-cap-fail" role="alert"><p>' + esc(text) + '</p><button type="button" class="uma-btn uma-btn--secondary" data-sr-act="capture">' + esc(vt('video.cap.retry')) + '</button></div>';
+	}
+	// DMM版の横画面の切り出しの幅が小さいとき（親A の LANDSCAPE_SMALL_W〔570px〕と同じ境。決定 677）
+	const LANDSCAPE_SMALL_W = 570;
+	function isSmallWindow(rect) {
+		const w = rect && (rect.how === undefined || rect.how === 'landscape') && rect.w > 0 ? rect.w : null;
+		return w != null && w < LANDSCAPE_SMALL_W;
+	}
+	/** 選んだコマを、撮った順に1列にする（人に分かれたときもまとめる。removePointer が置き換えた画を使う）。戻り値 { files, shift01 } */
+	function framesOf(sel) {
+		const byIdx = new Map();
+		let shift01 = null;
+		for (const p of sel.persons || []) {
+			(p.frameIndexes || []).forEach((fi, k) => { if (p.files[k]) byIdx.set(fi, p.files[k]); });
+			const fi = p.frameIndexes || [];
+			for (let k = 0; k + 1 < fi.length; k++) if (fi[k] === 0 && fi[k + 1] === 1 && p.shifts) shift01 = p.shifts[k];
+		}
+		const idx = Array.from(byIdx.keys()).sort((a, b) => a - b);
+		const files = idx.length ? idx.map((i) => byIdx.get(i)) : (sel.files || []).slice();
+		return { files, shift01 };
+	}
+	/** 一覧の上端（hE）から、最初のパネルの行（幅の 6〜94% の半分以上が明るくない行）までの行数。タッチの光（薄い）は空きに数える */
+	function listTopGap(c, hE) {
+		const W = c.width, H = c.height, d = pixels(c);
+		const x0 = Math.floor(W * 0.06), x1 = Math.floor(W * 0.94);
+		for (let y = Math.max(0, hE); y < H; y++) {
+			let n = 0, k = 0;
+			for (let x = x0; x < x1; x += 5) { const i = (y * W + x) * 4; n++; if (d[i] < 236 || d[i + 1] < 236 || d[i + 2] < 236) k++; }
+			if (k * 2 >= n) return y - hE;
+		}
+		return H - hE;
+	}
+	/**
+	 * 録画の先頭で一覧を下へ引っぱりすぎたコマ（一覧の上に空きがあり、ゲームのタッチの光が写る）を外す（T193）。
+	 * スマホの録画の1枚目は、一覧の上端から最初のパネルまでが 145行（ふつうは 17〜25行。静止画も同じ）で、次のコマとのずれ 130行は引っぱった分とほぼ同じだった。
+	 * 外すのは「1枚目の空きが幅の 5% を超え」かつ「1枚目の最初のパネルが、2枚目でも一覧の上端の近く（2枚目の空き ±幅の 2%）に見えている」とき
+	 * （2枚目に一覧の頭がそのまま写っているので、外しても行は欠けない）。3枚以上あるときだけ。戻り値 { files, dropped }
+	 */
+	async function trimLeadingOverscroll(files, hE, shift01) {
+		if (files.length < 3 || !(shift01 > 0) || !(hE >= 0)) return { files, dropped: 0, why: null };
+		let a = null, b = null;
+		try {
+			a = await fileCanvas(files[0]);
+			b = await fileCanvas(files[1]);
+			const W = a.width, g0 = listTopGap(a, hE), g1 = listTopGap(b, hE);
+			const why = { g0, g1, shift01, W };
+			if (g0 > W * 0.05 && Math.abs((g0 - shift01) - g1) <= W * 0.02) return { files: files.slice(1), dropped: 1, why };
+			return { files, dropped: 0, why };
+		} catch (e) {
+			return { files, dropped: 0, why: { error: String(e && e.message || e) } };
+		} finally {
+			if (a) a.width = a.height = 0;
+			if (b) b.width = b.height = 0;
+		}
+	}
+	/* 動画（File）か取り込みの一回分（UmaPcCapture.begin の戻り値）を、親A の onVideoChosen と同じ部品でコマに分け、
+	 * 選んだコマで今の画像を置き換えて（親A と同じく確かめない。置き換えるのは成功したときだけ）、静止画と同じ組み立てを自動で行う。
+	 * 戻り値 { ok, aborted?, error?, frames?, dropped? } */
+	async function runVideo(input, o) {
+		const capture = !!(o && o.capture);
+		const V = window.UmaVideoFrames;
+		if (!input || st.vbusy || st.busy || !V) return { ok: false };
+		const ctrl = new AbortController();
+		st.vbusy = { ctrl, capture, step: 0 };
+		const s = stage();
+		s.querySelectorAll('.sr-video-progress, .sr-video-error, .sr-cap-fail').forEach((el) => el.remove());
+		if (o && o.limit) s.innerHTML = '<p class="cap-note">' + esc(vt('video.cap.limit')) + '</p>';
+		renderProgress(0, 0);
+		render();
+		let src = null;
+		const log = (line) => { if (st.host.log) st.host.log('[本育成結果の動画] ' + line); };
+		try {
+			// 出どころ（親A と同じ）: 取り込みは一回分の open・フレームの出どころ（drawAt を持つもの。検査の作り物）はそのまま・動画のファイルは openSource
+			src = capture ? await V.untilAbort(input.open(ctrl.signal), ctrl.signal)
+				: (typeof input.drawAt === 'function') ? input : await V.openSource(input, { signal: ctrl.signal });
+			// DMM版の横画面の録画は、パネルを切り出した出どころにする（親A と同じ。取り込みは pc-capture.js が切り出す）
+			if (!capture && window.UmaLandscape) src = await V.untilAbort(UmaLandscape.wrapSource(src, { signal: ctrl.signal }), ctrl.signal);
+			const small = isSmallWindow(capture ? st.capArea : (src.landscape && src.landscape.rect));
+			log('出どころ: ' + (src.kind || '?') + (src.codec ? '・' + src.codec : '') + '・' + src.width + 'x' + src.height);
+			const opts = { labels: [t('sr.title')], signal: ctrl.signal, onProgress: onVideoProgress };
+			// PC で撮った画（取り込み・横画面の録画）はタッチのエフェクトの置き換えを切り、カーソルを消す（親A と同じ。T156・決定 637）
+			const debug = {}, pcVideo = capture || !!src.landscape;
+			if (pcVideo) { opts.debug = debug; opts.effectVote = false; }
+			const sel = await V.untilAbort(V.selectFrames(src, opts), ctrl.signal);
+			if (pcVideo && window.UmaPcCapture) await V.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal);
+			const fr = framesOf(sel);
+			const trim = await trimLeadingOverscroll(fr.files, sel.header ? sel.header.headerEnd : -1, fr.shift01);
+			log('コマ ' + fr.files.length + '枚（人の区切り ' + (sel.persons || []).length + '）' + (trim.dropped ? '・先頭の引っぱりすぎのコマを外した' : '') + (trim.why ? '（空き ' + trim.why.g0 + '／' + trim.why.g1 + '行・ずれ ' + trim.why.shift01 + '）' : ''));
+			if (!trim.files.length) { const e = new Error('コマが無い'); e.code = 'too-few'; throw e; }
+			// 置き換える（親A の決定 272 と同じ）
+			st.files = trim.files.slice();
+			st.video = { files: trim.files.slice(), expanded: false, small, kind: capture ? 'capture' : (src.landscape ? 'landscape' : 'portrait'), frames: fr.files.length, dropped: trim.dropped };
+			setPng(null);
+			if (st.built && st.built.last) st.built.last.width = st.built.last.height = 0;
+			st.built = null;
+			releaseThumbs();
+			if (st.host.onChange) st.host.onChange(st.files.length);
+			// 組み立てが終わるまで「完了 100%」のまま残す。組み立ては取り消せないので「取り消す」は押せなくする（親A と同じ）
+			renderProgress(2, 1);
+			const ab = s.querySelector('[data-sr-act="abort"]');
+			if (ab) ab.disabled = true;
+			st.vbusy = null;
+			await build();
+			const pr = s.querySelector('.sr-video-progress');
+			if (pr) pr.remove();
+			if (capture) s.querySelectorAll('.cap-note').forEach((el) => el.remove());
+			render();
+			return { ok: true, frames: fr.files.length, dropped: trim.dropped };
+		} catch (e) {
+			const pr = s.querySelector('.sr-video-progress');
+			if (pr) pr.remove();
+			if (capture) s.querySelectorAll('.cap-note').forEach((el) => el.remove());
+			if (V.isAbortError(e)) {
+				if (st.host.toast) st.host.toast(vt('video.toast.cancel'));
+				return { ok: false, aborted: true };
+			}
+			const capKind = capture && e && (e.capFail || { band: 'band', 'too-few': 'toofew' }[e.code]);
+			if (!capKind) console.error(e);   // 取り込みの案内で知らせる失敗（窓が小さいなど）は不具合ではない
+			log('取り込めませんでした（code=' + (e && e.code) + '）: ' + (e && e.message));
+			if (capKind) showCaptureFail(capKind);
+			else showVideoError(e);
+			return { ok: false, error: capKind || (e && e.code) || 'error' };
+		} finally {
+			if (src && src !== input && typeof src.close === 'function') { try { src.close(); } catch (e) { /* 閉じられなくてもよい */ } }
+			if (capture && input && typeof input.dispose === 'function') input.dispose();
+			st.vbusy = null;
+			render();
+		}
+	}
+	/* PC のウィンドウの取り込み（親A の startPcCapture と同じ流れ・同じ箱。映像は枠の中に出す〔親A の右の余白へ出す形は使わない〕） */
+	async function startCapture() {
+		if (st.vbusy || st.busy || !window.UmaVideoFrames || !window.UmaPcCapture) return;
+		st.vbusy = { ctrl: new AbortController(), capture: true, step: 0, picking: true };
+		let session = null, stopped = false;
+		try {
+			st.capArea = null;
+			session = await UmaPcCapture.begin({
+				onTick: capTick,
+				onStop: (reason) => { if (stopped) return; stopped = true; Promise.resolve().then(() => captureStopped(session, reason)); }
+			});
+		} catch (e) {
+			st.vbusy = null;
+			clearStage();
+			// 選ぶのをやめた: 入口に戻す（案内は出さない）
+			if (!e || e.name !== 'NotAllowedError') { console.error(e); showVideoError(e); }
+			render();
+			return;
+		}
+		st.capSession = session;
+		const s = stage();
+		s.innerHTML = '<div class="cap-box"><div class="cap-video"><video muted playsinline></video><div class="cap-frame" hidden></div></div><div class="cap-body">'
+			+ '<p class="cap-howto">' + esc(t('sr.video.howto1')) + '</p><p class="cap-howto">' + esc(vt('video.howto.step2')) + '</p>'
+			+ '<p class="cap-time" hidden><span class="cap-dot" aria-hidden="true"></span><span></span></p>'
+			+ '<div class="cap-actions"><button type="button" class="uma-btn uma-btn--primary" data-sr-act="cap-stop">' + esc(vt('video.cap.stop')) + '</button></div></div></div>';
+		const m = s.querySelector('video');
+		m.srcObject = session.stream;
+		m.play().catch(() => { /* 流れなくても取り込みは続く */ });
+		render();
+	}
+	// 見つかったら青い枠と残り時間を出す（親A の renderCaptureTick と同じ）
+	function capTick(tk) {
+		const s = st.stageEl;
+		const vid = s && s.querySelector('.cap-video'), time = s && s.querySelector('.cap-time'), frame = s && s.querySelector('.cap-frame');
+		if (!vid || !time || !frame) return;
+		const found = !!(tk.area && tk.area.ok && tk.width);
+		if (found) st.capArea = tk.area;
+		time.hidden = !found;
+		frame.hidden = !found;
+		if (!found) return;
+		const sec = Math.ceil(tk.rest);
+		time.lastChild.textContent = vt('video.cap.remain', { t: Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') });
+		const bw = vid.clientWidth, bh = vid.clientHeight, q = Math.min(bw / tk.width, bh / tk.height);
+		const ox = (bw - tk.width * q) / 2, oy = (bh - tk.height * q) / 2;
+		frame.style.left = (ox + tk.area.x * q) + 'px';
+		frame.style.top = (oy + tk.area.y * q) + 'px';
+		frame.style.width = (tk.area.w * q) + 'px';
+		frame.style.height = (tk.area.h * q) + 'px';
+	}
+	// 止まった: 処理の箱へ（上限のときは上に1行）。処理は動画と同じ runVideo
+	function captureStopped(session, reason) {
+		st.capSession = null;
+		clearStage();
+		st.vbusy = null;
+		runVideo(session, { capture: true, limit: reason === 'limit' });
+	}
 	function changed() {
 		releaseThumbs();
 		if (st.built && !sameFiles(st.built.files, st.files)) setPng(null);
@@ -742,15 +1053,22 @@
 		const add = Array.from(list || []).filter((f) => /^image\//.test(f.type || 'image/') && !st.files.some((u) => u.name === f.name && u.size === f.size));
 		if (!add.length) return;
 		st.files = st.files.concat(add);
+		st.video = null;   // 画像を足したら動画から来た印を外す（親A の videoTouched と同じ。画はそのまま）
 		changed();
 	}
 	function onClick(e) {
 		const el = e.target.closest && e.target.closest('[data-sr-act],[data-sr-remove],[data-sr-cols]');
 		if (!el || !st.root.contains(el) || el.disabled) return;
-		if (el.hasAttribute('data-sr-remove')) { st.files.splice(Number(el.getAttribute('data-sr-remove')), 1); changed(); return; }
+		if (el.hasAttribute('data-sr-remove')) { st.files.splice(Number(el.getAttribute('data-sr-remove')), 1); st.video = null; changed(); return; }
 		const act = el.getAttribute('data-sr-act');
-		if (act === 'clear') { st.files = []; setPng(null); st.built = null; changed(); return; }
+		if (act === 'clear') { st.files = []; st.video = null; setPng(null); st.built = null; clearStage(); changed(); return; }
 		if (act === 'build') { build(); return; }
+		// 動画（T193）。ファイルの選択は押した操作の中で開く（iPhone の Safari は操作の外からは開かない）
+		if (act === 'video') { const input = st.root.querySelector('[data-sr-video-input]'); if (input && !st.vbusy && !st.busy) { input.value = ''; input.click(); } return; }
+		if (act === 'capture') { startCapture(); return; }
+		if (act === 'abort') { if (st.vbusy && st.vbusy.ctrl) st.vbusy.ctrl.abort(); return; }
+		if (act === 'cap-stop') { if (st.capSession) st.capSession.stop('stop'); return; }
+		if (act === 'vtile') { if (st.video) st.video.expanded = true; render(); return; }
 		if (el.hasAttribute('data-sr-cols')) st.cols = Number(el.getAttribute('data-sr-cols')) === 2 ? 2 : 1;
 		settingChanged();
 	}
@@ -818,6 +1136,19 @@
 		'.sr-warn{border:1px solid var(--uma-warn-border);background:var(--uma-warn-bg);color:var(--uma-warn-text);border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.6}',
 		'.sr-warn p{margin:0}.sr-warn-head{font-weight:700;margin-bottom:2px!important}',
 		'.sr-fail{border:1px solid var(--uma-danger-border);background:var(--uma-danger-bg);color:var(--uma-danger-text);border-radius:8px;padding:10px 12px;font-size:12px}',
+		// 動画（T193）: 入口はページの「静止画｜動画」（body の data-upload-mode）で出し分ける。ボタンの見た目はページの .video-pick-btn・.video-capture-btn（親A と同じ）
+		'.sr-lead-video,.sr-video-row{display:none}',
+		'body[data-upload-mode="video"] .sr-lead-video{display:block}',
+		'body[data-upload-mode="video"] .sr-lead-shot{display:none}',
+		'body[data-upload-mode="video"] .sr-video-row{display:flex}',
+		'body[data-upload-mode="video"] .sr-pick{display:none}',
+		'body[data-upload-mode="video"] .sr-pick-row:not(:has(.sr-clear)){display:none}',
+		'.sr-video-row .video-pick-btn,.sr-video-row .video-capture-btn{margin:0}',
+		'.sr-panel.sr-cap-on .sr-video-row{display:none}',
+		'.sr-video-stage{display:flex;flex-direction:column;gap:8px}',
+		'.sr-video-stage:empty{display:none}',
+		'.sr-video-stage .cap-box,.sr-video-stage .cap-fail,.sr-video-stage .cap-note{margin:0}',
+		'.sr-thumbs .video-tile{flex:1 1 auto}',
 	].join('\n');
 	function injectStyle() {
 		if (document.getElementById('sr-style')) return;
@@ -826,7 +1157,9 @@
 		s.textContent = SR_CSS;
 		document.head.appendChild(s);
 	}
-	/** host = { stitchOnePerson(files, label), attachSaveName(link), toast(text), onChange(n), storageKey（設定を覚える localStorage のキー。ページごと） } */
+	/** host = { stitchOnePerson(files, label), attachSaveName(link), toast(text), onChange(n), storageKey（設定を覚える localStorage のキー。ページごと）,
+	 *          video（T193。無ければ動画の入口を出さない）: { text(key, vars)〔ページの videoText〕, svg, svgWindow, svgSpin, svgTri(cls), captureOffered() },
+	 *          log(line)（開発ログ。無くてもよい） } */
 	function mount(root, host) {
 		injectStyle();
 		st.root = root;
@@ -835,6 +1168,12 @@
 		root.addEventListener('click', onClick);
 		root.addEventListener('change', (e) => {
 			if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-sr-input')) { addFiles(e.target.files); e.target.value = ''; return; }
+			if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-sr-video-input')) {
+				const f = e.target.files && e.target.files[0];
+				e.target.value = '';
+				if (f) runVideo(f);   // 選ばずに戻った（0本）: 何もしない（親A と同じ）
+				return;
+			}
 			if (e.target && e.target.getAttribute && e.target.getAttribute('data-sr-opt') === 'count') { st.withCount = !!e.target.checked; settingChanged(); }
 		});
 		render();
@@ -843,12 +1182,17 @@
 	window.UmaSkillResult = Object.freeze({
 		version: SKILL_RESULT_JS_VERSION, texts: SR_TEXTS,
 		mount, prepareParts, compose, countSkills, modalBand, eraseScrollThumb, findRowGap, headLayout, drawSkillCard, cardMetrics, reviewSeamWarnings, judgeSeam,
-		count: () => st.files.length,
+		trimLeadingOverscroll, listTopGap, framesOf, runVideo,
+		// タブの枚数。動画から取った画は数えない（親A の personShownCount と同じ。T193）
+		count: () => st.video ? st.files.filter((f) => !st.video.files.includes(f)).length : st.files.length,
+		busy: () => !!(st.vbusy || st.busy),
 		files: () => st.files.slice(),
 		// 検査用: 今の状態（URL・形・作ったか）
 		peek: () => ({ files: st.files.length, cols: st.cols, withCount: st.withCount, built: !!st.built, url: st.png ? st.png.url : null,
 			thumbs: Array.from(st.thumbs.values()).map((x) => x.url), counts: st.built ? st.built.counts : null, sr: st.built && st.built.last ? st.built.last._sr : null,
-			warnings: st.built ? (st.built.warnings || []).slice() : [], seamReview: st.built ? st.built.seamReview || [] : [] }),
+			warnings: st.built ? (st.built.warnings || []).slice() : [], seamReview: st.built ? st.built.seamReview || [] : [],
+			video: st.video ? { frames: st.video.frames, used: st.video.files.length, dropped: st.video.dropped, small: st.video.small, kind: st.video.kind, expanded: st.video.expanded } : null,
+			vbusy: !!st.vbusy }),
 		addFiles, build
 	});
 })();

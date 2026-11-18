@@ -40,7 +40,7 @@
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
 	<!-- 本育成結果（T188・決定 775・783〜788）。②のタブ「本育成結果」の中身（スキル画面のスクショを1枚にまとめる・OCR なし。special.html と同じ部品） -->
-	<script src="js/skill-result.js?v=2026-11-17d"></script>
+	<script src="js/skill-result.js?v=2026-11-18a"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（T139。special.html と共有。②の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-11a"></script>
@@ -334,11 +334,11 @@
 		.stitch-persons-seg { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
 		.stitch-persons-seg .stitch-cols-btn { min-height: 36px; font-size: 12px; padding: 0 4px; }
 		.stitch-persons-seg .stitch-cols-btn:disabled { opacity: .4; cursor: default; }
-		/* 本育成結果のタブ（T188）を見ている間は、親A・親B のための部品を隠す（special.html と同じ）。「静止画｜動画」は場所を残して見えなくする */
+		/* 本育成結果のタブ（T188）を見ている間は、親A・親B のための部品を隠す（special.html と同じ。「静止画｜動画」は T193 から見せる） */
 		body.skillres-on #stitch-set-note, body.skillres-on #stitch-show-panel, body.skillres-on #melop-mode-wrap, body.skillres-on #new-devlog-slot,
 		body.skillres-on #adv-opts, body.skillres-on #quality-warn-wrap, body.skillres-on #error-wrap,
 		body.skillres-on #video-progress, body.skillres-on #video-error { display: none !important; }
-		body.skillres-on #upload-mode { visibility: hidden; }
+		/* T193: 本育成結果にも動画の入口ができたので、「静止画｜動画」は本育成結果のタブでも見せる（親A と同じ入口。前は場所を残して見えなくしていた） */
 		/* 2列の模式図（T154）: 左に［親（上の欄＋画像）｜祖1 の下に祖2］、右（3列目）に人ごとの帯を 親→祖1→祖2 の順に縦に並べ、その下に脚注・凡例（線なし）。
 		   幅の割合は実際の2列の画（親 1153・祖 約960・3列目 1153）に合わせて 35：29：35 */
 		.stitch-wire-2 { display: flex; gap: 3px; align-items: flex-start; }
@@ -4914,7 +4914,10 @@
 				attachSaveName: (a) => stitchAttachSaveName(a, currentStitchSaveName),
 				toast: (text) => showToast(text),
 				onChange: () => renderPersonSetTabs(),
-				storageKey: 'uma-exam-skillres-form'
+				storageKey: 'uma-exam-skillres-form',
+				// T193: 動画の入口（親A と同じ文・アイコン・取り込みを出すかの判断）
+				video: { text: videoText, svg: VIDEO_SVG, svgWindow: VIDEO_SVG_WINDOW, svgSpin: VIDEO_SVG_SPIN, svgTri: videoSvgTri, captureOffered: () => captureOffered() },
+				log: (line) => devGeometry.push(line)
 			});
 			renderPersonSetTabs();
 		});

@@ -11,6 +11,10 @@
 //   npm run test:video-local -- --capture    … 横画面の録画（動画9〜11。T145）のフレームを「ウィンドウから取り込む」の画の代わりに流し、矩形と人ごとの高さを動画の流れと比べる
 //   npm run test:video-local -- --exam       … exam.html の②の流れを通す（T139）: 動画モード →「動画を選ぶ」→ ②の結合画像（OCR の前）→「OCR処理を開始する」で
 //                                               OCR と結合。人ごとの枚数・高さ（OCR の前とあとの両方）・検出が0でないことを見る（runExam）
+//   npm run test:video-local -- --skill      … 本育成結果の動画（T193）: special.html・exam.html の「本育成結果」のタブ →「動画」→「動画を選ぶ」に、本育成のスキル画面の
+//                                               録画（スマホの縦・DMM版の横）を渡し、結合画像（2列・数あり／2列・数なし／1列・数あり）の大きさ・スキルの数・両ページで同じ PNG を見る。
+//                                               DMM版の録画は「ウィンドウから取り込む」の画にも変えて（--capture と同じ作り）、取り込みの流れでも見る（runSkill）。
+//                                               録画は Git の管理外の test-images/skill-video/（無ければ飛ばす）
 //
 // 期待値（T39 の実測）: 区画の頭の時刻・人ごとの高さ・選ぶ枚数。**時間は揺れるので期待値にしない**（表に出すだけ）。
 // iPhone の収録は HEVC なので、同梱の Chromium では復号できない。channel:'chrome' で回す（tests/skillset/extract-video-frames.mjs と同じ）。
@@ -73,14 +77,25 @@ const VIDEOS = [
 const heightOk = (v, j, h, tol) => v.heights[j] == null || (h != null && Math.abs(h - v.heights[j]) <= tol);
 const LABELS = ['親', '祖1', '祖2'];
 
+// T193: 本育成のスキル画面の録画（--skill）。オグリキャップ・69スキル（固有1・進化1・金7・白60。静止画7枚 IMG_4520〜4526 と同じ育成結果）。
+// size … 結合画像の大きさ（2列・数あり／2列・数なし／1列・数あり。T193 の実測。±2）。dropped … 先頭の引っぱりすぎのコマを外した数
+const SKILL_DIR = path.join(REPO_ROOT, 'test-images', 'skill-video');
+const SKILL_VIDEOS = [
+	{ key: 'スマホの縦の録画', name: 'ScreenRecording_11-17-2026 23-45-24_1.MP4', kind: 'portrait', dropped: 1, size: { c2count: [2322, 2686], c2: [2322, 2686], c1count: [1153, 5193] } },
+	{ key: 'DMM版の録画', name: 'レコーディング 2026-11-17 235213.mp4', kind: 'landscape', dropped: 0, size: { c2count: [2300, 2615], c2: [2300, 2615], c1count: [1142, 5140] }, capture: true }
+];
+const SKILL_COUNTS = { all: 69, unique: 1, evo: 1, gold: 7, white: 60 };
+const skillMode = process.argv.includes('--skill');
+
 let root = null;
-try { root = assetsRoot(); } catch (e) { console.log('[飛ばした] 素材フォルダが設定されていない: ' + String(e.message).split('\n')[0]); process.exit(0); }
-const targets = VIDEOS.filter((v) => !only || String(v.no) === only).filter((v) => {
+try { root = assetsRoot(); } catch (e) { if (!skillMode) { console.log('[飛ばした] 素材フォルダが設定されていない: ' + String(e.message).split('\n')[0]); process.exit(0); } }
+const targets = skillMode ? [] : VIDEOS.filter((v) => !only || String(v.no) === only).filter((v) => {
 	if (fs.existsSync(path.join(root, v.name))) return true;
 	console.log('[飛ばした] 動画' + v.no + ' が素材フォルダに無い');
 	return false;
 });
-if (!targets.length) { console.log('回す動画がありません'); process.exit(0); }
+const skillTargets = skillMode ? SKILL_VIDEOS.filter((v) => { if (fs.existsSync(path.join(SKILL_DIR, v.name))) return true; console.log('[飛ばした] ' + v.key + ' が test-images/skill-video に無い'); return false; }) : [];
+if (!targets.length && !skillTargets.length) { console.log('回す動画がありません'); process.exit(0); }
 
 const HOST = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>video-frames local</title>'
 	+ '<script>var devGeometry = [];</script><script src="/js/common.js"></script><script src="/js/stitch.js"></script>'
@@ -279,13 +294,140 @@ async function runCapture(v) {
 		console.log('     カーソル 置き換え ' + c.cells + '・余白 ' + c.margin + '・左端 ' + c.xStart + (c.manyHits ? '・当たりが多い画 ' + c.manyHits : ''));
 	});
 }
+/** --skill（T193）: 本育成結果のタブの動画。ページを開いて「本育成結果」→「動画」→「動画を選ぶ」に録画を渡し、自動の組み立てのあと「結合画像の設定」で3つの形を作る。
+ *  見ること: 入口（「静止画｜動画」・「動画を選ぶ β」・「ウィンドウから取り込む β」が見え、「画像を選ぶ」は隠れる）／コマに分かれて組み立てまで済む・失敗の箱が出ない／
+ *  スキルの数 69（固有1・進化1・金7・白60）／形ごとの大きさ（±2）／先頭の引っぱりすぎのコマを外した数／「動画の画像」の1行・タブの枚数に数えない／
+ *  知らせ（つなぎ目）が出ない／コンソールのエラー 0・375px で横にはみ出さない／UmaStar と UmaExam で同じ PNG。
+ *  DMM版の録画は「ウィンドウから取り込む」の画にも変え（ウィンドウの枠1px・タイトルバー32px。--capture と同じ作り）、取り込みの一回分（open・dispose）として
+ *  UmaSkillResult.runVideo に渡し、動画と同じ数・大きさ（±3）になることを見る */
+async function runSkill() {
+	const { openPage, USER_DATA } = await import('../visual/lib/fixtures.mjs');
+	const { reloadReady } = await import('../visual/lib/page-ready.mjs');
+	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
+	const open = async (file) => {
+		const { page } = await openPage(browser, base, file + '.html', { width: 375, height: 812 }, file === 'special' ? USER_DATA : EMPTY);
+		page.setDefaultTimeout(600000);
+		const errs = [];
+		page.on('pageerror', (e) => errs.push(String(e)));
+		page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|status of 404/.test(m.text())) errs.push(m.text()); });
+		await page.route('**/tesseract.js/4.0.2/tesseract.min.js', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.Tesseract={createWorker:async()=>({loadLanguage:async()=>{},initialize:async()=>{},setParameters:async()=>{},terminate:async()=>{},recognize:async()=>({data:{text:"",lines:[]}})})};' }));
+		await page.evaluate((f) => { localStorage.setItem(f === 'special' ? 'uma-special-upload-mode' : 'uma-exam-upload-mode', 'video'); if (f === 'exam') localStorage.setItem('uma-exam-last-step', '2'); }, file);
+		await reloadReady(page);
+		for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('#ui-notice-ok').catch(() => {});
+		await page.evaluate(() => { selectStepTab(2); window.scrollTo(0, 0); });
+		await page.click('#personset-tabs [data-tab-id="skill"]');
+		return { page, errs };
+	};
+	const form = async (page, cols, count) => {
+		const before = await page.evaluate(() => UmaSkillResult.peek());
+		if (before.cols !== cols) await page.click('[data-sr-cols="' + cols + '"]');
+		if (before.withCount !== count) await page.click('[data-sr-opt="count"]');
+		await page.waitForFunction(({ cols, count }) => { const p = UmaSkillResult.peek(); const im = document.querySelector('.sr-img'); return p.built && p.sr && p.sr.cols === cols && p.sr.info === count && im && im.getAttribute('src') === p.url && im.complete && im.naturalWidth > 0; }, { cols, count }, { timeout: 120000 });
+		return page.evaluate(async () => {
+			const b = await (await fetch(UmaSkillResult.peek().url)).blob();
+			const buf = new Uint8Array(await b.arrayBuffer());
+			const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)), (x) => x.toString(16).padStart(2, '0')).join('').slice(0, 16);
+			const dv = new DataView(buf.buffer);
+			return { w: dv.getUint32(16), h: dv.getUint32(20), hash };
+		});
+	};
+	const near = (a, b, t) => Math.abs(a - b) <= t;
+	const countsOk = (c) => !!c && Object.keys(SKILL_COUNTS).every((k) => c[k] === SKILL_COUNTS[k]);
+	const cstr = (c) => c ? c.all + '（固有 ' + c.unique + '・進化 ' + c.evo + '・金 ' + c.gold + '・白 ' + c.white + '）' : 'なし';
+	const hashes = {};
+	for (const v of skillTargets) {
+		for (const file of ['special', 'exam']) {
+			const NAME = file === 'special' ? 'UmaStar' : 'UmaExam';
+			console.log('\n=== 本育成結果の動画: ' + v.key + '（' + NAME + '）===');
+			const { page, errs } = await open(file);
+			const ui = await page.evaluate(() => {
+				const vis = (el) => !!(el && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+				const pick = document.querySelector('[data-sr-act="video"]'), cap = document.querySelector('[data-sr-act="capture"]');
+				return { mode: vis(document.getElementById('upload-mode')), pick: vis(pick), pickText: pick && pick.textContent.trim(), cap: !cap || vis(cap), img: vis(document.querySelector('.sr-pick')) };
+			});
+			check(ui.mode && ui.pick && /動画を選ぶ\s*β/.test(ui.pickText || '') && ui.cap && !ui.img, NAME + ': 入口（「静止画｜動画」・「動画を選ぶ β」が見え、「画像を選ぶ」は隠れる）', JSON.stringify(ui));
+			const t0 = Date.now();
+			const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-sr-act="video"]')]);
+			await chooser.setFiles(path.join(SKILL_DIR, v.name));
+			await page.waitForFunction(() => { const p = UmaSkillResult.peek(); return !p.vbusy && ((p.built && p.url) || document.querySelector('.sr-video-error, .sr-cap-fail')); }, null, { timeout: 600000 });
+			const s = (Date.now() - t0) / 1000;
+			const r = await page.evaluate(() => ({ p: UmaSkillResult.peek(), err: (document.querySelector('.sr-video-error') || {}).textContent || null, tab: document.querySelector('#personset-tabs [data-tab-id="skill"]').textContent.trim(),
+				tile: !!document.querySelector('.sr-thumbs .video-tile'), warn: !!document.querySelector('.sr-warn') }));
+			check(!r.err && r.p.built && r.p.video && r.p.video.kind === v.kind, NAME + ': コマに分けて組み立てまで済む（' + v.kind + '）', r.err || JSON.stringify(r.p.video));
+			if (!r.p.built) { await page.context().close(); continue; }
+			check(countsOk(r.p.counts), NAME + ': スキルの数 ' + cstr(SKILL_COUNTS), cstr(r.p.counts));
+			check(r.p.video.dropped === v.dropped, NAME + ': 先頭の引っぱりすぎのコマを外した数 ' + v.dropped, r.p.video.dropped);
+			check(r.tile && !/枚/.test(r.tab), NAME + ': 「動画の画像」の1行で見せ、タブの枚数に数えない', r.tab);
+			check(!r.warn && r.p.warnings.length === 0, NAME + ': つなぎ目の知らせが出ない', r.p.warnings.join(' / '));
+			const out = {};
+			for (const [k, cols, count] of [['c2count', 2, true], ['c2', 2, false], ['c1count', 1, true]]) {
+				out[k] = await form(page, cols, count);
+				check(near(out[k].w, v.size[k][0], 2) && near(out[k].h, v.size[k][1], 2), NAME + ': ' + k + ' の大きさ ' + v.size[k].join('×') + '（±2）', out[k].w + '×' + out[k].h);
+			}
+			hashes[v.key + file] = out;
+			await page.evaluate(() => window.scrollTo(0, 0));
+			const ov = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+			check(ov <= 0, NAME + ': 375px で横にはみ出さない', ov);
+			check(errs.length === 0, NAME + ': コンソールのエラー 0', errs.join(' / '));
+			console.log('  コマ ' + r.p.video.frames + '枚（使った ' + r.p.video.used + '）・' + s.toFixed(1) + '秒・数 ' + cstr(r.p.counts) + '・' + Object.keys(out).map((k) => k + ' ' + out[k].w + '×' + out[k].h).join('・'));
+			await page.context().close();
+		}
+		const a = hashes[v.key + 'special'], b = hashes[v.key + 'exam'];
+		if (a && b) check(Object.keys(a).every((k) => a[k].hash === b[k].hash), v.key + ': UmaStar と UmaExam で同じ PNG（3つの形）', JSON.stringify({ a, b }));
+		if (!v.capture) continue;
+		// ウィンドウから取り込む（--capture と同じ作りの窓の画 → 取り込みの一回分として runVideo へ）
+		console.log('\n=== 本育成結果の動画: ' + v.key + ' を「ウィンドウから取り込む」の画に変えて（UmaStar）===');
+		const { page, errs } = await open('special');
+		const res = await page.evaluate(async ({ url }) => {
+			const blob = await (await fetch(url)).blob();
+			const raw = await UmaVideoFrames.openSource(blob);
+			const b = 1, tb = 32, gw = raw.width, gh = raw.height;
+			const W = (gw + b * 2) & ~1, H = (gh + b * 2 + tb) & ~1;
+			const cv = new OffscreenCanvas(W, H), cx = cv.getContext('2d', { willReadFrequently: true });
+			const sink = UmaPcCapture.encodeSink({});
+			await sink.begin(W, H);
+			const areas = [];
+			let n = 0;
+			for (let t = 0; t < raw.duration - 0.02; t += 1 / 30, n++) {
+				cx.fillStyle = 'rgb(58,58,58)'; cx.fillRect(0, 0, W, H);
+				cx.fillStyle = 'rgb(243,243,243)'; cx.fillRect(b, b, W - b * 2, tb);
+				cx.save(); cx.translate(b, b + tb); await raw.drawAt(t, cx, gw, gh); cx.restore();
+				if (n % 21 === 0) { const r = UmaPcCapture.detectOne(cx.getImageData(0, 0, W, H)); r.at = t; areas.push(r); }
+				while (!sink.frame(cv, Math.round(t * 1e6))) await new Promise((r) => setTimeout(r, 5));
+			}
+			raw.close();
+			const area = UmaPcCapture.consensus(areas);
+			if (!area.ok) return { ok: false, area };
+			let enc = await sink.end(Math.round(raw.duration * 1e6));
+			const span = UmaPcCapture.matchSpan(areas, area, enc.duration);
+			if (span && (span.t0 >= 0.5 || span.t1 <= enc.duration - 0.5)) enc = UmaPcCapture.trimSource(enc, span.t0, span.t1);
+			const src = (await UmaPcCapture.steadySource(UmaPcCapture.cropSource(enc, area))).src;
+			let disposed = false;
+			const session = { open: async () => src, dispose: () => { disposed = true; } };
+			const out = await UmaSkillResult.runVideo(session, { capture: true });
+			const p = UmaSkillResult.peek();
+			return { ok: true, how: area.how, w: src.width, out, disposed, p: { counts: p.counts, video: p.video, warnings: p.warnings, built: p.built }, fail: (document.querySelector('.sr-cap-fail, .sr-video-error') || {}).textContent || null };
+		}, { url: base + '/test-images/skill-video/' + encodeURIComponent(v.name) });
+		check(res.ok && res.how === 'landscape' && res.w === 1170, '取り込み: 横画面と判定・幅 1170px', JSON.stringify(res).slice(0, 300));
+		check(res.ok && res.out && res.out.ok && res.p.built && res.p.video.kind === 'capture' && res.disposed && !res.fail, '取り込み: コマに分けて組み立てまで済む・一回分を手放す', JSON.stringify(res).slice(0, 300));
+		if (res.ok && res.p.built) {
+			check(countsOk(res.p.counts), '取り込み: スキルの数 ' + cstr(SKILL_COUNTS), cstr(res.p.counts));
+			const c2 = await form(page, 2, true);
+			check(near(c2.w, v.size.c2count[0], 3) && near(c2.h, v.size.c2count[1], 3), '取り込み: 2列・数ありの大きさが動画の流れと ±3（' + v.size.c2count.join('×') + '）', c2.w + '×' + c2.h);
+			console.log('  コマ ' + res.p.video.frames + '枚・数 ' + cstr(res.p.counts) + '・2列・数あり ' + c2.w + '×' + c2.h);
+		}
+		check(errs.length === 0, '取り込み: コンソールのエラー 0', errs.join(' / '));
+		await page.context().close();
+	}
+}
 const exam = process.argv.includes('--exam');
 const capture = process.argv.includes('--capture');
 try {
 	if (special) for (const v of targets) await runSpecial(v);
 	if (exam) for (const v of targets) await runExam(v);
 	if (capture) for (const v of targets.filter((x) => x.landscape)) await runCapture(v);
-	for (const v of (special || exam || capture) ? [] : targets) {
+	if (skillMode) await runSkill();
+	for (const v of (special || exam || capture || skillMode) ? [] : targets) {
 		if (v.elementSkip) { console.log('\n[飛ばした] 動画' + v.no + '（横画面の速い録画。video 要素の出どころでは区切りが取れない。--special・--exam・--capture で見る）'); continue; }
 		console.log('\n=== 動画' + v.no + '（CPU ' + cpu + '倍）===');
 		const page = await browser.newPage();
@@ -368,5 +510,5 @@ try {
 	await browser.close();
 	await close();
 }
-console.log('\n' + (ng ? 'NG ' + ng + '件' : '全項目 OK') + '（動画 ' + targets.length + '本・CPU ' + cpu + '倍。時間は期待値にしない）');
+console.log('\n' + (ng ? 'NG ' + ng + '件' : '全項目 OK') + '（動画 ' + (targets.length + skillTargets.length) + '本・CPU ' + cpu + '倍。時間は期待値にしない）');
 process.exit(ng ? 1 : 0);
