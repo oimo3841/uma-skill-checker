@@ -5,7 +5,8 @@
 //   npm run test:video-local -- --cpu=4      … CPU を4倍遅くする（スマホ相当の目安。CDP の Emulation.setCPUThrottlingRate）
 //   npm run test:video-local -- --only=1     … 動画1 だけ（1〜7）
 //   npm run test:video-local -- --compare    … 同じフレームで stitchOnePerson も呼び、高さと継ぎ目の確かさを並べる（時間に入れない）
-//   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存
+//   npm run test:video-local -- --save       … 人ごとの結合画像を output/scratch/t42-video/ に保存（T195: --special・--exam・--skill と組み合わせると、
+//                                               ページに出た結合画像〔取り込みの画像・②の画像・OCR のあと・本育成結果の3つの形〕も PNG のまま保存。直す前と後のバイトの比べ用）
 //   npm run test:video-local -- --special    … special.html の③の流れを通す（T59・動画V1-2）: 入口 → 小窓の「動画を選ぶ」→ ファイルの選択に動画を渡す →
 //                                               「動画から N枚」が入るまで → 「画像を結合する（OCRしない）」で結合画像ができるまで。人ごとの枚数と高さを見る
 //   npm run test:video-local -- --capture    … 横画面の録画（動画9〜11。T145）のフレームを「ウィンドウから取り込む」の画の代わりに流し、矩形と人ごとの高さを動画の流れと比べる
@@ -108,6 +109,23 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let ng = 0;
 const check = (cond, label, detail) => { console.log((cond ? '  OK  ' : '  NG  ') + label + (cond || detail == null ? '' : '  … ' + detail)); if (!cond) ng++; };
 const rows = [];
+// T195: --save で、ページの流れ（--special・--exam・--skill）の結合画像も PNG のまま保存する（直す前と後のバイトの比べ用）。
+// selector に当たる img の src（object URL・data URL）を読み、上から順に <prefix>-<番号>.png にする。戻り値は保存した数
+async function saveImgs(page, selector, prefix) {
+	if (!save) return 0;
+	const list = await page.evaluate(async (sel) => {
+		const out = [];
+		for (const im of document.querySelectorAll(sel)) {
+			const buf = new Uint8Array(await (await fetch(im.src)).arrayBuffer());
+			let s = '';
+			for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+			out.push(btoa(s));
+		}
+		return out;
+	}, selector);
+	list.forEach((b, k) => fs.writeFileSync(path.join(outDir, prefix + '-' + k + '.png'), Buffer.from(b, 'base64')));
+	return list.length;
+}
 
 /** special.html の③の流れを通す（T59）。時間は「ファイルを渡してから知らせが出るまで」と「結合のボタンから結合画像ができるまで」 */
 async function runSpecial(v) {
@@ -142,6 +160,7 @@ async function runSpecial(v) {
 			warn: (document.querySelector('#stitch-result-content .video-warn') || {}).textContent || null };
 	});
 	const stitchS = (Date.now() - t1) / 1000;
+	if (save) console.log('  保存: 取り込みの画像 ' + await saveImgs(page, '#personset-A-wrap .video-result img', 'special-v' + v.no + '-import') + '枚・結合画像 ' + await saveImgs(page, '#stitch-result-content img', 'special-v' + v.no + '-stitch') + '枚');
 	const hs = st.lines.map((l) => { const m = /高さ (\d+)px/.exec(l); return m ? +m[1] : null; });
 	// 高さは ±2px（T90: special.html の流れは止まっている画の画素を優先して組み立てるので、末尾の切る行が 1px 動くことがある。動画1 は 1999／1708／1648）
 	check(st.img && st.lines.length === 3 && hs.length === 3 && hs.every((h, i) => h != null && heightOk(v, i, h, 2)), '結合: 3人とも composePerson・人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + '（±2）', hs.join('／'));
@@ -180,6 +199,7 @@ async function runExam(v) {
 	if (v.counts) check(!imp.err && imp.n.join('/') === v.counts.join('/'), '人ごとの枚数 ' + v.counts.join('／'), imp.err || imp.n.join('／'));
 	else check(!imp.err && imp.n.length === 3 && imp.n.every((x) => x > 0), '3人に分かれる', imp.err || imp.n.join('／'));
 	const hp = heightsOf(imp.lines);
+	if (save) console.log('  保存: OCR の前の②の画像 ' + await saveImgs(page, '#personset-A-wrap .video-result img', 'exam-v' + v.no + '-pre') + '枚');
 	check(imp.preview && hp.length === 3 && hp.every((h, i) => h != null && heightOk(v, i, h, 2)), 'OCR の前の②の画像: 3人とも composePerson・人ごとの高さ ' + v.heights.map((h) => (h == null ? '—' : h)).join('／') + '（±2）', hp.join('／'));
 	const t1 = Date.now();
 	await page.evaluate(() => { document.getElementById('process-stitch-btn').click(); });
@@ -190,6 +210,7 @@ async function runExam(v) {
 		inPanel: !!document.querySelector('#personset-A-wrap .video-result img'),
 		warn: (document.querySelector('#stitch-result-content .video-warn') || {}).textContent || null }));
 	const hs = heightsOf(st.lines);
+	if (save) console.log('  保存: OCR のあとの結合画像 ' + await saveImgs(page, '#stitch-result-content img', 'exam-v' + v.no + '-ocr') + '枚');
 	check(hs.length === 3 && hs.every((h, i) => h != null && heightOk(v, i, h, 2)), 'OCR のあとの結合: 3人とも composePerson・人ごとの高さ（±2）', hs.join('／'));
 	check(st.detected.every((n) => n > 0), 'OCR: 3人とも1つ以上のスキルを検出', st.detected.join('／'));
 	check(st.inPanel, 'OCR のあとの結合画像が②にも出る');
@@ -362,6 +383,7 @@ async function runSkill() {
 			const out = {};
 			for (const [k, cols, count] of [['c2count', 2, true], ['c2', 2, false], ['c1count', 1, true]]) {
 				out[k] = await form(page, cols, count);
+				await saveImgs(page, '.sr-img', 'skill-' + v.kind + '-' + file + '-' + k);
 				check(near(out[k].w, v.size[k][0], 2) && near(out[k].h, v.size[k][1], 2), NAME + ': ' + k + ' の大きさ ' + v.size[k].join('×') + '（±2）', out[k].w + '×' + out[k].h);
 			}
 			hashes[v.key + file] = out;
@@ -413,6 +435,7 @@ async function runSkill() {
 		if (res.ok && res.p.built) {
 			check(countsOk(res.p.counts), '取り込み: スキルの数 ' + cstr(SKILL_COUNTS), cstr(res.p.counts));
 			const c2 = await form(page, 2, true);
+			await saveImgs(page, '.sr-img', 'skill-' + v.kind + '-capture-c2count');
 			check(near(c2.w, v.size.c2count[0], 3) && near(c2.h, v.size.c2count[1], 3), '取り込み: 2列・数ありの大きさが動画の流れと ±3（' + v.size.c2count.join('×') + '）', c2.w + '×' + c2.h);
 			console.log('  コマ ' + res.p.video.frames + '枚・数 ' + cstr(res.p.counts) + '・2列・数あり ' + c2.w + '×' + c2.h);
 		}

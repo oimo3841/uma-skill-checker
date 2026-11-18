@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-11a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-19a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -466,6 +466,8 @@
 				ctx.drawImage(f, 0, 0, dw, dh);
 			},
 			frameAt,
+			// 時刻 t に描く画の番号（表示順。drawAt と同じ決め方）。同じ番号の時刻は同じ画になる（T195。取り直しの控えの見出し）
+			frameIndexAt(t) { return jAt(Math.max(0, t)); },
 			close() { if (closed) return; closed = true; dropQueue(); if (cur) { cur.close(); cur = null; } try { dec.close(); } catch (e) { /* 何もしない */ } buf = null; }
 		};
 	}
@@ -659,11 +661,14 @@
 		for (let k = 0; k < 8; k++) probeAt.add(Math.round(k * (times.length * 0.8 - 1) / 7));
 		const small = [];
 		let blankSkipped = 0;
+		// 上の帯と本文が入りうる帯は重なるので、1回でまとめて読んで分ける（T195・V3。同じ画素なので値は同じ）
+		const readY0 = Math.min(topY, bandY0), readY1 = Math.max(topY + topH, bandY1), rowB = sw * 4;
 		for (let n = 0; n < times.length; n++) {
 			await pause();
 			await untilAbort(source.drawAt(times[n], sctx, sw, H, signal), signal);
-			const band = sctx.getImageData(0, bandY0, sw, bandY1 - bandY0).data;
-			const top = toGray(sctx.getImageData(0, topY, sw, topH).data);
+			const all = sctx.getImageData(0, readY0, sw, readY1 - readY0).data;
+			const band = all.subarray((bandY0 - readY0) * rowB, (bandY1 - readY0) * rowB);
+			const top = toGray(all.subarray((topY - readY0) * rowB, (topY + topH - readY0) * rowB));
 			const bandGray = toGray(band);
 			if (isBlankGray([top, bandGray], opts.blankRatio)) {
 				blankSkipped++;
@@ -727,22 +732,27 @@
 		for (const f of small) { f.band = null; f.probe = null; }
 
 		// 本文の帯（縮小画のグレー）を plane の形に。取り直した等倍の画を縮めて比べるときにも使う
-		function planeFromSmall() {
-			const band = toGray(sctx.getImageData(0, hE, sw, cH).data);
+		// raw（任意のオブジェクト）を渡すと、読んだ本文の帯の画素（RGBA）を raw.d に入れて返す（T195・V3。同じ帯をもう一度読まない）
+		function planeFromSmall(raw) {
+			const d = sctx.getImageData(0, hE, sw, cH).data;
+			const band = toGray(d);
 			if (isBlankGray([band], opts.blankRatio)) return null;
 			const g = new Uint8Array(pw * cH);
 			for (let y = 0; y < cH; y++) g.set(band.subarray(y * sw + mx, y * sw + mx + pw), y * pw);
+			if (raw) raw.d = d;
 			return { gray: g, w: pw, h: cH };
 		}
 		// 速い区間だけ細かく取り直す。縮小画・本文のグレーを同じ形で作る（真っ白・真っ黒なら null）。区切りの頭もここで調べる（T85）
 		async function sampleEntry(t) {
 			await pause();
 			await untilAbort(source.drawAt(t, sctx, sw, H, signal), signal);
-			const plane = planeFromSmall();
+			const raw = {};
+			const plane = planeFromSmall(raw);
 			if (!plane) { blankSkipped++; return null; }
-			const cd = sctx.getImageData(colX, hE, 1, cH).data;
+			// x=0.3W の列の色は、いま読んだ本文の帯の画素から取る（前は同じ列を別に読んでいた。同じ画素なので値は同じ）
+			const cd = raw.d;
 			const col = new Uint8Array(cH * 3);
-			for (let y = 0; y < cH; y++) { col[y * 3] = cd[y * 4]; col[y * 3 + 1] = cd[y * 4 + 1]; col[y * 3 + 2] = cd[y * 4 + 2]; }
+			for (let y = 0; y < cH; y++) { const p = (y * sw + colX) * 4; col[y * 3] = cd[p]; col[y * 3 + 1] = cd[p + 1]; col[y * 3 + 2] = cd[p + 2]; }
 			return { t: +t.toFixed(4), plane, fine: true, heads: blueStarts(col, 0, cH).filter((y) => y >= 8) };
 		}
 		let fine = step / opts.fineDiv;
@@ -1003,13 +1013,16 @@
 			return cands;
 		}
 		let sharpHead = null;
+		// 時刻ごとの本文の帯の鮮明度（真っ白・真っ黒の画は null）を覚えて、頭の比べと取り直しの比べで使い回す（T195・V3。同じ時刻の画は同じ画素なので値も同じ。
+		// 数を1つ持つだけ）。等倍で描き直して読むのは、覚えていない時刻と、取り替える画の画素が要るときだけ
+		const sharpSeen = new Map();
 		if (sharpOn) {
 			const cands = sameSpotCands(same[0]);
 			if (cands.length) {
 				const ts = performance.now();
 				const hc = document.createElement('canvas'); hc.width = W; hc.height = H;
 				const hx = hc.getContext('2d', { willReadFrequently: true });
-				const sharpAt = async (f) => { await untilAbort(source.drawAt(f.t, hx, W, H, signal), signal); return isBlankCanvas(hx, W, H, opts.blankRatio) ? -1 : bandSharpness(hx); };
+				const sharpAt = async (f) => { await untilAbort(source.drawAt(f.t, hx, W, H, signal), signal); const blank = isBlankCanvas(hx, W, H, opts.blankRatio), s = blank ? -1 : bandSharpness(hx); sharpSeen.set(f.t, blank ? null : s); return s; };
 				const s0 = await sharpAt(same[0]);
 				let best = null;
 				for (const f of cands) { await pause(); const sv = await sharpAt(f); if (!best || sv > best.s) best = { f, s: sv }; }
@@ -1371,6 +1384,48 @@
 			for (let i = 0, p = 0; i < col.length; i++, p += 4) { const r = d[p], g = d[p + 1], b = d[p + 2]; col[i] = Math.max(r, g, b) - Math.min(r, g, b); }
 			return { gray: toGray(d), col: { gray: col, w: hw, h: cH }, w: hw, h: cH };
 		}
+		/* 取り直しの復号のやり直しを減らす（T195・V1。おいもさんの決定 763・830）。エフェクトの置き換えは前後の 1/60秒刻みの画を候補にするので、
+		 * 時刻が行ったり来たりして、後ろへ戻るたびにキーフレームから復号し直していた（縦の録画〔動画3〕で、取り直すの間に作り直し 35回・復号 約2,200枚）。
+		 * 選ぶ候補・多数決・置き換える画素は変えずに、なるべく時刻の順に流す（同じ時刻の画は同じ画素なので、控えた値は描き直した値と同じ）:
+		 *  (a) 前の候補（before）の時刻は先に決まっているので、選んだ時刻の画を描く前に、時刻の順に読んで控える（帯の縮小画のグレーだけ。控えは1枚ごとに捨てる。
+	 *      同じ1枚の間に読んだ候補の帯も控え、同じ画〔画の番号が同じ時刻〕を描き直さない。候補の帯は前から cands に持っていたものと同じ物）
+		 *  (b) 多数決に使う半分の幅の画は、自分の時刻にいる間に作る。後ろの候補で選ばれた画も、その画にいる間に作る
+		 *  (c) 後ろの候補（after）は時刻の順に流しながら選び（選び方は前と同じ。近い順＝時刻の順）、3枚そろったらその先は流さない
+		 *  置き換えの画素を写すのも時刻の順に（区画ごとに写す元は1つで、写す所は重ならないので、順番で結果は変わらない）。
+		 * 控えの見出しは画の番号（WebCodecs の出どころ）。作り物の出どころ（検査）は時刻。video 要素の出どころは置き換えをしないので通らない */
+		const frameKey = (t) => (typeof source.frameIndexAt === 'function' ? 'j' + source.frameIndexAt(t) : 't' + t);
+		const wideKept = new Map();
+		// 置き換えの候補の時刻（止まっている画は、止まっている区間の前と後ろ）
+		function effectLists(p) {
+			let t0 = p.t, t1 = p.t;
+			if (p.still) {
+				let a = same.indexOf(p), b = a;
+				while (a > 0 && same[a - 1].still) a--;
+				while (b < same.length - 1 && same[b + 1].still) b++;
+				t0 = same[a].t; t1 = same[b].t;
+			}
+			// 候補は後ろ 1〜Q 枚 → 足りなければ前 1〜Q 枚 → それでも足りなければ後ろ・前の Q+1〜2Q 枚（ゆっくりのスクロールは 1/60秒で数px しか動かない）
+			const Q = E3.Q * 2;
+			const after = [], before = [], after2 = [], before2 = [];
+			for (let q = 1; q <= Q; q++) after.push(t1 + q / 60);
+			for (let q = Q; q >= 1; q--) before.push(t0 - q / 60);
+			for (let q = Q + 1; q <= Q * 2; q++) after2.push(t1 + q / 60);
+			for (let q = Q * 2; q > Q; q--) before2.push(t0 - q / 60);
+			return { t0, t1, after, before, after2, before2 };
+		}
+		// (a) 選んだ時刻の画を描く前に、前の候補の帯を時刻の順に読んで控える
+		async function prefetchBefore(p) {
+			wideKept.clear();
+			for (const tt of effectLists(p).before) {
+				if (tt < 0 || tt > D - 0.02) continue;
+				const key = frameKey(tt);
+				if (wideKept.has(key)) continue;
+				await pause();
+				await untilAbort(source.drawAt(tt, sctx, sw, H, signal), signal);
+				wideKept.set(key, wideBand());
+			}
+		}
+		let effectEarlyStops = 0;
 		const sameGray = (a, b) => { for (let i = 0; i < a.length; i += 61) if (a[i] !== b[i]) return false; return true; };
 		// 区画の平均の差（a の行 ya〜・b の行 yb〜、列 x0〜x0+bw）
 		// 区画の差: 平均（mean）と、行の平均が 3 を超える行の数（rows。横の縁の1行だけが違うものを除く）
@@ -1398,7 +1453,8 @@
 					let need = false;
 					for (let y = c.lo; y < c.hi; y++) if (!owned[y]) { need = true; break; }
 					if (!need) continue;
-					if (c.k > i || !files[c.k]) { for (let y = c.lo; y < c.hi; y++) owned[y] = 1; continue; }
+					// 先に取り直した画（k < i）は、書き出し（T195・V2。待たずに進む）が終わるのを待ってから写す
+					if (c.k > i || !(await fileAt(c.k))) { for (let y = c.lo; y < c.hi; y++) owned[y] = 1; continue; }
 					// 写す前に、選ぶときの縮小画どうしで重なりを測って確かめる（継ぎ目のずれの見込みが外れていたら写さない）
 					let off = posG[i] - posG[c.k];   // 自分の行 y は、止まっている画の行 y + off
 					const sp = picks[c.k].plane, mp = p.plane;
@@ -1430,21 +1486,8 @@
 			if (!regions.length) { effectPicks++; return; }
 			// 2. 多数決: 自分と前後の実フレーム（1/60秒刻み）の縮小画（帯の全幅のグレー）。止まっている画は、止まっている区間（same の still が続く所）の
 			//    外の実フレームを候補にする（区間の中は同じ中身で、指を止めたまま残る粒子も同じ）。時間の順に取る（復号は前へ進めるだけなので）
-			const ts = [];
-			let t0 = p.t, t1 = p.t;
-			if (isStill) {
-				let a = same.indexOf(p), b = a;
-				while (a > 0 && same[a - 1].still) a--;
-				while (b < same.length - 1 && same[b + 1].still) b++;
-				t0 = same[a].t; t1 = same[b].t;
-			}
-			// 候補は後ろ 1〜Q 枚 → 足りなければ前 1〜Q 枚 → それでも足りなければ後ろ・前の Q+1〜2Q 枚（ゆっくりのスクロールは 1/60秒で数px しか動かない）
-			const Q = E3.Q * 2;
-			const after = [], before = [], after2 = [], before2 = [];
-			for (let q = 1; q <= Q; q++) after.push(t1 + q / 60);
-			for (let q = Q; q >= 1; q--) before.push(t0 - q / 60);
-			for (let q = Q + 1; q <= Q * 2; q++) after2.push(t1 + q / 60);
-			for (let q = Q * 2; q > Q; q--) before2.push(t0 - q / 60);
+			// 候補の時刻（effectLists。止まっている画は止まっている区間の前と後ろ）
+			const { after, before, after2, before2 } = effectLists(p);
 			const cands = [];
 			let pm = null;
 			// 自分に対するずれ d（候補の行 y ＝ 自分の行 y + d。正＝候補のほうが先へ進んでいる）。
@@ -1477,14 +1520,19 @@
 				for (const c of usable) { if (out.every((a) => Math.abs(a.d - c.d) >= E3.DSEP)) out.push(c); if (out.length === E3.NALT) break; }
 				return out;
 			};
-			// 自分 → 後ろの候補（復号は前へ進むだけで済む）→ 足りなければ前の候補（キーフレームから復号し直す）
-			const take = async (list) => {
+			// 自分 → 後ろの候補（復号は前へ進むだけで済む）→ 足りなければ前の候補（控えてあれば描かない。T195 の (a)）
+			// first（後ろの候補の1回目）: 時刻の順に流しながら choose と同じ選び方で選び、選んだ画はその画にいる間に半分の幅の画を作る（(b)）。
+			// 3枚そろったら、その先の候補は choose の結果を変えないので流さない（(c)）
+			const early = [];
+			const take = async (list, first) => {
 				let prevG = null;
 				for (const tt of list) {
 					if (tt < 0 || tt > D - 0.02) continue;
 					await pause();
-					await untilAbort(source.drawAt(tt, sctx, sw, H, signal), signal);
-					const g = wideBand();
+					// 同じ画の番号の時刻は同じ画（前は描き直して読み直していた）。この1枚の間に読んだ画（前もって控えた画・前の回の候補）は描かない
+					const key = frameKey(tt);
+					let g = wideKept.get(key), fresh = false;
+					if (!g) { await untilAbort(source.drawAt(tt, sctx, sw, H, signal), signal); g = wideBand(); fresh = true; wideKept.set(key, g); }
 					if (isBlankGray([g.gray], opts.blankRatio) || (prevG && sameGray(prevG, g.gray))) continue;
 					prevG = g.gray;
 					// 自分とほぼ同じ画（止まっている区間の中）は候補にしない（ずれ 0 は測れず、残る粒子も同じ）
@@ -1492,12 +1540,25 @@
 					const c = { t: tt, plane: g };
 					measure(c);
 					cands.push(c);
+					if (first && c.d != null && Math.abs(c.d) >= E3.DMIN && early.every((a) => Math.abs(a.d - c.d) >= E3.DSEP)) {
+						early.push(c);
+						if (fresh) c.half = await halfBand(tt);
+						if (early.length === E3.NALT) { if (list.indexOf(tt) < list.length - 1) effectEarlyStops++; break; }
+					}
 				}
 			};
-			await pause();
-			await untilAbort(source.drawAt(p.t, sctx, sw, H, signal), signal);
-			pm = wideBand();
-			await take(after);
+			// 自分の帯（動いている画は、前の候補の最後と同じ画のことがある。そのときは控えた帯を使う）
+			const pk = frameKey(p.t);
+			pm = wideKept.get(pk) || null;
+			if (!pm) {
+				await pause();
+				await untilAbort(source.drawAt(p.t, sctx, sw, H, signal), signal);
+				pm = wideBand();
+				wideKept.set(pk, pm);
+			}
+			// (b) 自分の半分の幅の画は、自分の時刻にいる間に（多数決をしない〔候補が2枚に満たない〕ときは使わない）
+			const hmEarly = await halfBand(p.t);
+			await take(after, true);
 			let alts = choose();
 			if (alts.length < 2) { await take(before); alts = choose(); }
 			if (alts.length < 2) { await take(after2); alts = choose(); }
@@ -1506,8 +1567,9 @@
 			e3Trace({ i, t: p.t, cands: cands.map((c) => [c.t, c.d == null ? null : c.d, c.rate == null ? null : +c.rate.toFixed(3)]), alts: alts.map((c) => c.t) });
 			if (alts.length < 2) { effectNoAlt++; return; }
 			// 区画ごとの多数決（半分の幅の画で。自分と候補を時間の順に取る）
-			const trio = [{ t: p.t, d: 0, me: true }, ...alts].sort((x, y) => x.t - y.t);
-			for (const e of trio) e.half = await halfBand(e.t);
+			// 自分と、後ろの候補で選んだ画の半分の幅の画は作ってある（T195 の (b)）。残り（前の候補など）だけを時刻の順に作る
+			const trio = [{ t: p.t, d: 0, me: true, half: hmEarly }, ...alts].sort((x, y) => x.t - y.t);
+			for (const e of trio) if (!e.half) e.half = await halfBand(e.t);
 			const hm = trio.find((e) => e.me).half;
 			const coverOk = (a, y, n) => y - a.d >= 0 && y - a.d + n <= cH;
 			const cells = new Map(); // key → { y, n, x0, bw, d, ee, rows, k, ke, flag }
@@ -1549,7 +1611,8 @@
 			}
 			// 等倍で置き換える（区画ごとに、その行を写す時間の近い候補の画素で。候補ごとに等倍で1回描く）
 			const fx = (x) => Math.round(x * W / hw);
-			for (const a of alts) {
+			// 時刻の順に（T195。区画ごとに写す元は1つ・写す所は重ならないので、前の「近い順」と結果は同じ）
+			for (const a of alts.slice().sort((x, y) => x.t - y.t)) {
 				const mine = flagged.filter((c) => c.src === a);
 				if (!mine.length) continue;
 				await pause();
@@ -1562,27 +1625,40 @@
 		// 取り直しで、止まっている画を同じ位置のくっきりした画に置き換える（T161。sharpOn・bandSharpness は「止まっている区間」の前）
 		let sharpSwaps = 0, sharpTried = 0;
 		const sharpLog = [];
+		// 比べる画は別の canvas（sharpScratch。fctx と同じ作り）に描く（T195・V3）。前は fctx に描いて、選んだ時刻の画を丸ごと読んで控え（orig）、
+		// 比べた画も丸ごと読んで控え、最後にどちらかを書き戻していた。今は fctx に手を付けず、取り替えるときだけ、くっきりした画の画素を fctx に写す
+		// （写すのは、その画を描いたあと読んだ画素そのもの。前の putImageData と同じ値）。鮮明度は sharpSeen で使い回す
+		let sharpScratch = null, sharpSx = null, sharpScratchT = null;
 		async function sharperGrab(p) {
 			const cands = sameSpotCands(p);
 			if (!cands.length) return null;
 			sharpTried++;
 			const ts = performance.now();
-			const s0 = bandSharpness(fctx), orig = fctx.getImageData(0, 0, W, H);
+			const s0 = bandSharpness(fctx);
 			let best = null;
 			for (const f of cands) {
 				await pause();
-				await untilAbort(source.drawAt(f.t, fctx, W, H, signal), signal);
-				if (isBlankCanvas(fctx, W, H, opts.blankRatio)) continue;
-				const s = bandSharpness(fctx);
-				if (!best || s > best.s) best = { s, f, t: f.t, img: fctx.getImageData(0, 0, W, H) };
+				let s = sharpSeen.get(f.t);
+				if (s === undefined) {
+					if (!sharpScratch) { sharpScratch = document.createElement('canvas'); sharpScratch.width = W; sharpScratch.height = H; sharpSx = sharpScratch.getContext('2d', { willReadFrequently: true }); }
+					await untilAbort(source.drawAt(f.t, sharpSx, W, H, signal), signal);
+					sharpScratchT = f.t;
+					s = isBlankCanvas(sharpSx, W, H, opts.blankRatio) ? null : bandSharpness(sharpSx);
+					sharpSeen.set(f.t, s);
+				}
+				if (s === null) continue;   // 真っ白・真っ黒の画は比べない（前と同じ）
+				if (!best || s > best.s) best = { s, f, t: f.t };
 			}
-			if (best && best.s > s0 * (1 + opts.sharpGain)) {
-				fctx.putImageData(best.img, 0, 0);
+			const swap = !!best && best.s > s0 * (1 + opts.sharpGain);
+			if (swap) {
+				// くっきりした画を fctx へ。いま別の canvas に描いてあればその画素を写し、無ければ fctx に描き直す（同じ時刻の画は同じ画素）
+				if (sharpScratchT === best.t) fctx.putImageData(sharpSx.getImageData(0, 0, W, H), 0, 0);
+				else await untilAbort(source.drawAt(best.t, fctx, W, H, signal), signal);
 				sharpSwaps++;
 				sharpLog.push(p.t.toFixed(3) + '→' + best.t.toFixed(3) + '秒（' + Math.round(s0) + '→' + Math.round(best.s) + '）');
-			} else fctx.putImageData(orig, 0, 0);   // 置き換えないときは選んだ時刻の画に戻す（今までと同じ画）
+			}   // 置き換えないときは fctx に選んだ時刻の画が残っている（今までと同じ画）
 			tm.sharpMs = (tm.sharpMs || 0) + performance.now() - ts;
-			return best && best.s > s0 * (1 + opts.sharpGain) ? best.f : null;
+			return swap ? best.f : null;
 		}
 		let grabMismatch = 0, grabFixed = 0, grabShifted = 0;
 		// 取り直した画が、縮小画の何 px 先（後）の画か。重なりがほぼ全面なので、となりの画どうしより確かに測れる
@@ -1599,9 +1675,29 @@
 			const g = planeFromSmall();
 			return g ? { plane: g, bad: badNear0(g, p.plane) } : null;
 		};
+		/* 書き出し（JPEG）を待たずに次の画へ進む（T195・V2。決定 763・830）。toBlob は頼んだ時点の画を写して書き出すので、
+		 * 頼んだあとで full に次の画を描いても、出る File は前と同じ。同時に待つのは GRAB_ENCODE_MAX 枚まで（1枚ごとに等倍の画の写しを持つので、
+		 * iPhone のメモリを考えて少なく）。止まっている画の画素を写すとき（voteOutEffects）は、その画の File ができるのを待つ（fileAt）。最後にまとめて待つ */
+		const GRAB_ENCODE_MAX = 3;
+		const fileWait = [];
+		let encPending = 0;
+		function startEncode(i, name) {
+			encPending++;
+			const pr = new Promise((res) => full.toBlob(res, opts.grabType, opts.grabQ)).then((blob) => {
+				encPending--;
+				if (!blob) throw framesError('encode', '静止画にできない');
+				files[i] = new File([blob], name, { type: opts.grabType });
+				return files[i];
+			});
+			pr.catch(() => { /* 待つ所（fileAt）で受ける */ });
+			fileWait[i] = pr;
+		}
+		async function fileAt(k) { if (!files[k]) await untilAbort(fileWait[k], signal); return files[k]; }
 		for (let i = 0; i < picks.length; i++) {
 			await pause();
 			const p = picks[i];
+			// 前の候補の帯を、選んだ時刻の画より先に時刻の順に読んで控える（T195・V1 の (a)。置き換えをする出どころだけ）
+			if (E3.on) await prefetchBefore(p);
 			let t = p.t, tries = 0;
 			while (true) {
 				await untilAbort(source.drawAt(t, fctx, W, H, signal), signal);
@@ -1651,12 +1747,13 @@
 				if (!fixedTop) { fixedTop = fctx.getImageData(0, 0, W, keepTop); fixedBottom = fctx.getImageData(0, keepBottomY, W, H - keepBottomY); }
 				else { fctx.putImageData(fixedTop, 0, 0); fctx.putImageData(fixedBottom, 0, keepBottomY); }
 			}
-			const blob = await untilAbort(new Promise((res) => full.toBlob(res, opts.grabType, opts.grabQ)), signal);
-			if (!blob) throw framesError('encode', '静止画にできない');
-			files.push(new File([blob], 'frame-' + String(Math.round(p.t * 1000)).padStart(6, '0') + ext, { type: opts.grabType }));
+			for (let k = 0; encPending >= GRAB_ENCODE_MAX && k < i; k++) await fileAt(k);   // 同時に待つ数の上限（古いものから待つ）
+			startEncode(i, 'frame-' + String(Math.round(p.t * 1000)).padStart(6, '0') + ext);
 			progress('grab', i + 1, picks.length);
 		}
-		full.width = full.height = 0; sc.width = sc.height = 0; altCanvas.width = altCanvas.height = 0; hc.width = hc.height = 0;
+		wideKept.clear();
+		sc.width = sc.height = 0; altCanvas.width = altCanvas.height = 0; hc.width = hc.height = 0;
+		if (sharpScratch) { sharpScratch.width = sharpScratch.height = 0; sharpScratch = null; }
 		// となりどうしのずれを、取り直した画どうしで測り直す（T85。T83 の案1 (c)）。まず選ぶときのずれの近く（±remeasureWin）、
 		// 外れたら粗い全範囲 → 近くだけ。どちらも確かでなければ選ぶときの値のまま「確かでない継ぎ目」にする
 		let remeasureMoved = 0, remeasureFull = 0, remeasureFail = 0, remeasureByDelta = 0;
@@ -1683,6 +1780,9 @@
 			if (shift !== s0) remeasureMoved++;
 			s.shift = shift; s.overlap = cH - shift;
 		}
+		// 書き出しを全部待つ（T195・V2）。待ち終わってから等倍の画を手放す
+		for (let k = 0; k < picks.length; k++) await fileAt(k);
+		full.width = full.height = 0;
 		tm.grabMs = performance.now() - t2;
 		if (sharpHead && typeof stitchLog === 'function') stitchLog('動画: 撮り始めの粗い画を使わず、同じ位置のくっきりした画から始める: ' + sharpHead.from.toFixed(3) + '→' + sharpHead.to.toFixed(3) + '秒（本文の帯の鮮明度 ' + sharpHead.s0 + '→' + sharpHead.s1 + '・前の ' + sharpHead.dropped + '枚を使わない）');
 		if (sharpSwaps && typeof stitchLog === 'function') stitchLog('動画: 撮り始め・スクロールの直後の粗い画を、同じ位置のくっきりした画に取り替え（' + sharpSwaps + '/' + sharpTried + '枚。選んだ時刻→使った時刻・本文の帯の鮮明度）: ' + sharpLog.join('、'));
@@ -1720,7 +1820,7 @@
 			picks: picks.map((p) => p.t), seams, files, persons,
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
 				nears, headHints, predVerifies, loose, micros, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
-				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, settledEnd,
+				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, effectEarlyStops, settledEnd,
 				scrollSpeed: speedInfo ? +speedInfo.speed.toFixed(3) : null, fast: fastVideo, fastAdded, releases: releaseTs.length, microWide, overscrolled, sharpOn, sharpHead: sharpHead ? +sharpHead.to.toFixed(3) : null, sharpTried, sharpSwaps },
 			tm
 		};

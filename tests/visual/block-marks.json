@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-17",
+"generated": "2026-11-18",
 "numbering": "runtime",
-"count": 1154,
+"count": 1157,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1159,6 +1159,9 @@
   {"file":"tests/visual/blocks-182.mjs","title":"T193(2) UmaExam の本育成結果の動画の流れ: 作り物のスキル画面の動画 → 進み具合 → 先頭の引っぱりすぎのコマを外す → 静止画と同じ組み立て・数・設定・「動画の画像」の1行・タブの枚数に数えない","ord":1,"marks":"VATC","asserts":10},
   {"file":"tests/visual/blocks-182.mjs","title":"T193(4) UmaExam の本育成結果の「ウィンドウから取り込む」: 取り込みの箱（撮り方・残り時間・止める）→ 止める → 組み立て・一回分を手放す／見つからないときの文と「もう一度」","ord":1,"marks":"VAT","asserts":4},
   {"file":"tests/visual/blocks-182.mjs","title":"T193(3) UmaStar の本育成結果の動画の失敗と取り消し: スキル画面の無い動画は本育成結果の文・取り消しは親A と同じトースト・どちらも入っていた画像はそのまま","ord":1,"marks":"AT","asserts":3},
-  {"file":"tests/visual/blocks-182.mjs","title":"T193(5) UmaStar の本育成結果の数え方と上の欄（T193 の直し）: 光が金の右に乗っても金・光で上下2枚がつながっても2枚・枠の上の縁が3行にじんでも区切りが見つかる","ord":1,"marks":"V","asserts":4}
+  {"file":"tests/visual/blocks-182.mjs","title":"T193(5) UmaStar の本育成結果の数え方と上の欄（T193 の直し）: 光が金の右に乗っても金・光で上下2枚がつながっても2枚・枠の上の縁が3行にじんでも区切りが見つかる","ord":1,"marks":"V","asserts":4},
+  {"file":"tests/visual/blocks-183.mjs","title":"T195(1) V1 取り直しの復号のやり直しを減らす（WebCodecs の出どころ）: 前の候補を先に時刻の順に読む・1枚の中で同じ画を2回描かない・後ろの候補がそろったら先を流さない・2回とも静止画と結合画像が同じ","ord":1,"marks":"VAC","asserts":8},
+  {"file":"tests/visual/blocks-183.mjs","title":"T195(2) V2 書き出しを待たない: toBlob の返りを遅らせても次の画へ進み（同時に待つのは 2〜3）、JPEG・PNG のバイトと結合画像は遅らせないときと同じ","ord":1,"marks":"VAC","asserts":5},
+  {"file":"tests/visual/blocks-183.mjs","title":"T195(3) V3 読み出しの重複を減らす: 読む段は1枚に1回だけ読む・くっきりした画の比べで等倍の画を丸ごと読むのは取り替えるときだけ・結合画像は一覧と合う","ord":1,"marks":"VTC","asserts":4}
 ]
 }

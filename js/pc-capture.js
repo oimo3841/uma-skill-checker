@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-11b';
+	const PC_CAPTURE_JS_VERSION = '2026-11-19a';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -955,6 +955,7 @@
 				return done;
 			};
 		}
+		const encoding = [], encodeAll = [], ENCODE_MAX = 3;   // 書き出し（PNG）の待ち（T195・V2）
 		for (const file of uniq) {
 			const t = timeOf(file);
 			let me = await loadFile(file), done = 0;
@@ -995,10 +996,16 @@
 			}
 			if (done) {
 				stat.frames++;
-				const blob = await new Promise((res) => draw.toBlob(res, 'image/png'));
-				out.set(file, new File([blob], file.name.replace(/\.[a-z]+$/, '.png'), { type: 'image/png' }));
+				// 書き出し（PNG）を待たずに次の画へ（T195・V2）。toBlob は頼んだ時点の画を写すので、draw に次の画を描いても出る File は前と同じ。
+				// 同時に待つのは ENCODE_MAX 枚まで。out は最後にまとめて入れる（ループの中では使わない）
+				while (encoding.length >= ENCODE_MAX) await encoding.shift();
+				const name = file.name.replace(/\.[a-z]+$/, '.png');
+				const pr = new Promise((res) => draw.toBlob(res, 'image/png')).then((blob) => { out.set(file, new File([blob], name, { type: 'image/png' })); });
+				encoding.push(pr);
+				encodeAll.push(pr);
 			}
 		}
+		await Promise.all(encodeAll);
 		for (const q of pool) { q.band.width = q.band.height = 0; q.half = null; }
 		extraCanvas.width = extraCanvas.height = 0; draw.width = draw.height = 0; half.width = half.height = 0;
 		for (const p of sel.persons) p.files = p.files.map((f) => out.get(f) || f);
