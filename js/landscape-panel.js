@@ -18,7 +18,7 @@
 (function (global) {
 	'use strict';
 
-	const LANDSCAPE_PANEL_JS_VERSION = '2026-11-10a';
+	const LANDSCAPE_PANEL_JS_VERSION = '2026-11-19a';
 
 	const OPT = {
 		landscapeMin: 1.15,   // 幅 / 高さ がこれ以上なら横画面として調べる
@@ -107,15 +107,27 @@
 	 * 録画3本×2ページの読み取り（名前と★）: なめらかだけ 54〜75/75・最近傍 67〜72/75・なめらか＋アンシャープ 73〜75/75。 */
 	function setSmoothing(ctx) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; }
 	// 弱いアンシャープマスク（上下左右と自分の平均との差を k 倍足す）。(0,0)-(w,h) の画素に
+	// 速さ（T196）: 出す値は自分の値 v と、自分と上下左右の5つの和 sum（整数 0〜1275）だけで決まるので、同じ式
+	// （v + k * (v - sum / 5) を Uint8ClampedArray に入れた値）を v・sum の組ごとに先に求めた表を引く。式も丸めも前と同じなので、画素は前と同じ
+	const unsharpTables = new Map();
+	function unsharpTable(k) {
+		let t = unsharpTables.get(k);
+		if (t) return t;
+		t = new Uint8ClampedArray(256 * 1276);
+		for (let v = 0; v < 256; v++) for (let sum = 0; sum <= 1275; sum++) t[v * 1276 + sum] = v + k * (v - sum / 5);
+		unsharpTables.set(k, t);
+		return t;
+	}
 	function unsharp(ctx, w, h, k) {
-		const id = ctx.getImageData(0, 0, w, h), d = id.data, s = new Uint8ClampedArray(d), W4 = w * 4;
+		const id = ctx.getImageData(0, 0, w, h), d = id.data, s = new Uint8ClampedArray(d), W4 = w * 4, T = unsharpTable(k);
 		for (let y = 1; y < h - 1; y++) {
-			for (let x = 1; x < w - 1; x++) {
-				const i = y * W4 + x * 4;
-				for (let ch = 0; ch < 3; ch++) {
-					const v = s[i + ch];
-					d[i + ch] = v + k * (v - (v + s[i - 4 + ch] + s[i + 4 + ch] + s[i - W4 + ch] + s[i + W4 + ch]) / 5);
-				}
+			for (let x = 1, i = y * W4 + 4; x < w - 1; x++, i += 4) {
+				let v = s[i];
+				d[i] = T[v * 1276 + v + s[i - 4] + s[i + 4] + s[i - W4] + s[i + W4]];
+				v = s[i + 1];
+				d[i + 1] = T[v * 1276 + v + s[i - 3] + s[i + 5] + s[i + 1 - W4] + s[i + 1 + W4]];
+				v = s[i + 2];
+				d[i + 2] = T[v * 1276 + v + s[i - 2] + s[i + 6] + s[i + 2 - W4] + s[i + 2 + W4]];
 			}
 		}
 		ctx.putImageData(id, 0, 0);

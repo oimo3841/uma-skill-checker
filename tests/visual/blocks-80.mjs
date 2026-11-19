@@ -294,7 +294,8 @@ export async function register80(env) {
 		});
 		// T82: 読み込みの待ちの上限 LOAD_TIMEOUT_MS（20000）を足した
 		// mp4Probe・mp4Source・openSource は T90（MP4 を分解して WebCodecs で復号する出どころ）
-		assert(r.keys.join() === 'DEFAULTS,LOAD_TIMEOUT_MS,VERSION,canvasSource,composePerson,isAbortError,mp4Probe,mp4Source,openSource,selectFrames,untilAbort,videoSource' && r.frozen, 'T42動画(5) UmaVideoFrames の中身と、書き換えられないこと', r.keys);
+		// _scan は T196（2026-11-19）の検査用の出口（ずれを測る2つの計算と打ち切りの数。blocks-184 が使う）
+		assert(r.keys.join() === 'DEFAULTS,LOAD_TIMEOUT_MS,VERSION,_scan,canvasSource,composePerson,isAbortError,mp4Probe,mp4Source,openSource,selectFrames,untilAbort,videoSource' && r.frozen, 'T42動画(5) UmaVideoFrames の中身と、書き換えられないこと', r.keys);
 		assert(/^\d{4}-\d{2}-\d{2}[a-z]$/.test(r.version), 'T42動画(5) VERSION が日付＋連番', r.version);
 		assert(r.defaults.xs === 6 && r.defaults.grabType === 'image/jpeg' && r.defaults.grabQ === 0.92 && r.defaults.verCoarse === true && r.defaults.verYs === 4, 'T42動画(5) 既定の設定が T39 の最終形（xs=6・verYs=4・verCoarse・JPEG 0.92）', r.defaults);
 		assert(r.bad && r.bad.code === 'decode', 'T42動画(5) 読めない動画は code が decode の例外', r.bad);

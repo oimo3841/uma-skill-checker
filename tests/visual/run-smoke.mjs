@@ -195,6 +195,7 @@ import { register179 } from './blocks-179.mjs';
 import { register180 } from './blocks-180.mjs';
 import { register182 } from './blocks-182.mjs';
 import { register183 } from './blocks-183.mjs';
+import { register184 } from './blocks-184.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15733,6 +15734,8 @@ await register180({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register182({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T195（2026-11-19）: 動画の取り込みを速くする直し（V1 時刻を戻らない・V2 書き出しを待たない・V3 読み出しの重複。見出しは「T195」）。tests/visual/blocks-183.mjs
 await register183({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T196（2026-11-19）: 動画の取り込みを速くする直し（V5a カーソルの処理を軽く・ずれの計算の打ち切り・書き出しは2枚まで。見出しは「T196」）。tests/visual/blocks-184.mjs
+await register184({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

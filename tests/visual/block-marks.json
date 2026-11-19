@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-18",
 "numbering": "runtime",
-"count": 1157,
+"count": 1161,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1162,6 +1162,10 @@
   {"file":"tests/visual/blocks-182.mjs","title":"T193(5) UmaStar の本育成結果の数え方と上の欄（T193 の直し）: 光が金の右に乗っても金・光で上下2枚がつながっても2枚・枠の上の縁が3行にじんでも区切りが見つかる","ord":1,"marks":"V","asserts":4},
   {"file":"tests/visual/blocks-183.mjs","title":"T195(1) V1 取り直しの復号のやり直しを減らす（WebCodecs の出どころ）: 前の候補を先に時刻の順に読む・1枚の中で同じ画を2回描かない・後ろの候補がそろったら先を流さない・2回とも静止画と結合画像が同じ","ord":1,"marks":"VAC","asserts":8},
   {"file":"tests/visual/blocks-183.mjs","title":"T195(2) V2 書き出しを待たない: toBlob の返りを遅らせても次の画へ進み（同時に待つのは 2〜3）、JPEG・PNG のバイトと結合画像は遅らせないときと同じ","ord":1,"marks":"VAC","asserts":5},
-  {"file":"tests/visual/blocks-183.mjs","title":"T195(3) V3 読み出しの重複を減らす: 読む段は1枚に1回だけ読む・くっきりした画の比べで等倍の画を丸ごと読むのは取り替えるときだけ・結合画像は一覧と合う","ord":1,"marks":"VTC","asserts":4}
+  {"file":"tests/visual/blocks-183.mjs","title":"T195(3) V3 読み出しの重複を減らす: 読む段は1枚に1回だけ読む・くっきりした画の比べで等倍の画を丸ごと読むのは取り替えるときだけ・結合画像は一覧と合う","ord":1,"marks":"VTC","asserts":4},
+  {"file":"tests/visual/blocks-184.mjs","title":"T196(1) ずれの計算の打ち切り: scanRange・coarseScan の答えが全部を数える形（直す前）と同じで、打ち切りが効く。作り物の MP4 のエフェクトの置き換えでも効き、結合画像は一覧と合う","ord":1,"marks":"VC","asserts":6},
+  {"file":"tests/visual/blocks-184.mjs","title":"T196(2) V5a カーソルの処理を軽く（横画面）: 同じ画のずれを測り直さない・ずれの合わせと区画の比べを打ち切る・カーソルが消えて中身は同じ・2回とも PNG が同じ","ord":1,"marks":"VA","asserts":5},
+  {"file":"tests/visual/blocks-184.mjs","title":"T196(2) V5a カーソルの処理を軽く（縦画面）: 同じ画のずれを測り直さない・ずれの合わせと区画の比べを打ち切る・カーソルが消えて中身は同じ・2回とも PNG が同じ","ord":1,"marks":"VA","asserts":5},
+  {"file":"tests/visual/blocks-184.mjs","title":"T196(3) 書き出しは2枚まで（決定 834）: toBlob の返りを遅らせたとき、取り直しの JPEG・カーソルを直した画の PNG とも同時に待つのは 2。バイトは遅らせないときと同じ","ord":1,"marks":"AC","asserts":4}
 ]
 }

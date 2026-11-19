@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-19a';
+	const PC_CAPTURE_JS_VERSION = '2026-11-19b';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -449,8 +449,13 @@
 	async function removePointer(src, sel, track, signal) {
 		const W = src.width, H = src.height, { headerEnd: hE, contentH: cH } = sel.header;
 		const hw = Math.round(W / 2), P = POINTER;
-		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0, searched: 0, searchAll: 0, lines: [], lineExtra: 0, lineSame: 0 };
+		const times = sel.picks, stat = { sprite: null, samples: 0, frames: 0, cells: 0, boxes: [], leftCells: 0, pool: 0, extra: 0, bigLumps: 0, leftBoxes: [], margin: null, xStart: 0, manyHits: 0, searched: 0, searchAll: 0, lines: [], lineExtra: 0, lineSame: 0, candsMemo: 0, alignCut: 0, cellCut: 0 };
 		const breathe = makeBreather(signal, P.sliceMs), rp0 = performance.now();
+		// 中の小さな段の時間（ミリ秒。T196 の時間の測り）。drawAt・loadFile はほかの段の内訳
+		const tm = stat.tm = { pool: 0, learn: 0, recheck: 0, learn2: 0, lines: 0, sprite: 0, margin: 0, encWait: 0, encTail: 0, drawAt: 0, loadFile: 0 };
+		let tmAt = performance.now();
+		const lap = (k) => { const n = performance.now(); tm[k] += n - tmAt; tmAt = n; };
+		const timedDraw = async (t, ctx) => { const a = performance.now(); try { await src.drawAt(t, ctx, W, H, signal); } finally { tm.drawAt += performance.now() - a; } };
 		// DMM版の横画面の切り出し（kind に landscape: が入る。T145）だけ、一覧の左の動かない所を探す範囲から外す（縦画面は今のまま）
 		const landscape = /landscape:/.test(src.kind || '');
 		const known = track.filter((f) => f.pos != null).sort((a, b) => a.t - b.t);
@@ -473,7 +478,7 @@
 		const dx2d = extraCanvas.getContext('2d', { willReadFrequently: true });
 		const halfOf = (c) => { hx.drawImage(c, 0, hE, W, cH, 0, 0, hw, cH); return hx.getImageData(0, 0, hw, cH).data; };
 		for (const q of pool) {
-			await src.drawAt(q.t, dx, W, H, signal);
+			await timedDraw(q.t, dx);
 			q.band = document.createElement('canvas'); q.band.width = W; q.band.height = cH;
 			q.band.getContext('2d').drawImage(draw, 0, hE, W, cH, 0, 0, W, cH);
 			q.half = halfOf(draw);
@@ -489,32 +494,51 @@
 			margin = { mX, mW, cH, bg, thumb: findThumb(frames, bg, mW, cH), start: mStart };
 			stat.margin = { x: mX, thumb: margin.thumb ? [mX + margin.thumb.x0, mX + margin.thumb.x1 + 1] : null, len: margin.thumb ? margin.thumb.len : 0, frames: 0, cells: 0, boxes: [], rowCells: 0, rowSelf: 0, rowLeft: 0 };
 		}
+		lap('pool');
 		const xLimit = margin ? margin.start : hw; // 上の消し方（別のフレームの画素で置き換える）はここより左だけ
 		const xStart = landscape ? findContentStart(pool.map((q) => q.half), hw, cH) : 0; // ここより右だけ（T156）
 		const x0s = Math.ceil(xStart / P.BW) * P.BW; // 区画の左端の始まり（縦画面は 0）
 		stat.xStart = xStart;
 		// a の行 ya〜 と b の行 yb〜 の区画の差（RGB の差の平均の平均と、差の大きい画素の数）
-		const cellDiff = (a, ya, b, yb, x0, bw, n) => {
+		// 合うか（差の大きい画素が hotCount 以下で、平均が meanMax 未満）。速さ（T196・V5a）: 差の大きい画素が hotCount を超えたか、足し上げの平均が
+		// meanMax に達した時点で「合わない」と決める（どちらも数えるほど増えるだけなので、全部を数える形と答えは同じ）
+		const cellSame = (a, ya, b, yb, x0, bw, n) => {
 			let s = 0, hot = 0;
+			const tot = bw * n;
 			for (let y = 0; y < n; y++) {
 				let p = ((ya + y) * hw + x0) * 4, r = ((yb + y) * hw + x0) * 4;
 				for (let x = 0; x < bw; x++, p += 4, r += 4) { const d = (Math.abs(a[p] - b[r]) + Math.abs(a[p + 1] - b[r + 1]) + Math.abs(a[p + 2] - b[r + 2])) / 3; s += d; if (d > P.hot) hot++; }
+				if (hot > P.hotCount || s / tot >= P.meanMax) { if (y < n - 1) stat.cellCut++; return false; }
 			}
-			return { mean: s / (bw * n), hot };
+			return true;
 		};
-		const same = (r) => r.hot <= P.hotCount && r.mean < P.meanMax;
 		// 自分との正確なずれ（見込み ±win 行）。一覧は行が同じ間隔で並ぶので、1行ぶんずれた所でも欄の形は合う。文字まで合う「はっきりした最小」でなければ相手にしない
 		// st: 比べる画素の間引き（行・列とも st ごと。既定 3）。行の上の置き換えの位置の確かめ（T167）は 6 で軽く測る
+		// 速さ（T196・V5a）: 答え（いちばん合うずれと、広く探すときは ±6 の外の次点）に関わらないずれは、差の足し上げが途中で上限を超えた時点で打ち切り、
+		// Infinity とする（足し上げは増えるだけなので、打ち切ったずれの平均は上限より大きい）。上限は、見込みの近く（±refine）では「今までの最小
+		// （同じ値なら先のずれが勝つ）」と alignNear、広く探すときは alignMax × alignRatio（これより大きい平均は、最小にも、比の確かめを落とす次点にもならない）。
+		// 答えは全部を足し上げる形と同じ
+		const alignWide = P.alignMax * P.alignRatio;
 		const align = (me, q, d0, win = P.refine, st = 3) => {
+			let nx = 0;
+			for (let x = 8; x < hw - 24; x += st) nx++;
+			const near = win <= P.refine;
+			let bestM = Infinity;
 			const score = (d) => {
 				const y0 = Math.max(0, d), y1 = Math.min(cH, cH + d);
 				if (y1 - y0 < 48) return Infinity;
-				let s = 0, c = 0;
-				for (let y = y0; y < y1; y += st) { let p = (y * hw + 8) * 4, r = ((y - d) * hw + 8) * 4; for (let x = 8; x < hw - 24; x += st, p += st * 4, r += st * 4) { s += Math.abs(me[p + 1] - q[r + 1]); c++; } }
+				const c = Math.ceil((y1 - y0) / st) * nx;
+				let s = 0;
+				for (let y = y0; y < y1; y += st) {
+					let p = (y * hw + 8) * 4, r = ((y - d) * hw + 8) * 4;
+					for (let x = 8; x < hw - 24; x += st, p += st * 4, r += st * 4) s += Math.abs(me[p + 1] - q[r + 1]);
+					// 近く: 今までの最小以上（同じ値なら先のずれが勝つ）か alignNear 超え。広く: alignWide 超え
+					if (near ? (s / c >= bestM || s / c > P.alignNear) : s / c > alignWide) { stat.alignCut++; return Infinity; }
+				}
 				return s / c;
 			};
 			const list = [];
-			for (let d = d0 - win; d <= d0 + win; d++) list.push({ d, m: score(d) });
+			for (let d = d0 - win; d <= d0 + win; d++) { const m = score(d); list.push({ d, m }); if (m < bestM) bestM = m; }
 			let best = list[0];
 			for (const e of list) if (e.m < best.m) best = e;
 			let other = Infinity;
@@ -527,11 +551,25 @@
 		const uniq = Array.from(new Set(sel.persons.flatMap((p) => p.files)));
 		const timeOf = (file) => times[sel.files.indexOf(file)];
 		const loadFile = async (file) => {
+			const lf0 = performance.now();
 			const img = await new Promise((res, rej) => { const u = URL.createObjectURL(file), im = new Image(); im.onload = () => { URL.revokeObjectURL(u); res(im); }; im.onerror = rej; im.src = u; });
 			dx.drawImage(img, 0, 0);
-			return halfOf(draw);
+			tm.loadFile += performance.now() - lf0;
+			const me = halfOf(draw);
+			meFile.set(me, file);
+			return me;
 		};
+		// 相手の集まりとのずれ（candsOf）の控え（T196・V5a）。同じ画（同じ file を読み直した画素・同じ配列）には同じ答えなので、覚える段・確かめ直し・
+		// 置き換えの段で測り直さない。行の上を置き換えた画（halfOf(draw) を取り直した配列）は別の画として測る。控えるのは相手への参照とずれだけ
+		const meFile = new WeakMap(), candsByFile = new Map(), candsByMe = new WeakMap();
 		const candsOf = async (me, t) => {
+			const f = meFile.get(me), memo = f ? candsByFile.get(f) : candsByMe.get(me);
+			if (memo) { stat.candsMemo++; return memo; }
+			const list = await candsOf0(me, t);
+			if (f) candsByFile.set(f, list); else candsByMe.set(me, list);
+			return list;
+		};
+		const candsOf0 = async (me, t) => {
 			const list = [], myPos = posAt(t);
 			for (const q of pool) {
 				await breathe();
@@ -545,7 +583,7 @@
 			return list.sort((u, v) => (v.q.still - u.q.still) || (u.dt - v.dt));
 		};
 		// 1. カーソルの形を、その動画の中から覚える。自分だけが違い、スクロール量の違う2枚が互いに合う（だから自分の側に何かが乗っている）小さな塊の、差のある画素の形
-		const cell = (a, ya, b, yb, x0) => same(cellDiff(a, ya, b, yb, x0, Math.min(P.BW, xEnd - x0), P.BH));
+		const cell = (a, ya, b, yb, x0) => cellSame(a, ya, b, yb, x0, Math.min(P.BW, xEnd - x0), P.BH);
 		const rowsOk = (c, y, n) => y - c.d >= 0 && y - c.d + n <= cH;
 		const samples = [];
 		// 止まっている画の間が離れていて比べる相手が足りないときに使う、スクロールの途中のフレーム（時間の近い順に extraMax 枚）
@@ -564,7 +602,7 @@
 			const list = [];
 			for (const w of wanted) {
 				await breathe();
-				await src.drawAt(w.t, dx2d, W, H, signal);
+				await timedDraw(w.t, dx2d);
 				const qh = halfOf(extraCanvas);
 				const d = align(me, qh, Math.round(w.g), P.extraRefine);
 				if (d == null || Math.abs(d) < P.minD) continue;
@@ -583,7 +621,7 @@
 			for (let i = 0; i < Math.min(P.lineSame, list0.length); i++) {
 				const f = list0[Math.floor((i + 0.5) * list0.length / Math.min(P.lineSame, list0.length))];
 				await breathe();
-				await src.drawAt(f.t, dx2d, W, H, signal);
+				await timedDraw(f.t, dx2d);
 				const qh = halfOf(extraCanvas);
 				if (align(me, qh, 0, 2) !== 0) continue;
 				const band = document.createElement('canvas'); band.width = W; band.height = cH;
@@ -731,6 +769,7 @@
 			const e = uncovered(cands);
 			if (e.length) edges.set(file, e);
 		}
+		lap('learn');
 		// 確かめ直す（T167）: 相手が1枚しか合わなかった差の大きい塊（速いスクロールで、止まっている画の間が離れている）と、一覧の端の行。
 		// 塊の行を写すスクロールの途中の画を lineExtra 枚まで、同じ位置の別の時刻の画を lineSame 枚まで、相手に足す（形は覚えない）
 		for (const file of uniq) {
@@ -755,6 +794,7 @@
 			if (extra.length || same.length >= 2) await learnFrom(me, t, (await candsOf(me, t)).concat(extra, same), file, wait.concat(edge));
 			for (const c of extra.concat(same)) { c.q.band.width = c.q.band.height = 0; }
 		}
+		lap('recheck');
 		// 余白の塊からも覚える（スクロールバーを引っ張る間、カーソルは行の上に来ない）。塊が余白の左端で切れているものは形が欠けているので使わない
 		if (!landscape && !pickSprite().sprite && margin) {
 			for (const file of uniq) {
@@ -780,6 +820,7 @@
 				if (pickSprite().sprite) break;
 			}
 		}
+		lap('learn2');
 		const { sprite, count } = landscape ? { sprite: null, count: 0 } : pickSprite();
 		stat.samples = samples.length; stat.sprite = sprite ? { w: sprite.w, h: sprite.h, px: sprite.px.length, seen: count } : null;
 		const out = new Map();
@@ -844,16 +885,31 @@
 		const findAsync = async (list, pred) => { for (const c of list) if (await pred(c)) return c; return undefined; };
 		if (sprite) {
 			// 2. 画の中でカーソルの形を探す（帯の端で一部だけ写っていてもよい）
+			// 速さ（T196・V5a）: 形の画素を型付きの配列に並べ直して（順番はそのまま）、画の中に収まる位置では端の確かめを省く。
+			// 足す順番・打ち切りの条件・返す値は前と同じ
+			const SN = sprite.px.length, SPX = new Int32Array(SN), SPY = new Int32Array(SN), SOFF = new Int32Array(SN), SR = new Uint8Array(SN), SG = new Uint8Array(SN), SB = new Uint8Array(SN);
+			let sxMin = Infinity, sxMax = -Infinity, syMin = Infinity, syMax = -Infinity;
+			sprite.px.forEach(([x, y, r, g, b], i) => { SPX[i] = x; SPY[i] = y; SOFF[i] = (y * hw + x) * 4; SR[i] = r; SG[i] = g; SB[i] = b; if (x < sxMin) sxMin = x; if (x > sxMax) sxMax = x; if (y < syMin) syMin = y; if (y > syMax) syMax = y; });
+			const sLim = P.spriteMax * SN, sVis = SN * P.spriteVisible;
 			const fits = (img, ox, oy) => {
 				let s = 0, n = 0;
-				for (const [x, y, r, g, b] of sprite.px) {
-					const yy = oy + y, xx = ox + x;
-					if (yy < 0 || yy >= cH || xx < 0 || xx >= hw) continue;
-					const p = (yy * hw + xx) * 4;
-					s += (Math.abs(img[p] - r) + Math.abs(img[p + 1] - g) + Math.abs(img[p + 2] - b)) / 3; n++;
-					if (s > P.spriteMax * sprite.px.length) return Infinity;
+				if (ox + sxMin >= 0 && ox + sxMax < hw && oy + syMin >= 0 && oy + syMax < cH) {
+					const base = (oy * hw + ox) * 4;
+					for (let i = 0; i < SN; i++) {
+						const p = base + SOFF[i];
+						s += (Math.abs(img[p] - SR[i]) + Math.abs(img[p + 1] - SG[i]) + Math.abs(img[p + 2] - SB[i])) / 3; n++;
+						if (s > sLim) return Infinity;
+					}
+				} else {
+					for (let i = 0; i < SN; i++) {
+						const yy = oy + SPY[i], xx = ox + SPX[i];
+						if (yy < 0 || yy >= cH || xx < 0 || xx >= hw) continue;
+						const p = (yy * hw + xx) * 4;
+						s += (Math.abs(img[p] - SR[i]) + Math.abs(img[p + 1] - SG[i]) + Math.abs(img[p + 2] - SB[i])) / 3; n++;
+						if (s > sLim) return Infinity;
+					}
 				}
-				return n >= sprite.px.length * P.spriteVisible ? s / n : Infinity;
+				return n >= sVis ? s / n : Infinity;
 			};
 			// mask（任意）: 探す位置の印（(oy - ya) * (xb - xa) + (ox - xa)）。印の無い位置は当てない
 			const findAll = async (img, xa, xb, ya, yb, mask) => {
@@ -955,11 +1011,12 @@
 				return done;
 			};
 		}
-		const encoding = [], encodeAll = [], ENCODE_MAX = 3;   // 書き出し（PNG）の待ち（T195・V2）
+		const encoding = [], encodeAll = [], ENCODE_MAX = 2;   // 書き出し（PNG）の待ち（T195・V2。T196 で 3 → 2・決定 834）
 		for (const file of uniq) {
 			const t = timeOf(file);
 			let me = await loadFile(file), done = 0;
 			// 0. 行の上のカーソル（T167・案 d1）: 覚える段で、自分だけが違い、スクロール量の違う2枚が互いに合う塊を見つけた所は、その相手の画素で置き換える
+			lap('lines');
 			const fixes = lineFix.get(file);
 			if (fixes) {
 				for (const r of fixes) {
@@ -969,7 +1026,9 @@
 				done += fixes.length;
 				me = halfOf(draw);
 			}
+			lap('lines');
 			if (fixBySprite) done += await fixBySprite(file, t, me);
+			lap('sprite');
 			// 4. 行の右の余白のカーソル（T118）
 			if (margin) {
 				const d = dx.getImageData(margin.mX, hE, margin.mW, cH).data;
@@ -994,18 +1053,22 @@
 					stat.margin.whole = (stat.margin.whole || 0) + 1; done++;
 				}
 			}
+			lap('margin');
 			if (done) {
 				stat.frames++;
 				// 書き出し（PNG）を待たずに次の画へ（T195・V2）。toBlob は頼んだ時点の画を写すので、draw に次の画を描いても出る File は前と同じ。
 				// 同時に待つのは ENCODE_MAX 枚まで。out は最後にまとめて入れる（ループの中では使わない）
 				while (encoding.length >= ENCODE_MAX) await encoding.shift();
+				lap('encWait');
 				const name = file.name.replace(/\.[a-z]+$/, '.png');
 				const pr = new Promise((res) => draw.toBlob(res, 'image/png')).then((blob) => { out.set(file, new File([blob], name, { type: 'image/png' })); });
 				encoding.push(pr);
 				encodeAll.push(pr);
 			}
 		}
+		lap('lines');
 		await Promise.all(encodeAll);
+		lap('encTail');
 		for (const q of pool) { q.band.width = q.band.height = 0; q.half = null; }
 		extraCanvas.width = extraCanvas.height = 0; draw.width = draw.height = 0; half.width = half.height = 0;
 		for (const p of sel.persons) p.files = p.files.map((f) => out.get(f) || f);

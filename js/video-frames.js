@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-19a';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-19b';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -571,24 +571,36 @@
 		return out;
 	}
 	// 範囲 [d0, d1] のずれだけを stitch と同じ数え方（差 > 24 を食い違い・白紙どうしは無効）で調べる
+	// 速さ（T196・T195-1。決定 833）: 範囲の真ん中から外へ順に調べ、ずれごとの食い違いの数え上げが、今の最小を超えた時点（同じ値なら、
+	// 小さいずれが勝つので、今の最小のずれより大きいずれは同じ値に達した時点）でそのずれを打ち切る。食い違いは数えるほど増えるだけなので、
+	// 打ち切ったずれは最小にならない。答え（いちばん小さい不一致のうち最も小さいずれ・その不一致）は、端から全部を数える形と同じ
+	// 打ち切ったずれの数（検査と時間の測りで見る。selectFrames の stats.scanCut）
+	const scanStat = { cut: 0 };
 	function scanRange(a, b, d0, d1, ys, xs) {
 		const w = a.w, h = a.h, A = a.gray, B = b.gray;
+		const lo = Math.max(1, d0), hi = Math.min(h - 60, d1), nc = Math.ceil(w / xs), mid = (lo + hi) >> 1;
 		let best = -1, bestBad = Infinity;
-		for (let d = Math.max(1, d0); d <= Math.min(h - 60, d1); d++) {
-			const rows = h - d;
-			let bad = 0, tot = 0, ink = 0;
+		for (let k = 0, n = 2 * (hi - lo) + 1; lo <= hi && k < n; k++) {
+			const d = k & 1 ? mid + ((k + 1) >> 1) : mid - (k >> 1);
+			if (d < lo || d > hi) continue;
+			const rows = h - d, tot = Math.ceil(rows / ys) * nc;
+			if (tot === 0) continue;
+			const tie = d > best;   // このずれは、今の最小と同じ値では勝てない
+			let bad = 0, ink = 0, cut = false;
 			for (let y = 0; y < rows; y += ys) {
 				const ra = (y + d) * w, rb = y * w;
 				for (let x = 0; x < w; x += xs) {
 					const p = A[ra + x], q = B[rb + x];
 					if (p < 240 || q < 240) ink++;
 					if (Math.abs(p - q) > 24) bad++;
-					tot++;
 				}
+				const part = bad / tot;
+				if (part > bestBad || (tie && part >= bestBad)) { cut = true; break; }
 			}
-			if (tot === 0 || ink < tot * 0.05) continue;
+			if (cut) { scanStat.cut++; continue; }
+			if (ink < tot * 0.05) continue;
 			const rate = bad / tot;
-			if (rate < bestBad) { bestBad = rate; best = d; }
+			if (rate < bestBad || (rate === bestBad && d < best)) { bestBad = rate; best = d; }
 		}
 		return { shift: best, badRate: bestBad };
 	}
@@ -598,18 +610,28 @@
 		const w = a.w, h = a.h, A = a.gray, B = b.gray;
 		const maxShift = h - 60;
 		const rates = new Float64Array(Math.max(1, maxShift + 1)).fill(Infinity);
+		// 速さ（T196・T195-1）: 答えに要るのは最小と「最小から ±40 の外の次点」だけ。81 以上離れた2つのずれの、不一致の大きいほう（cap）は
+		// 次点より小さくならない（2つのうち少なくとも一方は最小から 41 以上離れている）。数え上げが cap を超えたずれは最小にも次点にもならないので、
+		// そこで打ち切って調べなかったことにする（Infinity のまま）。答え（shift・badRate・secondBadRate）は全部を数える形と同じ
+		const lowTo = new Float64Array(Math.max(1, maxShift + 1)).fill(Infinity);   // lowTo[d] = rates[1..d] の最小
+		const nc = Math.ceil(w / xs);
+		let cap = Infinity;
 		for (let d = 1; d <= maxShift; d++) {
-			let bad = 0, tot = 0, ink = 0;
+			const tot = Math.ceil((h - d) / ys) * nc;
+			let bad = 0, ink = 0, cut = false;
 			for (let y = 0; y < h - d; y += ys) {
 				const ra = (y + d) * w, rb = y * w;
 				for (let x = 0; x < w; x += xs) {
 					const p = A[ra + x], q = B[rb + x];
 					if (p < 240 || q < 240) ink++;
 					if (Math.abs(p - q) > 24) bad++;
-					tot++;
 				}
+				if (bad / tot > cap) { cut = true; break; }
 			}
-			if (tot && ink >= tot * 0.05) rates[d] = bad / tot;
+			if (cut) scanStat.cut++;
+			else if (tot && ink >= tot * 0.05) rates[d] = bad / tot;
+			lowTo[d] = Math.min(lowTo[d - 1], rates[d]);
+			if (d - 81 >= 1) cap = Math.min(cap, Math.max(rates[d], lowTo[d - 81]));
 		}
 		let shift = -1, best = Infinity;
 		for (let d = 1; d <= maxShift; d++) if (rates[d] < best) { best = rates[d]; shift = d; }
@@ -635,6 +657,7 @@
 	async function selectFrames(source, userOpts) {
 		const opts = Object.assign({}, DEFAULTS, userOpts || {});
 		const signal = opts.signal || null;
+		const scanCut0 = scanStat.cut;
 		const pause = makeYielder(signal, opts.sliceMs);
 		const progress = (phase, done, total, extra) => {
 			if (typeof opts.onProgress !== 'function') return;
@@ -1678,7 +1701,7 @@
 		/* 書き出し（JPEG）を待たずに次の画へ進む（T195・V2。決定 763・830）。toBlob は頼んだ時点の画を写して書き出すので、
 		 * 頼んだあとで full に次の画を描いても、出る File は前と同じ。同時に待つのは GRAB_ENCODE_MAX 枚まで（1枚ごとに等倍の画の写しを持つので、
 		 * iPhone のメモリを考えて少なく）。止まっている画の画素を写すとき（voteOutEffects）は、その画の File ができるのを待つ（fileAt）。最後にまとめて待つ */
-		const GRAB_ENCODE_MAX = 3;
+		const GRAB_ENCODE_MAX = 2;   // T196（決定 834）: 3 → 2（iPhone の縦の録画で写しの最大 約 24MB）
 		const fileWait = [];
 		let encPending = 0;
 		function startEncode(i, name) {
@@ -1820,7 +1843,7 @@
 			picks: picks.map((p) => p.t), seams, files, persons,
 			stats: { sampled: times.length, blankSkipped, sameScreen: same.length, dropped, densified, stills, backs, local, localFallback, coarse, verifies, grabRetries,
 				nears, headHints, predVerifies, loose, micros, stillRuns, stillPicks: picks.filter((p) => p.still).length, grabMismatch, grabFixed, grabShifted, remeasureMoved, remeasureFull, remeasureByDelta, remeasureFail,
-				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, effectEarlyStops, settledEnd,
+				effectPicks, effectBlocks, effectNoAlt, effectCands, effectCopiedRows, effectEarlyStops, settledEnd, scanCut: scanStat.cut - scanCut0,
 				scrollSpeed: speedInfo ? +speedInfo.speed.toFixed(3) : null, fast: fastVideo, fastAdded, releases: releaseTs.length, microWide, overscrolled, sharpOn, sharpHead: sharpHead ? +sharpHead.to.toFixed(3) : null, sharpTried, sharpSwaps },
 			tm
 		};
@@ -2056,6 +2079,8 @@
 		selectFrames,
 		composePerson,
 		isAbortError,
-		untilAbort
+		untilAbort,
+		// 検査用（T196）: ずれを測る2つの計算と、打ち切ったずれの数
+		_scan: Object.freeze({ scanRange, coarseScan, stat: scanStat })
 	});
 })(typeof window !== 'undefined' ? window : globalThis);
