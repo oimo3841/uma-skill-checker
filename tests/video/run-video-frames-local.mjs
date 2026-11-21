@@ -44,13 +44,13 @@ const VIDEOS = [
 	// T96（2026-11-04・T95-1 の回答 147）: --special 無しの「人ごとの高さ」と「選ぶ枚数」も今の値に直した
 	// （前 1998／1707／1648・12枚、2578／2480／2352・34枚。T90 で止まっている画から写すようになってからの値。--special の高さの ±2 の期待値もこの値を中心に見る）
 	{ no: 1, name: 'ScreenRecording_10-25-2026 17-06-21_1.MP4', anchors: [0, 7.5, 14], heights: [1999, 1708, 1648], picks: 9, counts: [4, 4, 3] },
-	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10, 20.25], heights: [2578, 2480, 2351], picks: 22, counts: [11, 8, 5] },
+	{ no: 2, name: 'ScreenRecording_10-25-2026 17-11-41_1_Exam.MP4', anchors: [0, 10, 20.25], heights: [2578, 2481, 2351], picks: 22, counts: [11, 8, 5] },
 	// T135（2026-11-08・決定 494 の案A＋B2）: 動画2 の選ぶ枚数 25→22・人ごと 13／9／5→11／8／5。高さは同じで、結合画像の行も同じ（指のエフェクトの残り方だけが違う。T124-check-1 の画像 3）
 	// T109（2026-11-06）: おいもさんの iPhone の3本（同じ親）。3本目は「連綿」を含む領域が2回写っていた・2本目は祖2 の結合の失敗・1本目は育成完了後の画面（紙吹雪）で取り込めなかった。
 	// 同じ親なので高さはほぼ同じ（正解は PC の取り込みの結合画像を幅をそろえた 2002／1906／1651）。動画1・2 の枚数も T109 で変わった（軌跡が正しくなり、誤って足していた動いている画が減った。結合画像の行は同じ。報告 T109-check-1.md）
-	{ no: 3, name: 'ScreenRecording_11-06-2026 16-57-05_1.MP4', anchors: [0, 7, 12.25], heights: [1997, 1901, 1648], picks: 11, counts: [6, 4, 3] },
+	{ no: 3, name: 'ScreenRecording_11-06-2026 16-57-05_1.MP4', anchors: [0, 7, 12.25], heights: [1998, 1902, 1648], picks: 11, counts: [6, 4, 3] },
 	{ no: 4, name: 'ScreenRecording_11-06-2026 16-58-38_1.MP4', anchors: [0, 5.625, 10.25], heights: [1997, 1901, 1647], picks: 10, counts: [4, 5, 3] },
-	{ no: 5, name: 'ScreenRecording_11-06-2026 16-59-47_1.MP4', anchors: [0, 5.5, 11], heights: [1998, 1902, 1649], picks: 10, counts: [5, 4, 3] },
+	{ no: 5, name: 'ScreenRecording_11-06-2026 16-59-47_1.MP4', anchors: [0, 5.5, 11], heights: [1998, 1901, 1649], picks: 10, counts: [5, 4, 3] },
 	// T132（2026-11-08・決定 485・486）: スクロールを始めてから5秒未満で終わる速い動画2本（T129 で調べた A-1・A-2）。親（本人）は別の人で、
 	// 祖1・祖2 は動画3〜5 と同じ。期待値は「3人に分かれる」と、祖1・祖2 の高さ（動画3〜5 の 1901〜1902・1647〜1649 を目安に ±2）だけ。
 	// 親の高さ・区切りの時刻・選ぶ枚数は期待値にしない（null は見ない）。A-1 は直す前は区切りが4つ（祖2 のパネルの頭が文字で2つに割れた）、
@@ -479,7 +479,7 @@ try {
 			const canvases = [];
 			for (const p of sel.persons) {
 				const tp = performance.now();
-				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { anchorY: p.anchorY, ages: p.ages });
+				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still, anchorY: p.anchorY, ages: p.ages });
 				persons.push({ label: p.label, startT: p.startT, n: p.files.length, h: c.height, w: c.width, ms: performance.now() - tp,
 					weak: p.weak.filter(Boolean).length, uncertain: p.uncertain.filter(Boolean).length, warnings: c._stitchWarnings.length });
 				canvases.push(c);
