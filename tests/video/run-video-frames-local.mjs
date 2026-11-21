@@ -254,7 +254,7 @@ async function runCapture(v) {
 			const rpLong = Math.round(Math.max(0, ...long.filter((e) => e.s >= t0 && e.s < t1).map((e) => e.d)));
 			const persons = [];
 			for (const p of sel.persons) {
-				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still });
+				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { still: p.still, anchorY: p.anchorY, ages: p.ages });
 				persons.push({ h: c.height, n: p.files.length, unc: p.uncertain.filter(Boolean).length, png: save ? c.toDataURL('image/png') : null });
 			}
 			return { persons, rpMs: Math.round(t1 - t0), rpLong, cells: st.cells, margin: st.margin ? st.margin.cells : 0, manyHits: st.manyHits, xStart: st.xStart };
@@ -479,7 +479,7 @@ try {
 			const canvases = [];
 			for (const p of sel.persons) {
 				const tp = performance.now();
-				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label);
+				const c = await UmaVideoFrames.composePerson(p.files, p.shifts, p.uncertain, p.label, { anchorY: p.anchorY, ages: p.ages });
 				persons.push({ label: p.label, startT: p.startT, n: p.files.length, h: c.height, w: c.width, ms: performance.now() - tp,
 					weak: p.weak.filter(Boolean).length, uncertain: p.uncertain.filter(Boolean).length, warnings: c._stitchWarnings.length });
 				canvases.push(c);
