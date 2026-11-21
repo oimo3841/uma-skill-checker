@@ -770,6 +770,11 @@
 			#stitch-parts-panel .stitch-persons-seg .stitch-cols-btn { min-height: 32px; font-size: 11px; padding: 0 2px; white-space: nowrap; }
 			#stitch-parts-panel .stitch-show-item { padding-top: 3px; padding-bottom: 3px; }
 			#stitch-parts-panel .stitch-wire { align-self: flex-start; --u: min(1.5px, calc((100vw - 258px) / 100)); }
+			/* T205（決定 874）: 引き出しの小窓（#stitch-drawer-pop）の「入れる人」にも③と同じ置き方を当てる（字と余白を詰め、1行に）。
+			   模式図も③と同じ式で狭い画面だけ縮める（上限は小窓のいままでの 1.3px。390px 以上の幅は変わらない） */
+			#stitch-drawer-pop .stitch-persons { gap: var(--uma-sp-1); margin: 0 0 var(--uma-sp-1); }
+			#stitch-drawer-pop .stitch-persons-seg .stitch-cols-btn { min-height: 32px; font-size: 11px; padding: 0 2px; white-space: nowrap; }
+			#stitch-drawer-pop .stitch-wire { --u: min(1.3px, calc((100vw - 258px) / 100)); }
 			/* 下からのシートの上限（shell.css は引き出しの半分）を、このパネルだけ広げる。「画像を更新」まで見えるように */
 			#stitch-drawer-pop { max-height: 82%; }
 			#stitch-parts-panel .stitch-show-item { padding-left: var(--uma-sp-1); padding-right: 0; }
