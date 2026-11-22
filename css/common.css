@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-11-22a";
+	--uma-components-css-version: "2026-11-22b";
 }
 
 /* ============================================================
@@ -84,11 +84,21 @@ html:not(.uma-tw-ready) .hidden { display: none; }
  * 両ツールに同名で存在していたものを、ここに一本化する。
  * ============================================================ */
 .glass-card {
+	/* T212-E1（デザインの見直し。違いの一覧 3）: カードは枠も影も角丸も持たない面。枠は太さ 1px を残して透明に
+	   （大きさ・場所を変えない）。backdrop-filter は固定の部品の基準なので外さない（F-61）。
+	   各ページの .glass-card の影・枠の色の指定もこの2つの変数を読むので、ここで変数ごと消す。
+	   768px 以上は上に 3px の線（操作色）で区切る（枠の内側に描くので大きさは変わらない） */
+	--uma-card-border: transparent;
+	--uma-card-shadow: none;
 	background: var(--uma-glass-bg);
 	backdrop-filter: var(--uma-glass-blur);
 	border: 1px solid var(--uma-card-border);
-	border-radius: var(--uma-r-xl);
+	border-radius: 0;
+	box-shadow: var(--uma-card-shadow);
 	padding: var(--uma-card-pad);
+}
+@media (min-width: 768px) {
+	.glass-card { --uma-card-shadow: inset 0 3px 0 var(--uma-control-mark); }
 }
 
 /* 一覧の行。カードより情報密度が高く、押せることがある。

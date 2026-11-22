@@ -298,7 +298,7 @@ export async function register9(env) {
 				tag + '左：セット名 16px/800。「✎ 2／10 ▾」の札は無い（C-235）', g1);
 			assert(g1.num.join() === '18px,800' && g1.k.join() === '12px,700' && g1.sub[0] === '10.5px' && /^(切れ者・|勉強家・)?①＋②$/.test(g1.sub[1]) && g1.subHelp,
 				tag + '右：1行目「N」18px/800＋Pt・／M種 12px/700、2行目「…①＋②」10.5px＋?', g1);
-			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === (w <= 640 ? '4px' : '8px') && g1.band[3] === (w <= 640 ? '4px' : '10px'), tag + '①の「Pt／種」は薄い帯（角丸10px・スマホは縦横4px（段4で進化ボタン44pxのために詰めた）／PC は縦8px・横10px・背景 --uma-band）', g1.band);
+			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ /* T212-E1（違いの一覧 3）: 入れ物は角丸なし */ g1.band[1] === '0px' && g1.band[2] === (w <= 640 ? '4px' : '8px') && g1.band[3] === (w <= 640 ? '4px' : '10px'), tag + '①の「Pt／種」は薄い帯（角丸なし〔T212-E1。前は10px〕・スマホは縦横4px（段4で進化ボタン44pxのために詰めた）／PC は縦8px・横10px・背景 --uma-band）', g1.band);
 			assert(g1.pt[0] === '22px' && g1.pt[1] === '800' && /tabular-nums/.test(g1.pt[2]) && g1.unit.join() === '12px,700' && g1.kinds[0] === '14px' && g1.kinds[1] === '800' && g1.kinds[2] === '／' && g1.kunit.join() === '11px,種',
 				tag + '数字 22px/800・tabular-nums、Pt 12px/700、／N 14px/800、種 11px', g1);
 			assert(g1.btns.join() === '勉強家,切れ者,覚醒Lv5' && g1.scroll === 'visible', tag + '①の帯の右側は「勉強家 切れ者 覚醒Lv5」（段4で横スクロール・フェードをやめた。足りなければ帯が2行になる）', { b: g1.btns, s: g1.scroll });
@@ -347,9 +347,10 @@ export async function register9(env) {
 					firstId: first.getAttribute('data-skill-id')
 				};
 			});
-			assert(o.band.bg === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144 */ o.band.radius === '10px' && o.band.pad === (w <= 640 ? '4px 4px' : '8px 10px'), tag + '②の帯: 薄い地（--uma-band）・角丸10px・PC は横10px縦8px／スマホは①と同じ縦横4px（②因子周回 段1）', o.band);
+			assert(o.band.bg === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144 */ /* T212-E1: 角丸なし */ o.band.radius === '0px' && o.band.pad === (w <= 640 ? '4px 4px' : '8px 10px'), tag + '②の帯: 薄い地（--uma-band）・角丸なし〔T212-E1。前は10px〕・PC は横10px縦8px／スマホは①と同じ縦横4px（②因子周回 段1）', o.band);
 			assert(o.order[1] === null, tag + '②の設定の枠（破線）の行は無い（C-235。部品は合計の行へ）', o.order);
-			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '10px' && o.grp.bg === await tokRgb(sp.page, 'var(--uma-group-bg)') &&   /* C-144: まとまりの面はトークンの値（UmaStar は #fffdf8） */ o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い枠・線あり・角丸10px・横8px', o.grp);
+			// T212-E1（違いの一覧 3）: まとまりは線を持たない面（線の太さ 1px は残して透明・角丸なし）
+			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '0px' && o.grp.bg === await tokRgb(sp.page, 'var(--uma-group-bg)') &&   /* C-144: まとまりの面はトークンの値（UmaStar は #fffdf8） */ o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い面・線の太さは残して透明・角丸なし〔T212-E1。前は線あり・角丸10px〕・横8px', o.grp);
 			assert(o.order[0] !== null && o.order[2] !== null && o.order[2] > o.order[0] && o.inGroup.every(Boolean), tag + '上から 帯 → スキルのまとまり（入口・右端の塊・一覧はまとまりの中）', o);
 			// C-235: 継承固有・共通スキルの「Pt／種」の2行は帯から消し、? の小窓の中だけに出す（小窓の中身は 段9(C)）
 			// T52（C-262 の (2)）: 合計の Pt の字は 20px（モックの案d。375px も 1280px も）

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22b';
 
 	/* ============================================================
 	 * 定数
@@ -7316,7 +7316,8 @@
 		'.usd-roster-lower { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--uma-sp-3); }',
 		'@media (min-width: 720px) { .usd-roster-lower { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); } }',
 		'.usd-roster-sub { display: flex; flex-direction: column; gap: var(--uma-sp-2);',
-		'  background: var(--uma-surface-sunken); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm);',
+		// T212-E1（違いの一覧 3）: 面。枠は太さ 1px を残して透明に・角丸なし（大きさ・場所は変えない）
+		'  background: var(--uma-surface-sunken); border: 1px solid transparent; border-radius: 0;',
 		'  padding: var(--uma-sp-2-5) var(--uma-sp-3); }',
 		'.usd-roster-h--sub { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle);',
 		'  font-weight: 600; letter-spacing: .02em; }',
@@ -7781,7 +7782,8 @@
 		'@media (min-width: 720px) { .usd-factor-cards .usd-factor-cards-blank { display: flex; visibility: hidden; } }',
 		// 719px 以下は空白の領域を出さないので、隣の枠の上の余白（≤640px の .usd-roster-lower .usd-roster-sub + .usd-roster-sub）も当てない（後ろの規則より強い形にする）
 		'@media (max-width: 719px) { .usd-factor-cards .usd-roster-lower .usd-factor-cards-blank + .usd-roster-sub { margin-top: 0; } }',
-		'.usd-bandbox { background: var(--uma-band); border-radius: 10px; padding: 8px 10px; }',
+		// T212-E1（デザインの見直し。違いの一覧 3）: 入れ物は角丸を持たない面
+		'.usd-bandbox { background: var(--uma-band); border-radius: 0; padding: 8px 10px; }',
 		'.usd-band-sum { display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--uma-text-heading); }',
 		'.usd-band-pt { font-size: 22px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }',
 		'.usd-band-unit { margin-left: 1px; font-size: 12px; font-weight: 700; }',
@@ -7846,7 +7848,8 @@
 		'.usd-setbody .usd-roster-link { padding: 6px 8px; border: 1px dashed var(--uma-dash); border-radius: 10px; background: var(--uma-config-bg); min-width: 0; }',
 		'.usd-setcfg { flex: 1 1 100%; }',
 		// スキルのまとまり（白い枠・線あり・角丸10px・横8px）: 入口 → パレット → 一覧
-		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--uma-group-line); border-radius: 10px;',
+		// T212-E1（違いの一覧 3）: 枠は太さ 1px を残して透明に・角丸なし（大きさ・場所は変えない。面の段で区切る）
+		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid transparent; border-radius: 0;',
 		'  background: var(--uma-group-bg); min-width: 0; }',
 		// ②因子周回 段4（C-226）: 入口の行は、どの幅でも1行「横に送る入口のボタン｜右端の固定の塊（◎・表の切り替え・削除）」（パレットの行は無くした）。
 		// 入口のボタンの側だけが縮んで横に送られ（覗かせの切り詰め --usd-entry-trim は右の余白で効く）、塊は縮まず右端に寄る（削除が一番右・◎が消えても削除は動かない）
@@ -8133,7 +8136,7 @@
 		'  .usd-roster-top { gap: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); border-bottom-width: 1px; }',
 		'  .usd-ntabs { padding-bottom: 0; }',
 		'  .usd-roster-lower { gap: 0; padding: var(--uma-sp-1) var(--uma-sp-1-5); background: var(--uma-surface-sunken);',
-		'    border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
+		'    border: 1px solid transparent; border-radius: 0; }', // T212-E1（違いの一覧 3）: 面。枠は太さを残して透明に
 		'  .usd-roster-lower .usd-roster-sub { background: transparent; border: 0; border-radius: 0; padding: 0; gap: var(--uma-sp-1); }',
 		'  .usd-roster-lower .usd-roster-sub + .usd-roster-sub { margin-top: var(--uma-sp-1); }',
 		'  .usd-roster-pickbox, .usd-roster-slot { min-height: 30px; }',

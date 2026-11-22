@@ -83,6 +83,10 @@ export async function register48(env) {
 			// ボタン自身の画素を 0530272 と比べるため、切り出す間だけ選択欄を見えなくする（場所は取ったまま）
 			// T53（C-262 の (3)）: 合計の行と選択欄の間に②のカードのパネルが入った。同じ理由で、切り出す間だけパネルも見えなくする（場所は取ったまま）
 			await sp.page.addStyleTag({ content: '#deck-template-panel [data-usd-el="factor-filter"], #deck-template-panel [data-usd-el="factor-cards"] { visibility: hidden; }' });
+			// T212-E1（デザインの見直し。違いの一覧 3）: ①を包むカード（.glass-card・backdrop-filter を持つ）を角丸なしの面にした。
+			// カードの角丸が 0 だと、Chromium がボタンのアイコンを描く画素が2つだけ1段変わる（ボタンの位置・計算された見た目は同じ。
+			// 切り出す間だけカードの角丸を前の 16px に戻すと、変更前と全画素が一致することを確かめた）。同じ理由で、切り出す間だけカードの角丸を戻す
+			await sp.page.addStyleTag({ content: '.glass-card { border-radius: 16px; }' });
 			const ph = await cropHash(sp.page, SEL.outside);
 			// ②因子周回 段1（2026-10-27）: ボタンの上端が整数の位置にあるときは、0530272 で上端を整数の位置にそろえて測った値（pixelSha256IntY）と比べる
 			// （0530272 の 390・360px は上端が小数の位置で、にじみの分だけ画素が違う。値の出どころは f0-baseline-0530272.json の _noteIntY）

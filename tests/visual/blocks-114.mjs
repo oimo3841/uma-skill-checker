@@ -571,7 +571,8 @@ export async function register114(env) {
 		}
 		const { ctx, page } = await openStar(1280, 900, 'light', 'a');
 		const p = await page.evaluate(() => { const e = document.querySelector('.upload-set-panel'); if (!e) return null; const c = getComputedStyle(e); return { bc: c.borderTopColor, bg: c.backgroundColor }; });
-		assert(p && p.bc === 'rgb(208, 219, 234)', '③の親Aセットの枠は落ち着かせた色', p);
+		// T212-E1（デザインの見直し。違いの一覧 3）: セットの枠は線を持たない面になった（線の太さは残して透明）
+		assert(p && p.bc === 'rgba(0, 0, 0, 0)', '③の親Aセットの枠は線を持たない面（T212-E1。前は落ち着かせた色 rgb(208, 219, 234)）', p);
 		await ctx.close();
 	});
 }

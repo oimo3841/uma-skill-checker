@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-22b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-22b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-22a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-22b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
@@ -544,6 +544,22 @@
 		.deck-set-bar { background: var(--uma-glass-bg); border-bottom-color: var(--uma-border); }
 		/* パネル（カードの中の一段）とオプション */
 		.glass-card .bg-slate-50\/50 { background-color: var(--uma-panel-bg); border-color: var(--uma-panel-border); }
+		/* T212-E1（デザインの見直し。違いの一覧 3・4・28・29・30）: ページの地は無地（縞を出さない）。
+		   入れ物（カードの中のパネル・セットの箱・結合画像の設定の箱）は枠も角丸も持たない面（枠の太さは残して透明に。大きさ・場所は変えない）。
+		   カードそのものは css/common.css の .glass-card。下の実行の欄は影をやめて上に 2px の線（上の余白を 1px 減らして高さは今のまま）。
+		   取り込み中・進み具合の箱は面と操作色の帯、高度な解析オプションの箱は面。入力欄（textarea）は押せる部品なので枠を残す */
+		body { background-image: none; }
+		.glass-card .bg-slate-50\/50:not(textarea), .glass-card .upload-set-panel, .glass-card .stitch-show { border-color: transparent; border-radius: 0; }
+		/* カードの上端に重なるセットの帯も角丸なし。768px 以上のカードの上の線（--uma-card-shadow）を帯の側にも引く（帯がカードの上端を覆うため） */
+		.deck-set-bar { border-radius: 0; box-shadow: var(--uma-card-shadow); }
+		.upload-bar { box-shadow: none; border-top: 2px solid var(--uma-control-mark); padding-top: 7px; }
+		.cap-box { border-color: transparent; border-radius: 0; background: var(--uma-sheet-sunk); }
+		.adv-opts-panel { border-color: transparent; border-radius: 0; }
+		:is(#video-progress, .sr-video-progress) { background: var(--uma-sheet-sunk); border-color: transparent; border-radius: 0; }
+		:is(#video-progress, .sr-video-progress) > div:first-child { color: var(--uma-text-heading); }
+		:is(#video-progress, .sr-video-progress) > div:first-child svg { color: var(--uma-control-mark); }
+		:is(#video-progress, .sr-video-progress) > div:nth-child(2) { background: var(--uma-rule); border-radius: 0; }
+		:is(#video-progress, .sr-video-progress) .video-prog-bar { background: var(--uma-control-mark); border-radius: 0; }
 		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
 		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
 		/* T108: 「レース指定なし／本育成編成なし」の①のタブ（押せない）。①の中身は消さない。件数のバッジは出さない */
@@ -1523,7 +1539,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22b';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],

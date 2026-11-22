@@ -124,7 +124,8 @@ export async function register98(env) {
 			assert(m.sum === null && total > 0, `T82(1) ${w}px 読み取り後の知らせは出さない（T106 の (8)）`, m.sum);
 			assert(m.box && m.afterClear && !m.head && m.png === 'PNGをダウンロード' && m.dlSvg && m.refresh && m.img && m.warn === null, `T82(1) ${w}px セットの枠の中（「セットをクリア」の行のすぐ後）に結合の結果の箱（見出しは無し・「画像を更新」あり〔T117〕・ダウンロードはアイコン・結合画像。T106 の (9)(10)）`, m);
 			assert(!m.colsShown, `T82(1) ${w}px 親ごとの画像（3列）は見せない`, m.colsShown);
-			assert(m.hasClass && m.panelBorder === 'rgba(0, 0, 0, 0)' && lineBefore !== m.panelBorder, `T82(1) ${w}px セットの枠の線を外す（前は ${lineBefore}）`, { before: lineBefore, after: m.panelBorder });
+			// T212-E1（デザインの見直し。違いの一覧 3）: セットの枠は結果の前から線を持たない面になったので、前後の違いは見ない（結果のあとも線なしのまま）
+			assert(m.hasClass && m.panelBorder === 'rgba(0, 0, 0, 0)', `T82(1) ${w}px セットの枠の線を外す（前は ${lineBefore}）`, { before: lineBefore, after: m.panelBorder });
 			assert(m.boxR && m.clearR && m.boxR.y >= m.clearR.bottom && m.boxR.x >= m.panelR.x && m.boxR.right <= m.panelR.right, `T82(1) ${w}px 結果の箱は「セットをクリア」の下から始まり、セットの枠の中に収まる`, { box: m.boxR, clear: m.clearR, panel: m.panelR });
 			assert(m.btn && m.btn.t === TEXT.show && m.btn.exp === 'false' && m.btn.inBlk && m.btn.under && m.btn.r.h >= 44, `T82(1) ${w}px 結果の下に「${TEXT.show}」（押せる高さ 44px 以上・aria-expanded=false）`, m.btn);
 			assert(!m.drawerOpen && !m.drawerImg, `T82(1) ${w}px 結合画像の引き出しは開かない・中身も変えない`, m);

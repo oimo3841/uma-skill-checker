@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-22b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-22b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -978,6 +978,25 @@
 		.adv-opts-panel { margin-top: var(--uma-sp-1); padding: var(--uma-sp-2); border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-sunken); }
 		.adv-opts-panel[hidden] { display: none; }
 		.adv-opts-title { margin: 0 0 var(--uma-sp-1); font-size: 11px; font-weight: 700; color: var(--uma-text-subtle); }
+		/* T212-E1（デザインの見直し。違いの一覧 3・4・20・28・29・30）: ページの地は無地（縞を出さない）。
+		   入れ物（カードの中のパネル・セットの箱・結合画像の設定の箱）は枠も角丸も持たない面（枠の太さは残して透明に。大きさ・場所は変えない）。
+		   カードそのものは css/common.css の .glass-card。①の開閉の箱（一覧・コピー）は地を持たず、上に罫線1本の行（最後の行は下にも）。
+		   下の実行の欄は影をやめて上に 2px の線（上の余白を 1px 減らして高さは今のまま）。
+		   取り込み中・進み具合の箱は面と操作色の帯、めろっぷ・高度な解析オプションの箱は面。入力欄（textarea）は押せる部品なので枠を残す */
+		body { background-image: none; }
+		.glass-card .bg-slate-50\/50:not(textarea), .glass-card .upload-set-panel, .glass-card .stitch-show { border-color: transparent; border-radius: 0; }
+		.glass-card details.exam-fold { background: transparent; border-color: var(--uma-rule) transparent transparent; border-radius: 0; }
+		.glass-card details.exam-fold:not(:has(~ details.exam-fold)) { border-bottom-color: var(--uma-rule); }
+		.glass-card details.exam-fold > div { border-top-color: var(--uma-rule); }
+		.upload-bar { box-shadow: none; border-top: 2px solid var(--uma-control-mark); padding-top: 7px; }
+		.cap-box { border-color: transparent; border-radius: 0; background: var(--uma-sheet-sunk); }
+		#melop-mode-wrap { border-color: transparent; border-radius: 0; background: var(--uma-sheet-sunk); }
+		.adv-opts-panel { border-color: transparent; border-radius: 0; }
+		:is(#video-progress, .sr-video-progress) { background: var(--uma-sheet-sunk); border-color: transparent; border-radius: 0; }
+		:is(#video-progress, .sr-video-progress) > div:first-child { color: var(--uma-text-heading); }
+		:is(#video-progress, .sr-video-progress) > div:first-child svg { color: var(--uma-control-mark); }
+		:is(#video-progress, .sr-video-progress) > div:nth-child(2) { background: var(--uma-rule); border-radius: 0; }
+		:is(#video-progress, .sr-video-progress) .video-prog-bar { background: var(--uma-control-mark); border-radius: 0; }
 		/* ===== 照合結果のスマホのヒートマップ（T100・C-290）=====
 		   640px 未満の新UIの引き出し（#result-drawer の中）だけ。PC と旧UI は今のまま。
 		   ★の記号の代わりに人のマスを★の数で塗り、数字を出す（★0・未検出は塗りなし、★不明は斜線に「?」）。
@@ -1568,7 +1587,7 @@
 			</div>
 
 			<!-- 対象スキルの一覧（確認用・折りたたみ） -->
-			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+			<details class="exam-fold group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
 				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
 					<span class="flex items-center gap-2">
 						<i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
@@ -1593,7 +1612,7 @@
 			</details>
 
 			<!-- スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し・デフォルト折りたたみ） -->
-			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+			<details class="exam-fold group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
 				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
 					<span class="flex items-center gap-2">
 						<i data-lucide="clipboard-list" class="w-4 h-4 text-slate-500"></i>
@@ -3054,7 +3073,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22b';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -4772,7 +4791,7 @@
 			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
 			// T56（C-258 の (2)-5）: 見出し「親Aセット（親A＋祖A1＋祖A2）」は消した（タブと図で分かるため）。「セットをクリア」はパネルの右上に重ねる
 			return `
-				<div class="exam-set-panel upload-set-panel rounded-2xl border p-4" style="border-color:${HUE_HEX[set.hue].borderSoft};background-color:${HUE_HEX[set.hue].tint};">
+				<div class="exam-set-panel upload-set-panel rounded-2xl border p-4" style="background-color:${HUE_HEX[set.hue].tint};">
 					<div class="upload-set-clear flex items-center justify-between mb-1">
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 						<button type="button" class="uma-help-btn video-howto-btn" aria-expanded="false" aria-label="${escapeHtml(videoText('video.howto.btn'))}" title="${escapeHtml(videoText('video.howto.btn'))}" onclick="toggleVideoHowto(this)">?</button>
