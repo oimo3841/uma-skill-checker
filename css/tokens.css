@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-11-12a";
+	--common-css-version: "2026-11-22a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -349,6 +349,18 @@
 	--uma-r-xl: 16px;   /* カード */
 	--uma-r-full: 999px;
 
+	/* ---- 道具の部品（T212-C。デザインの見直し DG06〜DG18） ----
+	   道具の部品（ボタン・選ぶ箱・札・小窓など）の角と、面・線、押せない部品の灰。今ある --uma-r-* などの値は変えない
+	   （ゲーム由来の丸い印〔段の番号の丸・右下の丸ボタン・種別アイコンなど〕は今のトークンを読んだまま）。
+	   部品ごとに、これらを読む指定へ替える。面・線はツールの色で各ページが上書きする（ここの既定は今の面・線と同じ） */
+	--uma-r-tool: 3px;
+	--uma-sheet: var(--uma-surface);              /* 入れ物の面 */
+	--uma-sheet-sunk: var(--uma-surface-sunken);  /* 一段沈めた面 */
+	--uma-rule: var(--uma-border);                /* 区切りの線 */
+	--uma-rule-strong: var(--uma-border-strong);  /* 押せる部品の線 */
+	--uma-off: #a8a29e;        /* 押せない部品の線・文字（薄くせず灰で示す。デ63） */
+	--uma-off-bg: #e7e5e4;     /* 押せない部品の地 */
+
 	/* ---- 影（3段。面は最小限、浮遊要素だけ強く） ---- */
 	--uma-shadow-1: 0 1px 2px 0 rgba(0, 0, 0, .05);
 	--uma-shadow-2: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -2px rgba(0, 0, 0, .1);
@@ -416,6 +428,8 @@
 	--uma-surface-group: #263041;
 	--uma-surface-inverse: #e2e8f0;
 	--uma-page-ground: #0f1318;      /* ページの地（各ページの body がダークで使う） */
+	--uma-off: #7d7a71;              /* 押せない部品の線・文字（T212-C） */
+	--uma-off-bg: #2c2b29;           /* 押せない部品の地（T212-C） */
 
 	/* ---- 文字 ---- */
 	--uma-text: #e2e8f0;
