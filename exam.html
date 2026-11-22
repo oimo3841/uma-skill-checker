@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-22c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-22c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -630,7 +630,7 @@
 			.exam-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、special.html のタイトルと同じ大きさ（22px。360px 以下は20px）にそろえる */
 			.exam-title { font-size: 1.375rem; line-height: 1.2; }
-			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
+			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: 0; } /* T212-E1 の取りこぼし（E2 で直した）: 入れ物は角丸なし */
 			#new-step-card .step-tabs { margin-bottom: var(--uma-sp-1); gap: 2px; }
 			#new-step-card .step-tab { padding: var(--uma-sp-1) 2px; }
 			#new-step-slot #step-panel-1 > p { margin-bottom: var(--uma-sp-1-5); }
@@ -997,6 +997,11 @@
 		:is(#video-progress, .sr-video-progress) > div:first-child svg { color: var(--uma-control-mark); }
 		:is(#video-progress, .sr-video-progress) > div:nth-child(2) { background: var(--uma-rule); border-radius: 0; }
 		:is(#video-progress, .sr-video-progress) .video-prog-bar { background: var(--uma-control-mark); border-radius: 0; }
+		/* T212-E2（デザインの見直し。違いの一覧 7・11）: ツール切り替えのメニューは角なし・押せる部品と同じ線（影は浮いた合図として残す）。
+		   知らせ（#toast）は角 3px。引き出し・小窓は css/shell.css と core */
+		#tool-dropdown-menu { border-radius: 0; border-color: var(--uma-rule-strong); }
+		#tool-dropdown-menu > :is(div, a) { border-radius: 0; }
+		#toast { border-radius: var(--uma-r-tool); }
 		/* ===== 照合結果のスマホのヒートマップ（T100・C-290）=====
 		   640px 未満の新UIの引き出し（#result-drawer の中）だけ。PC と旧UI は今のまま。
 		   ★の記号の代わりに人のマスを★の数で塗り、数字を出す（★0・未検出は塗りなし、★不明は斜線に「?」）。
@@ -3073,7 +3078,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22c';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],

@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-11-22b";
+	--uma-shell-css-version: "2026-11-22c";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -634,4 +634,23 @@
 		left: 0; right: 0; bottom: 0; width: 100%; max-height: 50%;
 		border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; border-left: 0; border-right: 0; border-bottom: 0;
 	}
+}
+
+/* ============================================================
+ * T212-E2（デザインの見直し。違いの一覧 7）: 引き出し・小窓は角なし。引き出しは左に、小窓は上に 3px の線（操作色）。
+ * 引き出しの見出しは帯の面。暗転の上に出すもの（引き出し・.uma-overlay）は大きな影を持たない。
+ * 暗転なしで引き出しの中に浮かせる小窓（.uma-popover--drawer）は影を残す（見本の浮いたメニューと同じ）。
+ * 線は ::before で上に重ねて描く（枠の太さ・中身の幅と場所は変えない）。
+ * ============================================================ */
+.uma-drawer { box-shadow: none; }
+.uma-drawer::before, .uma-overlay::before, .uma-popover--drawer::before {
+	content: ""; position: absolute; z-index: 6; pointer-events: none; background: var(--uma-control-mark);
+}
+.uma-drawer::before { left: 0; top: 0; bottom: 0; width: 3px; }
+.uma-overlay::before, .uma-popover--drawer::before { left: 0; right: 0; top: 0; height: 3px; }
+.uma-drawer-header { background: var(--uma-band); }
+.uma-overlay { border-radius: 0; box-shadow: none; }
+.uma-popover { border-radius: 0; }
+@media (max-width: 640px) {
+	.uma-overlay, .uma-popover--drawer { border-radius: 0; }
 }

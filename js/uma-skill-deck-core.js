@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22c';
 
 	/* ============================================================
 	 * 定数
@@ -6284,7 +6284,7 @@
 		// ②への追加の知らせ（段F1・C-190）。自動では消えない。×を押す／次に別の操作（知らせ以外を押す・キー入力）で消える。置き場所はページの知らせ（#toast）の上
 		'.usd-addnotice { position: fixed; z-index: 130; display: flex; align-items: center; gap: var(--uma-sp-1); max-width: min(32rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-4);',
 		'  bottom: calc(var(--usd-toast-bottom, calc(var(--uma-fab-edge, 16px) + var(--uma-fab-size, 48px) + var(--uma-sp-4) + env(safe-area-inset-bottom, 0px))) + 4.5rem); right: max(1.25rem, calc(50% - 512px));',
-		'  border: 1px solid var(--uma-toast-border); border-radius: var(--uma-r-xl); background: var(--uma-toast-bg); color: #ffffff; box-shadow: var(--uma-shadow-2); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 500; }',
+		'  border: 1px solid var(--uma-toast-border); border-radius: var(--uma-r-tool); /* T212-E2（違いの一覧 11）: 知らせは角 3px */ background: var(--uma-toast-bg); color: #ffffff; box-shadow: var(--uma-shadow-2); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 500; }',
 		'.usd-addnotice[hidden] { display: none; }',
 		'.usd-addnotice-text { min-width: 0; padding: var(--uma-sp-2) 0; overflow-wrap: anywhere; }',
 		'.usd-addnotice-x { flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--uma-r-lg); background: transparent; color: inherit; cursor: pointer; }',
@@ -6308,6 +6308,11 @@
 		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 42rem;',
 		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; max-height: min(85dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px)); display: flex; flex-direction: column; overflow: hidden; }',
 		'@media (min-width: 768px) { .usd-modal-panel { border-radius: var(--uma-r-xl); margin-bottom: var(--uma-sp-6); } }',
+		// T212-E2（デザインの見直し。違いの一覧 7）: 小窓は角なし・上に 3px の線（操作色）。線は ::before で上に重ねて描き、
+		// 箱の大きさ・場所と中身の位置は変えない（箱は backdrop-filter を持つので、もともと中の部品の位置の基準。relative を足しても配置は同じ）
+		'.usd-modal-panel { position: relative; border-radius: 0; }',
+		'.usd-modal-panel::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 6; pointer-events: none; background: var(--uma-control-mark); }',
+		'@media (min-width: 768px) { .usd-modal-panel { border-radius: 0; } }',
 		// モーダル下部に固定するフッター（追加ボタンと選択数）。パネルの3段目なので
 		// スクロール領域と重ならず、一覧の最後の行を隠すこともない。
 		// 地は不透明で塗る（opacity は使わない。B節ルール9・F-7）。狭い画面ではパネルの下端が
@@ -7334,6 +7339,9 @@
 		'  max-height: min(70vh, 560px); max-height: min(70dvh, 560px); overflow: hidden; display: flex; flex-direction: column; gap: var(--uma-sp-2);',
 		'  background: var(--uma-surface); border: 1px solid var(--uma-border);',
 		'  border-radius: var(--uma-r-md); padding: var(--uma-card-pad); box-shadow: var(--uma-shadow-lg, 0 10px 30px rgba(0,0,0,.2)); }',
+		// T212-E2（違いの一覧 7）: 小窓は角なし・暗転の上なので大きな影なし・上に 3px の線（::before で重ねる。大きさ・場所は変えない）
+		'.usd-roster-modal-box { border-radius: 0; box-shadow: none; }',
+		'.usd-roster-modal-box::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 6; pointer-events: none; background: var(--uma-control-mark); }',
 		'.usd-roster-modal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
 		'.usd-roster-hits { overflow-y: auto; }',
 		// スキルの説明（ⓘ・長押し。段6）。器は共有の .uma-overlay .uma-popover（css/shell.css）。ここは中身と ⓘ だけ。

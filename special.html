@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-22c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-22c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-22b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-22c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
@@ -140,7 +140,7 @@
 			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			/* C-140（微調整2・D）: 文字を一段大きくした（20→22px。exam.html のタイトルと同じ大きさ）。360px 以下は従来の20px */
 			.site-header h1 { font-size: 1.375rem; line-height: 1.2; }
-			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
+			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: 0; } /* T212-E1 の取りこぼし（E2 で直した）: 入れ物は角丸なし */
 			.main-card .step-tabs { margin-bottom: var(--uma-sp-1); }
 			.main-card .step-tab { padding: var(--uma-sp-1) 2px; }
 			.main-card .step-tabs { gap: 2px; }
@@ -560,6 +560,11 @@
 		:is(#video-progress, .sr-video-progress) > div:first-child svg { color: var(--uma-control-mark); }
 		:is(#video-progress, .sr-video-progress) > div:nth-child(2) { background: var(--uma-rule); border-radius: 0; }
 		:is(#video-progress, .sr-video-progress) .video-prog-bar { background: var(--uma-control-mark); border-radius: 0; }
+		/* T212-E2（デザインの見直し。違いの一覧 7・11）: ツール切り替えのメニューは角なし・押せる部品と同じ線（影は浮いた合図として残す）。
+		   知らせ（#toast）は角 3px。引き出し・小窓は css/shell.css と core */
+		#tool-dropdown-menu { border-radius: 0; border-color: var(--uma-rule-strong); }
+		#tool-dropdown-menu > :is(div, a) { border-radius: 0; }
+		#toast { border-radius: var(--uma-r-tool); }
 		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
 		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
 		/* T108: 「レース指定なし／本育成編成なし」の①のタブ（押せない）。①の中身は消さない。件数のバッジは出さない */
@@ -1539,7 +1544,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22c';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
