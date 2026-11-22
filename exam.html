@@ -598,19 +598,13 @@
 		/* ヘッダーのツール切替（アイコンだけのボタン。special.html と同じ寸法・左右の余白だけ詰める）と、画面の色の切り替えボタン（44px。C-139・微調整1・C）。
 		   いまの状態は data-theme-state で、3つのアイコンのうち1つだけを出す */
 		#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
-		/* 見出しの「2nd Edition」のバッジと、その脇の一言（special.html と同じ作り。C-140・微調整2・D）。バッジは押せない表示だけなので、手のカーソルと hover は消す */
-		.header-edition-pill { cursor: default; }
-		.header-edition-pill:hover { background: var(--uma-accent-soft); }
-		/* C-141（微調整3・A-2）: 一言はどの幅でもバッジの右隣（同じ行）。大きさ（11px→最小8px）・2行の折り返し・バッジを詰めるかは
-		   fitHeaderTagline() が幅を測って決める（special.html と同じ作り） */
+		/* 見出しの脇の一言（C-140・微調整2・D）。T212-B（デ92）: 「2nd Edition」のバッジは廃止した。一言はタイトルの右隣（同じ行）。
+		   大きさ（11px→最小8px）・2行の折り返し・間を詰めるかは fitHeaderTagline() が幅を測って決める（C-141・微調整3・A-2） */
 		.header-tagline { white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 600; }
 		.header-tagline[data-lines="2"] { white-space: normal; line-height: 1.05; }
 		.header-tagline[data-break-any] { overflow-wrap: anywhere; }
-		header[data-hdr-short] .header-edition-sub { display: none; }
 		.hdr-row > h1 { flex: none; white-space: nowrap; }
 		header[data-hdr-tight] .hdr-row, header[data-hdr-tight] .hdr-bar, header[data-hdr-tight] .hdr-acts { column-gap: 4px; }
-		header[data-hdr-tight] .header-edition-pill { padding-left: 4px; padding-right: 4px; letter-spacing: -0.3px; }
-		@media (max-width: 322px) { .header-edition-sub { display: none; } }
 		/* C-235: ツール切り替えと同じ 34×38px（アイコン 16px。special.html と同じ） */
 		.theme-cycle-btn { width: 34px; height: 38px; padding: 0; flex: none; }
 		.theme-cycle-btn svg { display: none; width: 16px; height: 16px; flex: none; }
@@ -810,7 +804,7 @@
 		/* タブの番号の丸（選ぶ前） */
 		.step-tab-num { background: var(--exam-tabnum-bg); color: var(--exam-tabnum-text); }
 		/* バッジ（淡色・押せない）: 青＝件数とピル、金＝sp70緑、緑＝緑59種、ピンク＝シナリオ因子、紫＝遺伝子。枠は寸法を変えない内側の線 */
-		.step-tab-badge--accent, .header-edition-pill.ui-mode-badge { background: var(--exam-badge-blue-bg); color: var(--exam-badge-blue-text); border-color: var(--exam-badge-blue-line); }
+		.step-tab-badge--accent { background: var(--exam-badge-blue-bg); color: var(--exam-badge-blue-text); border-color: var(--exam-badge-blue-line); }
 		.step-tab-badge--accent { box-shadow: inset 0 0 0 1px var(--exam-badge-blue-line); }
 		.bg-amber-100.text-amber-800 { background-color: var(--exam-badge-gold-bg); color: var(--exam-badge-gold-text); box-shadow: inset 0 0 0 1px var(--exam-badge-gold-line); }
 		.bg-emerald-100.text-emerald-800 { background-color: var(--exam-badge-green-bg); color: var(--exam-badge-green-text); box-shadow: inset 0 0 0 1px var(--exam-badge-green-line); }
@@ -1222,12 +1216,11 @@
 			<div class="hdr-bar relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div class="min-w-0">
-					<!-- タイトルの右に「2nd Edition」のバッジ（special と同じ部品・このページの色）と、その脇の一言（C-140・微調整2・D）。
-					     「β版」は付けない（exam は機能の不備がほぼ無いため）。冒頭の説明の1行は、ここへ移した。
-					     C-141（微調整3・A-2）: 折り返さない（flex-nowrap）。一言は狭い幅でもバッジの右隣のまま、fitHeaderTagline() が大きさを決める -->
+					<!-- タイトルの右に一言（C-140・微調整2・D）。「β版」は付けない（exam は機能の不備がほぼ無いため）。冒頭の説明の1行は、ここへ移した。
+					     T212-B（デ92）: 「2nd Edition」のバッジは廃止した。
+					     C-141（微調整3・A-2）: 折り返さない（flex-nowrap）。一言は狭い幅でもタイトルの右隣のまま、fitHeaderTagline() が大きさを決める -->
 					<div class="hdr-row flex items-center flex-nowrap gap-x-2">
 						<h1 class="exam-title text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--uma-deco-grad-from)] via-[var(--uma-deco-grad-via)] to-[var(--uma-deco-grad-to)] bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR</h1>
-						<span class="header-edition-pill ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full">2nd<span class="header-edition-sub"> Edition</span></span>
 						<span class="header-tagline text-slate-500">技能試験用ツール</span>
 					</div>
 				</div>
@@ -3806,20 +3799,22 @@
 		}
 		window.addEventListener('storage', (e) => { if (e.key === 'uma-tools-theme' || e.key === null) syncThemeCycleBtn(); });
 		document.addEventListener('DOMContentLoaded', syncThemeCycleBtn);
-		/* 見出しの一言（「2nd Edition」のバッジの右隣）の大きさと折り返し（C-141・微調整3・A-2）。
-		   一言は、どの幅でもバッジの右隣（同じ行）に置き、下の行へは回さない。幅が足りないときは次の順で詰める:
+		/* 見出しの一言（タイトルの右隣）の大きさと折り返し（C-141・微調整3・A-2）。
+		   T212-B（デ92・デ95）: 「2nd Edition」のバッジを廃止したので、バッジの幅を引かない・バッジを詰める段（data-hdr-short）は無くした。
+		   画面の幅が 360px 未満では、これまでと同じ2行にする（1行は試さない。デ95）。
+		   一言は、どの幅でもタイトルの右隣（同じ行）に置き、下の行へは回さない。幅が足りないときは次の順で詰める:
 		     1. 一言の文字を小さくする（11px→最小8px）
 		     2. 一言を、自分の枠の中で2行に折り返す（行間を詰める。タイトルの行の高さを超えない大きさの中で、いちばん大きい文字）
-		     3. バッジの左右の余白と字間・バッジの前後の間・右のボタンとの間とボタンどうしの間（8→4px）を詰めて（header の data-hdr-tight）、1→2 をやり直す（バッジの文字は10pxのまま）
-		     4. それでも入らなければ、バッジを「2nd」だけにして（header の data-hdr-short。322px 以下でいつも使っている形）、1→2 をやり直す
+		     3. 右のボタンとの間とボタンどうしの間（8→4px）を詰めて（header の data-hdr-tight）、1→2 をやり直す
 		   それでも入らない（端末の字形で数px足りない）ときだけ、語の途中でも2行に折り返す（data-break-any）。タイトルの文字の大きさは変えない。
 		   幅が変わるたびに（ResizeObserver）測り直す。 */
 		function fitHeaderTagline() {
 			const hd = document.querySelector('header'), tag = hd && hd.querySelector('.header-tagline');
 			if (!tag) return;
 			const row = tag.parentElement, left = row.parentElement, bar = left.parentElement, acts = left.nextElementSibling;
-			const h1 = row.querySelector('h1'), pill = row.querySelector('.header-edition-pill');
-			if (!h1 || !pill || !acts) return;
+			const h1 = row.querySelector('h1');
+			if (!h1 || !acts) return;
+			const oneOk = document.documentElement.clientWidth >= 360;
 			const px = (v) => parseFloat(v) || 0;
 			const set = (tight, lines, fs, any) => {
 				hd.toggleAttribute('data-hdr-tight', tight);
@@ -3828,23 +3823,23 @@
 				tag.style.fontSize = fs + 'px';
 				tag.style.maxWidth = '';
 			};
-			// 一言に使える幅 = 行の中身の幅 − 右のボタン群 − 行の間 − タイトル − バッジ − 行の中の間2つ
+			// 一言に使える幅 = 行の中身の幅 − 右のボタン群 − 行の間 − タイトル − 行の中の間1つ
 			const room = () => {
 				const bs = getComputedStyle(bar), rs = getComputedStyle(row);
 				return bar.clientWidth - px(bs.paddingLeft) - px(bs.paddingRight) - acts.getBoundingClientRect().width - px(bs.columnGap)
-					- h1.getBoundingClientRect().width - pill.getBoundingClientRect().width - 2 * px(rs.columnGap);
+					- h1.getBoundingClientRect().width - px(rs.columnGap);
 			};
 			const lineBox = h1.getBoundingClientRect().height;
 			const oneLine = () => tag.getBoundingClientRect().width <= room() + 0.5;
 			const twoLines = (fs) => {
-				const r = Math.floor(room());
+				// 360px 未満（1行を試さない幅）では、枠を4文字ぶん（4.1em）に絞って2行にする（これまでの見た目。デ95）
+				const r = Math.floor(oneOk ? room() : Math.min(room(), Math.ceil(fs * 4.1)));
 				if (r <= 0 || 2 * fs * 1.05 > lineBox + 0.5) return false;
 				tag.style.maxWidth = r + 'px';
 				return tag.scrollWidth <= tag.clientWidth + 0.5 && Math.round(tag.getBoundingClientRect().height / (fs * 1.05)) <= 2;
 			};
-			for (const [tight, short] of [[false, false], [true, false], [true, true]]) {
-				hd.toggleAttribute('data-hdr-short', short);
-				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 1, fs); if (oneLine()) return; }
+			for (const tight of [false, true]) {
+				if (oneOk) for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 1, fs); if (oneLine()) return; }
 				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 2, fs); if (twoLines(fs)) return; }
 			}
 			for (let fs = 11; fs >= 8; fs -= 0.5) { set(true, 2, fs, true); if (twoLines(fs)) return; }

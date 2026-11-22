@@ -97,10 +97,10 @@ export async function register21(env) {
 		const hd = document.querySelector('header'), h1 = hd.querySelector('h1'), pill = hd.querySelector('.header-edition-pill'), tag = hd.querySelector('.header-tagline');
 		const acts = h1.parentElement.parentElement.nextElementSibling;
 		const R = (el) => el.getBoundingClientRect();
-		const H = R(hd), T = R(h1), P = R(pill), G = R(tag), A = R(acts);
+		const H = R(hd), T = R(h1), P = pill ? R(pill) : { left: 0, right: 0, top: 0, bottom: 0 }, G = R(tag), A = R(acts);   // T212-B: バッジは廃止（無ければ 0）
 		const lh = parseFloat(getComputedStyle(tag).lineHeight);
 		return { hdrH: H.height, hdrL: H.left, hdrR: H.right, hdrT: H.top, hdrB: H.bottom, h1fs: parseFloat(getComputedStyle(h1).fontSize), h1T: T.top, h1B: T.bottom, h1R: T.right,
-			pillL: P.left, pillR: P.right, pillT: P.top, pillB: P.bottom, pillText: pill.innerText.trim(), pillFs: parseFloat(getComputedStyle(pill).fontSize),
+			pillL: P.left, pillR: P.right, pillT: P.top, pillB: P.bottom, pillText: pill ? pill.innerText.trim() : null, pillFs: pill ? parseFloat(getComputedStyle(pill).fontSize) : null,
 			tagL: G.left, tagR: G.right, tagT: G.top, tagB: G.bottom, tagFs: parseFloat(getComputedStyle(tag).fontSize), tagLines: Math.round(G.height / lh), tagText: tag.textContent.trim(),
 			actsL: A.left, beta: hd.querySelector('.header-edition') ? hd.querySelector('.header-edition').textContent : null,
 			belowP: [...hd.querySelectorAll('p')].filter((p) => /技能試験用ツール|チャンミ\/LoH用ツール/.test(p.textContent)).length,
@@ -127,12 +127,14 @@ export async function register21(env) {
 					}
 					const p = await headerProbe(page);
 					fsBy[which] = p.h1fs;
-					assert(p.tagText === (which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験用ツール') && /^2nd( Edition)?$/.test(p.pillText) && p.pillFs >= 10,
-						'微調整3A2(' + tag + '): 「2nd Edition」のバッジ（文字10px以上）と一言がある', { tag: p.tagText, pill: p.pillText, pillFs: p.pillFs });
-					assert(p.tagL >= p.pillR - 0.5 && p.pillL >= p.h1R - 0.5 && p.tagT >= p.h1T - 0.5 && p.tagB <= p.h1B + 0.5,
-						'微調整3A2(' + tag + '): 一言はバッジの右隣（左端 ' + p.tagL.toFixed(1) + ' ≥ バッジの右端 ' + p.pillR.toFixed(1) + '）で、縦はタイトルの行の内側（' + p.tagT.toFixed(1) + '〜' + p.tagB.toFixed(1) + ' ⊂ ' + p.h1T.toFixed(1) + '〜' + p.h1B.toFixed(1) + '）', p);
-					assert(p.tagLines >= 1 && p.tagLines <= 2 && p.tagFs >= 8 - 0.01 && p.tagFs <= 11 + 0.01,
-						'微調整3A2(' + tag + '): 一言は ' + p.tagFs + 'px・' + p.tagLines + '行（8〜11px・2行まで）', { fs: p.tagFs, lines: p.tagLines });
+					// T212-B（デ92）: 「2nd Edition」のバッジは廃止した。一言はタイトルの右隣
+					assert(p.tagText === (which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験用ツール') && p.pillText === null,
+						'微調整3A2(' + tag + '): 「2nd Edition」のバッジは無く（T212-B）、一言がある', { tag: p.tagText, pill: p.pillText });
+					assert(p.tagL >= p.h1R - 0.5 && p.tagT >= p.h1T - 0.5 && p.tagB <= p.h1B + 0.5,
+						'微調整3A2(' + tag + '): 一言はタイトルの右隣（左端 ' + p.tagL.toFixed(1) + ' ≥ タイトルの右端 ' + p.h1R.toFixed(1) + '）で、縦はタイトルの行の内側（' + p.tagT.toFixed(1) + '〜' + p.tagB.toFixed(1) + ' ⊂ ' + p.h1T.toFixed(1) + '〜' + p.h1B.toFixed(1) + '）', p);
+					// デ95: 360px 以上は1行・359px 以下は2行
+					assert(p.tagLines === (w >= 360 ? 1 : 2) && p.tagFs >= 8 - 0.01 && p.tagFs <= 11 + 0.01,
+						'微調整3A2(' + tag + '): 一言は ' + p.tagFs + 'px・' + p.tagLines + '行（8〜11px・360px 以上は1行・未満は2行）', { fs: p.tagFs, lines: p.tagLines });
 					assert(p.hdrH <= HDR_MAX(w) + 0.5 && p.tagR <= p.actsL + 0.5 && p.tagR <= p.hdrR + 0.5 && p.tagT >= p.hdrT && p.tagB <= p.hdrB && p.sw <= p.vw,
 						'微調整3A2(' + tag + '): 見出しの高さ ' + p.hdrH + 'px（基準 ' + HDR_MAX(w) + 'px 以下）・一言はボタンより左で見出しの内側・横にはみ出さない', p);
 					if (which === 'exam') assert(p.beta === null && p.belowP === 0, '微調整3A2(' + tag + '): exam に「β版」は無く、見出しの下の一言の行（<p>）も無い', { beta: p.beta, belowP: p.belowP });

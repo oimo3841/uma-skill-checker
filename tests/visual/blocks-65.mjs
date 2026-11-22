@@ -402,7 +402,8 @@ export async function register65(env) {
 				open: Array.from(document.querySelectorAll('#step-panel-1 details')).filter((d) => d.open).length, vh: window.innerHeight })`);
 			const tg = w + 'x' + h + '・' + theme;
 			assert(m.theme.w === 34 && m.theme.h === 38 && m.icon === 16 && m.tool.w === 34 && m.tool.h === 38, 'タイトルと帯(9) ' + tg + ': ライト／ダークは 34×38・アイコン 16px', m);
-			assert(m.pill && /2nd/.test(m.pill) && m.tag === '技能試験用ツール' && m.pos !== 'sticky' && m.pos !== 'fixed', 'タイトルと帯(9) ' + tg + ': 「2nd Edition」「技能試験用ツール」は残り、タイトルは上に残さない', m);
+			// T212-B（デ92）: 「2nd Edition」のバッジは廃止した
+			assert(!m.pill && m.tag === '技能試験用ツール' && m.pos !== 'sticky' && m.pos !== 'fixed', 'タイトルと帯(9) ' + tg + ': 「2nd Edition」は無く（T212-B）「技能試験用ツール」は残り、タイトルは上に残さない', m);
 			if (w > 640) {
 				assert(m.header.h === 56 && m.header.y === 12 && m.radius === '16px' && m.fs === '26px' && m.card.y === 76, 'タイトルと帯(9) ' + tg + ': PC のタイトルは UmaStar と同じ値（56px・上 12・角丸 16・文字 26・カードとの間 8）', m);
 				assert(m.open === 0 && m.copy !== null && m.copy <= m.vh, 'タイトルと帯(9) ' + tg + ': 効率を指定・パネルを開いていない開いた位置で「スキル名のコピー」の下端が画面に入る', { copy: m.copy, vh: m.vh, open: m.open });

@@ -29,7 +29,7 @@ export async function register20d(env) {
 		const beta = hd.querySelector('.header-edition');
 		return { hdrH: r.height, hdrW: r.width, hdrRight: r.right, h1fs: parseFloat(getComputedStyle(h1).fontSize), h1Text: h1.textContent.replace(/\s+/g, ''), h1Top: tr.top - r.top, h1Bottom: r.bottom - tr.bottom, h1Lines: Math.round(tr.height / parseFloat(getComputedStyle(h1).lineHeight)),
 			pillText: pill ? pill.innerText.replace(/\s+/g, ' ').trim() : null, short: hd.hasAttribute('data-hdr-short'), pillRow: Math.abs(pr.top - tr.top) < tr.height, pillRight: pr.right, tagText: tag ? tag.textContent.trim() : null, tagfs: tag ? parseFloat(getComputedStyle(tag).fontSize) : null, tagLines: tag ? Math.round(tg.height / parseFloat(getComputedStyle(tag).lineHeight)) : 0,
-			tagSameRowAsPill: Math.abs(tg.top - pr.top) < 12, tagRight: tg.right, tagLeft: tg.left, tagBottom: tg.bottom, hdrBottom: r.bottom, beta: beta ? beta.textContent.trim() : null,
+			tagSameRowAsPill: Math.abs(tg.top - pr.top) < 12, h1Right: tr.right, tagMid: (tg.top + tg.bottom) / 2, h1Mid: (tr.top + tr.bottom) / 2, tagRight: tg.right, tagLeft: tg.left, tagBottom: tg.bottom, hdrBottom: r.bottom, beta: beta ? beta.textContent.trim() : null,
 			// C-235: タイトルの行のレース条件のボタン（aria-haspopup="dialog"）は「？」ではないので数えない
 			helpBtns: [...hd.querySelectorAll('.uma-help-btn, [aria-haspopup="dialog"]')].filter((e) => !e.closest('#hdr-race-slot')).length, qMarks: [...hd.querySelectorAll('button')].filter((b) => /^[?？]$/.test(b.textContent.trim())).length,
 			themeBtn: !!hd.querySelector('#theme-cycle-btn'), toolBtn: !!hd.querySelector('#tool-dropdown-btn'), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth,
@@ -69,15 +69,15 @@ export async function register20d(env) {
 					continue;
 				}
 				const wantTag = '技能試験用ツール';
-				// C-141（微調整3・A-2）: 一言を入れる幅が足りないときは「2nd」だけ（data-hdr-short）。373px 以上は必ず「2nd Edition」
-				assert(p.tagText === wantTag && p.pillText === ((w <= 322 || p.short) ? '2nd' : '2nd Edition') && (w < 373 || !p.short),
-					'微調整2D2(' + tag + '): 「' + ((w <= 322 || p.short) ? '2nd' : '2nd Edition') + '」のバッジと、その脇の一言「' + wantTag + '」', { tag: p.tagText, pill: p.pillText, short: p.short });
-				// C-141（微調整3・A-2）: 一言は自分の枠の中で2行まで折り返してよい（下の行へは回さない。位置の詳しい検査は 微調整3A2）
-				assert(p.h1Lines === 1 && p.pillRow && p.tagLines >= 1 && p.tagLines <= 2 && p.tagRight <= p.hdrRight + 0.5 && p.tagLeft >= -0.5 && p.pillRight <= p.hdrRight - 4 && p.sw <= p.vw,
-					'微調整2D2(' + tag + '): タイトル・バッジは1行に並び、一言は2行まで（見出しの幅の内側）／横にはみ出さない', p);
-				// 一言: 小さくして収める（最小8px）。C-141（微調整3・A-2）で「収まらなければバッジの下の行へ」を取り消した。いつもバッジの右隣
-				assert(p.tagfs >= 8 - 0.01 && p.tagfs <= 11 + 0.01 && p.tagSameRowAsPill && p.tagLeft >= p.pillRight - 0.5,
-					'微調整2D2(' + tag + '): 一言の文字は8〜11px。いつもバッジの右隣（下の行へは回さない）', { fs: p.tagfs, same: p.tagSameRowAsPill, left: p.tagLeft, pillRight: p.pillRight });
+				// T212-B（デ92）: 「2nd Edition」のバッジは廃止した。一言「技能試験用ツール」はタイトルの右隣
+				assert(p.tagText === wantTag && p.pillText === null && !p.short,
+					'微調整2D2(' + tag + '): 「2nd Edition」のバッジは無い（T212-B）・タイトルの脇の一言「' + wantTag + '」', { tag: p.tagText, pill: p.pillText, short: p.short });
+				// 一言は 360px 以上で1行・359px 以下は2行（デ95。下の行へは回さない。位置の詳しい検査は 微調整3A2）
+				assert(p.h1Lines === 1 && p.tagLines === (w >= 360 ? 1 : 2) && p.tagRight <= p.hdrRight + 0.5 && p.tagLeft >= -0.5 && p.sw <= p.vw,
+					'微調整2D2(' + tag + '): タイトルは1行・一言は ' + (w >= 360 ? '1行' : '2行') + '（見出しの幅の内側）／横にはみ出さない', p);
+				// 一言: 小さくして収める（最小8px）。いつもタイトルの右隣（下の行へは回さない）
+				assert(p.tagfs >= 8 - 0.01 && p.tagfs <= 11 + 0.01 && Math.abs(p.tagMid - p.h1Mid) < 12 && p.tagLeft >= p.h1Right - 0.5,
+					'微調整2D2(' + tag + '): 一言の文字は8〜11px。いつもタイトルの右隣（下の行へは回さない）', { fs: p.tagfs, tagMid: p.tagMid, h1Mid: p.h1Mid, left: p.tagLeft, h1Right: p.h1Right });
 				if (which === 'special') assert(p.beta === 'β版', '微調整2D2(' + tag + '): special の「β版」は残っている', p.beta);
 				else assert(p.beta === null && !/β|新UI/.test(p.headerText), '微調整2D2(' + tag + '): exam の見出しに「β版」「新UI」は付けない', p.headerText);
 				if (which === 'exam') {
