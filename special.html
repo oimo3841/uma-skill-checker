@@ -24,7 +24,7 @@
 	<!-- 表示開始時の直し (d2)（2026-10-27）: lucide が SVG に替えるまでの空の <i data-lucide> に場所を取らせる（替わった瞬間に文字がずれないように）。
 	     @layer base に置くので、Tailwind の w-4・h-4 など（utilities）が来ればそちらが勝つ。SVG に替わったあとは当たらない -->
 	<style>@layer base { i[data-lucide] { display: inline-block; width: 1em; height: 1em; } }</style>
-	<title>UmaStar OCR（β版 2nd Edition）</title>
+	<title>UmaStar OCR</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
 	       common.css … 共通部品（ボタン・入力欄・バッジ・カード）
@@ -986,7 +986,7 @@
 										<p class="text-xs font-bold text-green-900">UmaStar OCR</p>
 										<span class="text-[10px] font-semibold text-green-700 bg-green-200/60 px-1.5 py-0.5 rounded">選択中</span>
 									</div>
-									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">チャンミ/LoH用OCR（β版）</p>
+									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">チャンミ/LoH用OCR</p>
 								</div>
 							</div>
 
@@ -8784,14 +8784,13 @@
 
 					<!-- ===== Deck (αテスト) へ送る（T92・123） =====
 					     以前はここに旧 UmaSkill Deck への取り込みの案内（見出し・本文・旧 Deck を開くボタン）があった。
-					     旧 Deck を実質停止にしたので、送るボタンと停止の1行だけにした。新UI で、親が読めている親セットが
+					     旧 Deck を実質停止にしたので、送るボタンと停止の1行だけにした（T212-A: 停止の1行も外した。台帳 031・デ97）。新UI で、親が読めている親セットが
 					     あるときだけ出す（updateDeckAlphaSendButton）。旧 Deck への受け渡し（writeOcrHandoff）は今のまま続ける。 -->
 					<div id="deck-alpha-send-note" class="hidden mb-6">
 						<button type="button" id="deck-alpha-send-btn" onclick="sendToDeckAlpha(this)" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent deck-accent w-full" aria-haspopup="dialog">
 							<i data-lucide="send" class="w-4 h-4"></i>
 							<span>Deck (αテスト)に送る</span>
 						</button>
-						<p class="text-[11px] text-slate-500 mt-1.5">UmaSkill Deck は開発を停止しました。</p>
 					</div>
 
 					<!-- サマリーカード（アップロード人数に応じてJSで生成） -->

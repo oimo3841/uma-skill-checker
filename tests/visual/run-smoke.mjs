@@ -517,8 +517,8 @@ await block('special.html（UmaStar OCR）', async () => {
 			oldGone: !document.getElementById('deck-handoff-note') && !document.getElementById('fab-dot-deck') && !document.getElementById('deck-drawer'),
 			beforeStat: !!(n.compareDocumentPosition(document.getElementById('stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING) };
 	});
-	assert(t92Note.shown && t92Note.text === 'Deck (αテスト)に送る UmaSkill Deck は開発を停止しました。' && t92Note.handoff && t92Note.oldGone && t92Note.beforeStat,
-		'special: 結果の上（カードの上）に「Deck (αテスト)に送る」と停止の1行・旧 Deck の案内とバッジと引き出しは無い・旧 Deck への受け渡しは書く', t92Note);
+	assert(t92Note.shown && t92Note.text === 'Deck (αテスト)に送る' && t92Note.handoff && t92Note.oldGone && t92Note.beforeStat,
+		'special: 結果の上（カードの上）に「Deck (αテスト)に送る」（停止の1行は T212-A で外した）・旧 Deck の案内とバッジと引き出しは無い・旧 Deck への受け渡しは書く', t92Note);
 
 	// 以降の絞り込み・検索は引き出しの中の要素を触るので、先に開けておく。
 	await page.evaluate(() => openDrawer('result'));
@@ -2500,8 +2500,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		&& Object.keys(p.persons[1].stars).length === 20,
 		'exam: persons は special と同じ形（親A 133件＋★不明1件・親B 20件）', p && p.persons.map((x) => [x.label, Object.keys(x.stars).length, x.unknownStars.length]));
 	let n = await noteState();
-	assert(n.visible && n.text === 'Deck (αテスト)に送る UmaSkill Deck は開発を停止しました。' && n.oldGone,
-		'exam: 結果の先頭に「Deck (αテスト)に送る」と停止の1行・旧 Deck の案内とバッジと引き出しは無い', n);
+	assert(n.visible && n.text === 'Deck (αテスト)に送る' && n.oldGone,
+		'exam: 結果の先頭に「Deck (αテスト)に送る」（停止の1行は T212-A で外した）・旧 Deck の案内とバッジと引き出しは無い', n);
 	assert(await page.evaluate(() => {
 		const wrap = document.getElementById('result-wrap');
 		return wrap.querySelector('#deck-alpha-send-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
@@ -15129,7 +15129,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"], .help-open-btn').length };
 		});
 		// C-235: 「β版」「2nd Edition」「チャンミ/LoH用ツール」はタイトルの行から消した（h1 は「UmaStar OCR」だけ。ページの題の「2nd Edition」は今のまま）
-		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1 === 'UmaStar OCR' && !hd.extras && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
+		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1 === 'UmaStar OCR' && !hd.extras && hd.title === 'UmaStar OCR' && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
 			tag + '副題が無い・「β版」「2nd Edition」は無い（C-235。h1 は「UmaStar OCR」）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
 		// C-235: 画面の色の切り替えはツール切り替えと同じ 34×38px（C-139 の 44px から）
 		assert(hd.helpText === '' && hd.helpAria === '画面の色：自動' && hd.helpTitle === hd.helpAria && hd.helpr.w === 34 && hd.helpr.h === 38 && hd.helpBtns === 0, tag + '右端は画面の色の切り替え（文字なし・ツール切り替えと同じ 34×38px・aria-label と title が「画面の色：自動」）。使い方・注意の「？」は無い', { w: hd.helpr.w, h: hd.helpr.h, aria: hd.helpAria, helpBtns: hd.helpBtns });

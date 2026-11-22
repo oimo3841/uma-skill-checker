@@ -155,8 +155,8 @@ export async function register7c(env) {
 				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), badge: b ? b.textContent.trim() : null, pill: pill ? pill.innerText.replace(/\s+/g, ' ').trim() : null, badgeSize: b ? parseFloat(getComputedStyle(b).fontSize) : null, hdH: hd.getBoundingClientRect().height };
 			});
 			// C-235: タイトルの行から「β版」「2nd Edition」を消した（ページの題の「2nd Edition」は今のまま）
-			assert(hd.badge === null && hd.pill === null && hd.h1 === 'UmaStar OCR' && hd.title.includes('2nd Edition'),
-				tag + 'ヘッダーは「UmaStar OCR」だけ（C-235 で「β版」とピル「2nd Edition」を消した。ページの題には「2nd Edition」が残る）', hd);
+			assert(hd.badge === null && hd.pill === null && hd.h1 === 'UmaStar OCR' && hd.title === 'UmaStar OCR',
+				tag + 'ヘッダーは「UmaStar OCR」だけ（C-235 で「β版」とピル「2nd Edition」を消した。ページの題も T212-A〔デ96〕で「UmaStar OCR」だけ）', hd);
 			assert(!v.alpha && !(await sp.page.textContent('#step-panel-0')).includes('結果が正しくないことがあります'), tag + '①のタブの赤い注意書き「αテスト中の機能です…」は出ない');
 			assert(v.filtering === null && !(await sp.page.textContent(P + '[data-usd-el="pt-sum"]')).includes('絞り込み中'), tag + '絞り込み中でも、合計の下に「絞り込み中」の印は出ない', { filtering: v.filtering });
 			assert(!v.legend && (await sp.page.$$(P + '.usd-roster-legend')).length === 0, tag + '表の最下段の育成ウマ娘・カード名の凡例は、どの幅でも出ない', { legend: v.legend });

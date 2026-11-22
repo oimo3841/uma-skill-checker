@@ -124,11 +124,12 @@ export async function register102(env) {
 			const s1 = await seed({ g0: G0.name, three: false });
 			await page.waitForTimeout(400);
 			const vis1 = await ev(() => { const n = document.getElementById('deck-alpha-send-note'); const b = document.getElementById('deck-alpha-send-btn'); const r = b.getBoundingClientRect(), st = document.getElementById('stat-grid').getBoundingClientRect();
-				const line = n.querySelector('p'); const lr = line.getBoundingClientRect();
-				return { shown: !n.classList.contains('hidden') && r.width > 0, text: b.innerText.trim(), line: line.textContent.trim(), lineBelow: (lr.top >= r.bottom - 0.5 || (innerWidth >= 640 && lr.left >= r.right && lr.top < r.bottom)) && lr.height < 24, aboveCards: lr.bottom <= st.top + 0.5,
+				// T212-A（台帳 031・デ97）: 停止の1行は外した。ボタンだけがカードの上にある
+				const line = n.querySelector('p');
+				return { shown: !n.classList.contains('hidden') && r.width > 0, text: b.innerText.trim(), line: line ? line.textContent.trim() : null, aboveCards: r.bottom <= st.top + 0.5,
 					inCopyRow: !!document.querySelector('#result-copy-slot #deck-alpha-send-btn'), copyRow: [...document.querySelectorAll('#result-copy-slot button')].map((x) => x.id).join(), oldBox: !!document.getElementById('deck-handoff-note') }; });
-			assert(s1.skills >= 7 && vis1.shown && vis1.text === 'Deck (αテスト)に送る' && vis1.line === 'UmaSkill Deck は開発を停止しました。' && vis1.lineBelow && vis1.aboveCards && !vis1.inCopyRow && vis1.copyRow === 'result-copy-btn' && !vis1.oldBox,
-				tag + ' 照合結果のカードの上に「Deck (αテスト)に送る」とすぐ下に停止の1行（表の上の行には送るボタンが無い・旧 Deck の案内が無い）', vis1);
+			assert(s1.skills >= 7 && vis1.shown && vis1.text === 'Deck (αテスト)に送る' && vis1.line === null && vis1.aboveCards && !vis1.inCopyRow && vis1.copyRow === 'result-copy-btn' && !vis1.oldBox,
+				tag + ' 照合結果のカードの上に「Deck (αテスト)に送る」（停止の1行は T212-A で外した。表の上の行には送るボタンが無い・旧 Deck の案内が無い）', vis1);
 			await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; });
 			await look('f-send');
 			await page.click('#deck-alpha-send-btn');

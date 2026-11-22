@@ -86,7 +86,7 @@ export async function register115(env) {
 		assert(dom.gone.length === 0 && dom.fnGone.length === 0 && dom.drawers === 'result' && dom.write, '旧 Deck の案内・引き出し・バッジが無い・writeOcrHandoff は残す', dom);
 		await judge(page, 'a', false);
 		const s = await state();
-		assert(s.shown && s.text === 'Deck (αテスト)に送る UmaSkill Deck は開発を停止しました。', '親を読めるとボタンと1行が出る', s);
+		assert(s.shown && s.text === 'Deck (αテスト)に送る', '親を読めるとボタンが出る（停止の1行は T212-A で外した）', s);
 		assert(await page.evaluate(() => !!(JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam') || 'null') || {}).persons), '旧 Deck への受け渡しのデータは今のまま書く');
 		// 親が読めていない（結果なし）ならボタンを出さない
 		const empty = await page.evaluate(() => { const keep = personResults; personResults = PERSON_LABELS.map(() => null); updateDeckAlphaSendButton(); const on = !document.getElementById('deck-alpha-send-note').classList.contains('hidden'); personResults = keep; updateDeckAlphaSendButton(); return on; });
@@ -271,11 +271,12 @@ export async function register115(env) {
 					await page.waitForTimeout(450);
 					const g = await page.evaluate(() => {
 						const n = document.getElementById('deck-alpha-send-note'), b = document.getElementById('deck-alpha-send-btn'), p = n.querySelector('p');
-						const rb = b.getBoundingClientRect(), rp = p.getBoundingClientRect(), rn = n.getBoundingClientRect();
+						const rb = b.getBoundingClientRect(), rn = n.getBoundingClientRect();
 						const drawer = document.getElementById('result-drawer').getBoundingClientRect();
-						return { btnH: rb.height, pH: rp.height, noteH: rn.height, sameRow: Math.abs((rb.top + rb.bottom) / 2 - (rp.top + rp.bottom) / 2) <= 1, inside: rp.right <= drawer.right, drawerW: Math.round(drawer.width), fs: getComputedStyle(b).fontSize, oneLine: p.getClientRects().length === 1 && rp.height <= 15 };
+						return { btnH: rb.height, noteH: rn.height, line: p ? p.textContent : null, inside: rb.right <= drawer.right, drawerW: Math.round(drawer.width), fs: getComputedStyle(b).fontSize };
 					});
-					assert(g.btnH === 28 && g.sameRow && g.oneLine && g.inside && g.noteH === 28 && g.fs === '11px', theme + '/' + sets + ' ボタン 28px・停止の1行が同じ行で折り返さない', g);
+					// T212-A（台帳 031）: 停止の1行は外した。ボタンだけ
+					assert(g.btnH === 28 && g.line === null && g.inside && g.noteH === 28 && g.fs === '11px', theme + '/' + sets + ' ボタン 28px（停止の1行は T212-A で外した）', g);
 					assert(g.drawerW === (sets === 'a' ? 530 : 750), theme + '/' + sets + ' 引き出しの幅は T100 のまま', g.drawerW);
 					await shot(page, 'exam-1280-' + theme + '-' + sets);
 					if (sets === 'ab') {
@@ -304,10 +305,10 @@ export async function register115(env) {
 					await page.waitForTimeout(450);
 					const g = await page.evaluate(() => {
 						const n = document.getElementById('deck-alpha-send-note'), b = document.getElementById('deck-alpha-send-btn'), p = n.querySelector('p');
-						const rb = b.getBoundingClientRect(), rp = p.getBoundingClientRect(), rn = n.getBoundingClientRect();
-						return { btnH: rb.height, full: Math.abs(rb.width - rn.width) <= 1, below: rp.top >= rb.bottom, oneLine: rp.height <= 15, right: rp.right <= window.innerWidth };
+						const rb = b.getBoundingClientRect(), rn = n.getBoundingClientRect();
+						return { btnH: rb.height, full: Math.abs(rb.width - rn.width) <= 1, line: p ? p.textContent : null, right: rb.right <= window.innerWidth };
 					});
-					assert(g.btnH === 30 && g.full && g.below && g.oneLine && g.right, theme + '/' + sets + ' スマホはボタン 30px を幅いっぱい・その下に1行', g);
+					assert(g.btnH === 30 && g.full && g.line === null && g.right, theme + '/' + sets + ' スマホはボタン 30px を幅いっぱい（停止の1行は T212-A で外した）', g);
 					await shot(page, 'exam-375-' + theme + '-' + sets);
 					// 「？」（T100）: 開く・外を押すと閉じる。送るボタンを足しても動く
 					await page.click('#hl-note-btn');

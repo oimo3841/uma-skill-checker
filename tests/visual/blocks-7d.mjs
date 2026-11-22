@@ -199,7 +199,7 @@ export async function register7d(env) {
 				const m = await sp.page.evaluate(() => ({ pill: !!document.querySelector('header .header-edition-pill'), beta: !!document.querySelector('header .header-edition'), h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(),
 					hdH: Math.round(document.querySelector('header').getBoundingClientRect().height), title: document.title, docW: document.documentElement.scrollWidth, iw: window.innerWidth }));
 				const tag = '段7d追加(B)→C-235 ' + w + 'px: ';
-				assert(!m.pill && !m.beta && m.h1 === 'UmaStar OCR' && m.title.includes('2nd Edition'), tag + 'タイトルの行に「β版」とピル「2nd Edition」は無い（ページの題には残る）', m);
+				assert(!m.pill && !m.beta && m.h1 === 'UmaStar OCR' && m.title === 'UmaStar OCR', tag + 'タイトルの行に「β版」とピル「2nd Edition」は無い（ページの題も T212-A〔デ96〕で「UmaStar OCR」だけ）', m);
 				assert(m.hdH === HD(w) && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px（実測 ' + m.hdH + 'px）・横にはみ出さない', m);
 				await sp.ctx.close();
 			}

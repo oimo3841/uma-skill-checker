@@ -350,8 +350,9 @@ export async function register113(env) {
 			const T = await open(w, theme); const { page, ev, look } = T;
 			try {
 				await page.goto(base + '/uma-skill-deck.html'); await page.waitForSelector('#deck-stop'); await page.waitForTimeout(250);
-				const r = await ev(() => { const box = document.getElementById('deck-stop'), a = box.querySelector('a'), p = box.querySelector('p'), hd = document.querySelector('header'), nav = document.querySelector('nav.grid'); const ar = a.getBoundingClientRect(), pr = p.getBoundingClientRect(); return { href: a.getAttribute('href'), a: a.textContent, p: p.textContent, order: hd.getBoundingClientRect().bottom <= box.getBoundingClientRect().top && box.getBoundingClientRect().bottom <= nav.getBoundingClientRect().top, oneLine: Math.abs((ar.top + ar.bottom) / 2 - (pr.top + pr.bottom) / 2) < 3, sw: document.documentElement.scrollWidth, iw: innerWidth, tabs: nav.querySelectorAll('button').length, h: ar.height }; });
-				assert(r.a === 'Deck (αテスト)' && r.p === 'UmaSkill Deck は開発を停止しました。', tag + ' 入口と決めた1行', r);
+				// T212-A（デ97）: 旧 Deck のページ自身の「UmaSkill Deck は開発を停止しました。」も外した。入口のボタンだけ
+				const r = await ev(() => { const box = document.getElementById('deck-stop'), a = box.querySelector('a'), p = box.querySelector('p'), hd = document.querySelector('header'), nav = document.querySelector('nav.grid'); const ar = a.getBoundingClientRect(); return { href: a.getAttribute('href'), a: a.textContent, p: p ? p.textContent : null, order: hd.getBoundingClientRect().bottom <= box.getBoundingClientRect().top && box.getBoundingClientRect().bottom <= nav.getBoundingClientRect().top, oneLine: box.getBoundingClientRect().height < ar.height + 4, sw: document.documentElement.scrollWidth, iw: innerWidth, tabs: nav.querySelectorAll('button').length, h: ar.height }; });
+				assert(r.a === 'Deck (αテスト)' && r.p === null, tag + ' 入口だけ（停止の1行は T212-A で外した）', r);
 				assert(r.href === 'deck-alpha.html' && !/[?#]/.test(r.href), tag + ' リンク先に ? と # が無い（恒久ルール32）', r.href);
 				assert(r.order && r.oneLine && r.sw <= r.iw && r.tabs === 3, tag + ' 見出しの帯の下・3つのタブの上に横1行・横スクロールなし', r);
 				await look('16-旧ページの先頭');

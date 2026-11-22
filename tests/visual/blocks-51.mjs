@@ -29,7 +29,7 @@ async function register51Body(env) {
 	const L1 = '［いとどめでたき、まつりかな］吾妻・［Time of Departure］マヤノトップガン・［陣風の花紺青］ダイワスカーレットのイベントのスキルは、一部が未対応です。';
 	const L2 = '駿大祭シナリオのイベントのスキルは、未対応です。';
 	const LINES = { special: [L1, L2], exam: [L1] };
-	const DESC = { 'UmaStar OCR': 'チャンミ/LoH用OCR（β版）', 'UmaExam OCR': '技能試験用OCR' };
+	const DESC = { 'UmaStar OCR': 'チャンミ/LoH用OCR', 'UmaExam OCR': '技能試験用OCR' };
 	// 履歴（新しい順）: 種類と日付。日付は、そのお知らせを入れた commit の日付（日本時間）
 	const HIST = {
 		exam: [['scenario', '2026/10/24'], ['edition', '2026/10/11']],
