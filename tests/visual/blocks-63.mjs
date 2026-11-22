@@ -480,7 +480,8 @@ export async function register63(env) {
 		});
 		assert(r.n === IDS.length && r.rows === r.n && r.legend, '結合画像の構成(9): 押した後に②を変えても、表の行は押した時点のまま・凡例あり', r);
 		assert(r.kindsSame, '結合画像の構成(9): 枠と表の種類も押した時点の判定のまま', r.kindsSame);
-		assert(!r.no.table && !r.no.legend && r.no.parent && r.no.bar && r.no.width === 2206, '結合画像の構成(9): 「OCRしない」結合は表・凡例なし（バーと人の画像だけ・幅 2206）', r.no);
+		// T188（決定 790）: 1人のときは幅を人数ぶんに詰める。上段を描くときの幅の下限は3人のときの 2/3（2206 → 1471）。T211 で直した（前は 2206 のまま）
+		assert(!r.no.table && !r.no.legend && r.no.parent && r.no.bar && r.no.width === Math.round(2206 * 2 / 3), '結合画像の構成(9): 「OCRしない」結合は表・凡例なし（バーと人の画像だけ・1人・上段ありで幅 1471＝2206 の 2/3）', r.no);
 		assert(r.no.crop && r.no.crop.ok && r.no.crop.R - r.no.crop.L < 1179 * 0.85 && r.no.head.icon && r.no.head.icon.h === 64, '結合画像の構成(9): 「OCRしない」結合でも両側を削り、見出しに顔とラベル', r.no);
 		assert(!r.legacy.table && r.legacy.parent && r.legacy.crop && r.legacy.crop.ok, '結合画像の構成(9): 旧UI（写しの行が空）は表なし・人は両側を削る', r.legacy);
 		// T37: 写しの①②のカード・育成ウマ娘・想定SP

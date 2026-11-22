@@ -60,6 +60,8 @@ window.__t195 = (function () {
 			const pre = sel.picks.map((pt, i) => {
 				const seg = grab.filter((e) => e.pick === i), k = seg.findIndex((e) => e.w === m.W);
 				const before = k > 0 ? seg.slice(0, k) : [];
+				// T211: 前の候補が無い1枚目は inc・below を null にする（空の every を呼ばない。判定の preOk は1枚目を見ず、2枚目からは n > 0 も見る）
+				if (before.length === 0) return { t: pt, n: 0, inc: null, below: null };
 				return { t: pt, n: before.length, inc: before.every((e, q) => q === 0 || e.t > before[q - 1].t), below: before.every((e) => e.t < pt && e.w < m.W) };
 			});
 			const persons = [];
@@ -169,7 +171,7 @@ export async function register183(env) {
 		const [f] = await page.evaluate(() => __t195.v1('passFast', 1));
 		const sh = (r) => '描いた ' + r.grabDraws + '回・作り直し ' + r.grabRestarts + '回・戻り ' + r.back + '回・同じ画の描き直し ' + r.dup + '回' + (r.dupAt.length ? '（' + r.dupAt.join(' ') + '）' : '') + '・選んだ ' + r.picks.length + '枚';
 		const preOk = (r) => r.pre.every((x, i) => i === 0 ? true : x.n > 0 && x.inc && x.below);
-		const preStr = (r) => r.pre.map((x) => x.t + '秒:' + x.n + (x.inc && x.below ? '' : '×')).join(' ');
+		const preStr = (r) => r.pre.map((x, i) => x.t + '秒:' + x.n + (i === 0 || (x.inc && x.below) ? '' : '×')).join(' ');
 		assert(a.kind === 'webcodecs' && a.persons.length === 3 && a.persons.every((p) => p.badRows === 0 && Math.abs(p.h - p.expectH) <= 2 && p.magenta === 0), 'T195(1) 3人に分かれ、どの人も一覧と合い、エフェクトのまね（赤紫）が残らない（' + a.persons.map((p) => p.label + ' ' + p.h + '/' + p.expectH + ' 合わない行' + p.badRows + ' 赤紫' + p.magenta).join('／') + '）', a.persons);
 		assert(a.stats.effectPicks > 0 && a.stats.effectBlocks > 0, 'T195(1) エフェクトの置き換えを通っている（置き換えた区画 ' + a.stats.effectBlocks + '・候補 ' + a.stats.effectCands + '）', a.stats);
 		assert(preOk(a) && preOk(f), 'T195(1) 1枚ごとに、選んだ時刻の画を描く前に、前の候補の帯を時刻の順に読む（時刻:先に読んだ数 ' + preStr(a) + '）', { a: a.pre, f: f.pre });
