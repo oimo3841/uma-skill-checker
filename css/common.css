@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-11-22c";
+	--uma-components-css-version: "2026-11-22d";
 }
 
 /* ============================================================
@@ -49,7 +49,7 @@ body {
 :focus-visible {
 	outline: 2px solid var(--uma-focus-ring);
 	outline-offset: 2px;
-	border-radius: var(--uma-r-sm);
+	border-radius: var(--uma-r-tool);   /* T212-E3（デザインの見直し。違いの一覧 10）: 輪の角 3px（2px の青・外へ 2px は今のまま） */
 }
 
 @media (prefers-reduced-motion: reduce) {

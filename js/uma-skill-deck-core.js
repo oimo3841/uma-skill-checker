@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22d';
 
 	/* ============================================================
 	 * 定数
@@ -6711,7 +6711,7 @@
 		// いちばん背の高い軸に高さが揃う（display:none にすると揃わなくなる）
 		// T27（2026-10-31）: どの幅でも場所を取らない（display: none）。それまでの PC は visibility: hidden でいちばん背の高い軸に揃えていた
 		'.usd-tabpanel:not(.is-active) { display: none; }',
-		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
+		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 4px; border-radius: var(--uma-r-tool); }', // T212-E3: 輪の角 3px
 		'.usd-axis-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-3);',
 		'  margin-bottom: var(--uma-sp-2); }',
 		'.usd-axis-hint { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
@@ -8060,7 +8060,7 @@
 		'.usd-setbar-name-pen svg { display: block; width: 16px; height: 16px; flex: none; }',
 		'button.usd-setbar-name:hover .usd-setbar-name-pen { background: var(--uma-surface); }',
 		'.usd-setbar-name-meta { flex: none; font-size: 12px; line-height: 1; font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; letter-spacing: .02em; }',
-		'button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; border-radius: var(--uma-r-sm); }',
+		'button.usd-setbar-name:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; border-radius: var(--uma-r-tool); }', // T212-E3: 輪の角 3px
 		'.usd-setbar-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
 		'.usd-setbar-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
 		'.usd-setbar-btn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: transparent; }',
@@ -8117,8 +8117,8 @@
 		'.usd-circle-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px; padding: 0 5px; border-radius: 11px; box-sizing: border-box;',
 		'  border: 1px solid var(--uma-border-strong); background: var(--uma-surface); color: var(--uma-text-heading); font-size: 13px; line-height: 1; font-weight: 700; }',
 		'.usd-circle-btn[aria-pressed="true"] .usd-circle-mark { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
-		'.usd-circle-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }',
-		'.usd-roster-take:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }',
+		'.usd-circle-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-tool); }', // T212-E3: 輪の角 3px
+		'.usd-roster-take:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-tool); }', // T212-E3: 輪の角 3px
 		'.usd-roster-skillname--off { text-decoration: line-through; color: var(--uma-text-faint); text-decoration-color: var(--uma-text-faint); }',
 		'.usd-roster-grow--off > .usd-roster-gc { background: var(--uma-surface-sunken); color: var(--uma-text-faint); }',
 		'.usd-roster-grow--off .usd-roster-pt { color: var(--uma-text-faint); }',

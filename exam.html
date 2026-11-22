@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22c" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22c" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22c" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22d" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-22d" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-22d" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -514,7 +514,7 @@
 		.eff-seg[data-on="false"] { background: var(--exam-eff-off-bar); }
 		/* 区間のエリア（透明なボタン）。押すと対象に入れる／外す。左右の位置は JS が置く（最低24px。足りないぶんは隣から削る） */
 		.eff-hit { position: absolute; top: 0; bottom: 0; z-index: 1; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-		.eff-hit:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -3px; border-radius: 6px; }
+		.eff-hit:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -3px; border-radius: var(--uma-r-tool); } /* T212-E3: 輪の角 3px */
 		/* 押せることが分かるよう、触れたときにうっすら明るくする（外した区間は灰色のままなので色は変えず、明るさだけ） */
 		@media (hover: hover) { .eff-hit:hover { background: rgba(255, 255, 255, 0.16); } }
 		/* 境目の目印: 表示だけ（触れない・ポインタイベントは来ない）。細い白の線（バーの高さに収める。上下にはみ出さない） */
@@ -632,7 +632,7 @@
 			.exam-title { font-size: 1.375rem; line-height: 1.2; }
 			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: 0; } /* T212-E1 の取りこぼし（E2 で直した）: 入れ物は角丸なし */
 			#new-step-card .step-tabs { margin-bottom: var(--uma-sp-1); gap: 2px; }
-			#new-step-card .step-tab { padding: var(--uma-sp-1) 2px; }
+			#new-step-card .step-tab { padding: var(--uma-sp-1) 2px calc(var(--uma-sp-1) - 1px); } /* T212-E3: 下線 3px のぶん下の余白を 1px 減らす（高さは今のまま） */
 			#new-step-slot #step-panel-1 > p { margin-bottom: var(--uma-sp-1-5); }
 			#new-step-slot #step-panel-1 > .flex-wrap { margin-bottom: var(--uma-sp-2); }
 			#new-step-slot #step-panel-1 > .rounded-xl { margin-bottom: var(--uma-sp-2); }
@@ -3078,7 +3078,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22c';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22d';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],

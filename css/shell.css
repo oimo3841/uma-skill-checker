@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-11-22c";
+	--uma-shell-css-version: "2026-11-22d";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -81,7 +81,7 @@
 	transition: color var(--uma-transition), border-color var(--uma-transition);
 }
 .step-tab:hover { color: var(--uma-text-heading); }
-.step-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+.step-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-tool); } /* T212-E3: 輪の角 3px */
 /* 選んでいるタブの下線は操作の色（黒）。ページの色ではない */
 .step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
 .step-tab-num {
@@ -181,7 +181,7 @@
 	background: var(--uma-surface-muted); color: var(--uma-text-subtle);
 }
 .uma-subtab:hover { color: var(--uma-text-heading); }
-.uma-subtab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+.uma-subtab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-tool); } /* T212-E3: 輪の角 3px */
 .uma-subtab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
 .uma-subtab[aria-selected="true"] .uma-subtab-count { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
 .uma-subtab--new { font-weight: 700; }
@@ -436,7 +436,7 @@
 .drawer-tab:hover:not(:disabled) { color: var(--uma-text-heading); }
 .drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
 .drawer-tab:disabled { color: var(--uma-text-faint); cursor: not-allowed; }
-.drawer-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+.drawer-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-tool); } /* T212-E3: 輪の角 3px */
 /* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
 .drawer-tab .uma-fab-dot { position: static; margin-left: var(--uma-sp-0-5); }
 .drawer-panel[hidden] { display: none !important; }
@@ -654,3 +654,14 @@
 @media (max-width: 640px) {
 	.uma-overlay, .uma-popover--drawer { border-radius: 0; }
 }
+
+/* ============================================================
+ * T212-E3（デザインの見直し。違いの一覧 8）: タブ（段・引き出しの中・セット）の下線は 3px・角なし。
+ * 下線を 1px 太くしたぶん下の余白を 1px 減らし、タブの高さ・場所は今のまま。
+ * （各ページが狭い幅で段のタブの余白を上書きしている所も、同じく下の余白を 1px 減らしている）
+ * ============================================================ */
+.step-tab, .uma-subtab, .drawer-tab { border-bottom-width: 3px; }
+.step-tab { padding-bottom: calc(var(--uma-sp-2) - 1px); }
+.uma-subtab { padding-bottom: calc(var(--uma-sp-1-5) - 1px); }
+.drawer-tab { padding-bottom: calc(var(--uma-sp-2-5) - 1px); }
+.uma-subtab--tinted[aria-selected="true"] { border-radius: 0; }
