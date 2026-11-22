@@ -728,8 +728,9 @@
 			--uma-aux-bg: #ffffff; --uma-aux-border: #7f9ccb;
 			--uma-control-rim: 0 0 0 1px var(--uma-control);   /* 選んでいる塗りの部品は、ライトでも縁を 2px にして太さでも示す */
 			--uma-surface-inverse: #1d3d73;
-			--exam-hl: #f0a400; --exam-hl-shadow: 0 1px 0 rgba(20, 40, 100, .55);
-			--exam-head-l: #c9defa; --exam-head-m: #f6f9fd; --exam-head-r: #f5eac9; --exam-head-line: #8aa7d4;
+			--exam-hl: #ffc21a; --exam-hl-shadow: none;
+			--exam-head-l: #1d3d73; --exam-head-m: #1d3d73; --exam-head-r: #1d3d73; --exam-head-line: #10264d;   /* T212-D: 帯は濃い1色（紺） */
+			--exam-head-ink: #f3f7fd; --exam-head-btn: #ffffff; --exam-head-btn-ink: #0e1c3a;
 			--exam-sel-line: #1d4ed8; --exam-sel-bg: #c4dbfb;
 			--exam-badge-blue-bg: #c4dbfb; --exam-badge-blue-text: #0c3f94; --exam-badge-blue-line: #7ea6e6;
 			--exam-badge-gold-bg: #f9e3a0; --exam-badge-gold-text: #6e3600; --exam-badge-gold-line: #dcb24a;
@@ -764,8 +765,9 @@
 			--uma-surface-inverse: #f1f4fa; --uma-text-inverse: #212b3c;
 			--exam-badge-pink-bg: #57244e; --exam-badge-pink-text: #ffc2ec; --exam-badge-pink-line: #b45aa3;
 			--exam-badge-purple-bg: #3a2f78; --exam-badge-purple-text: #d6cfff; --exam-badge-purple-line: #7a6ad0;
-			--exam-hl: #ffc21a; --exam-hl-shadow: 0 1px 0 rgba(0, 0, 0, .45);
-			--exam-head-l: #2b4066; --exam-head-m: #212b3c; --exam-head-r: #3b3420; --exam-head-line: #4a608a;
+			--exam-hl: #ffc21a; --exam-hl-shadow: none;
+			--exam-head-l: #1c3562; --exam-head-m: #1c3562; --exam-head-r: #1c3562; --exam-head-line: #4f74b8;
+			--exam-head-ink: #f3f7fd; --exam-head-btn: #33425c; --exam-head-btn-ink: #f1f4fa;
 			--exam-sel-line: #7fb0ff; --exam-sel-bg: #2f4a78;
 			--exam-badge-blue-bg: #23477c; --exam-badge-blue-text: #bcd9ff; --exam-badge-blue-line: #4f80c6;
 			--exam-badge-gold-bg: #52401a; --exam-badge-gold-text: #ffe08a; --exam-badge-gold-line: #b8912f;
@@ -788,6 +790,12 @@
 		.exam-header { background-image: linear-gradient(90deg, var(--exam-head-l) 0%, var(--exam-head-m) 50%, var(--exam-head-r) 100%); border-color: var(--exam-head-line); }
 		/* タイトルの強調黄（色はくすませず、細い影で縁を出す） */
 		.exam-title .text-amber-400 { color: var(--exam-hl); text-shadow: var(--exam-hl-shadow); }
+		/* T212-D（デ50・デ57・デ62）: 帯は濃い1色（ぼかした丸は出さない）。題字と一言は明るい1色＋黄。
+		   ツール切り替え・画面の色のボタンは角 3px・影なし（大きさ・場所は今のまま） */
+		.exam-header > [aria-hidden="true"] { display: none; }
+		.exam-title { background-image: none; color: var(--exam-head-ink); }
+		.exam-header .header-tagline { color: var(--exam-head-ink); opacity: .85; }
+		.exam-header #tool-dropdown-btn, .exam-header .theme-cycle-btn { border-radius: var(--uma-r-tool); box-shadow: none; background: var(--exam-head-btn); border-color: var(--exam-head-line); color: var(--exam-head-btn-ink); }
 		/* カード */
 		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
 		/* パネル（カードの中の一段：「対象スキルの範囲」・一覧の開閉・②の入力の枠）とオプション（選べる箱） */

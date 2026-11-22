@@ -1,4 +1,4 @@
-/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-08a（?v= と同じ）。
+/* css/deck-alpha.css — 新しい Deck の α版（T88・C-275）の見た目（deck-alpha.html と deck-alpha-register.html が読む）。版は 2026-11-22a（?v= と同じ）。
  * T94（2026-11-04・C-282）: 方眼紙デザイン。モック版14（lab/deck-v14/deck-v14.css）の版A（今の字体）を製品に移し、おいもさんの回答（T94 への連絡）を入れた。
  * 見本（FiveThirtyEight「Science Isn't Broken」）から読み取った全体の決まり:
  *   1. 背景は方眼紙。データの点も文字も方眼の上に置く    2. 区切りは太い黒の横線だけ。カード・角丸の枠・影は使わない
@@ -156,8 +156,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .hd .rsel { border-color: var(--gp-band-text); background: transparent; color: var(--gp-band-text); }
 .hd .rsel .car { color: var(--gp-band-text); }
 .hd .nudge { flex: none; }
-/* ツール切り替えとライト／ダークのボタン（追加4）: UmaStar・UmaExam の見出しのボタンと同じ形（34×38px・角丸・1px の枠・薄い影・アイコン 16px。css/common.css の .uma-btn--secondary の値） */
-.hbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 38px; padding: 0; flex: none; border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-lg, 12px); background: var(--uma-aux-bg); color: var(--gp-ink); box-shadow: var(--uma-shadow-1); cursor: pointer; }
+/* ツール切り替えとライト／ダークのボタン（追加4）: UmaStar・UmaExam の見出しのボタンと同じ形（34×38px・1px の枠・アイコン 16px）。
+   T212-D（デ57・デ62）: 3つのツールとも角 3px・影なし */
+.hbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 38px; padding: 0; flex: none; border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-tool, 3px); background: var(--uma-aux-bg); color: var(--gp-ink); box-shadow: none; cursor: pointer; }
 .hbtn svg { width: 16px; height: 16px; flex: none; display: block; }
 /* ライト／ダークのアイコンは利用者の選択（自動／ライト／ダーク）を示す（UmaStar と同じ出し分け。js が data-theme-state を付ける） */
 #themeBtn svg { display: none; }
@@ -540,4 +541,4 @@ details.fold[open] > summary::before { content: "▾"; }
 	.linepair .seg button { padding: 0 6px; }
 }
 
-:root { --deck-alpha-css-version: "2026-11-08a"; }
+:root { --deck-alpha-css-version: "2026-11-22a"; }

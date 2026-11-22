@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-17b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-22a';
 
 	/* ============================================================
 	 * 定数
@@ -7548,6 +7548,8 @@
 		// 育成ウマ娘のイベントのボタン（2026-10-26 から列見出しはサポカと同じ .usd-gh-menu。この規則を使う部品は今は無い）
 		'.usd-roster-evbtn--uma { display: inline-flex; align-items: center; justify-content: center; }',
 		'.usd-roster-evbtn--alert { background: var(--uma-danger-text); border-color: var(--uma-danger-text); color: var(--uma-text-inverse); }',
+		// T212-D: 進化のボタンの隣の「！」（確認が必要）は橙（列見出しの「！」は赤のまま）
+		'.usd-evo-bang.usd-roster-evbtn--alert { background: #d97706; border-color: #d97706; color: #fff; }',
 		// 金スキルの行（(18)）: 淡い金の地（結合画像の琥珀と同じトークン）。名前は読める濃さのまま
 		// 行の色分け（段7e の (2)〜(6)）。色は core の中のこの変数にまとめる（共有の tokens／common／shell は触らない）。
 		// 地の優先は 固有 > 金 > 回復（CSS の並び順で決める＝回復 → 金 → 固有）、文字の優先は 回復 > デバフ > パッシブ（JS が1つだけクラスを付ける）。

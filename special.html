@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-17b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-22a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
@@ -472,8 +472,9 @@
 			--uma-gold-row-bar: #ffc83d;   /* 金スキルの行・進化の小窓の金スキルの見出しの左バー（ダークと同じ色） */
 			--uma-drawer-bg: #f6eedf;
 			--star-page: #efe6d8; --star-stripe: rgba(120, 90, 40, .05);
-			--star-head-l: #f1e0c4; --star-head-m: #fbf6ea; --star-head-r: #fdf6e0; --star-head-line: #c9b490;
-			--star-hl: #e69a00; --star-hl-shadow: 0 1px 0 rgba(90, 50, 0, .5);
+			--star-head-l: #43321a; --star-head-m: #43321a; --star-head-r: #43321a; --star-head-line: #2c2010;   /* T212-D: 帯は濃い1色（焦げ茶。デ50・デ51） */
+			--star-head-ink: #fbf3e2; --star-head-btn: #fffdf8; --star-head-btn-ink: #2a2216;
+			--star-hl: #ffc21a; --star-hl-shadow: none;
 			--star-badge-green-bg: #cdebd3; --star-badge-green-text: #1d5a35; --star-badge-green-line: #86bf98;
 			--star-badge-red-bg: #fde3e0; --star-badge-red-text: #a3221a; --star-badge-red-line: #e29a94;
 			--star-tabnum-bg: var(--uma-surface-muted); --star-tabnum-text: var(--uma-text-subtle);
@@ -503,8 +504,9 @@
 			--uma-table-col-alt: #32312e; --uma-table-col-key: #2c2b29; --uma-table-cell-bg: #262523;
 			--uma-gold-row-bg: #5e4510; --uma-gold-row-bar: #ffc83d; --uma-gold-row-text: #ffe08a;
 			--uma-drawer-bg: #1d1c1a;
-			--star-head-l: #3a3830; --star-head-m: #232220; --star-head-r: #33322c; --star-head-line: #6a675f;
-			--star-hl: #ffc21a; --star-hl-shadow: 0 1px 0 rgba(0, 0, 0, .45);
+			--star-head-l: #3d3122; --star-head-m: #3d3122; --star-head-r: #3d3122; --star-head-line: #6b5a3c;
+			--star-head-ink: #fbf3e2; --star-head-btn: #383632; --star-head-btn-ink: #f3f1ec;
+			--star-hl: #ffc21a; --star-hl-shadow: none;
 			--star-badge-green-bg: #1b5340; --star-badge-green-text: #a0f0cb; --star-badge-green-line: #3fa27a;
 			--star-badge-red-bg: #7a2a3a; --star-badge-red-text: #ffd0d6; --star-badge-red-line: #ff8a9a;
 			--star-tabnum-bg: #403e39; --star-tabnum-text: #cfcbc0;
@@ -532,6 +534,11 @@
 		.site-header { background-image: linear-gradient(90deg, var(--star-head-l) 0%, var(--star-head-m) 50%, var(--star-head-r) 100%); border-color: var(--star-head-line); }
 		/* タイトルの強調黄（色はくすませず、細い影で縁を出す。UmaStar の緑はそのまま） */
 		.site-header h1 .text-amber-400 { color: var(--star-hl); text-shadow: var(--star-hl-shadow); }
+		/* T212-D（デ50・デ51・デ57・デ62）: 帯は濃い1色（ぼかした丸は出さない）。題字は明るい1色＋黄。
+		   ツール切り替え・画面の色のボタンは角 3px・影なし（大きさ・場所は今のまま） */
+		.site-header > [aria-hidden="true"] { display: none; }
+		.site-header h1 { background-image: none; color: var(--star-head-ink); }
+		.site-header #tool-dropdown-btn, .site-header .theme-cycle-btn { border-radius: var(--uma-r-tool); box-shadow: none; background: var(--star-head-btn); border-color: var(--star-head-line); color: var(--star-head-btn-ink); }
 		/* カード（帯の sticky の地もカードの色） */
 		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
 		.deck-set-bar { background: var(--uma-glass-bg); border-bottom-color: var(--uma-border); }

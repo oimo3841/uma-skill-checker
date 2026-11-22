@@ -41,7 +41,7 @@ export async function register104(env) {
 		assert(!/IBM Plex|fonts\.googleapis|woff2/.test(css + dh + rh), '製品に IBM Plex の字体を入れていない（T94-1）', null);
 		assert(css.includes('#1b7756') && css.includes('#0e4b2f'), '上段 #1b7756・下段 #0e4b2f の帯の色が CSS にある（追加1・追加2）', null);
 		const radii = [...css.matchAll(/border-radius:\s*([^;]+);/g)].map((m) => m[1].trim()).filter((v) => v !== '0');
-		assert(radii.every((v) => v === '50%' || /uma-r-lg/.test(v)), '角丸は黒丸の番号（50%）と見出しのボタン（UmaStar と同じ）だけ（決まり 2）', radii);
+		assert(radii.every((v) => v === '50%' || /uma-r-tool/.test(v)), '角丸は黒丸の番号（50%）と見出しのボタン（T212-D で角 3px）だけ（決まり 2）', radii);
 		assert(!/box-shadow:\s*var\(--uma-shadow-[23]\)/.test(css) && !/backdrop-filter/.test(css), '浮かせる影とぼかしを使っていない（決まり 2）', null);
 		assert(/id="toolBtn"[^>]*class="hbtn"|class="hbtn" id="toolBtn"/.test(dh) && /class="hbtn" id="themeBtn"/.test(dh) && !/>▦<|>☾<|>☀</.test(dh), 'ツール切り替えとライト／ダークは hbtn（svg）で、文字のアイコン ▦☾☀ が無い（追加4）', null);
 		assert(/ext\.entries/.test(read('js/deck-alpha-data.js')), 'データの読み込みが拡張スキル（ex-）も skills に入れる（追加3）', null);
@@ -148,8 +148,8 @@ export async function register104(env) {
 
 			// (6) 見出しのボタン（追加4）: 34×38px・角丸 12px・svg 16px。ライト／ダークのアイコンは選択を示し、押すと切り替わる
 			const hb = await ev(() => { const g = (id) => { const b = document.getElementById(id), r = b.getBoundingClientRect(), cs = getComputedStyle(b), svgs = [...b.querySelectorAll('svg')].filter((s) => getComputedStyle(s).display !== 'none'); return { w: Math.round(r.width), h: Math.round(r.height), radius: cs.borderTopLeftRadius, bw: cs.borderTopWidth, shown: svgs.length, svg: svgs[0] ? Math.round(svgs[0].getBoundingClientRect().width) : 0, state: b.getAttribute('data-theme-state') }; }; return { tool: g('toolBtn'), theme: g('themeBtn') }; });
-			assert(hb.tool.w === 34 && hb.tool.h === 38 && hb.tool.radius === '12px' && hb.tool.bw === '1px' && hb.tool.shown === 1 && hb.tool.svg === 16, tag + ' ツール切り替えのボタンは UmaStar と同じ 34×38px・角丸 12px・svg 16px（追加4）', hb.tool);
-			assert(hb.theme.w === 34 && hb.theme.h === 38 && hb.theme.radius === '12px' && hb.theme.shown === 1 && hb.theme.svg === 16 && hb.theme.state === theme, tag + ' ライト／ダークのボタンは同じ形で、今の選択のアイコンを1つだけ出す', hb.theme);
+			assert(hb.tool.w === 34 && hb.tool.h === 38 && hb.tool.radius === '3px' && hb.tool.bw === '1px' && hb.tool.shown === 1 && hb.tool.svg === 16, tag + ' ツール切り替えのボタンは UmaStar と同じ 34×38px・角 3px（T212-D・デ57・デ62）・svg 16px（追加4）', hb.tool);
+			assert(hb.theme.w === 34 && hb.theme.h === 38 && hb.theme.radius === '3px' && hb.theme.shown === 1 && hb.theme.svg === 16 && hb.theme.state === theme, tag + ' ライト／ダークのボタンは同じ形で、今の選択のアイコンを1つだけ出す', hb.theme);
 			await look('05-header', { clip: { x: 0, y: 0, width: sz.width, height: 56 } });
 			await page.click('#themeBtn'); await page.waitForTimeout(150);
 			const t1 = await ev(() => ({ attr: document.documentElement.getAttribute('data-theme'), state: document.getElementById('themeBtn').getAttribute('data-theme-state'), saved: localStorage.getItem('uma-tools-theme'), shown: [...document.querySelectorAll('#themeBtn svg')].filter((s) => getComputedStyle(s).display !== 'none').map((s) => s.dataset.themeIcon) }));
