@@ -918,6 +918,9 @@
 		.video-pick-btn:focus-visible, .video-capture-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
 		.video-pick-btn svg, .video-capture-btn svg { width: 20px; height: 20px; color: var(--uma-text-subtle); }
 		.video-pick-btn .video-alpha, .video-capture-btn .video-alpha { font-size: 10px; font-weight: 800; color: var(--uma-text-subtle); }
+		/* T212-H3（違いの一覧 27・デ86）: 入口の2つのボタンの字は折り返さない（狭い窓で「ウィンドウから取り込む」が2行になっていた）。479px 以下は字と絵を詰める */
+		.video-pick-btn, .video-capture-btn { white-space: nowrap; }
+		@media (max-width: 479px) { .video-pick-row { gap: 6px; } .video-pick-btn, .video-capture-btn { gap: 4px; font-size: 11px; letter-spacing: -.02em; } .video-pick-btn svg, .video-capture-btn svg { width: 16px; height: 16px; } }
 		body[data-upload-mode="video"] .video-pick-btn, body[data-upload-mode="video"] .video-capture-btn { display: flex; }
 		.upload-set-panel.cap-on .video-pick-row { display: none; }
 		.cap-box { display: flex; align-items: stretch; gap: 16px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); }
@@ -961,12 +964,14 @@
 		.upload-set-panel.video-has-result { border-color: transparent !important; }
 		.video-result { margin: 16px 0 12px; }
 		body[data-upload-mode="video"] .video-result { margin-top: 0; }
-		.video-result-head { justify-content: flex-end !important; gap: var(--uma-sp-2); margin-bottom: 4px !important; }
+		.video-result-head { justify-content: flex-end !important; gap: 6px; margin-bottom: 4px !important; }
 		.video-refresh-note { margin: 0 0 var(--uma-sp-2); text-align: right; }
-		.video-dl-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--uma-r-full); color: var(--uma-text-subtle); background: transparent; }
-		.video-dl-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
-		.video-dl-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
-		.video-dl-btn svg { width: 18px; height: 18px; }
+		/* T212-H3（デザインの見直し。違いの一覧 26・デ87・デ91）: ［画像を更新（補助）］［PNGをダウンロード（主・字）］。行は折り返さず、狭い幅は字と余白を詰める */
+		.video-result-head > .uma-btn { flex: none; min-height: 36px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+		.video-result-head > [data-video-refresh] { gap: 5px; font-weight: 700; }
+		.video-result-head > [data-video-refresh] svg { width: 14px; height: 14px; }
+		@media (max-width: 429px) { .video-result-head > .uma-btn { padding: 0 7px; font-size: 11px; } }
+		@media (max-width: 359px) { .video-result-head { gap: 4px; } .video-result-head > .uma-btn { padding: 0 5px; } .video-result-head > [data-video-refresh] svg { display: none; } }
 		.video-showcols { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-size: 12px; color: var(--uma-text-subtle); text-decoration: underline; text-underline-offset: 2px; background: none; border: 0; padding: 0; cursor: pointer; }
 		.video-showcols:hover { color: var(--uma-text-heading); }
 		/* (2)-8: いちばん下の左の「!」（高度な解析オプション）。丸の線（--uma-border-strong）の中に灰の「!」（--uma-text-faint）・押せる範囲 44px */
@@ -4434,17 +4439,15 @@
 				const label = head.querySelector('p');
 				if (label) label.remove();
 				head.classList.add('video-result-head');
-				dl.className = 'video-dl-btn';
-				dl.textContent = '';
-				dl.title = 'PNGをダウンロード';
-				dl.setAttribute('aria-label', 'PNGをダウンロード');
-				dl.innerHTML = VIDEO_SVG_DOWNLOAD;
+				// T212-H3（デザインの見直し。違いの一覧 26・デ87・デ91）: ダウンロードは字の主ボタン「PNGをダウンロード」（絵だけのボタンをやめた。ノードは替えない）
+				dl.className = 'uma-btn uma-btn--primary video-dl-btn';
+				dl.textContent = 'PNGをダウンロード';
 				// 「画像を更新」はダウンロードの左（行を増やさない）。案内（stale のときだけ）はその行の下
 				if (restitch) {
 					videoRestitch[setIdx] = restitch;
 					const rb = document.createElement('button');
 					rb.type = 'button';
-					rb.className = 'uma-btn uma-btn--primary';
+					rb.className = 'uma-btn uma-btn--secondary';   // T212-H3: 「画像を更新」は補助（線）
 					rb.setAttribute('data-video-refresh', String(setIdx));
 					rb.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span></span>';
 					rb.addEventListener('click', () => refreshVideoResult(setIdx));

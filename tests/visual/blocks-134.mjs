@@ -251,7 +251,7 @@ export async function register134(env) {
 			await settle(page);
 			const info = await shareInfo(page, sel);
 			const look1 = await page.evaluate((s) => { const a = document.querySelector(s); return [a.textContent, a.getAttribute('aria-label'), a.title, a.className].join('|'); }, sel);
-			assert(look0 === '|PNGをダウンロード|PNGをダウンロード|video-dl-btn' && look1 === look0, `T122 ③ ${label}: ボタンの文（aria-label・title）は今のまま`, { look0, look1 });
+			assert(look0 === 'PNGをダウンロード|||uma-btn uma-btn--primary video-dl-btn'   /* T212-H3: 字の主ボタン */ && look1 === look0, `T122 ③ ${label}: ボタンの文（aria-label・title）は今のまま`, { look0, look1 });
 			if (dev.shareOk) assert(info.n === 1 && info.name === before.name && sp.downloads.length === 0, `T122 ③ ${label}: 共有のシートで今の名前のファイルを渡す`, { info, want: before.name, dl: sp.downloads });
 			else assert(info.n === 0 && sp.downloads.length === 1 && sp.downloads[0] === before.name, `T122 ③ ${label}: 今のダウンロード`, { info, want: before.name, dl: sp.downloads });
 			assert((await peek(page)) === before.seq + 1, `T122 ③ ${label}: 番号は1つだけ進む`);

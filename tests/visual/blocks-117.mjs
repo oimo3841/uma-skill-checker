@@ -187,7 +187,7 @@ export async function register117(env) {
 			assert(!m.tab && m.badge, `T106(8) ${w}px タブとステップの枚数にも出ない`, m);
 			// T117（Chat 381）: OCR の前の③に「画像を更新」を戻した（T106 の (9) のうちボタンの分を置き換え）。OCR のあとの③に無いことは blocks-128 の T117(6) が見る
 			assert(!/親Aセット/.test(m.boxText) && m.img, `T106(9) ${w}px ③の結合画像の上に「親Aセット」は無い`, m.boxText);
-			assert(m.a.aria === 'PNGをダウンロード' && m.a.text === '' && m.a.svg && m.a.w <= 44 && m.a.h <= 44 && m.a.bg === 'rgba(0, 0, 0, 0)' && m.a.download, `T106(10) ${w}px ダウンロードは地の無いアイコンのボタン（読み上げ名は「PNGをダウンロード」）`, m.a);
+			assert(m.a.text === 'PNGをダウンロード' && !m.a.svg && m.a.h <= 44 && m.a.bg !== 'rgba(0, 0, 0, 0)' && m.a.download, `T106(10) ${w}px ダウンロードは字の主ボタン「PNGをダウンロード」（T212-H3。前は地の無いアイコンのボタン）`, m.a);
 			// 親ごとの画像を見ると、列の字が出る
 			await sp.page.click('#personset-A-wrap .video-showcols');
 			const l = await sp.page.evaluate(() => [...document.querySelectorAll('#personset-A-wrap .upload-col > p')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()).join());

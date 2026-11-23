@@ -96,7 +96,8 @@ export async function register98(env) {
 			sum: sum ? sum.textContent.trim() : null,
 			box: !!box, afterClear: !!(box && clear && box.previousElementSibling === panel.querySelector('.video-howto-box') && panel.querySelector('.video-howto-box').previousElementSibling === clear),
 			head: blk ? (blk.querySelector('p.text-xs.font-bold') || {}).textContent : null,
-			png: blk ? (blk.querySelector('a') || { getAttribute() { return null; } }).getAttribute('aria-label') : null, dlSvg: !!(blk && blk.querySelector('a svg')), refresh: !!(blk && blk.querySelector('[data-video-refresh]')), img: !!(blk && blk.querySelector('img') && blk.querySelector('img').src.startsWith('blob:')), // T133: 結合画像は PNG の Blob の object URL（前は data URL）
+			png: blk ? (blk.querySelector('a') || { textContent: null }).textContent : null,   // T212-H3: ダウンロードは字のボタン
+			 dlSvg: !!(blk && blk.querySelector('a svg')), refresh: !!(blk && blk.querySelector('[data-video-refresh]')), img: !!(blk && blk.querySelector('img') && blk.querySelector('img').src.startsWith('blob:')), // T133: 結合画像は PNG の Blob の object URL（前は data URL）
 			warn: blk && blk.querySelector('.video-warn') ? blk.querySelector('.video-warn').textContent.trim() : null,
 			panelBorder: panel ? getComputedStyle(panel).borderTopColor : null, hasClass: !!(panel && panel.classList.contains('video-has-result')),
 			colsShown: !!(cols && cols.offsetParent !== null),
@@ -122,7 +123,7 @@ export async function register98(env) {
 			const total = m.n.reduce((a, b) => a + b, 0);
 			assert(res && res.ok === true && res.stitched === true, `T82(1) ${w}px 取り込みが成功し、自動の結合で結合画像ができた`, res);
 			assert(m.sum === null && total > 0, `T82(1) ${w}px 読み取り後の知らせは出さない（T106 の (8)）`, m.sum);
-			assert(m.box && m.afterClear && !m.head && m.png === 'PNGをダウンロード' && m.dlSvg && m.refresh && m.img && m.warn === null, `T82(1) ${w}px セットの枠の中（「セットをクリア」の行のすぐ後）に結合の結果の箱（見出しは無し・「画像を更新」あり〔T117〕・ダウンロードはアイコン・結合画像。T106 の (9)(10)）`, m);
+			assert(m.box && m.afterClear && !m.head && m.png === 'PNGをダウンロード' && !m.dlSvg && m.refresh && m.img && m.warn === null, `T82(1) ${w}px セットの枠の中（「セットをクリア」の行のすぐ後）に結合の結果の箱（見出しは無し・「画像を更新」あり〔T117〕・ダウンロードはアイコン・結合画像。T106 の (9)(10)）`, m);
 			assert(!m.colsShown, `T82(1) ${w}px 親ごとの画像（3列）は見せない`, m.colsShown);
 			// T212-E1（デザインの見直し。違いの一覧 3）: セットの枠は結果の前から線を持たない面になったので、前後の違いは見ない（結果のあとも線なしのまま）
 			assert(m.hasClass && m.panelBorder === 'rgba(0, 0, 0, 0)', `T82(1) ${w}px セットの枠の線を外す（前は ${lineBefore}）`, { before: lineBefore, after: m.panelBorder });
