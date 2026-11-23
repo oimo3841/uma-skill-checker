@@ -939,6 +939,12 @@
 		.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-tool); background: var(--uma-danger-bg, #fef2f2); }
 		.cap-fail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-danger-text, #b91c1c); }
 		.cap-fail .uma-btn { flex: none; min-height: 44px; }
+		/* T212-H3追加（デザインの見直し。違いの一覧 38・おいもさんの決定 2026-11-23）: 左に注意のアイコン（ほかの失敗・警告の箱と同じ三角）。
+		   文の幅を今より狭くしない（折り返しを増やさない）ため、箱の余白と間を見本の 8px にし、「もう一度」の左右の余白を 8px に詰める */
+		.cap-fail { gap: 8px; padding: 8px; }
+		.cap-fail > svg { margin-top: 0; }
+		.cap-fail p { flex: 1 1 auto; min-width: 0; }
+		.cap-fail .uma-btn { padding-left: 8px; padding-right: 8px; }
 		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: 0; background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
 		body.cap-flow .video-busy { opacity: 1; pointer-events: auto; }
 		body.cap-flow .video-busy .upload-cols, body.cap-flow .video-busy .upload-set-clear > button:first-child { opacity: .55; pointer-events: none; }
@@ -4146,7 +4152,7 @@
 		function showCaptureFail(setIdx, kind) {
 			const stage = captureStage(setIdx);
 			videoSetPanel(setIdx).classList.add('cap-on');
-			stage.innerHTML = '<div class="cap-fail" id="cap-fail" role="alert"><p>' + escapeHtml(videoText('video.cap.fail.' + kind)) + '</p><button type="button" class="uma-btn uma-btn--secondary" id="cap-retry" onclick="startPcCapture()">' + escapeHtml(videoText('video.cap.retry')) + '</button></div>';
+			stage.innerHTML = '<div class="cap-fail" id="cap-fail" role="alert">' + videoSvgTri('text-red-500') + '<p>' + escapeHtml(videoText('video.cap.fail.' + kind)) + '</p><button type="button" class="uma-btn uma-btn--secondary" id="cap-retry" onclick="startPcCapture()">' + escapeHtml(videoText('video.cap.retry')) + '</button></div>';
 		}
 		// 取り込みのボタン（video.btn.capture）と「もう一度」（video.cap.retry）。ウィンドウの選択は押した操作の中で開く
 		async function startPcCapture() {
