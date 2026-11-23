@@ -207,11 +207,11 @@ export async function register86(env) {
 			await page.evaluate(() => { addPersonFiles(3, [new File([new Uint8Array([137, 80, 78, 71])], 'b.png', { type: 'image/png' })]); });
 			const l1 = await label();
 			// T188: 3つ目のタブ「本育成結果」（枚数は本育成結果の画像だけ。親B の画像では付かない）
-			assert(l0 === '親Aセット*,＋親Bセット,本育成結果' && l1 === '親Aセット*,親Bセット+1枚,本育成結果', tag + ': 親B に画像が入ると「＋親Bセット」→「親Bセット」＋「1枚」', { l0, l1 });
+			assert(l0 === '親Aセット*,＋親Bセット,本育成結果' && l1 === '親Aセット*,親Bセット,本育成結果', tag + ': 親B に画像が入ると「＋親Bセット」→「親Bセット」（枚数は出さない。T212-H1）', { l0, l1 });
 			await page.click('#personset-tabs [data-tab-id="1"]');
 			const v1 = await vis(); const l2 = await label();
 			const kept = await page.evaluate(() => persons[3].files.length);
-			assert(!v1.A && v1.B && l2 === '親Aセット,親Bセット+1枚*,本育成結果' && kept === 1, tag + ': 押すと親Bセットのパネル（画像は保持）', { v1, l2, kept });
+			assert(!v1.A && v1.B && l2 === '親Aセット,親Bセット*,本育成結果' && kept === 1, tag + ': 押すと親Bセットのパネル（画像は保持）', { v1, l2, kept });
 			await page.focus('#personset-tabs [data-tab-id="1"]');
 			await page.keyboard.press('ArrowLeft');
 			const v2 = await vis();

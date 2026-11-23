@@ -4903,22 +4903,19 @@
 				const n = [0, 1, 2].reduce((s, r) => s + persons[i * 3 + r].files.length, 0);
 				const label = i > 0 && n === 0 ? '＋' + set.label : set.label;
 				const on = i === activePersonSet;
-				// 枚数は動画から取った分を数えない（T139。special.html の T106 の (8) と同じ）
-				const shown = [0, 1, 2].reduce((c, r) => c + personShownCount(persons[i * 3 + r]), 0);
+				// T212-H1（デザインの見直し。違いの一覧 24・デ68・デ72）: タブに「N枚」を出さない（special.html と同じ）
 				return '<button type="button" role="tab" class="uma-subtab uma-subtab--tinted ' + PERSON_SET_HUE_CLASS[set.hue] + '"'
 					+ ' data-usd-act="personset-tab" data-tab-id="' + i + '"'
 					+ ' aria-selected="' + (on && !skillResultTab ? 'true' : 'false') + '" tabindex="' + (on && !skillResultTab ? '0' : '-1') + '" title="' + set.label + '">'
 					+ '<span class="uma-subtab-label">' + label + '</span>'
-					+ (shown > 0 ? '<span class="uma-subtab-count">' + shown + '枚</span>' : '')
 					+ '</button>';
 			}).join('');
 			// T188（決定 783・784）: 3つ目のタブ「本育成結果」。枚数はこのタブの画像だけ（persons には入れない。special.html と同じ）
 			let skillTab = '';
 			if (window.UmaSkillResult) {
-				const n = UmaSkillResult.count();
-				skillTab = '<button type="button" role="tab" class="uma-subtab skillres-tab" data-usd-act="personset-tab" data-tab-id="skill"'
+				skillTab ='<button type="button" role="tab" class="uma-subtab skillres-tab" data-usd-act="personset-tab" data-tab-id="skill"'
 					+ ' aria-selected="' + (skillResultTab ? 'true' : 'false') + '" tabindex="' + (skillResultTab ? '0' : '-1') + '" title="本育成結果">'
-					+ '<span class="uma-subtab-label">本育成結果</span>' + (n > 0 ? '<span class="uma-subtab-count">' + n + '枚</span>' : '') + '</button>';
+					+ '<span class="uma-subtab-label">本育成結果</span></button>';
 			}
 			slot.innerHTML = '<div class="uma-subtabs" role="tablist" aria-label="因子元のセット">' + items + skillTab + '</div>';
 			PERSON_SETS.forEach((set, i) => {

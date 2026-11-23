@@ -209,7 +209,7 @@ export async function register180(env) {
 			assert(th.every((t) => t.src.startsWith('blob:') && t.nw === 336), 'T188(1) ' + NAME + ' サムネイルは幅 336px の縮小画像（blob の URL）', th);
 			const mix = await page.evaluate(() => ({ persons: persons.map((p) => p.files.length).join(','), tab: document.querySelector('#personset-tabs [data-tab-id="skill"]').textContent.trim(),
 				ocrBtn: (document.getElementById('process-stitch-btn') || {}).disabled }));
-			assert(mix.persons === '0,0,0,0,0,0' && /4枚/.test(mix.tab) && mix.ocrBtn === true, 'T188(1) ' + NAME + ' 本育成結果の画像は persons（親A〜祖B2）に入らない・タブの枚数はこのタブだけ・OCR のボタンは押せないまま', mix);
+			assert(mix.persons === '0,0,0,0,0,0' && mix.tab === '本育成結果' && mix.ocrBtn === true, 'T188(1) ' + NAME + ' 本育成結果の画像は persons（親A〜祖B2）に入らない・タブに枚数は出さない（T212-H1）・OCR のボタンは押せないまま', mix);
 			await page.evaluate(STUB_OCR);
 			await page.evaluate(() => document.querySelector('[data-sr-act="build"]').click());
 			await waitBuilt(page);

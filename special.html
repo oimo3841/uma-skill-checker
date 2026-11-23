@@ -1900,7 +1900,7 @@
 
 		/* 親A／親Bセットのタブ（C-54 の (1)）。帯の描画は core の共有部品（tabStrip）。
 		   見えていないセットも画像は保持され、OCR と画像結合の対象になる（タブは「どちらを見せるか」だけ）。
-		   タブには画像の枚数を出す（隠れている側の状況が分かるように。ステップのタブと同じ考え方）。 */
+		   タブに画像の枚数は出さない（T212-H1。以前は「N枚」を出していた）。 */
 		let activePersonSet = 0;
 		// その人の枠の枚数のうち、画面に数を出してよい分（動画から取った画を除く）
 		const personShownCount = (p) => p.video ? p.files.filter(f => !p.video.files.includes(f)).length : p.files.length;
@@ -1911,15 +1911,13 @@
 				const n = [0, 1, 2].reduce((s, r) => s + persons[i * 3 + r].files.length, 0);
 				// T56（C-258 の (2)-6）: 親Bセットは画像が1枚も無いあいだ「＋親Bセット」（入れると「親Bセット」）
 				const label = i > 0 && n === 0 ? '＋' + set.label : set.label;
-				// 枚数は動画から取った分を数えない（T106 の (8)）
-				const shown = [0, 1, 2].reduce((c, r) => c + personShownCount(persons[i * 3 + r]), 0);
-				return { id: String(i), label: label, count: shown > 0 ? shown + '枚' : null, selected: !skillResultTab && i === activePersonSet,
+				// T212-H1（デザインの見直し。違いの一覧 24・デ68・デ72）: タブに「N枚」を出さない（狭い幅でもタブが1行に収まる）
+				return { id: String(i), label: label, count: null, selected: !skillResultTab && i === activePersonSet,
 					className: 'uma-subtab--tinted ' + HUE_CLASS[set.hue], title: set.label };
 			});
 			// T188（決定 783・784）: 3つ目のタブ「本育成結果」。枚数はこのタブの画像だけ（persons には入れないので、ステップのタブの枚数・OCR には混ざらない）
 			if (window.UmaSkillResult) {
-				const n = UmaSkillResult.count();
-				items.push({ id: 'skill', label: '本育成結果', count: n > 0 ? n + '枚' : null, selected: skillResultTab, className: 'skillres-tab', title: '本育成結果' });
+				items.push({ id: 'skill', label: '本育成結果', count: null, selected: skillResultTab, className: 'skillres-tab', title: '本育成結果' });
 			}
 			slot.innerHTML = UmaSkillDeckCore.tabStrip.html(items, { act: 'personset-tab', ariaLabel: '因子元のセット' });
 			PERSON_SETS.forEach((set, i) => {

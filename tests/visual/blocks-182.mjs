@@ -110,7 +110,7 @@ export async function register182(env) {
 			// 画像を足すと動画の印が外れる（コマはそのまま。タブに枚数が出る）
 			await page.evaluate(async () => { UmaSkillResult.addFiles(await __skillSynth.make(1, 8, 5)); });
 			const add = await page.evaluate(() => ({ video: UmaSkillResult.peek().video, n: UmaSkillResult.peek().files, tab: document.querySelector('#personset-tabs [data-tab-id="skill"]').textContent.trim() }));
-			assert(add.video === null && add.n === r.p.video.used + 1 && new RegExp(add.n + '枚').test(add.tab), 'T193(2) ' + NAME + ' 画像を足すと動画の印が外れ、タブに枚数が出る', add);
+			assert(add.video === null && add.n === r.p.video.used + 1 && add.tab === '本育成結果', 'T193(2) ' + NAME + ' 画像を足すと動画の印が外れる（タブに枚数は出さない。T212-H1）', add);
 			assert(jsErrors(errors).length === 0, 'T193(2) ' + NAME + ' コンソールのエラーなし', errors);
 			await page.context().close();
 		});

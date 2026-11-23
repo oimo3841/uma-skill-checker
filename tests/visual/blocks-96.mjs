@@ -207,7 +207,7 @@ export async function register96(env) {
 			await page.waitForTimeout(300);
 			const s1 = await page.evaluate(() => ({ n: document.querySelectorAll('.person-image-list[data-person="1"] > div.group').length, files: persons[1].files.length,
 				tab: (document.querySelector('#personset-tabs .uma-subtab .uma-subtab-count') || {}).textContent }));
-			assert(s1.n === 2 && s1.files === 2 && s1.tab === '2枚', tag + ': 祖A1 にサムネイル2枚・タブ「2枚」', s1);
+			assert(s1.n === 2 && s1.files === 2 && s1.tab === undefined, tag + ': 祖A1 にサムネイル2枚・タブに枚数は出さない（T212-H1）', s1);
 			if (tool === 'special') {
 				const after = await page.evaluate(() => document.getElementById('stitch-btn').disabled);
 				assert(before[1] === true && after === false, tag + ': 「画像を結合する（OCRしない）」は画像が入ると押せる', { before, after });
