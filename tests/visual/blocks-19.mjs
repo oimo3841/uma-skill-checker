@@ -50,8 +50,8 @@ export async function register19(env) {
 					sw: document.documentElement.scrollWidth };
 			});
 			const overlap = (a, b) => a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
-			assert(geo.inPanel && geo.btn.w >= 44 && geo.btn.h >= 44 && geo.btn.r <= geo.panel.r + 0.5 && Math.abs(geo.btn.r - geo.bar.r) < 1.5 && geo.btn.y >= Math.max(...geo.shoes.map((t) => t.b)) - 0.5 && !geo.disabled && !!geo.label && geo.sw <= geo.vw,
-				'微調整1A1(' + w + 'px): リセットボタンは効率を指定の枠の中・蹄鉄の行の下の右下（バーの右端にそろう）・44px以上で、押せない状態（disabled）ではない', geo);
+			assert(geo.inPanel && geo.btn.w >= 44 && geo.btn.h >= 44 && geo.btn.r <= geo.panel.r + 0.5 && Math.abs(geo.btn.x - geo.bar.x) < 1.5 && geo.btn.y >= Math.max(...geo.shoes.map((t) => t.b)) - 0.5 && !geo.disabled && !!geo.label && geo.sw <= geo.vw,
+				'微調整1A1(' + w + 'px): リセットボタンは効率を指定の枠の中・蹄鉄の行の下の左下（バーの左端にそろう。T212-H6）・44px以上で、押せない状態（disabled）ではない', geo);
 			assert(!overlap(geo.btn, geo.bar) && geo.thumbs.every((t) => !overlap(geo.btn, t)) && geo.shoes.every((t) => !overlap(geo.btn, t)),
 				'微調整1A1(' + w + 'px): ボタンはバー・境目の目印・蹄鉄に重ならない', geo);
 			// 動かす → 戻す

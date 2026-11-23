@@ -11157,10 +11157,10 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	const resetPos = await page.evaluate(() => {
 		const r = document.getElementById('eff-reset-btn').getBoundingClientRect(), sh = [...document.querySelectorAll('.eff-shoe')].map((s) => s.getBoundingClientRect());
 		const bar = document.getElementById('eff-bar').getBoundingClientRect(), p = document.getElementById('eff-panel').getBoundingClientRect();
-		return { belowShoes: r.top >= Math.max(...sh.map((x) => x.bottom)) - 0.5, rightAligned: Math.abs(r.right - bar.right) < 1.5, w: r.width, h: r.height, inPanel: r.bottom <= p.bottom && r.left >= p.left };
+		return { belowShoes: r.top >= Math.max(...sh.map((x) => x.bottom)) - 0.5, leftAligned: Math.abs(r.left - bar.left) < 1.5, w: r.width, h: r.height, inPanel: r.bottom <= p.bottom && r.left >= p.left };
 	});
-	assert(d1280.g.shoes.every((s) => s.top === d1280.g.shoes[0].top) && d1280.g.panelH > 0 && resetPos.belowShoes && resetPos.rightAligned && resetPos.w >= 44 && resetPos.h >= 44 && resetPos.inPanel,
-		'効率(C3): 1280px の初期は蹄鉄が1段に収まり、その下に余裕領域がある（バーの下の行の下端より下にリセットのボタン）', { tops: d1280.g.shoes.map((s) => s.top), panelH: d1280.g.panelH, resetPos });
+	assert(d1280.g.shoes.every((s) => s.top === d1280.g.shoes[0].top) && d1280.g.panelH > 0 && resetPos.belowShoes && resetPos.leftAligned && resetPos.w >= 44 && resetPos.h >= 44 && resetPos.inPanel,
+		'効率(C3): 1280px の初期は蹄鉄が1段に収まり、その下に余裕領域がある（バーの下の行の下端より下・バーの左端にそろえてリセットのボタン。T212-H6）', { tops: d1280.g.shoes.map((s) => s.top), panelH: d1280.g.panelH, resetPos });
 	// 区間の色（トークン。改善3）。銅 #C97B47・銀 #8E9BB3・金 #E3B33B・虹は左から右へ5色のグラデーション。その上にシェブロン柄（28pxのタイル）と光沢。外した区間は灰色（柄なし）
 	const colors = await page.evaluate(() => {
 		const cs = (k) => getComputedStyle(document.querySelector('.eff-seg--' + k));
