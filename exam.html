@@ -945,6 +945,10 @@
 		.cap-fail > svg { margin-top: 0; }
 		.cap-fail p { flex: 1 1 auto; min-width: 0; }
 		.cap-fail .uma-btn { padding-left: 8px; padding-right: 8px; }
+		/* T212-H3追加2（違いの一覧 39・おいもさんの決定 デ103 2026-11-23）: 結合画像のセットの失敗の箱（appendStitchErrorBlock）にも左に注意のアイコン。
+		   文の幅を今より狭くしない（折り返しを増やさない）ため、左右の余白 6px＋アイコン 16px＋間 4px を今の左右の余白 16px×2 と同じ 32px に収める（上下は H3追加 と同じ 8px） */
+		.stitch-err { gap: 4px; padding: 8px 6px; }
+		.stitch-err-text { flex: 1 1 auto; min-width: 0; }
 		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: 0; background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
 		body.cap-flow .video-busy { opacity: 1; pointer-events: auto; }
 		body.cap-flow .video-busy .upload-cols, body.cap-flow .video-busy .upload-set-clear > button:first-child { opacity: .55; pointer-events: none; }
@@ -10225,8 +10229,9 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 
 		function appendStitchErrorBlock(container, set, message) {
 			const div = document.createElement('div');
-			div.className = 'rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700';
-			div.textContent = set.label + 'の画像結合に失敗しました: ' + message;
+			div.className = 'stitch-err rounded-xl border border-red-200 bg-red-50 text-xs text-red-700 flex';
+			div.innerHTML = videoSvgTri('text-red-500') + '<div class="stitch-err-text"></div>';   // T212-H3追加2: 左に注意のアイコン（ほかの失敗の箱と同じ三角）
+			div.lastChild.textContent = set.label + 'の画像結合に失敗しました: ' + message;
 			container.appendChild(div);
 		}
 
