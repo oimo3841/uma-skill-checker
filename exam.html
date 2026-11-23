@@ -1154,13 +1154,15 @@
 		@media (max-width: 639.98px) {
 			/* 目覚め系の注記はスマホでは「？」の中へ（決定 228・242）。PC は今のまま */
 			#result-drawer #hl-note-btn { display: inline-flex; flex: none; margin-left: 2px; font-size: 11px; }
-			#result-drawer #exam-highlight { position: relative; }
 			#result-drawer #exam-highlight > #hl-note { display: none; }
-			#result-drawer #exam-highlight.hl-note-open { z-index: 5; }
+			/* T212-H5（デザインの見直し。違いの一覧 18・デ64）: 「？」で開く補足は、浮いた小窓をやめ、見出しの行のすぐ下に開く説明の箱（中身を押し下げる）。
+			   箱の並びは flex の order で見出し → 説明 → ハイライトの表にする（ノードの場所・文は変えない） */
+			#result-drawer #exam-highlight:not(.hidden) { display: flex; flex-direction: column; }
+			#result-drawer #exam-highlight > #exam-highlight-grid { order: 2; }
 			#result-drawer #exam-highlight.hl-note-open > #hl-note {
-				display: block; position: absolute; left: 8px; right: 8px; top: 32px; margin: 0; padding: 8px 10px;
-				border: 1px solid var(--uma-border-strong); border-radius: 8px; background: var(--uma-surface);
-				box-shadow: var(--uma-shadow-3); color: var(--uma-text-heading); font-size: 12px; line-height: 18px;
+				display: block; order: 1; margin: 0 0 12px; padding: 8px 10px;
+				border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); background: var(--uma-surface);
+				color: var(--uma-text-heading); font-size: 12px; line-height: 18px;
 			}
 		}
 		#melop-copy-btn-A { border-color: var(--exam-blue-border-strong); color: var(--exam-blue-text); }
@@ -3770,7 +3772,7 @@
 		/* ============================================================
 		 * 緑59種の集計モード（実質53種 / 59種個別）
 		 * ============================================================ */
-		// ハイライトの注記の小窓（スマホだけ「？」から開く。T100・決定 228・242）。外を押す・Esc で閉じる
+		// ハイライトの注記（スマホだけ「？」から開く。T100・決定 228・242。T212-H5 で浮いた小窓から見出しの下の説明の箱に）。外を押す・Esc で閉じる
 		function setHighlightNoteOpen(open) {
 			const box = document.getElementById('exam-highlight');
 			const btn = document.getElementById('hl-note-btn');
