@@ -190,7 +190,7 @@ export async function register179(env) {
 				for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 				out.push({ blob: u.startsWith('blob:'), same: (await hex(bytes.buffer)) === (await hex(await (await fetch(u)).arrayBuffer())), dl: imgs[k].closest('.rounded-xl').querySelector('a.uma-btn').getAttribute('href') === u });
 			}
-			return { out, copy: [...document.querySelectorAll('#stitch-result-content button.uma-btn--secondary')].map((b) => b.textContent), box: !!document.querySelector('.video-result'), n: stitchPngUrls.size };
+			return { out, copy: [...document.querySelectorAll('#stitch-result-content button.uma-btn--secondary:not(.stitch-set-btn)')].map((b) => b.textContent), box: !!document.querySelector('.video-result'), n: stitchPngUrls.size };
 		});
 		assert(r.out.length === 2 && r.out.every((x) => x.blob && x.same && x.dl), 'T186(3) 親A・親B の2枚とも Blob の URL・保存のリンクも同じ URL・PNG のバイトは今の作りと同じ', r);
 		assert(!r.box && r.n === 2, 'T186(3) 静止画では②に結合画像を出さない（今のまま）・持っている URL は2つ', r);

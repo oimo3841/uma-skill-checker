@@ -520,6 +520,10 @@ const INTENTIONALLY_REMOVED = {
 	// commit の前の検査の間だけ免除を置き、commit で HEAD から消えたので免除は空に戻した。
 	// 同じ commit の前の検査では、§4 が special の bg-green-50・border-green-200（動画の進み具合〔renderVideoProgress〕が JS で付ける）を「消した class」として挙げた。
 	// 静的な印から消えただけで、Tailwind（ブラウザで生成）が見た目を作ることを確かめた（地 green-50・枠 green-200）。§2 の index.html（決定 436 の文言の直し）も commit で消える。
+	// 2026-11-23（T212-H2。デザインの見直し 違いの一覧 25・デ78・デ83・デ84）: 結合画像の引き出しの右下の丸いボタン（#stitch-drawer-fab）を、
+	// special・exam の両方で消した（各セットの箱の「PNGをダウンロード」の左の「結合画像の設定」〔.stitch-set-btn〕に替えた）。commit が進んだら免除は空に戻す。
+	'special.html': ['stitch-drawer-fab'],
+	'exam.html': ['stitch-drawer-fab'],
 	// 2026-11-08（T130）: 2列の模式図の左の上段（data-stitch-wire-top2）を消した（編成は3列目〔data-stitch-wire-col3〕へ移した）。免除は置かず、commit で HEAD から消える。
 	};
 

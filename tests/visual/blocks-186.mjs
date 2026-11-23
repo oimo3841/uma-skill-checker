@@ -95,7 +95,7 @@ export async function register186(env) {
 			await runImageStitching({ keepClosed: false, quiet: true, withMarks: false });
 		});
 		await page.waitForTimeout(400);
-		await page.click('#stitch-drawer-fab');
+		await page.click('.stitch-set-btn >> nth=0');
 		await page.waitForTimeout(250);
 		await page.mouse.move(0, 0);
 		const pop = await page.evaluate(MEASURE_LINES, '#stitch-drawer-pop');
@@ -147,7 +147,7 @@ export async function register186(env) {
 				openDrawer('result');
 			});
 			await page.waitForTimeout(400);
-			await page.click('#stitch-drawer-fab');
+			await page.click('.stitch-set-btn >> nth=0');
 			await page.waitForTimeout(250);
 			await page.mouse.move(0, 0);
 			const m = await page.evaluate(MEASURE_LINES, '#stitch-drawer-pop');

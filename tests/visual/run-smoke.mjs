@@ -6689,16 +6689,16 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 	await page.waitForTimeout(300);
 
 	const shape = await page.evaluate(() => {
-		const fab = document.getElementById('stitch-drawer-fab');
+		const fab = document.querySelector('.stitch-set-btn');   // T212-H2: 開くのは各セットの箱の「結合画像の設定」（結果が無いうちは箱も無い）
 		const pop = document.getElementById('stitch-drawer-pop');
 		const panel = document.getElementById('stitch-show-panel-drawer');
 		const drawer = document.getElementById('result-drawer');
 		return {
-			hiddenAtStart: fab.hidden && pop.hidden,
-			inDrawer: drawer.contains(fab) && drawer.contains(pop),
-			outsideBody: !drawer.querySelector('.uma-drawer-body').contains(fab) && !drawer.querySelector('.uma-drawer-body').contains(pop),
+			hiddenAtStart: !fab && pop.hidden,
+			inDrawer: drawer.contains(pop),
+			outsideBody: !drawer.querySelector('.uma-drawer-body').contains(pop),
 			outsideResultWrap: !document.getElementById('stitch-result-wrap').contains(pop),
-			looksLikeFab: fab.classList.contains('uma-fab-toggle') && getComputedStyle(fab).position === 'absolute',
+			noRoundFab: !document.getElementById('stitch-drawer-fab'),   // T212-H2: 右下の丸いボタンは無い
 			oldFoldGone: !document.getElementById('stitch-show-drawer-wrap') && !document.getElementById('stitch-show-drawer'),
 			inputs: Array.from(panel.querySelectorAll('input[data-stitch-show]')).map((i) => i.id),
 			noWire: !panel.querySelector('.stitch-wire'),
@@ -6712,8 +6712,8 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 		};
 	});
 	assert(shape.drawerScenarioDisabled, '表示を変更: 引き出し側のシナリオ因子も、1件も選んでいなければ灰色', shape);
-	assert(shape.hiddenAtStart && shape.inDrawer && shape.outsideBody && shape.outsideResultWrap && shape.looksLikeFab,
-		'表示を変更: 丸ボタンとパネルは引き出しの内側（本文の外）にあり、結果が無いうちは隠れている', shape);
+	assert(shape.hiddenAtStart && shape.inDrawer && shape.outsideBody && shape.outsideResultWrap && shape.noRoundFab,
+		'表示を変更: パネルは引き出しの内側（本文の外）にあり、結果が無いうちは隠れている・右下の丸ボタンは無い（T212-H2）', shape);
 	assert(shape.oldFoldGone && shape.noWire && shape.noNote, '表示を変更: 「表示を変更」の折りたたみは無くなり、パネルに模式図と②の注記は出さない', shape);
 	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-stitch-show-scenario,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
 		'表示を変更: チェック5つの id は drawer- で分かれ、②の id と重複しない', shape);
@@ -6723,7 +6723,7 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 
 	// 結果ができると出る（setSectionReady に乗っている）／消えると隠れる。「照合結果」のタブでは出ない
 	const ready = await page.evaluate(() => {
-		const fabShown = () => !document.getElementById('stitch-drawer-fab').hidden;
+		const fabShown = () => stitchSetBtnShown();   // T212-H2: 箱の「結合画像の設定」を出す条件
 		selectResultTab('stitch');
 		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結果画像</p>';
 		setSectionReady('stitch', true);
@@ -6739,8 +6739,8 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 		return { on, onResultTab, backOnStitchTab, off };
 	});
 	assert(Object.values(ready.on).every(Boolean) && Object.values(ready.off).every(Boolean),
-		'表示を変更: 丸ボタンは #stitch-name-wrap・#stitch-empty と同じタイミングで出入りする', ready);
-	assert(ready.onResultTab.fabHidden && ready.backOnStitchTab.fab, '表示を変更: 丸ボタンは「照合結果」のタブでは出ず、「結合画像の表示」のタブに戻ると出る', ready);
+		'表示を変更: 「結合画像の設定」のボタンは #stitch-name-wrap・#stitch-empty と同じタイミングで出入りする（T212-H2）', ready);
+	assert(ready.onResultTab.fabHidden && ready.backOnStitchTab.fab, '表示を変更: 「結合画像の設定」のボタンは「照合結果」のタブでは出ず、「結合画像の表示」のタブに戻ると出る（T212-H2）', ready);
 
 	// 「OCR が済んで結合画像ができた」状態を作り、引き出しで操作する
 	await page.evaluate(async () => {
@@ -6762,8 +6762,8 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 	});
 	await page.waitForTimeout(500);
 	// 丸ボタンだけが見え、パネルは押すまで見えない。押すと丸ボタンの真上に開き、✕にフォーカスが移る
-	assert(await page.isVisible('#stitch-drawer-fab') && !(await page.isVisible('#stitch-drawer-pop')) && !(await page.isVisible('#stitch-refresh-btn')),
-		'表示を変更: 結合画像ができると引き出しの右下に丸ボタンが出る（パネルは閉じている）');
+	assert(await page.isVisible('.stitch-set-btn >> nth=0') && !(await page.isVisible('#stitch-drawer-pop')) && !(await page.isVisible('#stitch-refresh-btn')),
+		'表示を変更: 結合画像ができると箱の「PNGをダウンロード」の左に「結合画像の設定」が出る（パネルは閉じている。T212-H2）');
 	/* 本文をスクロールしても丸ボタンの画面上の位置は変わらない
 	 *
 	 * **73セッション目に3か所を直した。** この項目は72セッション目に**1回だけ落ちて、同条件の
@@ -6783,44 +6783,32 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 		if ([...body.querySelectorAll('img')].some((i) => !i.complete)) return false;
 		return body.scrollHeight > body.clientHeight + 200;
 	});
-	const pinned = await page.evaluate(async () => {
-		const body = document.querySelector('#result-drawer .uma-drawer-body');
-		const drawer = document.getElementById('result-drawer');
-		// 引き出しの左上を原点にした丸ボタンの位置
-		const rel = () => {
-			const f = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
-			const d = drawer.getBoundingClientRect();
-			return { top: f.top - d.top, left: f.left - d.left };
-		};
-		const before = rel();
-		body.scrollTop = 200;
-		await new Promise((r) => requestAnimationFrame(r));
-		const after = rel();
-		const scrolled = body.scrollTop;
-		body.scrollTop = 0;
-		return { same: before.top === after.top && before.left === after.left, scrolled, before, after };
+	// T212-H2: 開くボタンは箱の見出しの「PNGをダウンロード」の左（同じ行・折り返さない）
+	const pinned = await page.evaluate(() => {
+		const b = document.querySelector('.stitch-set-btn'), a = b && b.nextElementSibling;
+		const br = b.getBoundingClientRect(), ar = a.getBoundingClientRect();
+		return { next: a && a.tagName === 'A' && a.textContent.trim() === 'PNGをダウンロード', sameRow: Math.abs(br.top - ar.top) < 2, leftOf: br.right <= ar.left, oneLine: b.getClientRects().length === 1 && br.height < 40, text: b.textContent.trim() };
 	});
-	assert(pinned.same && pinned.scrolled > 0,
-		'表示を変更: 引き出しの本文をスクロールしても丸ボタンの位置は変わらない（本文が実際にスクロールしたことも見る）', pinned);
-	await page.click('#stitch-drawer-fab');
+	assert(pinned.next && pinned.sameRow && pinned.leftOf && pinned.oneLine && pinned.text === '結合画像の設定',
+		'表示を変更: 「結合画像の設定」は箱の見出しの「PNGをダウンロード」の左に同じ行で並ぶ（T212-H2）', pinned);
+	await page.click('.stitch-set-btn >> nth=0');
 	await page.waitForTimeout(300);
 	const opened = await page.evaluate(() => {
 		const p = document.getElementById('stitch-drawer-pop').getBoundingClientRect();
-		const f = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
 		const d = document.getElementById('result-drawer').getBoundingClientRect();
 		return {
 			visible: !document.getElementById('stitch-drawer-pop').hidden,
 			focus: document.activeElement && document.activeElement.id,
-			expanded: document.getElementById('stitch-drawer-fab').getAttribute('aria-expanded'),
-			aboveFab: p.bottom <= f.top + 1, rightAligned: Math.abs(p.right - f.right) < 2,
+			expanded: (document.querySelector('.stitch-set-btn') || { getAttribute: () => null }).getAttribute('aria-expanded'),
+			nearTop: Math.abs((p.top - d.top) - 150) < 2, rightAligned: Math.abs((d.right - p.right) - 16) < 2,   // T212-H2
 			insideDrawer: p.left >= d.left - 1 && p.right <= d.right + 1,
 			backdropHidden: document.getElementById('stitch-settings-backdrop').hidden,
 			smallEnough: p.height <= d.height * 0.6 + 1
 		};
 	});
-	assert(opened.visible && opened.focus === 'stitch-drawer-pop-close' && opened.expanded === 'true', '表示を変更: 丸ボタンを押すとパネルが開き、✕にフォーカスが移る', opened);
-	assert(opened.aboveFab && opened.rightAligned && opened.insideDrawer && opened.backdropHidden && opened.smallEnough,
-		'表示を変更: パネルは引き出しの内側で丸ボタンの真上に浮き、暗転は付かず、画像の大半を隠さない', opened);
+	assert(opened.visible && opened.focus === 'stitch-drawer-pop-close' && opened.expanded === 'true', '表示を変更: 「結合画像の設定」を押すとパネルが開き、✕にフォーカスが移る（T212-H2）', opened);
+	assert(opened.nearTop && opened.rightAligned && opened.insideDrawer && opened.backdropHidden && opened.smallEnough,
+		'表示を変更: パネルは引き出しの内側の上寄りに浮き、暗転は付かず、画像の大半を隠さない（T212-H2）', opened);
 	assert(await page.isVisible('#drawer-stitch-show-banner'), '表示を変更: パネルの中にチェックが出る');
 
 	// 引き出しで変える → ②にも映り、保存され、ボタンが押せる。戻す → 押せない
@@ -6902,33 +6890,33 @@ await block('exam.html — 結果画像の引き出しの「表示を変更」�
 	await page.evaluate(() => document.getElementById('stitch-name-wrap').dispatchEvent(new MouseEvent('click', { bubbles: true })));
 	await page.waitForTimeout(200);
 	assert(await page.evaluate(() => document.getElementById('stitch-drawer-pop').hidden), '表示を変更: パネルの外（引き出しの本文）を押すと閉じる');
-	await page.click('#stitch-drawer-fab');
+	await page.click('.stitch-set-btn >> nth=0');
 	await page.waitForTimeout(300);
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
 	const esc1 = await page.evaluate(() => ({
 		popHidden: document.getElementById('stitch-drawer-pop').hidden,
 		drawerOpen: document.getElementById('result-drawer').classList.contains('open'),
-		focus: document.activeElement && document.activeElement.id,
-		expanded: document.getElementById('stitch-drawer-fab').getAttribute('aria-expanded')
+		focus: document.activeElement && document.activeElement.classList.contains('stitch-set-btn'),
+		expanded: (document.querySelector('.stitch-set-btn') || { getAttribute: () => null }).getAttribute('aria-expanded')
 	}));
-	assert(esc1.popHidden && esc1.drawerOpen && esc1.focus === 'stitch-drawer-fab' && esc1.expanded === 'false',
-		'表示を変更: Esc はまずパネルを閉じ、引き出しは残り、フォーカスは丸ボタンへ戻る', esc1);
+	assert(esc1.popHidden && esc1.drawerOpen && esc1.focus === true && esc1.expanded === 'false',
+		'表示を変更: Esc はまずパネルを閉じ、引き出しは残り、フォーカスは押した「結合画像の設定」へ戻る（T212-H2）', esc1);
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(600);
 	assert(!(await page.isVisible('#result-drawer')), '表示を変更: もう一度 Esc で引き出しが閉じる');
 	// 引き出しを開き直してパネルを開いたまま「照合結果」へ切り替えると、丸ボタンもパネルも消える
 	await page.evaluate(() => { selectResultTab('stitch'); openDrawer('result'); });
 	await page.waitForTimeout(500);
-	await page.click('#stitch-drawer-fab');
+	await page.click('.stitch-set-btn >> nth=0');
 	await page.waitForTimeout(300);
 	await page.click('#result-tab-result');
 	await page.waitForTimeout(300);
-	const switched = await page.evaluate(() => ({ fabHidden: document.getElementById('stitch-drawer-fab').hidden, popHidden: document.getElementById('stitch-drawer-pop').hidden }));
-	assert(switched.fabHidden && switched.popHidden, '表示を変更: 「照合結果」のタブに切り替えると丸ボタンとパネルが消える', switched);
+	const switched = await page.evaluate(() => ({ fabHidden: (document.querySelector('.stitch-set-btn') || { hidden: true }).hidden, popHidden: document.getElementById('stitch-drawer-pop').hidden }));
+	assert(switched.fabHidden && switched.popHidden, '表示を変更: 「照合結果」のタブに切り替えると「結合画像の設定」とパネルが消える（T212-H2）', switched);
 	await page.click('#result-tab-stitch');
 	await page.waitForTimeout(300);
-	await page.click('#stitch-drawer-fab');
+	await page.click('.stitch-set-btn >> nth=0');
 	await page.waitForTimeout(300);
 
 	// 375px: 引き出しの下辺からのシート（高さは引き出しの半分まで＝上側で画像が見える）で、横スクロールが出ない
@@ -7112,7 +7100,7 @@ await block('トーストと「結合画像の設定」のパネルの重なり�
 	await page.waitForTimeout(400);
 
 	// パネルの見出しは1つだけ（上の見出しと内側の枠の見出しが二重に出ない）
-	await page.click('#stitch-drawer-fab');
+	await page.evaluate(() => toggleDrawerStitchSettings(null));   // T212-H2: 作り物の結果には箱が無いので関数で開く
 	await page.waitForTimeout(300);
 	const heads = await page.evaluate(() => [...document.querySelectorAll('#stitch-drawer-pop .uma-popover-title, #stitch-drawer-pop .stitch-show-title')].map((n) => n.textContent.trim()));
 	assert(heads.length === 1 && heads[0] === '結合画像の設定', '重なり: 引き出しのパネルの見出しは1つだけ', heads);
@@ -7146,7 +7134,7 @@ await block('トーストと「結合画像の設定」のパネルの重なり�
 	await page.waitForTimeout(2700);
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.waitForTimeout(400);
-	await page.click('#stitch-drawer-fab');
+	await page.evaluate(() => toggleDrawerStitchSettings(null));   // T212-H2: 同上
 	await page.waitForTimeout(400);
 	await page.evaluate(() => showToast('結合画像を更新しました'));
 	await page.waitForTimeout(600);

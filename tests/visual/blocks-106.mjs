@@ -217,8 +217,8 @@ export async function register106(env) {
 			await runImageStitching({ keepClosed: false, quiet: true, withMarks: false });
 		});
 		await page.waitForTimeout(500);
-		const s0 = await page.evaluate(() => ({ open: openDrawerKey, fab: !document.getElementById('stitch-drawer-fab').hidden, state: stitchRefreshState(), n: __stub.n }));
-		await page.click('#stitch-drawer-fab');
+		const s0 = await page.evaluate(() => ({ open: openDrawerKey, fab: !(document.querySelector('.stitch-set-btn') || { hidden: true }).hidden, state: stitchRefreshState(), n: __stub.n }));
+		await page.click('.stitch-set-btn >> nth=0');
 		const s1 = await page.evaluate(() => ({ pop: !document.getElementById('stitch-drawer-pop').hidden, btn: document.getElementById('stitch-refresh-btn').disabled,
 			note: !document.getElementById('stitch-refresh-note').hidden, focus: document.activeElement && document.activeElement.id, title: document.getElementById('stitch-drawer-pop-title').textContent.trim() }));
 		await page.check('#drawer-opt-stitch-roster');
@@ -234,9 +234,9 @@ export async function register106(env) {
 		await page.uncheck('#drawer-opt-stitch-roster');
 		const s4 = await page.evaluate(() => ({ state: stitchRefreshState(), btn: document.getElementById('stitch-refresh-btn').disabled, note: !document.getElementById('stitch-refresh-note').hidden }));
 		await page.keyboard.press('Escape');
-		const s5 = await page.evaluate(() => ({ pop: !document.getElementById('stitch-drawer-pop').hidden, open: openDrawerKey, expanded: document.getElementById('stitch-drawer-fab').getAttribute('aria-expanded') }));
+		const s5 = await page.evaluate(() => ({ pop: !document.getElementById('stitch-drawer-pop').hidden, open: openDrawerKey, expanded: (document.querySelector('.stitch-set-btn') || { getAttribute: () => null }).getAttribute('aria-expanded') }));
 		await page.keyboard.press('Escape');
-		const s6 = await page.evaluate(() => ({ open: openDrawerKey, fab: !document.getElementById('stitch-drawer-fab').hidden }));
+		const s6 = await page.evaluate(() => ({ open: openDrawerKey, fab: !(document.querySelector('.stitch-set-btn') || { hidden: true }).hidden }));
 		assert(s0.open === 'stitch' && s0.fab && s0.state === 'same' && s0.n === 1, 'T96(5): 結合画像ができると引き出しの中に丸ボタンが出る（設定が同じなので「same」）', s0);
 		assert(s1.pop && s1.btn && !s1.note && s1.focus === 'stitch-drawer-pop-close' && s1.title === '結合画像の設定', 'T96(5): 丸ボタンでパネル（見出し「結合画像の設定」）が開き、設定が同じ間は「画像を更新」を押せない', s1);
 		assert(s2.state === 'ready' && !s2.btn && s2.n === 1 && s2.main, 'T96(5): チェックを変えただけでは作り直さず、「画像を更新」が押せるようになる（③のチェックにも映る）', s2);
@@ -281,7 +281,7 @@ export async function register106(env) {
 				await runImageStitching({ keepClosed: false, quiet: true, withMarks: false });
 			});
 			await page.waitForTimeout(500);
-			await page.click('#stitch-drawer-fab');
+			await page.click('.stitch-set-btn >> nth=0');
 			await page.waitForTimeout(200);
 			const pop = await page.evaluate(() => { const p = document.getElementById('stitch-drawer-pop').getBoundingClientRect(); return { l: p.left, r: p.right, vw: window.innerWidth }; });
 			const c2 = await page.evaluate(scanTextContrastInPage, '#stitch-drawer-pop');

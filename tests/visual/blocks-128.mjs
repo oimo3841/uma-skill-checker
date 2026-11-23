@@ -293,7 +293,7 @@ export async function register128(env) {
 		assert(s0.box && !s0.btn && s0.drawerImgs === 1 && s0.stitchReady, 'T117(6) OCR のあと③のボタンは無く、引き出しに画像がある', s0);
 		await page.evaluate(() => openDrawer('stitch'));
 		await page.waitForTimeout(300);
-		await page.click('#stitch-drawer-fab');
+		await page.click('.stitch-set-btn >> nth=0');
 		const drawerSrc = () => page.evaluate(() => document.querySelector('#stitch-result-content img').src);
 		const refresh = async () => {
 			await page.click('#stitch-refresh-btn');

@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-23b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-23b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-23c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-23c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -1567,7 +1567,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23c';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -5925,7 +5925,7 @@
 							await stitchPngReady(canvas);   // PNG の object URL を作ってから出す。③と引き出しで同じ URL を使う（T133）
 							anyOutput = true;
 							anySuccess = true;
-							appendStitchResultBlock(container, set, canvas);
+							appendStitchResultBlock(container, set, canvas, { settings: true });
 							// ③の中にも出す（T98）: 動画モードの「OCR処理を開始する」（決定 177）と、③にすでに結合画像があるセット（古い画を残さない）
 							if ((withMarks && uploadMode === 'video') || videoShown[target.setIdx]) {
 								const b = target.setIdx * 3;
@@ -6056,7 +6056,8 @@
 			}
 		}
 
-		function appendStitchResultBlock(container, set, canvas) {
+		// opts.settings … 見出しの「PNGをダウンロード」の左に「結合画像の設定」を置く（T212-H2。引き出しの中の箱だけ。③の動画の結果の箱には置かない）
+		function appendStitchResultBlock(container, set, canvas, opts) {
 			// stitchPngReady を待ってから呼ぶ。PNG を作れなかった・待たずに呼ばれたときは今の data URL のまま
 			const png = canvas._stitchPngNow || null;
 			const pngUrl = png ? png.url : canvas.toDataURL('image/png');
@@ -6097,6 +6098,7 @@
 			UmaStitchShare.attach(downloadLink, png ? () => png.blob : null);
 			downloadLink.className = 'uma-btn uma-btn--primary';
 			downloadLink.textContent = 'PNGをダウンロード';
+			if (opts && opts.settings) { header.classList.add('stitch-set-head'); header.appendChild(makeStitchSetBtn(set)); }
 			header.appendChild(downloadLink);
 			block.appendChild(header);
 
@@ -6576,14 +6578,32 @@
 			}
 		}
 
-		/* 引き出しの中の「結合画像の設定」のパネル（exam の openStitchSettings('drawer') と同じ）。閉じたらフォーカスを丸ボタンへ返す */
+		/* 引き出しの中の「結合画像の設定」のパネル（exam の openStitchSettings('drawer') と同じ）。
+		 * T212-H2（デザインの見直し。違いの一覧 25・デ78・デ83・デ84）: 開くのは右下の丸いボタンでなく、各セットの箱の「PNGをダウンロード」の左の
+		 * 「結合画像の設定」（.stitch-set-btn。親A・親Bの両方の箱に置く。設定は1つで両方の画像に効く）。閉じたらフォーカスを押したボタンへ返す */
 		let stitchSettingsOpen = false;
-		function openStitchSettings() {
+		let stitchSettingsSetId = null;   // 開いたボタンのセット（箱を作り直したときに押した形を戻す・フォーカスを返す先）
+		const stitchSetBtnShown = () => !!deckMode && !!sectionReady.stitch;
+		function makeStitchSetBtn(set) {
+			const b = document.createElement('button');
+			b.type = 'button';
+			b.className = 'uma-btn uma-btn--secondary stitch-set-btn';
+			b.setAttribute('data-stitch-set', set.id);
+			b.setAttribute('aria-controls', 'stitch-drawer-pop');
+			b.setAttribute('aria-expanded', String(stitchSettingsOpen && stitchSettingsSetId === set.id));
+			b.innerHTML = '<i data-lucide="sliders-horizontal"></i><span>結合画像の設定</span>';
+			b.hidden = !stitchSetBtnShown();
+			b.addEventListener('click', () => toggleDrawerStitchSettings(b));
+			if (window.lucide) setTimeout(() => lucide.createIcons(), 0);
+			return b;
+		}
+		function openStitchSettings(btn) {
 			if (stitchSettingsOpen) return;
 			const pop = document.getElementById('stitch-drawer-pop');
 			if (!pop) return;
 			stitchSettingsOpen = true;
-			document.getElementById('stitch-drawer-fab').setAttribute('aria-expanded', 'true');
+			stitchSettingsSetId = btn ? btn.getAttribute('data-stitch-set') : null;
+			document.querySelectorAll('.stitch-set-btn').forEach(b => b.setAttribute('aria-expanded', String(b === btn)));
 			pop.hidden = false;
 			syncStitchPartsUi();
 			if (window.lucide) lucide.createIcons();
@@ -6593,13 +6613,14 @@
 			if (!stitchSettingsOpen) return;
 			stitchSettingsOpen = false;
 			document.getElementById('stitch-drawer-pop').hidden = true;
-			const btn = document.getElementById('stitch-drawer-fab');
-			btn.setAttribute('aria-expanded', 'false');
-			if (!(opts && opts.keepFocus) && !btn.hidden) btn.focus();
+			document.querySelectorAll('.stitch-set-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+			const btn = document.querySelector('.stitch-set-btn[data-stitch-set="' + stitchSettingsSetId + '"]');
+			stitchSettingsSetId = null;
+			if (!(opts && opts.keepFocus) && btn && !btn.hidden) btn.focus();
 		}
-		function toggleDrawerStitchSettings() {
+		function toggleDrawerStitchSettings(btn) {
 			if (stitchSettingsOpen) closeStitchSettings();
-			else openStitchSettings();
+			else openStitchSettings(btn);
 		}
 		/* 右下のボタン群から開く「結合画像の設定」（T98・決定 171。exam の openStitchSettings('fab') と同じ動き）。
 		 * 暗転つき・引き出しは閉じている前提。閉じたらフォーカスをメインボタンへ返す（項目は畳まれて押せないので） */
@@ -6629,12 +6650,10 @@
 			if (!openDrawerKey) document.body.style.overflow = '';
 			if (!(opts && opts.keepFocus)) { const t = document.getElementById('fab-toggle'); if (t) t.focus(); }
 		}
-		// 丸ボタンは、新UI で結合画像があるときだけ出す。出せない状態になったら、開いていたパネルも一緒に閉じる
+		// 「結合画像の設定」のボタン（.stitch-set-btn）は、新UI で結合画像があるときだけ出す。出せない状態になったら、開いていたパネルも一緒に閉じる
 		function updateDrawerStitchFab() {
-			const btn = document.getElementById('stitch-drawer-fab');
-			if (!btn) return;
-			const show = !!deckMode && !!sectionReady.stitch;
-			btn.hidden = !show;
+			const show = stitchSetBtnShown();
+			document.querySelectorAll('.stitch-set-btn').forEach(b => { b.hidden = !show; });
 			if (!show && stitchSettingsOpen) closeStitchSettings({ keepFocus: true });
 		}
 
@@ -8211,7 +8230,8 @@
 			// 開いた直後に lucide.createIcons() がアイコンを作り直すので contains() ではなく composedPath() で見る）
 			if (stitchSettingsOpen) {
 				const path = e.composedPath ? e.composedPath() : [];
-				if (!path.includes(document.getElementById('stitch-drawer-pop')) && !path.includes(document.getElementById('stitch-drawer-fab'))) closeStitchSettings({ keepFocus: true });
+				const onSetBtn = path.some(el => el && el.classList && el.classList.contains('stitch-set-btn'));   // T212-H2: 開くボタンは各セットの箱の「結合画像の設定」
+				if (!path.includes(document.getElementById('stitch-drawer-pop')) && !onSetBtn) closeStitchSettings({ keepFocus: true });
 			}
 			if (!fabOpen) return;
 			if (!document.getElementById('fab-nav').contains(e.target)) setFabOpen(false);
@@ -8954,16 +8974,13 @@
 				</div>
 			</div>
 		</div>
-		<!-- ===== 引き出しの中の「結合画像の設定」（T96・C-284。exam.html の #stitch-drawer-fab / #stitch-drawer-pop と同じ作り） =====
-		     新UI で結合画像があるときだけ、引き出しの内側の右下に丸ボタンを出す（updateDrawerStitchFab）。
-		     押すと丸ボタンの真上に設定パネル（.uma-popover--drawer。640px 以下は引き出しの下辺からのシート）を開く。
+		<!-- ===== 引き出しの中の「結合画像の設定」（T96・C-284。exam.html の #stitch-drawer-pop と同じ作り） =====
+		     T212-H2: 開くのは右下の丸ボタンでなく、各セットの箱の「PNGをダウンロード」の左の「結合画像の設定」（.stitch-set-btn。makeStitchSetBtn）。
+		     新UI で結合画像があるときだけ出す（updateDrawerStitchFab）。
+		     押すと設定パネル（.uma-popover--drawer。641px 以上は引き出しの上寄り、640px 以下は引き出しの下辺からのシート）を開く。
 		     中身は③と同じ renderStitchPartsPanel（模式図つき〔T106〕・id は drawer-）と「画像を更新」。
 		     チェックを変えただけでは作り直さず、「画像を更新」で OCR を回さずに作り直す（updateStitchRefreshUi / refreshStitchedImages）。
 		     閉じ方は ✕・パネルの外（引き出しの本文）のクリック・Esc（Esc は引き出しより先にこちらを閉じる）。 -->
-		<button type="button" id="stitch-drawer-fab" class="uma-fab-toggle uma-drawer-fab" onclick="toggleDrawerStitchSettings()"
-			aria-controls="stitch-drawer-pop" aria-expanded="false" aria-label="結合画像の設定を開く" hidden>
-			<i data-lucide="sliders-horizontal"></i>
-		</button>
 		<div id="stitch-drawer-pop" class="uma-popover uma-popover--drawer" hidden role="dialog" aria-labelledby="stitch-drawer-pop-title">
 			<div class="uma-popover-head">
 				<h2 id="stitch-drawer-pop-title" class="uma-popover-title">

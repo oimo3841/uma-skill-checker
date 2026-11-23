@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-11-23b";
+	--uma-shell-css-version: "2026-11-23c";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -480,7 +480,7 @@
  * 小さな設定パネル（ポップオーバー）。exam の「結合画像の設定」が使う（2026-09-15・41セッション目）。
  *   .uma-popover--fab    … 右下の FAB の項目から開く。.uma-overlay と併用して暗転つき（引き出しは閉じている前提）。
  *                          PC は FAB のメインボタンの真上に右揃えで浮かせ、640px 以下は下からのシート（高さは画面の半分まで）。
- *   .uma-popover--drawer … 引き出しの中の丸ボタン（.uma-drawer-fab）から開く。引き出し本体（fixed＋transform）の
+ *   .uma-popover--drawer … 引き出しの中の各セットの箱の「結合画像の設定」（.stitch-set-btn。T212-H2）から開く。引き出し本体（fixed＋transform）の
  *                          内側に absolute で置くので、引き出しの本文をスクロールしても位置は変わらない。暗転なし。
  *                          640px 以下は引き出しの下辺からのシート（高さは引き出しの半分まで＝上側で画像が見える）。
  * 色はトークンだけを使う（ダークモードと配色の変更に備える）。
@@ -525,18 +525,32 @@
 }
 /* 引き出しの中の丸ボタン。右下の FAB のメインボタン（.uma-fab-toggle を併用）と同じ黒で、
    一回り小さいだけ。押せるものは黒に揃える（43セッション目に琥珀からこちらへ戻した）。 */
-.uma-drawer-fab {
-	position: absolute; z-index: 2;
-	--uma-fab-size: 48px;
-	right: var(--uma-sp-4);
-	bottom: calc(var(--uma-sp-4) + env(safe-area-inset-bottom, 0px));
+/* T212-H2（デザインの見直し。違いの一覧 25・デ78・デ83・デ84）: 引き出しの中の「結合画像の設定」は、右下の丸いボタンをやめ、
+   各セットの箱の見出しの「PNGをダウンロード」の左に字のボタン（.stitch-set-btn。special・exam の makeStitchSetBtn）を置く。
+   見出しの行は折り返さない（入らない幅は字と余白を詰め、セットの名前を省く）。押している間は太い枠 */
+.stitch-set-head { flex-wrap: nowrap; gap: 6px; white-space: nowrap; }
+.stitch-set-head > p { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.stitch-set-head > .uma-btn { flex: none; min-height: 36px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+.stitch-set-btn { margin-left: auto; gap: 5px; }
+.stitch-set-btn[hidden] { display: none; }
+.stitch-set-btn svg { width: 15px; height: 15px; color: var(--uma-stitch-accent); }
+.stitch-set-btn[aria-expanded="true"] { border-color: var(--uma-control-mark); box-shadow: inset 0 0 0 1px var(--uma-control-mark); }
+@media (max-width: 429px) {
+	.stitch-set-head > .uma-btn { padding: 0 7px; font-size: 11px; }
+	.stitch-set-btn { gap: 3px; }
+	.stitch-set-btn svg { width: 13px; height: 13px; }
 }
-.uma-drawer-fab[hidden] { display: none !important; }
-/* 引き出しの中で開くもの。丸ボタンの真上に浮かせる */
+@media (max-width: 359px) {
+	.stitch-set-head { gap: 4px; }
+	.stitch-set-head > p { font-size: 11px; }
+	.stitch-set-head > .uma-btn { padding: 0 4px; }
+	.stitch-set-btn svg { display: none; }
+}
+/* 引き出しの中で開くもの。641px 以上は引き出しの上寄り（見出しのボタンの近く。T212-H2）、640px 以下は下辺からのシート（下の media） */
 .uma-popover--drawer {
 	position: absolute; z-index: 3;
 	right: var(--uma-sp-4);
-	bottom: calc(var(--uma-sp-4) + 48px + var(--uma-sp-3) + env(safe-area-inset-bottom, 0px));
+	top: 150px;
 	width: min(calc(100% - var(--uma-sp-4) * 2), 400px);
 	max-height: 60%;
 }
@@ -634,7 +648,7 @@
 	/* 「結合画像の設定」は下からのシート。FAB から開くものは画面の、引き出しの中のものは引き出しの、それぞれ半分まで */
 	.uma-popover--fab { right: auto; bottom: 0; max-height: 50vh; max-height: 50dvh; }
 	.uma-popover--drawer {
-		left: 0; right: 0; bottom: 0; width: 100%; max-height: 50%;
+		left: 0; right: 0; top: auto; bottom: 0; width: 100%; max-height: 50%;
 		border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; border-left: 0; border-right: 0; border-bottom: 0;
 	}
 }

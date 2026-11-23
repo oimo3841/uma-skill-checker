@@ -214,7 +214,7 @@ export async function register117(env) {
 			await runVideo(sp.page);
 			await sp.page.evaluate(() => runImageStitching({ keepClosed: false, quiet: true, withMarks: false }));
 			await sp.page.waitForTimeout(500);
-			await sp.page.click('#stitch-drawer-fab');
+			await sp.page.click('.stitch-set-btn >> nth=0');
 			await sp.page.waitForTimeout(250);
 			const m = await sp.page.evaluate(() => {
 				const pop = document.getElementById('stitch-drawer-pop'), body = pop.querySelector('.uma-popover-body');
