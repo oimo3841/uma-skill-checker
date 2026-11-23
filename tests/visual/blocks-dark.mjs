@@ -251,6 +251,8 @@ export async function registerDark(env) {
 	await block('ダーク8 special のダークの文字のコントラスト比（①②③・オススメサポの小窓・確認の小窓・トースト・「＋」の展開）', async () => {
 		const report = [];
 		const check = async (page, name) => {
+			// T212-F: 押せない部品は不透明度でなく色（灰）で示すので、押せる形へ変わった直後は .uma-btn の色の transition の途中になる。移り終わってから読む
+			await page.waitForTimeout(400);
 			const r = await page.evaluate(scanTextContrastInPage, null);
 			assert(r.checked > 30 && r.bad.length === 0, 'ダーク8: ' + name + ' の文字はすべて 4.5（大きい文字は 3.0）以上（' + r.checked + '件）', formatContrast(r.bad));
 			assert(headerOnly(r.undecided).length === 0, 'ダーク8: ' + name + ' で背景を決められない文字は、見出しのタイトルだけ', headerOnly(r.undecided));

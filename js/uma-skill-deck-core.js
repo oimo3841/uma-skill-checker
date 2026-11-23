@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-23a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-23b';
 
 	/* ============================================================
 	 * 定数
@@ -6270,6 +6270,7 @@
 		// オススメサポ・脚質オススメの一覧と「テキストで検索」には当てない（後者は T28 で当てる予定）。
 		// T27（2026-10-31）: 「条件で検索」の一覧（.usd-filter-list）にも同じ表し方を当てた（チェックボックスの色は小窓の指定 [data-usd-mode="filter"] が持つ）
 		'.usd-passive-list input[type="checkbox"] { accent-color: var(--uma-control-mark); }',
+		'.usd-passive-list .usd-row { padding-top: var(--uma-sp-1); padding-bottom: 3px; }',   // T212-E2追加（2026-11-23 の決定）: 緑スキルを追加の行 29px → 24px
 		'.usd-passive-list .usd-row--excluded, .usd-passive-list .usd-row--excluded:hover, .usd-filter-list .usd-row--excluded, .usd-filter-list .usd-row--excluded:hover { color: color-mix(in srgb, var(--uma-text-faint) 55%, var(--uma-surface)); background: var(--uma-surface-sunken); }',
 		'.usd-passive-list .usd-row--excluded .usd-out-namebtn, .usd-filter-list .usd-row--excluded .usd-out-namebtn { text-decoration-line: underline line-through; text-decoration-thickness: 1px; }',
 		'.usd-passive-list .usd-row--excluded .usd-row-reason, .usd-filter-list .usd-row--excluded .usd-row-reason { color: color-mix(in srgb, var(--uma-text-subtle) 65%, var(--uma-surface)); }',
@@ -6487,10 +6488,13 @@
 		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: 11px; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); }',
 		'.usd-out-card-btn { flex: none; font: inherit; font-size: var(--uma-fs-xs); line-height: 1; min-height: 28px; padding: 0 var(--uma-sp-1); border: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap; }',
 		'.usd-out-card-btn:hover { filter: brightness(.8); }',
+		// T212-E2追加（2026-11-23 の決定）: 除外したスキルの行は 24px。行の中の「戻す」は高さ 23px にし、押せる範囲は見えない広がりで上下 2px ずつ残す
+		'.usd-out-exskill > .usd-out-card-btn { position: relative; min-height: 23px; }',
+		'.usd-out-exskill > .usd-out-card-btn::after { content: ""; position: absolute; inset: -2px -2px; }',
 		'.usd-out-exhead { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
 		'.usd-out-restore-all { color: var(--uma-text-subtle); }',
 		'.usd-out-exlist { max-height: 132px; overflow-y: auto; margin-top: var(--uma-sp-1-5); }',
-		'.usd-out-exskill { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 32px; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-2); border-bottom: 1px solid var(--uma-surface-muted); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
+		'.usd-out-exskill { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 24px; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-2); border-bottom: 1px solid var(--uma-surface-muted); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
 		'.usd-out-exskill-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// C-238: 名前のボタン（説明の小窓）。長い名前は今までどおり「…」で切る
 		'.usd-out-exskill-namebtn { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
@@ -6626,6 +6630,13 @@
 		'  color: var(--uma-text-faint); cursor: default; }',
 		'.usd-name-hit--added:hover { background: var(--uma-surface-sunken); }',
 		'.usd-name-added { flex-shrink: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		// T212-E2追加（違いの一覧 34・おいもさんの決定 2026-11-23）: 名前を入れて探すの候補（スキル）は、1件ずつの箱をやめ、テキストで検索と同じ線で区切った 24px の行にする。
+		// カードを選ぶ小窓の候補（--card・--plain）は今のまま。押すと確定する働き・追加済み／選べない理由の字は変えない
+		'.usd-name-list:has(> .usd-name-hit:not(.usd-name-hit--card):not(.usd-name-hit--plain)) { gap: 0; border: 1px solid var(--uma-border-strong); background: var(--uma-surface); }',
+		'.usd-name-list > .usd-name-hit:not(.usd-name-hit--card):not(.usd-name-hit--plain) { min-height: 24px; padding: 3px var(--uma-sp-3) 4px; border: 0; border-bottom: 1px solid var(--uma-surface-muted); border-radius: 0; background: transparent; color: var(--uma-text); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
+		'.usd-name-list > .usd-name-hit:not(.usd-name-hit--card):not(.usd-name-hit--plain):last-child { border-bottom: 0; }',
+		'.usd-name-list > .usd-name-hit:not(.usd-name-hit--card):not(.usd-name-hit--plain):hover { background: var(--uma-control-soft); }',
+		'.usd-name-list > .usd-name-hit:not(.usd-name-hit--card):not(.usd-name-hit--plain).usd-name-hit--added, .usd-name-list > .usd-name-hit:not(.usd-name-hit--card):not(.usd-name-hit--plain).usd-name-hit--added:hover { background: transparent; color: var(--uma-text-faint); }',
 		'.usd-name-none { margin-bottom: var(--uma-sp-2); }',
 
 		/* ------------------------------------------------------------
@@ -7928,12 +7939,12 @@
 		'.usd-sc-toggle[aria-expanded="true"] .usd-sc-chev { transform: rotate(180deg); }',
 		'.usd-sc-list { display: flex; flex-direction: column; border-top: 1px solid var(--uma-surface-muted); }',
 		'.usd-sc-list[hidden] { display: none; }',
-		'.usd-sc-row { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 3px 2px; border-bottom: 1px solid var(--uma-surface-muted); }',
+		'.usd-sc-row { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px; border-bottom: 1px solid var(--uma-surface-muted); }',
 		'.usd-sc-rar { flex: none; width: 26px; height: 20px; object-fit: contain; }',
 		'.usd-sc-type { flex: none; width: 20px; height: 20px; }',
 		'.usd-sc-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }',
-		'.usd-sc-title { font-size: 10px; line-height: 14px; color: var(--uma-text-subtle); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }',
-		'.usd-sc-chara { font-size: 13px; line-height: 18px; color: var(--uma-text); font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }',
+		'.usd-sc-title { font-size: 10px; line-height: 13px; color: var(--uma-text-subtle); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }',
+		'.usd-sc-chara { font-size: 13px; line-height: 14px; color: var(--uma-text); font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }',
 		'.usd-sc-how { flex: none; padding: 0 6px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-tool); font-size: 11px; line-height: 18px; color: var(--uma-text-subtle); white-space: nowrap; }',
 		// C-132: 削除の状態（パレットの「削除」を選んでいる）。タイルは破線の枠と、名前の取り消しの線（色だけに頼らない）。ボタンは選択中の輪と色
 		// 段G(4): 削除の状態でも、パネルの見た目（点線の枠・赤い取り消し線）は変えない。代わりにパネルの右に×印を出す（押せる範囲 44px。パネルを押しても削除できる）。
