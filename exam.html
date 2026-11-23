@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-23a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-23a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-23b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-23b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -1011,6 +1011,9 @@
 		#tool-dropdown-menu > button { border-radius: 0; }
 		#tool-dropdown-menu .w-7.h-7 { border-radius: var(--uma-r-tool); }
 		#tool-dropdown-menu span.rounded { border-radius: 0; }
+		/* T212-G（デザインの見直し。違いの一覧 17）: 「★の数をコピー」は青をやめ、操作色（.uma-btn--neutral と同じ地・字・縁）。大きさ・場所は変えない */
+		#result-copy-btn { background-color: var(--uma-control); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }
+		#result-copy-btn:hover { background-color: var(--uma-control-hover); }
 		/* ===== 照合結果のスマホのヒートマップ（T100・C-290）=====
 		   640px 未満の新UIの引き出し（#result-drawer の中）だけ。PC と旧UI は今のまま。
 		   ★の記号の代わりに人のマスを★の数で塗り、数字を出す（★0・未検出は塗りなし、★不明は斜線に「?」）。
@@ -3087,7 +3090,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23b';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],

@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-11-23a";
+	--common-css-version: "2026-11-23b";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -272,6 +272,10 @@
 	--uma-deck-accent-soft-text: #292524; /* stone-800 : 淡い面の上の文字 */
 	--uma-deck-accent-border: #a6a09b;  /* stone-400 */
 	--uma-deck-accent-ring: #44403b;    /* stone-700 : フォーカス輪郭 */
+	/* 「Deck 行き」の印（右下の項目のアイコンの地・ツール切り替えの Deck の行のアイコン・送るボタンの絵）。
+	   Deck α の帯の緑（T212-G。デ56・違いの一覧 12）。上の --uma-deck-* は旧 Deck のページ全体の色なので変えない */
+	--uma-deck-go: #1b7756;
+	--uma-deck-go-ink: #ffffff;
 
 	/* ---- 結合画像（琥珀）の色 ----
 	   「結合画像」の**印**（右下のボタン群の2項目のアイコンの丸・設定パネルの見出しのアイコン）
@@ -430,6 +434,8 @@
 	--uma-page-ground: #0f1318;      /* ページの地（各ページの body がダークで使う） */
 	--uma-off: #7d7a71;              /* 押せない部品の線・文字（T212-C） */
 	--uma-off-bg: #2c2b29;           /* 押せない部品の地（T212-C） */
+	--uma-deck-go: #6cc28f;          /* 「Deck 行き」の印（T212-G） */
+	--uma-deck-go-ink: #06220f;
 
 	/* ---- 文字 ---- */
 	--uma-text: #e2e8f0;

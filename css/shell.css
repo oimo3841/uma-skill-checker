@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-11-23a";
+	--uma-shell-css-version: "2026-11-23b";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -606,7 +606,10 @@
 /* スコープの中のアイコン（lucide が <i> を <svg class> に置き換えるので class で拾う） */
 .deck-accent .deck-icon, .btn-deck-accent .deck-icon { color: var(--uma-accent); }
 /* FAB の項目のうち Deck 行きのものは、アイコンの丸を Deck の色で塗る */
-.deck-accent .uma-fab-icon { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+.deck-accent .uma-fab-icon { background: var(--uma-deck-go); color: var(--uma-deck-go-ink); }   /* T212-G（違いの一覧 12）: Deck α の帯の緑 */
+/* T212-G（違いの一覧 12）: ツール切り替えの Deck の行のアイコンと、送るボタンの絵も同じ緑の地（大きさ・場所は変えない。絵は 16px の箱の中で 13px） */
+#tool-deck-alpha > :first-child { background: var(--uma-deck-go); color: var(--uma-deck-go-ink); }
+#deck-alpha-send-btn > svg:first-child { padding: 2px; border-radius: 2px; background: var(--uma-deck-go); color: var(--uma-deck-go-ink); }
 /* 「結合画像」に属する項目のアイコンの丸（exam の「結合画像の表示」「結合画像の設定」、
    special の「画像結合レビュー」）。同じ琥珀に揃えて、行き先の仲間であることを色で示す。 */
 .stitch-accent-icon { background: var(--uma-stitch-soft); color: var(--uma-stitch-soft-text); }

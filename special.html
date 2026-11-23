@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-23a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-23a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-23b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-23b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -54,7 +54,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-23b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-23c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
@@ -474,6 +474,7 @@
 			--star-page: #efe6d8; --star-stripe: rgba(120, 90, 40, .05);
 			--star-head-l: #43321a; --star-head-m: #43321a; --star-head-r: #43321a; --star-head-line: #2c2010;   /* T212-D: 帯は濃い1色（焦げ茶。デ50・デ51） */
 			--star-head-ink: #fbf3e2; --star-head-btn: #fffdf8; --star-head-btn-ink: #2a2216;
+			--star-menu-cur: #ece0c9;   /* T212-G: ツール切り替えの今のツールの行の地（見本の帯の色） */
 			--star-hl: #ffc21a; --star-hl-shadow: none;
 			--star-badge-green-bg: #cdebd3; --star-badge-green-text: #1d5a35; --star-badge-green-line: #86bf98;
 			--star-badge-red-bg: #fde3e0; --star-badge-red-text: #a3221a; --star-badge-red-line: #e29a94;
@@ -506,6 +507,7 @@
 			--uma-drawer-bg: #1d1c1a;
 			--star-head-l: #3d3122; --star-head-m: #3d3122; --star-head-r: #3d3122; --star-head-line: #6b5a3c;
 			--star-head-ink: #fbf3e2; --star-head-btn: #383632; --star-head-btn-ink: #f3f1ec;
+			--star-menu-cur: #302e2a;   /* T212-G */
 			--star-hl: #ffc21a; --star-hl-shadow: none;
 			--star-badge-green-bg: #1b5340; --star-badge-green-text: #a0f0cb; --star-badge-green-line: #3fa27a;
 			--star-badge-red-bg: #7a2a3a; --star-badge-red-text: #ffd0d6; --star-badge-red-line: #ff8a9a;
@@ -573,6 +575,16 @@
 		#tool-dropdown-menu > button { border-radius: 0; }
 		#tool-dropdown-menu .w-7.h-7 { border-radius: var(--uma-r-tool); }
 		#tool-dropdown-menu span.rounded { border-radius: 0; }
+		/* T212-G（デザインの見直し。違いの一覧 2・12）: UmaStar の緑は「パッシブ」と「用意ができている」だけ。見出しのアイコン・件数の札・右下の項目・
+		   ツール切り替えの今のツールの行は、操作色の淡い地・帯の色にする（Deck 行きの印は css/shell.css の緑 #1b7756）。大きさ・場所は変えない */
+		#tool-dropdown-menu > div.bg-green-50\/80 { background: var(--star-menu-cur); border-color: transparent; color: var(--uma-text-heading); }
+		#tool-dropdown-menu > div.bg-green-50\/80 > div:first-child { background: var(--star-head-m); color: var(--star-head-ink); }
+		#tool-dropdown-menu > div.bg-green-50\/80 p.text-green-900 { color: var(--uma-text-heading); }
+		#tool-dropdown-menu > div.bg-green-50\/80 span.text-green-700 { background: var(--uma-control-soft); color: var(--uma-text-heading); }
+		#tool-dropdown-menu > div.bg-green-50\/80 p.truncate { color: var(--uma-text-muted); }
+		#dict-count-badge { background: var(--uma-control-soft); color: var(--uma-text-heading); }
+		label.upload-add.group:hover { background-color: var(--uma-surface-sunken); border-color: var(--uma-control-border); }
+		label.upload-add.group:hover svg { color: var(--uma-text-heading); }
 		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
 		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
 		/* T108: 「レース指定なし／本育成編成なし」の①のタブ（押せない）。①の中身は消さない。件数のバッジは出さない */
@@ -819,13 +831,15 @@
 		/* ===== 照合結果のスマホのヒートマップ（T100・C-290。exam.html と同じ形）=====
 		   640px 未満の引き出し（#result-drawer の中）だけ。★の記号の代わりに人のマスを★の数で塗り、数字を出す
 		   （★0・未検出は塗りなし、★不明は斜線に「?」）。文字は 13px と 11px。列が5つ以上（.hm-dense）の表だけ 10px。
-		   緑の3段は段1 のモックで確かめた値（基準の面とマスの数字のコントラスト 4.5 以上） */
+		   緑の3段は段1 のモックで確かめた値（基準の面とマスの数字のコントラスト 4.5 以上）。
+		   T212-G（デザインの見直し。違いの一覧 16・デ53・デ55）: 塗りは琥珀の3段（見本 dg20 の既定の値。緑は「パッシブ」と「用意ができている」だけに使う）。
+		   ライトの★3 だけ、白い字との比 4.5 を保つため見本の #a66a00 を1段だけ濃い #a56900 にした（4.48 → 4.54） */
 		:root {
-			--star-hm-empty: #fffdf8; --star-hm-s1: #cdeed6; --star-hm-n1: #14532d; --star-hm-s2: #7fd39b; --star-hm-n2: #0b3d1f; --star-hm-s3: #1e7f45; --star-hm-n3: #ffffff;
+			--star-hm-empty: #fffdf8; --star-hm-s1: #f6e3b4; --star-hm-n1: #4d3300; --star-hm-s2: #e9bd5a; --star-hm-n2: #3a2600; --star-hm-s3: #a56900; --star-hm-n3: #ffffff;
 			--star-hm-unk-base: #ece7dd; --star-hm-unk-line: #b5ab98; --star-hm-unk-text: #3d3428; --star-hm-gap: #f6eedf;
 		}
 		:root[data-theme="dark"] {
-			--star-hm-empty: #262523; --star-hm-s1: #1f4a30; --star-hm-n1: #c3f3d2; --star-hm-s2: #3fa566; --star-hm-n2: #04170c; --star-hm-s3: #8de3a9; --star-hm-n3: #04170c;
+			--star-hm-empty: #262523; --star-hm-s1: #4a3a12; --star-hm-n1: #ffe9b0; --star-hm-s2: #8a6410; --star-hm-n2: #fff3d0; --star-hm-s3: #f0b83a; --star-hm-n3: #2a1c00;
 			--star-hm-unk-base: #34322e; --star-hm-unk-line: #5c5a55; --star-hm-unk-text: #f3f1ec; --star-hm-gap: #1d1c1a;
 		}
 		.hm-num { display: none; }
@@ -1072,7 +1086,7 @@
 					     .uma-btn[hidden] は css/common.css が display:none で押している（F-13）。 -->
 					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary" hidden
 						title="以前のUIに戻します（スキルリストを手で貼り付ける形）">
-						<i data-lucide="arrow-left-right" class="w-4 h-4 text-green-600"></i>
+						<i data-lucide="arrow-left-right" class="w-4 h-4"></i>
 						<span id="deck-mode-btn-label">旧UIへ</span>
 					</button>
 
@@ -1101,7 +1115,7 @@
 		<div id="skillset-guide-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="skillset-guide-title">
 			<div class="help-head">
 				<h2 id="skillset-guide-title" class="help-title">
-					<i data-lucide="upload-cloud" class="w-4 h-4 text-green-600"></i>
+					<i data-lucide="upload-cloud" class="w-4 h-4"></i>
 					<!-- 71セッション目・段6: 入口のボタンと同じ文言に揃える（「スキルセットのスクショで追加」→「スクショで追加」）。
 					     ボタン側は core の既定（opts.screenshotEntry.label を省くとこの文字列が出る）を使っている。 -->
 					<span>スクショで追加</span>
@@ -1134,7 +1148,7 @@
 		<div id="skillset-panel-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="skillset-panel-title">
 			<div class="help-head">
 				<h2 id="skillset-panel-title" class="help-title">
-					<i data-lucide="image" class="w-4 h-4 text-green-600"></i>
+					<i data-lucide="image" class="w-4 h-4"></i>
 					<span>スキルパネルの画像</span>
 				</h2>
 				<button id="skillset-panel-close" type="button" class="uma-icon-btn" onclick="closeSkillsetPanel()" aria-label="閉じる">
@@ -1553,7 +1567,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23b';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -8772,7 +8786,7 @@
 	<aside id="result-drawer" class="uma-drawer uma-drawer--wide" hidden role="dialog" aria-modal="true" aria-label="照合結果">
 		<div class="uma-drawer-header">
 			<div class="flex items-center gap-2 min-w-0">
-				<i data-lucide="list-checks" class="w-4 h-4 text-green-600 shrink-0"></i>
+				<i data-lucide="list-checks" class="w-4 h-4 shrink-0"></i>
 				<p class="text-sm font-bold text-slate-800 truncate">照合結果（★の数）</p>
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
@@ -8981,7 +8995,7 @@
 	<div id="fab-nav" class="uma-fab-nav">
 		<button id="fab-item-result" type="button" class="uma-fab-item" onclick="fabGoTo('result')">
 			<span>OCRの照合結果</span>
-			<span class="uma-fab-icon" style="background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);">
+			<span class="uma-fab-icon" style="background: var(--uma-surface-muted); color: var(--uma-text-heading);">
 				<i data-lucide="list-checks" class="w-4 h-4"></i>
 				<span id="fab-dot-result" class="uma-fab-dot" hidden></span>
 			</span>

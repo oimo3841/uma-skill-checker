@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-23b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-23c';
 
 	/* ============================================================
 	 * 定数
@@ -6249,8 +6249,10 @@
 		// 一覧の行（.usd-list-card）とパネルの下地（.usd-panel）の見た目は
 		// css/common.css の .uma-list-row / .glass-card が持つ。
 		// 以前はページ側と同じ定義をここにも書いていたが、片方だけ直す事故の元だった。
+		// T212-G（デザインの見直し。違いの一覧 2・デ98）: 札・候補・件数の印・選ぶ札・絞り込み中の札は、ページのアクセント（UmaStar では緑）をやめ、
+		// 操作色の系統（淡い地 --uma-control-soft・線 --uma-control-border・濃い地 --uma-control）にする。緑は「パッシブ」と「用意ができている」だけ
 		'.usd-chip { display: inline-flex; align-items: center; gap: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-2-5);',
-		'  background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); border-radius: var(--uma-r-tool);',
+		'  background: var(--uma-control-soft); color: var(--uma-text-heading); border-radius: var(--uma-r-tool);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; }',
 		'.usd-pill { display: inline-flex; align-items: center; gap: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-2-5);',
 		'  border: 1px solid var(--uma-border); border-radius: var(--uma-r-tool); font-size: var(--uma-fs-xs);',
@@ -6556,7 +6558,7 @@
 		'.usd-paste-error { border-color: var(--uma-danger-border); background: var(--uma-danger-bg); }',
 		'.usd-paste-raw { font-family: var(--uma-font-mono); color: var(--uma-text-heading); word-break: break-all; }',
 		'.usd-paste-arrow { color: var(--uma-text-faint); margin: 0 var(--uma-sp-1-5); }',
-		'.usd-paste-picked { font: inherit; font-weight: 600; color: var(--uma-accent-soft-text); background: transparent; border: 0; padding: 0; cursor: pointer; text-align: left;',
+		'.usd-paste-picked { font: inherit; font-weight: 600; color: var(--uma-text-heading); background: transparent; border: 0; padding: 0; cursor: pointer; text-align: left;',
 		'  text-decoration: underline; text-decoration-color: var(--uma-border-strong); text-underline-offset: 2px; }',
 		'.usd-paste-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
 		'.usd-paste-cands { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); align-items: center; margin-top: var(--uma-sp-1); }',
@@ -6574,9 +6576,9 @@
 		   32セッション目の実機で「戻る」を .usd-paste-skip で出していたら**押せる要素に見えなかった**。
 		   候補チップと似せないようにして控えめに倒しすぎた例で、**戻るは別枠**として扱う。 */
 		'.usd-paste-cand { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
-		'  border-radius: var(--uma-r-tool); border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
-		'  color: var(--uma-accent-soft-text); cursor: pointer; }',
-		'.usd-paste-cand:hover { background: var(--uma-accent-border); }',
+		'  border-radius: var(--uma-r-tool); border: 1px solid var(--uma-control-border); background: var(--uma-control-soft);',
+		'  color: var(--uma-text-heading); cursor: pointer; }',
+		'.usd-paste-cand:hover { background: var(--uma-control-border); }',
 		'.usd-paste-skip { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint);',
 		'  text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }',
 		'.usd-paste-skip:hover { color: var(--uma-text-subtle); }',
@@ -6610,9 +6612,9 @@
 		// 候補は「押すと確定する」もの。行の候補チップ（.usd-paste-cand）と同じアクセント色の系統にそろえる
 		'.usd-name-hit { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2);',
 		'  text-align: left; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-tool);',
-		'  border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
-		'  color: var(--uma-accent-soft-text); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); cursor: pointer; }',
-		'.usd-name-hit:hover { background: var(--uma-accent-border); }',
+		'  border: 1px solid var(--uma-control-border); background: var(--uma-control-soft);',
+		'  color: var(--uma-text-heading); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); cursor: pointer; }',
+		'.usd-name-hit:hover { background: var(--uma-control-border); }',
 		// サポートカードの候補（C-62 の (1) で種類ごとの色で塗っていたものを、C-186 で無彩色の面に置き換えた）。左に種別アイコン・右にレアリティバッジ（色が出るのはこの2つだけ）
 		'.usd-name-hit--card { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; column-gap: var(--uma-sp-2); border-color: var(--uma-border-strong); background: var(--uma-surface); color: var(--uma-text-heading); }',
 		'.usd-name-hit--card:hover { background: var(--uma-surface-muted); }',
@@ -6705,7 +6707,7 @@
 		   片方だけ色や大きさが変わると意図が崩れる。違うのは置き方（角に浮かせるか、文字の後ろに並べるか）だけ。 */
 		'.usd-tab-count, .usd-entry-count { min-width: 17px; height: 17px;',
 		'  padding: 0 5px; border-radius: var(--uma-r-full); font-size: var(--uma-fs-2xs); font-weight: 700;',
-		'  line-height: 17px; text-align: center; color: var(--uma-text-inverse); background: var(--uma-accent); }',
+		'  line-height: 17px; text-align: center; color: var(--uma-control-text); background: var(--uma-control); }',
 		'.usd-tab-count { position: absolute; top: 3px; right: var(--uma-sp-1); border-radius: 2px; }',   // T212-F（違いの一覧 33）: 条件で検索のタブの数の印は角 2px（「元に戻す」の数の印と同じ）。入口の .usd-entry-count は丸のまま,
 		'.usd-entry-count { display: inline-block; margin-left: var(--uma-sp-1-5); vertical-align: 1px; }',
 		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] .usd-tab-count { top: 7px; }',
@@ -6727,7 +6729,7 @@
 		'  margin-bottom: var(--uma-sp-2); }',
 		'.usd-axis-hint { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-link-btn { margin-left: auto; font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
-		'  padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-tool); color: var(--uma-accent-soft-text);',
+		'  padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-tool); color: var(--uma-text-heading);',
 		'  background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }',
 		'.usd-link-btn:disabled { color: var(--uma-border-strong); text-decoration: none; cursor: default; }',
 
@@ -6962,20 +6964,20 @@
 		'  background: var(--uma-surface); color: var(--uma-text-heading); font-size: var(--uma-fs-sm);',
 		'  line-height: var(--uma-lh-sm); cursor: pointer; user-select: none;',
 		'  transition: background-color var(--uma-transition), border-color var(--uma-transition); }',
-		'.usd-opt:hover { border-color: var(--uma-accent-border); background: var(--uma-surface-sunken); }',
+		'.usd-opt:hover { border-color: var(--uma-control-border); background: var(--uma-surface-sunken); }',
 		'.usd-opt input { appearance: none; -webkit-appearance: none; flex: none; margin: 0; width: 18px; height: 18px;',
 		'  border: 1.5px solid var(--uma-border-strong); border-radius: 50%; background: var(--uma-surface);',
 		'  display: grid; place-content: center; cursor: pointer; }',
-		'.usd-opt input::after { content: ""; width: 8px; height: 4.5px; border: 2px solid var(--uma-text-inverse);',
+		'.usd-opt input::after { content: ""; width: 8px; height: 4.5px; border: 2px solid var(--uma-control-text);',
 		'  border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); visibility: hidden; }',
-		'.usd-opt input:checked { background: var(--uma-accent); border-color: var(--uma-accent); }',
+		'.usd-opt input:checked { background: var(--uma-control); border-color: var(--uma-control); }',
 		// **visible ではなく inherit**（2026-10-30 の不具合の直し）。選んでいない軸のパネルは同じマスに重ねて
 		// visibility: hidden で隠している（.usd-tabpanel:not(.is-active)）。visible を書くと子が親の hidden を破り、
 		// 「その他」で選んだ印が、ほかの軸の同じ位置の選択肢（フェーズの「スタート時」の丸など）に透けて出ていた
 		'.usd-opt input:checked::after { visibility: inherit; }',
-		'.usd-opt:has(input:checked) { background: var(--uma-accent-soft); border-color: var(--uma-accent-border);',
-		'  color: var(--uma-accent-soft-text); font-weight: 600; }',
-		'.usd-opt:has(input:focus-visible) { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }',
+		'.usd-opt:has(input:checked) { background: var(--uma-control-soft); border-color: var(--uma-control-border);',
+		'  color: var(--uma-text-heading); font-weight: 600; }',
+		'.usd-opt:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
 
 		// 絞り込み中の条件。どのタブに何が入っているかを一望し、押すとそのタブへ飛ぶ
 		'.usd-active-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1-5) var(--uma-sp-2);',
@@ -6983,8 +6985,8 @@
 		'.usd-summary-label { font-weight: 600; color: var(--uma-text-heading); }',
 		'.usd-summary-item { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-tool); cursor: pointer;',
-		'  color: var(--uma-accent-soft-text); background: var(--uma-accent-soft); border: 1px solid var(--uma-accent-border); }',
-		'.usd-summary-item:hover { border-color: var(--uma-accent); }',
+		'  color: var(--uma-text-heading); background: var(--uma-control-soft); border: 1px solid var(--uma-control-border); }',
+		'.usd-summary-item:hover { border-color: var(--uma-control); }',
 		'.usd-summary-item b { font-weight: 700; margin-right: var(--uma-sp-1); }',
 
 		/* T27（2026-10-31・おいもさんの決定）: 「条件で検索」の大きさと色（手本は T21 のモック f-ba）。

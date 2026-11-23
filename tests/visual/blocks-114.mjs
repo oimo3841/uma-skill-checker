@@ -428,9 +428,10 @@ export async function register114(env) {
 	}
 
 	// ===== UmaStar（special.html）: 段2 のヒートマップ・見直し・幅の上限（決定 200〜204・215・219〜222・228・244）=====
+	// T212-G（違いの一覧 16・デ53・デ55）: 塗りは琥珀の3段（見本 dg20 の値。ライトの★3 だけ白い字との比 4.5 を保つため #a66a00 → #a56900）
 	const STAR_PALETTE = {
-		light: { empty: 'rgb(255, 253, 248)', s1: 'rgb(205, 238, 214)', s2: 'rgb(127, 211, 155)', s3: 'rgb(30, 127, 69)', unk: 'rgb(236, 231, 221)' },
-		dark: { empty: 'rgb(38, 37, 35)', s1: 'rgb(31, 74, 48)', s2: 'rgb(63, 165, 102)', s3: 'rgb(141, 227, 169)', unk: 'rgb(52, 50, 46)' }
+		light: { empty: 'rgb(255, 253, 248)', s1: 'rgb(246, 227, 180)', s2: 'rgb(233, 189, 90)', s3: 'rgb(165, 105, 0)', unk: 'rgb(236, 231, 221)' },
+		dark: { empty: 'rgb(38, 37, 35)', s1: 'rgb(74, 58, 18)', s2: 'rgb(138, 100, 16)', s3: 'rgb(240, 184, 58)', unk: 'rgb(52, 50, 46)' }
 	};
 	const openStar = async (width, height, theme, sets) => {
 		const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
