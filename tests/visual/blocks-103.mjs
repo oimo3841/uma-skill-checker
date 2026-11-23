@@ -9,6 +9,8 @@
 //    （cutNextPersonInVideoFrame。自分の帯の位置は1枚目の帯の位置から選ぶ側のずれ video.shifts を引いて見込む）。
 //    塗った画で行が取れないとき（次の人の1枚目など）は、画像全体を読まず OCR しない（次の人のスキルが混ざらない）。
 //  - 静止画（persons[].video に無い画）はこれまでどおり（どちらの処理も通らない）。common.js は変えない。
+//    T213（2026-11-23・決定 903・904）で、小窓の外の暗い端を塗るほうは静止画にも掛けるようにした（開発ログに「動画の画」とは書かない。次の人の帯から下を塗るのは動画の画だけ）。
+//    塊の見出しの「静止画は今のまま」は記録の照合のため残し、期待値だけ直した。
 // 画は作り物（Canvas で描く）。OCR は作り物の worker（recognize の呼ばれ方だけを見る）。
 
 export async function register103(env) {
@@ -130,7 +132,7 @@ export async function register103(env) {
 				return {
 					vMask: pick(vlog, /小窓の外の暗い端/).length, vCut: pick(vlog, /次の人の固有スキル帯/).length, vSkip: pick(vlog, /この画は OCR しない/).length,
 					vFail: pick(vlog, /行検出に失敗/).length, vRows: rv.geometry.map((g) => g && g.rows ? g.rows.length : 0), vCalls: vcalls.length,
-					sMask: pick(slog, /動画の画/).length, sFail: pick(slog, /行検出に失敗/).length, sCalls: scalls.length, sWhole: scalls.filter((s) => /^1800x|x1800$/.test(s)).length,
+					sMask: pick(slog, /動画の画/).length, sEdge: pick(slog, /\n  小窓の外の暗い端を白で塗った/).length, sFail: pick(slog, /行検出に失敗/).length, sCalls: scalls.length, sWhole: scalls.filter((s) => /^1800x|x1800$/.test(s)).length,
 					vlog
 				};
 			});
@@ -138,7 +140,9 @@ export async function register103(env) {
 			assert(r.vCut === 2 && r.vSkip === 1, '次の人の帯がいちばん上に写る2枚を塗り、行が取れない1枚（次の人の1枚目）は OCR しない', [r.vCut, r.vSkip, r.vlog]);
 			assert(r.vFail === 0 && r.vRows[0] >= 3 && r.vRows[1] >= 3 && r.vRows[2] === 0, '動画の画は「行検出に失敗。画像全体をOCRへ」にならない（読む2枚は行が取れる）', [r.vFail, r.vRows]);
 			assert(r.vCalls === 4, 'OCR は読む2枚 × 前処理2通り（次の人の1枚目は読まない）', r.vCalls);
-			assert(r.sMask === 0 && r.sFail === 3 && r.sCalls === 6 && r.sWhole === 6, '静止画として渡すと今のまま（整えない・端が暗い画は行の検出が止まり画像全体を読む）', [r.sMask, r.sFail, r.sCalls, r.sWhole]);
+			// T213（決定 903・904）: 静止画にも小窓の外の暗い端は塗る（開発ログに「動画の画」とは書かない）。次の人の帯から下を塗る・OCR しないは動画の画だけ。
+			// 直す前は「端が暗い画は行の検出が止まり3枚とも画像全体を読む（sFail 3・sWhole 6）」だった。いまは2枚で行が取れ、次の人の帯から上に行の無い1枚だけ画像全体を読む
+			assert(r.sMask === 0 && r.sEdge === 3 && r.sFail === 1 && r.sCalls === 6 && r.sWhole === 2, '静止画として渡すと、動画の整え（次の人の帯から下を塗る・OCR しない）は通らない・小窓の外の暗い端は塗る（T213。「動画の画」とは書かない）', [r.sMask, r.sEdge, r.sFail, r.sCalls, r.sWhole]);
 		} finally { await sp.page.context().close(); }
 	});
 

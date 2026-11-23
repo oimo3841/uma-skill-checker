@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-21",
+"generated": "2026-11-23",
 "numbering": "runtime",
-"count": 1167,
+"count": 1170,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1172,6 +1172,9 @@
   {"file":"tests/visual/blocks-186.mjs","title":"T205(1) 390px UmaStar の引き出しの「結合画像の設定」: 入れる人の3つのボタンが1行（割れない・切れない）・ほかの部品の行の数は直す前から増えない（既定の3列・全部 ON の2列）","ord":1,"marks":"VAC","asserts":4},
   {"file":"tests/visual/blocks-186.mjs","title":"T205(1) 430px UmaStar の引き出しの「結合画像の設定」: 入れる人の3つのボタンが1行（割れない・切れない）・ほかの部品の行の数は直す前から増えない（既定の3列・全部 ON の2列）","ord":1,"marks":"VAC","asserts":4},
   {"file":"tests/visual/blocks-186.mjs","title":"T205(1) 1280px UmaStar の引き出しの「結合画像の設定」: 入れる人の3つのボタンが1行（割れない・切れない）・ほかの部品の行の数は直す前から増えない（既定の3列・全部 ON の2列）","ord":1,"marks":"VAC","asserts":4},
-  {"file":"tests/visual/blocks-186.mjs","title":"T205(2) ③の中の「結合画像の設定」と UmaExam の引き出しの小窓は直す前と同じ（5つの幅・部品ごとの行の数・左端・幅とパネルの大きさ）","ord":1,"marks":"V","asserts":3}
+  {"file":"tests/visual/blocks-186.mjs","title":"T205(2) ③の中の「結合画像の設定」と UmaExam の引き出しの小窓は直す前と同じ（5つの幅・部品ごとの行の数・左端・幅とパネルの大きさ）","ord":1,"marks":"V","asserts":3},
+  {"file":"tests/visual/blocks-187.mjs","title":"T213(1) UmaExam の静止画: 左右 13px の暗い背景（ホームの青空の色）が写った画でも行の検出が止まらない・画像全体を読まない／明るい端の画は塗らず結果も白い端の画と同じ","ord":1,"marks":"VAC","asserts":4},
+  {"file":"tests/visual/blocks-187.mjs","title":"T213(1) UmaStar の静止画: 左右 13px の暗い背景（ホームの青空の色）が写った画でも行の検出が止まらない・画像全体を読まない／明るい端の画は塗らず結果も白い端の画と同じ","ord":1,"marks":"VAC","asserts":4},
+  {"file":"tests/visual/blocks-187.mjs","title":"T213(2) 呼び出しの位置: exam.html・special.html とも、maskVideoFrameMargins は動画の画の整えの外（静止画にも）で、つまみの塗りより前に1か所だけ","ord":1,"marks":"C","asserts":1}
 ]
 }

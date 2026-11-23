@@ -3020,7 +3020,8 @@
 		// detectSkillRows（common.js）の「暗い画素が横に12px以上の行＝文字帯」に一覧のどの行も当たり、行のすきまが消えて
 		// 数百pxの1本の帯になり、行の検出が全部の画で止まっていた。端から続く「全体の半分以上の行で暗い」列だけを塗る
 		// （文字が縦に並んで半分を超える列は無い。背景が明るい動画では1列も当たらず、画は変わらない）。
-		function maskVideoFrameMargins(base, diag) {
+		// T213: 静止画（スクリーンショット）でも、背景が暗い場面（ホームの青空など）では同じように左右に写るので、静止画にも掛ける。isVideo … 開発ログの文の頭に「動画の画:」を付けるか
+		function maskVideoFrameMargins(base, diag, isVideo) {
 			const W = base.width, H = base.height;
 			const gray = toGray(getPixels(base));
 			const maxM = Math.round(W * 0.05);
@@ -3033,7 +3034,7 @@
 			ctx.fillStyle = '#fff';
 			if (left) ctx.fillRect(0, 0, left, H);
 			if (right) ctx.fillRect(W - right, 0, right, H);
-			diag.push('動画の画: 小窓の外の暗い端を白で塗った（左 ' + left + 'px・右 ' + right + 'px）');
+			diag.push((isVideo ? '動画の画: ' : '') + '小窓の外の暗い端を白で塗った（左 ' + left + 'px・右 ' + right + 'px）');
 		}
 
 		// 固有スキル帯（青帯のすぐ下の、全幅でない緑帯）の青帯の上端の y（上から順）。detectSkillRows（common.js）と同じ基準で探す（T93）
@@ -3286,9 +3287,11 @@
 					}
 
 					const vk = video ? video.files.indexOf(file) : -1;
+					// 小窓の外の暗い端は静止画にも塗る（T213・決定 903・904。ホームの青空の上で撮った静止画で行の検出が止まっていた）。
+					// 行が取れなかったときも塗る前に戻さない（塗るのは小窓の外の文字の無い列だけで、画像全体の読みにも要らない。動画の画と同じ）
+					maskVideoFrameMargins(base, diag, vk >= 0);
 					if (vk >= 0) {
 						videoState.naturalH = img.naturalHeight;
-						maskVideoFrameMargins(base, diag);
 						cutTail = cutVideoTail(base, video, file, img.naturalHeight, diag);
 						cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
 					}

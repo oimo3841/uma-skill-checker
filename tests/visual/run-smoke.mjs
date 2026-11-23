@@ -197,6 +197,7 @@ import { register182 } from './blocks-182.mjs';
 import { register183 } from './blocks-183.mjs';
 import { register184 } from './blocks-184.mjs';
 import { register186 } from './blocks-186.mjs';
+import { register187 } from './blocks-187.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15739,6 +15740,8 @@ await register183({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register184({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T205（2026-11-21）: UmaStar の引き出しの「結合画像の設定」で入れる人のボタンの字が割れない・③と UmaExam は変わらない（見出しは「T205」）。tests/visual/blocks-186.mjs
 await register186({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T213（2026-11-23）: 静止画にも小窓の外の左右の暗い端を白で塗ってから行を検出する（UmaExam・UmaStar。見出しは「T213」）。tests/visual/blocks-187.mjs
+await register187({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
