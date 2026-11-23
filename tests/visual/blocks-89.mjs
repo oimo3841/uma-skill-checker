@@ -13,6 +13,7 @@
 import { reloadReady } from './lib/page-ready.mjs';
 import { SYNTH } from './blocks-80.mjs';
 import { pickVideo } from './lib/video-entry.mjs';
+import vm from 'node:vm';
 
 // モックの文（T43。lab/upload-mock.html の (3) 動画の場面から写した。製品の文面の表がこの文と同じであることを見る）
 const MOCK = {
@@ -29,6 +30,101 @@ const MOCK = {
 	},
 	warn: (who) => who + ' の結合の一部がずれているかもしれません。結果の画像を見て、ずれていたら動画を撮り直すか、スクショで入れ直してください。'
 };
+/* T214（T212-check-2 の 4. の T59(10)・901 により Chat が決めた (b)）: HTML から画面に出ないコメントだけを除く。
+ * HTML の <!-- … -->（<script>・<style> の外）・<style> の中の CSS の / * … * /・<script> の中の JS の / * … * / と // を除く。
+ * 文字列（' " `・テンプレートの ${…} の中）と正規表現の字（例: accept="image/*" や /https?:\/\// のような字）はコメントと見ない。
+ * 除いた JS が構文として読めること（vm.Script でコンパイルだけ）を返し、検査がそれを確かめる（除き方の誤りで本文を消していないか）。 */
+const JS_REGEX_BEFORE = new Set(['', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '<', '>', '~', '^']);
+const JS_REGEX_WORDS = new Set(['return', 'typeof', 'case', 'do', 'else', 'in', 'of', 'new', 'delete', 'void', 'throw', 'instanceof', 'yield', 'await']);
+function stripJsComments(s) {
+	let out = '', i = 0, last = '';
+	const n = s.length, tpl = [];   // tpl: テンプレートの ${ の中の { の深さ
+	const isId = (c) => /[A-Za-z0-9_$\u0080-￿]/.test(c);
+	const readTemplate = () => {   // ` の直後から。終わりの ` か ${ まで写す
+		while (i < n) {
+			const c = s[i];
+			if (c === '\\') { out += s.slice(i, i + 2); i += 2; continue; }
+			if (c === '`') { out += c; i++; last = 'a'; return; }
+			if (c === '$' && s[i + 1] === '{') { out += '${'; i += 2; tpl.push(0); last = '{'; return; }
+			out += c; i++;
+		}
+	};
+	while (i < n) {
+		const c = s[i];
+		if (c === '/' && s[i + 1] === '*') { const e = s.indexOf('*/', i + 2); const end = e < 0 ? n : e + 2; out += /\n/.test(s.slice(i, end)) ? '\n' : ' '; i = end; continue; }
+		if (c === '/' && s[i + 1] === '/') { while (i < n && s[i] !== '\n') i++; continue; }
+		if (c === '"' || c === "'") {
+			let j = i + 1;
+			while (j < n && s[j] !== c && s[j] !== '\n') j += s[j] === '\\' ? 2 : 1;
+			out += s.slice(i, j + 1); i = j + 1; last = 'a'; continue;
+		}
+		if (c === '`') { out += c; i++; readTemplate(); continue; }
+		if (c === '/') {
+			if (JS_REGEX_BEFORE.has(last) || JS_REGEX_WORDS.has(last)) {   // 正規表現の字
+				let j = i + 1, cls = false;
+				while (j < n && s[j] !== '\n') {
+					if (s[j] === '\\') { j += 2; continue; }
+					if (s[j] === '[') cls = true; else if (s[j] === ']') cls = false; else if (s[j] === '/' && !cls) break;
+					j++;
+				}
+				j++;
+				while (j < n && /[a-z]/i.test(s[j])) j++;
+				out += s.slice(i, j); i = j; last = 'a'; continue;
+			}
+			out += c; i++; last = '/'; continue;
+		}
+		if (tpl.length && c === '{') { tpl[tpl.length - 1]++; out += c; i++; last = '{'; continue; }
+		if (tpl.length && c === '}') {
+			if (tpl[tpl.length - 1] === 0) { tpl.pop(); out += c; i++; readTemplate(); continue; }
+			tpl[tpl.length - 1]--; out += c; i++; last = '}'; continue;
+		}
+		if (isId(c)) { let j = i; while (j < n && isId(s[j])) j++; last = s.slice(i, j); out += last; i = j; continue; }
+		if (!/\s/.test(c)) last = c;
+		out += c; i++;
+	}
+	return out;
+}
+function stripCssComments(s) {
+	let out = '', i = 0;
+	while (i < s.length) {
+		const c = s[i];
+		if (c === '/' && s[i + 1] === '*') { const e = s.indexOf('*/', i + 2); i = e < 0 ? s.length : e + 2; out += ' '; continue; }
+		if (c === '"' || c === "'") { let j = i + 1; while (j < s.length && s[j] !== c && s[j] !== '\n') j += s[j] === '\\' ? 2 : 1; out += s.slice(i, j + 1); i = j + 1; continue; }
+		out += c; i++;
+	}
+	return out;
+}
+export function stripHtmlComments(html) {
+	const parts = [], scripts = [];
+	const re = /(<script\b([^>]*)>)([\s\S]*?)(<\/script>)|(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi;
+	let at = 0, m;
+	while ((m = re.exec(html))) {
+		parts.push(html.slice(at, m.index).replace(/<!--[\s\S]*?-->/g, ' '));
+		if (m[1]) {
+			const js = stripJsComments(m[3]);
+			if (m[3].trim() && !/\btype\s*=\s*["']?(module|text\/tailwindcss)/i.test(m[2])) {
+				let ok = true, origOk = true;
+				try { new vm.Script(m[3]); } catch { origOk = false; }
+				try { new vm.Script(js); } catch { ok = false; }
+				scripts.push({ at: html.slice(0, m.index).split('\n').length, origOk, ok, removed: m[3].length - js.length });
+			}
+			parts.push(m[1] + js + m[4]);
+		} else parts.push(m[5] + stripCssComments(m[6]) + m[7]);
+		at = re.lastIndex;
+	}
+	parts.push(html.slice(at).replace(/<!--[\s\S]*?-->/g, ' '));
+	return { text: parts.join(''), scripts };
+}
+/** T59(10) の「表の文を表の外に直書きしていない」の判定（T214 で関数に。A3 の確かめが同じ判定を写しに当てる）。
+ *  src: special.html の中身・T: 文面の表（VIDEO_TEXTS）。表そのものを除き、コメントを除いてから、表の文（6字以上・{…} を含まない）を探す。 */
+export function findOutsideDup(src, T) {
+	const tbl = /const VIDEO_TEXTS = \{([\s\S]*?)\r?\n\t\t\};/.exec(src);
+	const stripped = stripHtmlComments(tbl ? src.replace(tbl[0], '') : src);
+	const outside = stripped.text;
+	const dup = Object.entries(T).filter(([, v]) => v.length >= 6 && !/\{/.test(v) && outside.includes(v) && !/^(OCR処理|画像を結合)/.test(v));
+	const scriptsOk = stripped.scripts.length > 0 && stripped.scripts.every((x) => x.ok || !x.origOk);
+	return { tbl: !!tbl, dup, scriptsOk, scripts: stripped.scripts };
+}
 export async function register89(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -383,11 +479,9 @@ export async function register89(env) {
 			'T59(10) 数や名前が入る文は {人}・{N} で書く', T);
 		assert(!Object.values(T).some((t) => /含め/.test(t)), 'T59(10) 文面に「含め…」「含められません」を使わない', null);
 		// 画面の文がすべて表から来ている（コードの中に同じ文を直書きしていない）: special.html の中で、表の値が表の外に出てこない
-		const src = fs.readFileSync(path.join(REPO_ROOT, 'special.html'), 'utf8');
-		const tbl = /const VIDEO_TEXTS = \{([\s\S]*?)\r?\n\t\t\};/.exec(src);
-		const outside = tbl ? src.replace(tbl[0], '') : src;
-		const dup = Object.entries(T).filter(([, v]) => v.length >= 6 && !/\{/.test(v) && outside.includes(v) && !/^(OCR処理|画像を結合)/.test(v));
-		assert(tbl && dup.length === 0, 'T59(10) 表の文を表の外に直書きしていない（special.html）', dup);
+		// T214: 画面に出ないコメント（HTML・CSS・JS）の中の字は数えない（stripHtmlComments・findOutsideDup。T212-H3 の CSS のコメントの「ウィンドウから取り込む」で NG になっていた）
+		const od = findOutsideDup(fs.readFileSync(path.join(REPO_ROOT, 'special.html'), 'utf8'), T);
+		assert(od.tbl && od.scriptsOk && od.dup.length === 0, 'T59(10) 表の文を表の外に直書きしていない（special.html。コメントの中は数えない・コメントを除いたあとの JS が構文として読める）', { dup: od.dup, scripts: od.scripts });
 		// CSV（Handoff の text-list。置き場は .skillset-assets.json の "textList"。無い環境では飛ばす）
 		let csvPath = null;
 		try { const cfg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, '.skillset-assets.json'), 'utf8')); if (cfg.textList) csvPath = path.join(cfg.textList, 'T59-video-texts.csv'); } catch { /* 無い */ }

@@ -211,7 +211,7 @@
   {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B2 蹄鉄を横にドラッグすると、担当する境目が動く（銅＝左・銀＝中央・金＝右）／しきい値未満の動きはタップ（境目は動かない）／ドラッグでは区間のON/OFFが切り替わらない","ord":1,"marks":"VASC","asserts":10},
   {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B3 バーの各区間のエリアをタップすると、その区間を対象に入れる／外す（aria-pressed）／蹄鉄のタップでは切り替わらない／最後の1区間は外せない（知らせが出る・押せないままにはしない）","ord":1,"marks":"VATSC","asserts":7},
   {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B4 吹き出し: 規定はドラッグ中だけ／蹄鉄のタップで常時表示と非表示が切り替わる（保存しない）／重なるときは上へずらす／8文字のスキル名は全文（375・393・320px）","ord":1,"marks":"VATS","asserts":9},
-  {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B5 蹄鉄は1段の行に 銅・銀・金・虹 の順で並び、重ならない（375・393・320px。境目を両端に寄せても）／虹を下へ押し出さない／リセットは蹄鉄の行の下の右下","ord":1,"marks":"V","asserts":3},
+  {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B5 蹄鉄は1段の行に 銅・銀・金・虹 の順で並び、重ならない（375・393・320px。境目を両端に寄せても）／虹を下へ押し出さない／リセットは蹄鉄の行の下の左下","ord":1,"marks":"V","asserts":3},
   {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B6 境目の目印は触れない表示だけ（ポインタイベントが来ない）／蹄鉄の上のドラッグは縦のスクロールを妨げない（touch-action: pan-y）／銅・銀・金はスライダー","ord":1,"marks":"VA","asserts":3},
   {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B7 区間のエリア（押せる範囲）は最低24px。細い区間（虹など）は隣から削って確保し、隣も24pxを下回らない（375・393・320px。境目を両端に寄せても）","ord":1,"marks":"VA","asserts":2},
   {"file":"tests/visual/blocks-20b.mjs","title":"微調整2B8 蹄鉄にフォーカスして ←→ で1段・Shift＋←→ で5段／Enter・Space で吹き出しの常時表示／読み上げの名前は「（銅・銀・金）の境界・現在の値」","ord":1,"marks":"AT","asserts":4},

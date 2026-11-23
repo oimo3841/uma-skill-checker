@@ -392,7 +392,7 @@ export async function register20b(env) {
 	/* ====================================================================
 	 * B5: 蹄鉄の配置（重ならない・虹を下へ押し出さない・順番を保つ・リセットは蹄鉄の下）
 	 * ==================================================================== */
-	await block('微調整2B5 蹄鉄は1段の行に 銅・銀・金・虹 の順で並び、重ならない（375・393・320px。境目を両端に寄せても）／虹を下へ押し出さない／リセットは蹄鉄の行の下の右下', async () => {
+	await block('微調整2B5 蹄鉄は1段の行に 銅・銀・金・虹 の順で並び、重ならない（375・393・320px。境目を両端に寄せても）／虹を下へ押し出さない／リセットは蹄鉄の行の下の左下', async () => {
 		for (const w of [375, 393, 320]) {
 			const { ctx, page, errors } = await openExam({ w });
 			const n = await nSteps(page);
@@ -412,9 +412,10 @@ export async function register20b(env) {
 				g.shoes.forEach((s, k) => { if (s.l < g.bar.l - 0.5 || s.r > g.bar.r + 0.5) bad.push('蹄鉄' + k + 'がバーの幅の外'); });
 				if (Math.abs(g.shoes[3].r - g.bar.r) > 1) bad.push('虹が右端にない');
 				if (g.reset.t < Math.max(...g.shoes.map((s) => s.b)) - 0.5) bad.push('リセットが蹄鉄の行の下にない');
-				if (Math.abs(g.reset.r - g.bar.r) > 1.5 || g.reset.b > g.panel.b + 0.5) bad.push('リセットが右下にない');
+				// T214: T212-H6 で「↺」を右下 → 左下へ（違いの一覧 19・デ60）。左端がバーの左端 ±1.5・下端がパネルの内側（blocks-19 微調整1A1 と同じ形）
+				if (Math.abs(g.reset.l - g.bar.l) > 1.5 || g.reset.b > g.panel.b + 0.5) bad.push('リセットが左下にない');
 				if (g.sw > g.vw) bad.push('横にはみ出す');
-				assert(bad.length === 0, '微調整2B5(' + w + 'px・' + label + '): 蹄鉄は1段・順番どおり・重ならない・バーの内側／虹は右端／リセットは行の下の右下／横にはみ出さない', bad);
+				assert(bad.length === 0, '微調整2B5(' + w + 'px・' + label + '): 蹄鉄は1段・順番どおり・重ならない・バーの内側／虹は右端／リセットは行の下の左下／横にはみ出さない', bad);
 			}
 			assert(jsErrors(errors).length === 0, '微調整2B5(' + w + 'px): コンソールエラーなし', errors.slice(0, 3));
 			await ctx.close();
