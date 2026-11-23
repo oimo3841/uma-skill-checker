@@ -85,7 +85,8 @@ export async function register33(env) {
 					tag + ': ◎も回復も同じ入口の中（押せる範囲 幅 72px 以上×高さ 44px 以上）', { entry: g.entry, tones: g.tones });
 				assert(g.headH === headH, tag + ': 見出しの高さは増えない（' + headH + 'px のまま）', g.headH);
 				assert(g.doc <= 0, tag + ': 横スクロールが出ない', g.doc);
-				if (w >= 360) assert(g.titleShown === true && g.titleCut === false, tag + ': 「スキル名」は切れない', { shown: g.titleShown, cut: g.titleCut });
+				if (w >= 641) assert(g.titleShown === true && g.titleCut === false, tag + ': 「スキル名」は切れない', { shown: g.titleShown, cut: g.titleCut });
+				else assert(g.titleShown === false, tag + ': 640px 以下は「スキル名」を出さない（T212-H4。デ79）', { shown: g.titleShown, cut: g.titleCut });
 				// モノトーン: 線画（塗りなし・色は currentColor）で、色は見出しの文字のトークン（--uma-text-heading）と同じ。地とのコントラストは 3 以上
 				const lum = async (c) => sp.page.evaluate((c) => {
 					const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d'); cx.fillStyle = '#000'; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1);

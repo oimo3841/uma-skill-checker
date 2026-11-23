@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-23c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-11-23d';
 
 	/* ============================================================
 	 * 定数
@@ -7588,15 +7588,17 @@
 		'.usd-panel { --usd-skill-passive-text: #196f35; }',
 		':root[data-theme="dark"] .usd-panel { --usd-skill-passive-text: #6fdc95; }',
 		':root[data-theme="dark"] .usd-roster-grid { --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
-		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 2px; }',
+		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 3px; }',   // T212-H4: 右の余白 3px（枠の塊が列の右の線に付かないように）
 		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// 漏斗の押せる範囲はメンバーの列と同じ 24px 以上（段7c）。3つを名前の右に収めるため、隣どうしを少し重ねて並べる（間隔 22px。320px は 18px）
 		'.usd-roster-tones { flex: none; display: flex; align-items: flex-end; margin-left: auto; }',
 		// T52（C-262 の (5)(6)・モック T48）: アイコンと漏斗の塊（.usd-roster-tonebox）の範囲全体が並べ替えの入口。入口は塊の左端（静的な位置）から、
 		// アイコンの範囲の幅（--usd-tones-w。漏斗の場所4つ分: 375px 24×4−7×3＝75・641px 以上 28×4＝112・374px 以下 24×4−8×3＝72）× 列見出しのセル（sticky＝入口の基準）の上下いっぱい
 		'.usd-roster-tonebox { flex: none; display: flex; margin-left: auto; --usd-tones-w: 75px; }',
-		'.usd-roster-tonebox > .usd-roster-tones { margin-left: 0; position: relative; }',
-		'.usd-roster-toneentry { position: absolute; top: 0; bottom: 0; z-index: 1; width: var(--usd-tones-w); margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--uma-r-tool); }',
+		// T212-H4（デザインの見直し。違いの一覧 21・デ79）: アイコンと漏斗の塊（＝並べ替えの入口）を細い枠と地で囲み、押せる範囲が1つだと分かるようにする。
+		// 枠は入口のボタンの内側の影（大きさ・場所は変えない。上下は 2px ずつ内側＝見本の高さ 44px）。地の上にアイコンを重ねるため、アイコンの段を前に出し、押すのは入口が受ける
+		'.usd-roster-tonebox > .usd-roster-tones { margin-left: 0; position: relative; z-index: 2; pointer-events: none; }',
+		'.usd-roster-toneentry { position: absolute; top: 2px; bottom: 2px; z-index: 1; width: var(--usd-tones-w); margin: 0; padding: 0; border: 0; background: var(--uma-surface); box-shadow: inset 0 0 0 1px var(--uma-rule-strong); cursor: pointer; border-radius: var(--uma-r-tool); }',
 		'.usd-roster-toneentry:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
 		// 今まで4つ並んでいた漏斗の場所は見えない形で残す（アイコンの位置を変えない）。見える漏斗は1つだけ、4つのアイコンの幅の真ん中の下の段
 		'.usd-roster-tonegap { visibility: hidden; }',
@@ -7635,7 +7637,9 @@
 		'.usd-roster-tonebox.usd-roster-tonebox--nocircle { --usd-tones-w: 58px; }',
 		'@media (min-width: 641px) { .usd-roster-tonebox.usd-roster-tonebox--nocircle { --usd-tones-w: 84px; } }',
 		'@media (max-width: 374px) { .usd-roster-tonebox.usd-roster-tonebox--nocircle { --usd-tones-w: 56px; } }',
-		'@media (max-width: 359px) { .usd-roster-ghtitle { display: none; } }',
+		// T212-H4（違いの一覧 21・デ79）: 640px 以下（このツールで小窓を下から出す境目）は「スキル名」を出さず、枠の塊を列の中央に置く（前は 359px 以下だけ出さなかった）。
+		// 列の見出しの aria-label は「スキル名」のまま
+		'@media (max-width: 640px) { .usd-roster-ghtitle { display: none; } .usd-roster-gh.usd-roster-gh--skill { justify-content: center; padding: 0 2px; } .usd-roster-gh--skill > .usd-roster-tonebox { margin-left: auto; margin-right: auto; } }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); color: var(--uma-gold-row-text, inherit); }',
 		// 金スキルの行の左端の帯（C-144。ページが --uma-gold-row-bar を持つときだけ。既定は無し＝これまでの見た目）

@@ -214,7 +214,7 @@ export async function register83(env) {
 			const hp = await headPoints(sp.page, R);
 			assert(!!hp, 'T52②因子周回の前半(4) 前提: ①の列見出しに入口がある', null);
 			assert(hp.hits.every(Boolean) && hp.cover, 'T52②因子周回の前半(4) アイコン・漏斗・入口の四隅のどこも入口（' + w + 'px）', hp);
-			assert(Math.round(hp.entry.w) === (w === 375 ? 75 : 112) && Math.round(hp.entry.h) === (w === 375 ? 48 : 72) && hp.entry.top === 0, 'T52②因子周回の前半(4) 入口は ' + (w === 375 ? '75×48' : '112×72') + '（列見出しの上下いっぱい）', hp.entry);
+			assert(Math.round(hp.entry.w) === (w === 375 ? 75 : 112) && Math.round(hp.entry.h) === (w === 375 ? 44 : 68) && hp.entry.top === 2, 'T52②因子周回の前半(4) 入口は ' + (w === 375 ? '75×44' : '112×68') + '（列見出しの上下 2px 内側の枠。T212-H4）', hp.entry);
 			assert(hp.visibleFunnels === 1 && hp.buttons.join(',') === 'tone-sort-entry', 'T52②因子周回の前半(4) 見える漏斗は1つ・スキル名の列見出しのボタンは入口だけ', { f: hp.visibleFunnels, b: hp.buttons });
 			// どこを押しても同じ小窓
 			const seen = [];
@@ -282,8 +282,8 @@ export async function register83(env) {
 			assert(!(await has()), 'T52②因子周回の前半(5) 分類の表示には入口が無い', null);
 			await setView(sp.page, 'table');
 			const hp = await headPoints(sp.page, T);
-			assert(!!hp && hp.hits.every(Boolean) && hp.cover && Math.round(hp.entry.w) === (w === 375 ? 75 : 112) && Math.round(hp.entry.h) === (w === 375 ? 48 : 72),
-				'T52②因子周回の前半(5) 星取表の列見出しの入口（アイコン・漏斗・四隅のどこも入口・' + (w === 375 ? '75×48' : '112×72') + '）', hp);
+			assert(!!hp && hp.hits.every(Boolean) && hp.cover && Math.round(hp.entry.w) === (w === 375 ? 75 : 112) && Math.round(hp.entry.h) === (w === 375 ? 44 : 68),
+				'T52②因子周回の前半(5) 星取表の列見出しの入口（アイコン・漏斗・四隅のどこも入口・' + (w === 375 ? '75×44' : '112×68') + '。T212-H4）', hp);
 			const seen = [];
 			for (const [x, y] of hp.pts) {
 				await sp.page.mouse.click(x, y);
