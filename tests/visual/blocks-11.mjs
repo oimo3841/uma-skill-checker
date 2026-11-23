@@ -610,10 +610,12 @@ export async function register11(env) {
 		const s3 = await snap(sp3.page);
 		assert(!s3.addDisabled && s3.addText === '追加', 'オススメサポ(F) チェックがあれば［追加］は押せる', s3.addText);
 		for (const r of s3.rows) await sp3.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + r.id + '"] input');
-		const dis = await sp3.page.evaluate(() => { const b = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-add"]'); return { d: b.disabled, op: getComputedStyle(b).opacity }; });
+		await sp3.page.waitForTimeout(400);   // T212-F: 色は .uma-btn の transition で移るので、移り終わってから読む（不透明度には transition が無かった）
+		const dis = await sp3.page.evaluate(() => { const b = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-add"]'); return { d: b.disabled, op: getComputedStyle(b).opacity, c: getComputedStyle(b).color, off: (() => { const s = document.createElement('span'); s.style.color = 'var(--uma-off)'; document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; })() }; });
 		await sp3.page.click(M + '[data-usd-el="outside-add"]', { force: true }).catch(() => {});
 		await sp3.page.waitForTimeout(200);
-		assert(dis.d && Number(dis.op) < 1 && (await modalOpen(sp3.page)) && (await draftScope(sp3.page)) === null, 'オススメサポ(F) チェックが0件のとき［追加］は薄くなって押せない（押しても何も起きず、②は変わらない）', dis);
+		// T212-F（違いの一覧 9・デ63）: 押せない部品は薄くせず、灰の文字・線・地で示す
+		assert(dis.d && Number(dis.op) === 1 && dis.c === dis.off && (await modalOpen(sp3.page)) && (await draftScope(sp3.page)) === null, 'オススメサポ(F) チェックが0件のとき［追加］は灰で押せない（薄くしない。押しても何も起きず、②は変わらない）', dis);
 		await sp3.ctx.close();
 	});
 

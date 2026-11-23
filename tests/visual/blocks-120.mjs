@@ -61,7 +61,7 @@ export async function register120(env) {
 		const stitch = (k) => { const i = q('#opt-stitch-' + k); return { checked: i.checked, disabled: i.disabled, off: i.closest('.stitch-show-item').classList.contains('is-off') }; };
 		return {
 			text: t.textContent, on: btn.getAttribute('aria-pressed') === 'true', cut: t.scrollWidth > t.clientWidth + 1, title: btn.title,
-			tabDisabled: tab.disabled, tabSelected: tab.getAttribute('aria-selected') === 'true', tabOpacity: parseFloat(getComputedStyle(tab).opacity), tabLabel: q('#step-tab-0 .step-tab-num').textContent,
+			tabDisabled: tab.disabled, tabSelected: tab.getAttribute('aria-selected') === 'true', tabOpacity: parseFloat(getComputedStyle(tab).opacity), tabColor: getComputedStyle(tab).color, offColor: (() => { const s = document.createElement('span'); s.style.color = 'var(--uma-off)'; document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; })(), tabLabel: q('#step-tab-0 .step-tab-num').textContent,
 			total: !!q('#deck-set-bar [data-usd-el="set-total"]'), totalVal: (q('#deck-set-bar [data-usd-el="set-total"]') || { getAttribute() { return null; } }).getAttribute('data-total'),
 			factorPt: !!q(P + '[data-usd-el="factor-pt"]'), factorCount: (q(P + '[data-usd-el="factor-count"]') || {}).textContent, sumBtn: !!q(P + '[data-usd-el="pt-need-help-btn"]'),
 			stepsDisabled: steps.length > 0 && steps.every((s) => s.disabled), stepsAnyDisabled: steps.some((s) => s.disabled), uniqOff: !!q(P + '.usd-uniq--off'), reset: !!q(P + '[data-usd-el="factor-reset"]'),
@@ -105,7 +105,7 @@ export async function register120(env) {
 			const expectText = w >= 640 ? LONG : null;
 			assert(n.on && (expectText ? n.text === LONG : (n.text === LONG || n.text === SHORT)) && n.title === LONG, tag + '新しいモードの上段', { text: n.text, title: n.title });
 			assert(n.sw <= n.iw + 1, tag + '新しいモードで横にはみ出さない', [n.sw, n.iw]);
-			assert(n.tabDisabled && n.tabOpacity < 1 && !n.tabSelected && n.tabLabel === '1', tag + '①のタブは薄く押せない（丸数字は変えない）', n);
+			assert(n.tabDisabled && n.tabOpacity === 1 && n.tabColor === n.offColor && !n.tabSelected && n.tabLabel === '1', tag + '①のタブは灰で押せない（T212-F：薄くしない。丸数字は変えない）', n);
 			assert(!n.total && n.totalVal === null, tag + '右上の SP と種類数を出さない', n.total);
 			assert(n.stepsDisabled && n.uniqOff && !n.factorPt && !n.sumBtn && n.factorCount === '12' && n.reset, tag + '②: 継承固有・共通スキルは押せない・Pt を積み上げない・種は②のスキルだけ（継承固有を足さない）・↺ は残る', n);
 			assert(!n.ptAny, tag + '②の行の Pt を出さない', n.pts);

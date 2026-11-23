@@ -164,8 +164,8 @@ export async function register87(env) {
 					snap: captureStitchSnapshot().setName, tok, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 			});
 			assert(m.nameText === 'LoHトプロ' && m.nameFs === '16px' && m.deco === 'none/none', `T57(4) ${w}px: 名前は 16px・下線なし`, m);
-			assert(m.pen && m.pen.w === 28 && m.pen.h === 28 && m.penRadius === '999px' && m.penLine === m.tok.line && m.penBg === m.tok.bg && m.penFg === m.tok.heading,
-				`T57(4) ${w}px: 名前の右に丸 28×28（線 --uma-border-strong・地 --uma-surface-muted・鉛筆は --uma-text-heading）`, m);
+			assert(m.pen && m.pen.w === 28 && m.pen.h === 28 && m.penRadius === '3px' && m.penLine === m.tok.line && m.penBg === m.tok.bg && m.penFg === m.tok.heading,
+				`T57(4) ${w}px: 名前の右に角 3px の 28×28（T212-F・線 --uma-border-strong・地 --uma-surface-muted・鉛筆は --uma-text-heading）`, m);
 			assert(m.svg && m.svg.w === 16 && m.svg.h === 16, `T57(4) ${w}px: 丸の中の鉛筆は 16×16`, m.svg);
 			assert(m.cntText === '3/10' && m.cntFs === '12px' && m.cntFg === m.tok.subtle, `T57(4) ${w}px: N/10 は「3/10」・12px・薄い字（--uma-text-subtle）`, m);
 			assert(m.order[0] < m.order[1] && m.order[1] < m.order[2], `T57(4) ${w}px: 並びは 名前 → 鉛筆 → N/10`, m.order);

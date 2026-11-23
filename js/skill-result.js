@@ -23,7 +23,7 @@
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-18a';
+	const SKILL_RESULT_JS_VERSION = '2026-11-23a';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -1106,25 +1106,25 @@
 		'.sr-thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}',
 		'.sr-thumb{position:relative;flex:0 0 auto;width:60px;height:104px;border:1px solid var(--uma-border);border-radius:8px;overflow:hidden;background:var(--uma-surface-muted)}',
 		'.sr-thumb img{width:100%;height:100%;object-fit:cover;display:block}',
-		'.sr-thumb-no{position:absolute;left:3px;bottom:3px;min-width:18px;height:18px;border-radius:9px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}',
+		'.sr-thumb-no{position:absolute;left:3px;bottom:3px;min-width:18px;height:18px;border-radius:0;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}',
 		'.sr-thumb-x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:11px;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer}',
 		// 本育成結果用の「結合画像の設定」（804）。値は special.html・exam.html の .stitch-show・.stitch-cols・.stitch-show-item と同じ
 		'.sr-show{padding:var(--uma-sp-3);border:1px solid var(--uma-border);border-radius:var(--uma-r-xl);background:var(--uma-surface-muted);text-align:left}',
 		'.sr-show-title{margin:0 0 var(--uma-sp-1-5);font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs);font-weight:700;color:var(--uma-text-heading);display:flex;align-items:center;gap:var(--uma-sp-1-5)}',
 		'.sr-show-title svg{width:14px;height:14px;color:var(--uma-stitch-accent)}',
-		'.sr-cols{display:grid;grid-template-columns:1fr 1fr;margin:0 0 var(--uma-sp-1-5);border:1px solid var(--uma-border-strong);border-radius:var(--uma-r-lg);overflow:hidden}',
+		'.sr-cols{display:grid;grid-template-columns:1fr 1fr;margin:0 0 var(--uma-sp-1-5);border:1px solid var(--uma-border-strong);border-radius:var(--uma-r-tool);overflow:hidden}',
 		'.sr-cols-btn{min-height:40px;border:0;background:var(--uma-surface);color:var(--uma-text-heading);font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}',
 		'.sr-cols-btn+.sr-cols-btn{border-left:1px solid var(--uma-border-strong)}',
 		'.sr-cols-btn:focus-visible{outline:2px solid var(--uma-focus-ring);outline-offset:-2px}',
 		'.sr-cols-btn[aria-pressed="true"]{background:var(--uma-surface-inverse);color:var(--uma-text-inverse)}',
-		'.sr-cols-btn:disabled{opacity:.4;cursor:default}',
+		'.sr-cols-btn:disabled{opacity:1;color:var(--uma-off);background:var(--uma-off-bg);cursor:default}',
 		'.sr-cols-btn i{display:inline-flex;gap:2px}',
 		'.sr-cols-btn i b{display:block;width:5px;height:12px;border-radius:1px;background:currentColor}',
 		'.sr-cols-btn i b.is-wide{width:12px}',
 		'.sr-show-list{display:flex;flex-direction:column;gap:var(--uma-sp-0-5)}',
-		'.sr-show-item{display:flex;align-items:flex-start;gap:var(--uma-sp-2);padding:var(--uma-sp-1) var(--uma-sp-1-5);border-radius:var(--uma-r-md);font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs);font-weight:600;color:var(--uma-text-heading);cursor:pointer;transition:background-color var(--uma-transition)}',
+		'.sr-show-item{display:flex;align-items:flex-start;gap:var(--uma-sp-2);padding:var(--uma-sp-1) var(--uma-sp-1-5);border-radius:var(--uma-r-tool);font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs);font-weight:600;color:var(--uma-text-heading);cursor:pointer;transition:background-color var(--uma-transition)}',
 		'.sr-show-item:hover{background:var(--uma-surface)}',
-		'.sr-show-item.is-off{opacity:.45;cursor:not-allowed}',
+		'.sr-show-item.is-off{opacity:1;color:var(--uma-off);cursor:not-allowed}',
 		'.sr-show-check{flex-shrink:0;width:1rem;height:1rem;margin-top:1px;accent-color:var(--uma-control-mark);cursor:pointer}',
 		'.sr-show-item.is-off .sr-show-check{cursor:not-allowed}',
 		'.sr-show-sub{margin-left:var(--uma-sp-2);font-weight:400;color:var(--uma-text-subtle)}',
@@ -1133,9 +1133,9 @@
 		'.sr-result-head{display:flex;align-items:center;justify-content:space-between;gap:8px}',
 		'.sr-result-title{margin:0;font-size:12px;font-weight:700;color:var(--uma-text-heading)}',
 		'.sr-img{width:100%;border:1px solid var(--uma-border);border-radius:8px;display:block}',
-		'.sr-warn{border:1px solid var(--uma-warn-border);background:var(--uma-warn-bg);color:var(--uma-warn-text);border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.6}',
+		'.sr-warn{border:1px solid var(--uma-warn-border);background:var(--uma-warn-bg);color:var(--uma-warn-text);border-radius:var(--uma-r-tool);padding:10px 12px;font-size:11px;line-height:1.6}',
 		'.sr-warn p{margin:0}.sr-warn-head{font-weight:700;margin-bottom:2px!important}',
-		'.sr-fail{border:1px solid var(--uma-danger-border);background:var(--uma-danger-bg);color:var(--uma-danger-text);border-radius:8px;padding:10px 12px;font-size:12px}',
+		'.sr-fail{border:1px solid var(--uma-danger-border);background:var(--uma-danger-bg);color:var(--uma-danger-text);border-radius:var(--uma-r-tool);padding:10px 12px;font-size:12px}',
 		// 動画（T193）: 入口はページの「静止画｜動画」（body の data-upload-mode）で出し分ける。ボタンの見た目はページの .video-pick-btn・.video-capture-btn（親A と同じ）
 		'.sr-lead-video,.sr-video-row{display:none}',
 		'body[data-upload-mode="video"] .sr-lead-video{display:block}',

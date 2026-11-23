@@ -22,9 +22,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-23a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-23a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -40,7 +40,7 @@
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
 	<!-- 本育成結果（T188・決定 775・783〜788）。②のタブ「本育成結果」の中身（スキル画面のスクショを1枚にまとめる・OCR なし。special.html と同じ部品） -->
-	<script src="js/skill-result.js?v=2026-11-18a"></script>
+	<script src="js/skill-result.js?v=2026-11-23a"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（T139。special.html と共有。②の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-19b"></script>
@@ -173,7 +173,7 @@
 		:focus-visible {
 			outline: 2px solid var(--uma-focus-ring);
 			outline-offset: 2px;
-			border-radius: 4px;
+			border-radius: var(--uma-r-tool);   /* T212-F（E3 の取りこぼし）: 輪の角 3px */
 		}
 		@media (prefers-reduced-motion: reduce) {
 			* { scroll-behavior: auto !important; }
@@ -236,7 +236,7 @@
 			margin-bottom: var(--uma-sp-5);
 			padding: var(--uma-sp-4) var(--uma-sp-5);
 			border: 1px solid var(--uma-warn-border);
-			border-radius: var(--uma-r-xl);
+			border-radius: var(--uma-r-tool);
 			background: var(--uma-warn-bg);
 			color: var(--uma-warn-text);
 		}
@@ -264,7 +264,7 @@
 			display: flex; align-items: center; gap: var(--uma-sp-1-5); }
 		.stitch-show-list { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
 		.stitch-show-item { display: flex; align-items: flex-start; gap: var(--uma-sp-2);
-			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-md);
+			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-tool);
 			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-heading);
 			cursor: pointer; transition: background-color var(--uma-transition); }
 		.stitch-show-item:hover { background: var(--uma-surface); }
@@ -319,7 +319,7 @@
 		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの青＝装飾） */
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-deco); }
 		/* 形の2択「3列｜2列」（T154・決定 586。UmaStar の .stitch-cols〔T98〕と同じ作り）: 2つ並べたボタン・選んだほうを反転の塗り */
-		.stitch-cols { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 var(--uma-sp-1-5); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-cols { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 var(--uma-sp-1-5); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); overflow: hidden; }
 		.stitch-cols-btn { min-height: 40px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
 			display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 		.stitch-cols-btn + .stitch-cols-btn { border-left: 1px solid var(--uma-border-strong); }
@@ -331,9 +331,9 @@
 		/* 入れる人（T188・決定 791。special.html と同じ）: 「形」の2択の下に、ラベル＋3択（押せない組は薄く） */
 		.stitch-persons { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0 0 var(--uma-sp-1-5); }
 		.stitch-persons-label { font-size: 11px; font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }
-		.stitch-persons-seg { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-persons-seg { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); overflow: hidden; }
 		.stitch-persons-seg .stitch-cols-btn { min-height: 36px; font-size: 12px; padding: 0 4px; }
-		.stitch-persons-seg .stitch-cols-btn:disabled { opacity: .4; cursor: default; }
+		.stitch-persons-seg .stitch-cols-btn:disabled { opacity: 1; color: var(--uma-off); background: var(--uma-off-bg); cursor: default; }   /* T212-F: 薄くせず灰で示す */
 		/* 本育成結果のタブ（T188）を見ている間は、親A・親B のための部品を隠す（special.html と同じ。「静止画｜動画」は T193 から見せる） */
 		body.skillres-on #stitch-set-note, body.skillres-on #stitch-show-panel, body.skillres-on #melop-mode-wrap, body.skillres-on #new-devlog-slot,
 		body.skillres-on #adv-opts, body.skillres-on #quality-warn-wrap, body.skillres-on #error-wrap,
@@ -420,7 +420,7 @@
 		.deck-note-btn { background: var(--uma-control); }
 		.deck-note-btn:hover { background: var(--uma-control-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
-		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 		/* 緑スキルの数え方の切り替え。押せる部品だが、**何を数えるのか＝緑スキル**を
 		   色が示すので、「操作できる部品は黒」の例外として緑で塗る（tokens.css の注記）。 */
 		.mode-btn.active { background-color: var(--uma-green-skill); color: #fff; }
@@ -445,7 +445,7 @@
 		.scope-detail {
 			min-height: 1.6em; margin-top: 0.5rem; padding: 0.45rem 0.7rem;
 			font-size: 11px; line-height: 1.6; color: #475569;
-			background: #fff; border: 1px dashed #cbd5e1; border-radius: 0.5rem;
+			background: #fff; border: 1px dashed #cbd5e1; border-radius: var(--uma-r-tool);
 			overflow-wrap: anywhere;
 		}
 		.scope-detail-title { font-weight: 700; color: #334155; }
@@ -468,7 +468,7 @@
 		.registry-eff { flex: none; white-space: nowrap; }
 		.mode-btn:not(.active) { color: var(--uma-green-skill); }
 		.mode-btn:not(.active):hover { background-color: var(--uma-green-skill-soft); }
-		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: var(--uma-r-tool); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
 		.copylist-btn:hover { background-color: #f1f5f9; }
 		.copylist-btn.active { background-color: var(--uma-control); color: var(--uma-control-text); border-color: var(--uma-control-edge); box-shadow: var(--uma-control-rim); }
 
@@ -489,7 +489,7 @@
 		.eff-spare { display: flex; justify-content: flex-end; margin: 4px 8px 0; }
 		.eff-reset {
 			flex: none; width: 44px; height: 44px; margin: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center;
-			font-size: 22px; line-height: 1; border-radius: 10px; cursor: pointer;
+			font-size: 22px; line-height: 1; border-radius: var(--uma-r-tool); cursor: pointer;
 		}
 		/* バー（高さ28px＝シェブロン柄のタイルと同じ高さ）。区間ごとの色で中を塗り、シェブロン柄と光沢を重ねる（外した区間は灰色のまま・柄なし）。
 		   区間の幅・境目の位置はスキルの個数に比例（JS が % で置く）。左右の余白（8px）は、バーの端の区間の角丸と値の文字を収めるため */
@@ -554,7 +554,7 @@
 			display: flex; align-items: center; height: 26px; padding: 0 6px; white-space: nowrap;
 			font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums;
 			background: var(--exam-eff-tip-bg); color: var(--exam-eff-tip-text);
-			border: 1px solid var(--exam-eff-tip-border); border-radius: 6px; box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
+			border: 1px solid var(--exam-eff-tip-border); border-radius: var(--uma-r-tool); box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
 			pointer-events: none;
 		}
 		.eff-tip[hidden] { display: none; }
@@ -663,6 +663,7 @@
 		   地と面は tokens.css の青黒（決定6）。このページの青（--uma-c-*）は、段の並びを裏返して
 		   淡い段を暗い面に、濃い段を明るい文字にする（色相は 210 のまま）。旧UI は崩れても直さない（決定8）。 */
 		:root[data-theme="dark"] {
+			--uma-off: #71809b; --uma-off-bg: #263146;   /* T212-F: 押せない部品の灰（UmaExam のダーク。見本の値） */
 			--uma-c-50: #11253b; --uma-c-100: #16304d; --uma-c-200: #1f4166; --uma-c-300: #2d5a8a;
 			--uma-c-400: #4a9ef5; --uma-c-500: #5aa9f7; --uma-c-600: #6fb4fa; --uma-c-700: #8cc4fb;
 			--uma-c-800: #a8d4ff; --uma-c-900: #cbe5ff; --uma-c-950: #e0f0ff;
@@ -899,19 +900,19 @@
 		.upload-thumbs .video-tile img { width: 100%; height: 32px; }
 		.upload-thumbs .video-tile small { margin-left: 0; font-size: 10px; }
 		.uma-subtabs-row.video-tabrow { flex-wrap: nowrap; gap: var(--uma-sp-1); }
-		.upload-mode { flex: none; display: flex; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); }
+		.upload-mode { flex: none; display: flex; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); }
 		.upload-mode-btn { position: relative; height: 30px; padding: 0 10px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer; white-space: nowrap;
 			display: inline-flex; align-items: center; justify-content: center; }
 		.upload-mode-btn::after { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
-		.upload-mode-btn:first-child { border-radius: calc(var(--uma-r-lg) - 1px) 0 0 calc(var(--uma-r-lg) - 1px); }
-		.upload-mode-btn:last-child { border-radius: 0 calc(var(--uma-r-lg) - 1px) calc(var(--uma-r-lg) - 1px) 0; border-left: 1px solid var(--uma-border-strong); }
+		.upload-mode-btn:first-child { border-radius: calc(var(--uma-r-tool) - 1px) 0 0 calc(var(--uma-r-tool) - 1px); }
+		.upload-mode-btn:last-child { border-radius: 0 calc(var(--uma-r-tool) - 1px) calc(var(--uma-r-tool) - 1px) 0; border-left: 1px solid var(--uma-border-strong); }
 		.upload-mode-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
 		.upload-mode-btn[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
 		.upload-mode-btn .video-alpha { font-size: 10px; font-weight: 800; margin-left: 1px; align-self: flex-start; margin-top: 6px; }
 		.video-pick-row { display: flex; gap: 8px; }
 		.video-pick-btn, .video-capture-btn { flex: 1 1 0; min-width: 0; }
 		.video-pick-btn, .video-capture-btn { display: none; width: 100%; min-height: 76px; margin: 0 0 8px; padding: 10px 4px; align-items: center; justify-content: center; gap: 8px;
-			border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-heading);
+			border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-tool); background: var(--uma-surface); color: var(--uma-text-heading);
 			font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 		.video-pick-btn:hover:not(:disabled), .video-capture-btn:hover:not(:disabled) { border-color: var(--uma-control-mark); }
 		.video-pick-btn:focus-visible, .video-capture-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
@@ -932,10 +933,10 @@
 		.cap-actions { display: flex; }
 		.cap-actions .uma-btn { min-height: 44px; }
 		.cap-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--uma-danger-text, #dc2626); vertical-align: 1px; }
-		.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-lg); background: var(--uma-danger-bg, #fef2f2); }
+		.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-tool); background: var(--uma-danger-bg, #fef2f2); }
 		.cap-fail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-danger-text, #b91c1c); }
 		.cap-fail .uma-btn { flex: none; min-height: 44px; }
-		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
+		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: 0; background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
 		body.cap-flow .video-busy { opacity: 1; pointer-events: auto; }
 		body.cap-flow .video-busy .upload-cols, body.cap-flow .video-busy .upload-set-clear > button:first-child { opacity: .55; pointer-events: none; }
 		body[data-upload-mode="video"] .upload-add { display: none; }
@@ -953,7 +954,7 @@
 		.video-prog-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 		.video-prog-foot small { font-size: 11px; color: var(--uma-text-subtle); }
 		.video-busy { opacity: .55; pointer-events: none; }
-		.video-tile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface); font-size: 12px; font-weight: 700; color: var(--uma-text-heading); grid-column: 1 / -1; text-align: left; cursor: pointer; }
+		.video-tile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-tool); background: var(--uma-surface); font-size: 12px; font-weight: 700; color: var(--uma-text-heading); grid-column: 1 / -1; text-align: left; cursor: pointer; }
 		.video-tile:hover { background: var(--uma-surface-sunken); }
 		.video-tile img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--uma-border); }
 		.video-tile small { margin-left: auto; font-weight: 600; color: var(--uma-text-subtle); font-size: 11px; }
@@ -1002,6 +1003,14 @@
 		#tool-dropdown-menu { border-radius: 0; border-color: var(--uma-rule-strong); }
 		#tool-dropdown-menu > :is(div, a) { border-radius: 0; }
 		#toast { border-radius: var(--uma-r-tool); }
+		/* T212-F（デザインの見直し。違いの一覧 5・9・22）: 道具の部品（ボタン・入力欄・選ぶ箱・札・「?」・✕）は角 3px。押せない部品は薄くせず灰で示す。
+		   ゲーム由来の印と合図の丸（段の番号・右下の丸ボタン・未読の点・「!」）は丸のまま。結合画像の設定の模式図・入口のオススメサポ・脚質オススメは変えない。
+		   Tailwind の角丸のクラスを持つボタン・入力欄・警告の箱は、ここでまとめて 3px にする（ツール切り替えのメニューの中は角なし・アイコンの地は 3px） */
+		:is(button, a, select, textarea, input):is(.rounded-lg, .rounded-xl):not(:where(#tool-dropdown-menu *)), label.upload-add { border-radius: var(--uma-r-tool); }
+		.rounded-xl:is(.bg-amber-50, .bg-red-50) { border-radius: var(--uma-r-tool); }
+		#tool-dropdown-menu > button { border-radius: 0; }
+		#tool-dropdown-menu .w-7.h-7 { border-radius: var(--uma-r-tool); }
+		#tool-dropdown-menu span.rounded { border-radius: 0; }
 		/* ===== 照合結果のスマホのヒートマップ（T100・C-290）=====
 		   640px 未満の新UIの引き出し（#result-drawer の中）だけ。PC と旧UI は今のまま。
 		   ★の記号の代わりに人のマスを★の数で塗り、数字を出す（★0・未検出は塗りなし、★不明は斜線に「?」）。
@@ -1019,7 +1028,7 @@
 		@media (max-width: 639.98px) {
 			/* Deck (αテスト)へ送る（T104。special と同じ） */
 			#result-drawer #deck-alpha-send-note { margin-bottom: 10px; }
-			#result-drawer #deck-alpha-send-btn { min-height: 0; height: 30px; padding: 0 10px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn { min-height: 0; height: 30px; padding: 0 10px; border-radius: var(--uma-r-tool); gap: 6px; font-size: 11px; }
 			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
 			#result-drawer #deck-alpha-send-note > p { margin-top: 2px; line-height: 14px; }
 
@@ -1081,7 +1090,7 @@
 			#result-drawer .rc-srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
 			#result-drawer #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
 			#result-drawer #result-copy-slot { grid-column: 2; grid-row: 1; gap: 4px; }
-			#result-drawer #result-copy-slot button { height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot button { height: 28px; padding: 0 10px; border-radius: var(--uma-r-tool); gap: 4px; font-size: 11px; }
 			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
 			#result-drawer .rc-pills { grid-column: 1 / -1; grid-row: 2; font-size: 11px; }
 			#result-drawer .rc-pills button { height: 24px; padding: 0 10px; font-size: 11px; line-height: 22px; }
@@ -1152,7 +1161,7 @@
 			#result-drawer #result-drawer-slot { padding: 8px 12px; }
 			/* Deck (αテスト)へ送る: ボタンと停止の1行を同じ行に（T104。special と同じ） */
 			#result-drawer #deck-alpha-send-note:not(.hidden) { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-			#result-drawer #deck-alpha-send-btn { flex: none; width: auto; min-height: 0; height: 28px; padding: 0 12px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn { flex: none; width: auto; min-height: 0; height: 28px; padding: 0 12px; border-radius: var(--uma-r-tool); gap: 6px; font-size: 11px; }
 			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
 			#result-drawer #deck-alpha-send-note > p { margin: 0; line-height: 14px; }
 
@@ -1204,7 +1213,7 @@
 			#result-drawer #result-ctrlbox::before { content: ''; order: 5; flex-basis: 100%; height: 0; }
 			#result-drawer #filter-result-count { order: 6; line-height: 14px; }
 			#result-drawer .rc-scroll-note { order: 7; line-height: 14px; }
-			#result-drawer #result-copy-slot button { height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot button { height: 28px; padding: 0 10px; border-radius: var(--uma-r-tool); gap: 4px; font-size: 11px; }
 			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
 			#result-drawer #melop-copy-note { order: 8; width: 100%; line-height: 14px; }
 
@@ -3078,7 +3087,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23a';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],

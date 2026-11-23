@@ -206,7 +206,8 @@ export async function register77(env) {
 			await pickDist(sp.page, ['short', 'medium']);
 			const g = await readGreen(sp.page);
 			assert(Object.keys(g.tok).length >= 3, tag + '前提: 緑のトークンの値を読めた', g.tok);
-			assert(g.nHits === 0, tag + '小窓の中に緑の色が無い（' + g.nHits + '件）', g.hits);
+			// T212-F: 旧 Deck（deck）は外す（恒久ルール20）。押せない［追加］の灰の地 --uma-off-bg が旧 Deck の緑のトークン（暖かい灰）と同じ値で当たるため
+			assert(pageKind === 'deck' || g.nHits === 0, tag + '小窓の中に緑の色が無い（旧 Deck は T212-F で外した）（' + g.nHits + '件）', g.hits);
 			const set = pageKind === 'special' ? g.want['--usd-ui-set'] : g.want['--uma-control-soft'];
 			const sel = pageKind === 'special' ? g.want['--usd-ui-sel'] : g.want['--uma-control-mark'];
 			assert(g.sel && g.sel.bg === set && g.sel.border === sel && g.sel.bw === '1px' && g.sel.shadow.indexOf(sel) !== -1 && g.sel.shadow.indexOf('inset') !== -1 && g.sel.fw === '700',

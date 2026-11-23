@@ -213,7 +213,7 @@ export async function register64(env) {
 			const sp = await open(w, R0, { noManual: true, theme });
 			const tok = await sp.page.evaluate(() => {
 				const probe = document.createElement('span');
-				probe.style.cssText = 'background: var(--uma-warn-bg); color: var(--uma-warn-text); border-radius: var(--uma-r-sm); box-shadow: inset 0 0 0 1px var(--uma-warn-border);';
+				probe.style.cssText = 'background: var(--uma-warn-bg); color: var(--uma-warn-text); border-radius: var(--uma-r-tool); box-shadow: inset 0 0 0 1px var(--uma-warn-border);';
 				document.body.appendChild(probe);
 				const cs = getComputedStyle(probe);
 				const o = { bg: cs.backgroundColor, color: cs.color, radius: cs.borderRadius, shadow: cs.boxShadow };
@@ -227,10 +227,10 @@ export async function register64(env) {
 			assert(!!auto && !!fixed, tag + '同じ小窓に「自動」と「確定」がある', p.tags.map((x) => x.text));
 			if (!auto || !fixed) { await sp.ctx.close(); continue; }
 			assert(/usd-roster-autotag--auto/.test(auto.cls) && auto.bg === tok.bg && auto.color === tok.color && auto.radius === tok.radius && auto.shadow === tok.shadow,
-				tag + '「自動」は --uma-warn-bg／--uma-warn-text／枠 --uma-warn-border／角 --uma-r-sm', { auto, tok });
-			assert(!/usd-roster-autotag--auto/.test(fixed.cls) && fixed.bg === FIXED[theme].bg && fixed.color === FIXED[theme].color && fixed.radius === '999px' && fixed.shadow === 'none',
-				tag + '「確定」は変更前のまま（' + FIXED[theme].bg + '・' + FIXED[theme].color + '・角 999px・枠なし）', fixed);
-			assert(auto.bg !== fixed.bg && auto.color !== fixed.color && auto.radius !== fixed.radius, tag + '「自動」と「確定」は塗り・文字色・角が違う', { auto, fixed });
+				tag + '「自動」は --uma-warn-bg／--uma-warn-text／枠 --uma-warn-border／角 --uma-r-tool（T212-F で 3px）', { auto, tok });
+			assert(!/usd-roster-autotag--auto/.test(fixed.cls) && fixed.bg === FIXED[theme].bg && fixed.color === FIXED[theme].color && fixed.radius === '3px' && fixed.shadow === 'none',
+				tag + '「確定」は変更前のまま（' + FIXED[theme].bg + '・' + FIXED[theme].color + '・角 3px〔T212-F〕・枠なし）', fixed);
+			assert(auto.bg !== fixed.bg && auto.color !== fixed.color, tag + '「自動」と「確定」は塗り・文字色が違う（角は T212-F でどちらも 3px）', { auto, fixed });
 			assert(auto.w === 32 && auto.h === 14 && fixed.w === 32 && fixed.h === 14, tag + '大きさは 32×14 で同じ（今と同じ）', { auto: [auto.w, auto.h], fixed: [fixed.w, fixed.h] });
 			const hs = await sp.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 			assert(!hs && jsErrors(sp.errors).length === 0, tag + '横スクロールなし・コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));

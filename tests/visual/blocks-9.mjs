@@ -302,7 +302,7 @@ export async function register9(env) {
 			assert(g1.pt[0] === '22px' && g1.pt[1] === '800' && /tabular-nums/.test(g1.pt[2]) && g1.unit.join() === '12px,700' && g1.kinds[0] === '14px' && g1.kinds[1] === '800' && g1.kinds[2] === '／' && g1.kunit.join() === '11px,種',
 				tag + '数字 22px/800・tabular-nums、Pt 12px/700、／N 14px/800、種 11px', g1);
 			assert(g1.btns.join() === '勉強家,切れ者,覚醒Lv5' && g1.scroll === 'visible', tag + '①の帯の右側は「勉強家 切れ者 覚醒Lv5」（段4で横スクロール・フェードをやめた。足りなければ帯が2行になる）', { b: g1.btns, s: g1.scroll });
-			assert(g1.reset && g1.reset[0] === 28 && g1.reset[1] === 28 && g1.reset[2] === '999px' && g1.reset[3] === '↺' && g1.resetRight, tag + '右端に丸い「↺」（28px）', g1.reset);
+			assert(g1.reset && g1.reset[0] === 28 && g1.reset[1] === 28 && g1.reset[2] === '3px' && g1.reset[3] === '↺' && g1.resetRight, tag + '右端に角 3px の「↺」（28px。T212-F・違いの一覧 22）', g1.reset);
 			assert(jsErrors(sp.errors).length === 0, tag + '①: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 

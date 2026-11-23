@@ -32,9 +32,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-11-22d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-11-22d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-11-22d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-11-23a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-11-23a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-11-23a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -54,13 +54,13 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-11-22d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-11-23a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-11-08a"></script>
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
 	<!-- 本育成結果（T188・決定 775・783〜788）。③のタブ「本育成結果」の中身（スキル画面のスクショを1枚にまとめる・OCR なし） -->
-	<script src="js/skill-result.js?v=2026-11-18a"></script>
+	<script src="js/skill-result.js?v=2026-11-23a"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-19b"></script>
@@ -252,12 +252,12 @@
 		.uma-subtabs-row.video-tabrow { flex-wrap: nowrap; gap: var(--uma-sp-1); }
 		/* 入れ方の切り替え「静止画｜動画」（T106・決定 273）。見た目の作りは「3列｜2列」（.stitch-cols）と同じ: 2つ並べたボタン・選んだほうを反転の塗り。
 		   タブの行の高さを変えないよう枠は 32px にし、押せる高さは ::after で 44px まで広げる（枠を丸めるために overflow は使わない） */
-		.upload-mode { flex: none; display: flex; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); }
+		.upload-mode { flex: none; display: flex; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); }
 		.upload-mode-btn { position: relative; height: 30px; padding: 0 10px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer; white-space: nowrap;
 			display: inline-flex; align-items: center; justify-content: center; }
 		.upload-mode-btn::after { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
-		.upload-mode-btn:first-child { border-radius: calc(var(--uma-r-lg) - 1px) 0 0 calc(var(--uma-r-lg) - 1px); }
-		.upload-mode-btn:last-child { border-radius: 0 calc(var(--uma-r-lg) - 1px) calc(var(--uma-r-lg) - 1px) 0; border-left: 1px solid var(--uma-border-strong); }
+		.upload-mode-btn:first-child { border-radius: calc(var(--uma-r-tool) - 1px) 0 0 calc(var(--uma-r-tool) - 1px); }
+		.upload-mode-btn:last-child { border-radius: 0 calc(var(--uma-r-tool) - 1px) calc(var(--uma-r-tool) - 1px) 0; border-left: 1px solid var(--uma-border-strong); }
 		.upload-mode-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }
 		.upload-mode-btn[aria-pressed="true"] { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
 		.upload-mode-btn .video-alpha { font-size: 10px; font-weight: 800; margin-left: 1px; align-self: flex-start; margin-top: 6px; }
@@ -266,7 +266,7 @@
 		.video-pick-row { display: flex; gap: 8px; }
 		.video-pick-btn, .video-capture-btn { flex: 1 1 0; min-width: 0; }
 		.video-pick-btn, .video-capture-btn { display: none; width: 100%; min-height: 76px; margin: 0 0 8px; padding: 10px 4px; align-items: center; justify-content: center; gap: 8px;
-			border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-heading);
+			border: 2px dashed var(--uma-border-strong); border-radius: var(--uma-r-tool); background: var(--uma-surface); color: var(--uma-text-heading);
 			font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 		.video-pick-btn:hover:not(:disabled), .video-capture-btn:hover:not(:disabled) { border-color: var(--uma-control-mark); }
 		.video-pick-btn:focus-visible, .video-capture-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
@@ -290,10 +290,10 @@
 		.cap-actions { display: flex; }
 		.cap-actions .uma-btn { min-height: 44px; }
 		.cap-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--uma-danger-text, #dc2626); vertical-align: 1px; }
-		.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-lg); background: var(--uma-danger-bg, #fef2f2); }
+		.cap-fail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 8px; border: 1px solid var(--uma-danger-border, #fecaca); border-radius: var(--uma-r-tool); background: var(--uma-danger-bg, #fef2f2); }
 		.cap-fail p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--uma-danger-text, #b91c1c); }
 		.cap-fail .uma-btn { flex: none; min-height: 44px; }
-		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
+		.cap-note { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--uma-border); border-radius: 0; background: var(--uma-surface-sunken); font-size: 12px; color: var(--uma-text-muted); }
 		/* 取り込みの間は、映像と止めるボタン・処理の箱は枠の中にあるので薄くしない。3列と「セットをクリア」だけ押せなくする */
 		body.cap-flow .video-busy { opacity: 1; pointer-events: auto; }
 		body.cap-flow .video-busy .upload-cols, body.cap-flow .video-busy .upload-set-clear > button:first-child { opacity: .55; pointer-events: none; }
@@ -315,7 +315,7 @@
 		.video-prog-foot small { font-size: 11px; color: var(--uma-text-subtle); }
 		.video-busy { opacity: .55; pointer-events: none; }
 		/* 終わった後: 知らせの箱と、人の欄の「動画から N枚」の1行 */
-		.video-tile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface); font-size: 12px; font-weight: 700; color: var(--uma-text-heading); grid-column: 1 / -1; text-align: left; cursor: pointer; }
+		.video-tile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-tool); background: var(--uma-surface); font-size: 12px; font-weight: 700; color: var(--uma-text-heading); grid-column: 1 / -1; text-align: left; cursor: pointer; }
 		.video-tile:hover { background: var(--uma-surface-sunken); }
 		.video-tile img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--uma-border); }
 		.video-tile small { margin-left: auto; font-weight: 600; color: var(--uma-text-subtle); font-size: 11px; }
@@ -441,7 +441,7 @@
 			margin-bottom: var(--uma-sp-6);
 			padding: var(--uma-sp-4) var(--uma-sp-5);
 			border: 1px solid var(--uma-warn-border);
-			border-radius: var(--uma-r-xl);
+			border-radius: var(--uma-r-tool);
 			background: var(--uma-warn-bg);
 			color: var(--uma-warn-text);
 		}
@@ -565,13 +565,22 @@
 		#tool-dropdown-menu { border-radius: 0; border-color: var(--uma-rule-strong); }
 		#tool-dropdown-menu > :is(div, a) { border-radius: 0; }
 		#toast { border-radius: var(--uma-r-tool); }
+		/* T212-F（デザインの見直し。違いの一覧 5・9・22）: 道具の部品（ボタン・入力欄・選ぶ箱・札・「?」・✕）は角 3px。押せない部品は薄くせず灰で示す。
+		   ゲーム由来の印と合図の丸（段の番号・右下の丸ボタン・未読の点・「!」）は丸のまま。結合画像の設定の模式図・入口のオススメサポ・脚質オススメは変えない。
+		   Tailwind の角丸のクラスを持つボタン・入力欄・警告の箱は、ここでまとめて 3px にする（ツール切り替えのメニューの中は角なし・アイコンの地は 3px） */
+		:is(button, a, select, textarea, input):is(.rounded-lg, .rounded-xl):not(:where(#tool-dropdown-menu *)), label.upload-add { border-radius: var(--uma-r-tool); }
+		.rounded-xl:is(.bg-amber-50, .bg-red-50) { border-radius: var(--uma-r-tool); }
+		#tool-dropdown-menu > button { border-radius: 0; }
+		#tool-dropdown-menu .w-7.h-7 { border-radius: var(--uma-r-tool); }
+		#tool-dropdown-menu span.rounded { border-radius: 0; }
 		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
 		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
 		/* T108: 「レース指定なし／本育成編成なし」の①のタブ（押せない）。①の中身は消さない。件数のバッジは出さない */
-		.step-tab:disabled { opacity: 0.4; cursor: not-allowed; }
-		.step-tab:disabled:hover { color: inherit; }
+		.step-tab:disabled { opacity: 1; color: var(--uma-off); cursor: not-allowed; }   /* T212-F（違いの一覧 9・デ63）: 薄くせず灰で示す */
+		.step-tab:disabled .step-tab-num { background: var(--uma-off-bg); color: var(--uma-off); }
+		.step-tab:disabled:hover { color: var(--uma-off); }
 		.step-tab:disabled .step-tab-badge { display: none; }
-		.stitch-show-item.is-off { opacity: 0.45; cursor: not-allowed; }
+		.stitch-show-item.is-off { opacity: 1; color: var(--uma-off); cursor: not-allowed; }   /* T212-F: 薄くせず灰で示す */
 		.stitch-show-item.is-off input { cursor: not-allowed; }
 		.step-tab-badge--ready { background: var(--star-badge-green-bg); color: var(--star-badge-green-text); border-color: var(--star-badge-green-line); }
 		.step-tab-badge--ready { box-shadow: inset 0 0 0 1px var(--star-badge-green-line); }
@@ -590,7 +599,7 @@
 		}
 		/* T80（C-270）: オススメサポの「除外中」の左のアイコンの丸い枠も、ピルと同じ細い枠と地（core の .usd-out-pin.usd-out-pinsearch より強い指定にする） */
 		body .usd-out-pin.usd-out-pinsearch { border-color: var(--usd-ui-line); background-color: var(--uma-aux-bg); }
-		body .usd-setbar-race, body .usd-roster-filtersel { height: 28px; border-radius: var(--uma-r-full); color: var(--uma-text-heading); font-size: 11px; font-weight: 600; }
+		body .usd-setbar-race, body .usd-roster-filtersel { height: 28px; border-radius: var(--uma-r-tool); color: var(--uma-text-heading); font-size: 11px; font-weight: 600; }
 		body .usd-roster-filtersel { padding-top: 0; padding-bottom: 0; }
 		body .uma-btn--secondary, body .uma-help-btn, body .usd-reset-btn, body .usd-roster-choice, body .usd-link-opt, body .usd-name-hit--card,
 		body .usd-palette-clear, body .usd-out-card, body .usd-roster-pickbox { border-color: var(--usd-ui-line); }
@@ -657,7 +666,7 @@
 		.stitch-show-title svg { width: 14px; height: 14px; color: var(--uma-stitch-accent); }
 		.stitch-show-list { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
 		.stitch-show-item { display: flex; align-items: flex-start; gap: var(--uma-sp-2);
-			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-md);
+			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-tool);
 			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-heading);
 			cursor: pointer; transition: background-color var(--uma-transition); }
 		.stitch-show-item:hover { background: var(--uma-surface); }
@@ -706,7 +715,7 @@
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-focus-ring); }
 		:root[data-theme="dark"] .stitch-wire-sheet { background: var(--uma-surface-muted); }
 		/* 形の2択（T98・C-285。決定 156・157・179。モック lab/stitch-2col-video-mock.html の .seg）: 2つ並べたボタン・選んだほうを反転の塗り（今のトークン） */
-		.stitch-cols { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 var(--uma-sp-1-5); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-cols { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 var(--uma-sp-1-5); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); overflow: hidden; }
 		.stitch-cols-btn { min-height: 40px; border: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
 			display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 		.stitch-cols-btn + .stitch-cols-btn { border-left: 1px solid var(--uma-border-strong); }
@@ -718,9 +727,9 @@
 		/* 入れる人（T188・決定 791）: 「形」の2択の下に、ラベル＋3択（見た目は .stitch-cols-btn と同じ。押せない組は薄く） */
 		.stitch-persons { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0 0 var(--uma-sp-1-5); }
 		.stitch-persons-label { font-size: 11px; font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }
-		.stitch-persons-seg { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); overflow: hidden; }
+		.stitch-persons-seg { flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool); overflow: hidden; }
 		.stitch-persons-seg .stitch-cols-btn { min-height: 36px; font-size: 12px; padding: 0 4px; }
-		.stitch-persons-seg .stitch-cols-btn:disabled { opacity: .4; cursor: default; }
+		.stitch-persons-seg .stitch-cols-btn:disabled { opacity: 1; color: var(--uma-off); background: var(--uma-off-bg); cursor: default; }   /* T212-F: 薄くせず灰で示す */
 		/* 本育成結果のタブ（T188）を見ている間は、親A・親B のための部品を隠す（「静止画｜動画」は T193 から見せる） */
 		body.skillres-on #stitch-set-note, body.skillres-on #tier-marks-row, body.skillres-on #tier-marks-status, body.skillres-on #stitch-parts-panel,
 		body.skillres-on #adv-opts, body.skillres-on #preview-wrap, body.skillres-on #dev-wrap, body.skillres-on #quality-warn-wrap, body.skillres-on #error-wrap,
@@ -827,7 +836,7 @@
 			#result-drawer .uma-drawer-content { padding: 10px 12px; }
 			/* Deck (αテスト)へ送る */
 			#result-drawer #deck-alpha-send-note { margin-bottom: 10px; }
-			#result-drawer #deck-alpha-send-btn { min-height: 0; height: 30px; padding: 0 10px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn { min-height: 0; height: 30px; padding: 0 10px; border-radius: var(--uma-r-tool); gap: 6px; font-size: 11px; }
 			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
 			#result-drawer #deck-alpha-send-note > p { margin-top: 2px; line-height: 14px; }
 
@@ -852,7 +861,7 @@
 			#result-drawer .rc-srch svg { left: 8px; top: 7px; width: 14px; height: 14px; }
 			#result-drawer #table-search { height: 28px; padding: 0 8px 0 26px; font-size: 11px; line-height: 15px; }
 			#result-drawer #result-copy-slot { grid-column: 2; grid-row: 1; gap: 4px; }
-			#result-drawer #result-copy-slot button { min-height: 0; height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot button { min-height: 0; height: 28px; padding: 0 10px; border-radius: var(--uma-r-tool); gap: 4px; font-size: 11px; }
 			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
 			#result-drawer .rc-pills { grid-column: 1 / -1; grid-row: 2; font-size: 11px; }
 			#result-drawer .rc-pills button { min-height: 0; height: 24px; padding: 0 10px; font-size: 11px; line-height: 22px; }
@@ -896,7 +905,7 @@
 			#result-drawer .uma-drawer-content { padding: 8px 12px; }
 			/* Deck (αテスト)へ送る: ボタンと停止の1行を同じ行に */
 			#result-drawer #deck-alpha-send-note:not(.hidden) { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-			#result-drawer #deck-alpha-send-btn { flex: none; width: auto; min-height: 0; height: 28px; padding: 0 12px; border-radius: 8px; gap: 6px; font-size: 11px; }
+			#result-drawer #deck-alpha-send-btn { flex: none; width: auto; min-height: 0; height: 28px; padding: 0 12px; border-radius: var(--uma-r-tool); gap: 6px; font-size: 11px; }
 			#result-drawer #deck-alpha-send-btn svg { width: 12px; height: 12px; }
 			#result-drawer #deck-alpha-send-note > p { margin: 0; line-height: 14px; }
 
@@ -917,7 +926,7 @@
 			#result-drawer .rc-pills { width: auto; font-size: 11px; }
 			#result-drawer .rc-pills button { min-height: 0; height: 26px; padding: 0 8px; font-size: 11px; line-height: 24px; }
 			#result-drawer #result-copy-slot { margin-left: auto; gap: 4px; }
-			#result-drawer #result-copy-slot button { min-height: 0; height: 28px; padding: 0 10px; border-radius: 8px; gap: 4px; font-size: 11px; }
+			#result-drawer #result-copy-slot button { min-height: 0; height: 28px; padding: 0 10px; border-radius: var(--uma-r-tool); gap: 4px; font-size: 11px; }
 			#result-drawer #result-copy-slot svg { width: 12px; height: 12px; }
 
 			/* 表: 列を内容に近い幅へ（幅いっぱいに引き伸ばさない）。行を低く。列の並びは今のまま */
@@ -1544,7 +1553,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-11-22d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-11-23a';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],

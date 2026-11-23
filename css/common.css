@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-11-22d";
+	--uma-components-css-version: "2026-11-23a";
 }
 
 /* ============================================================
@@ -110,7 +110,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	gap: var(--uma-sp-3);
 	padding: var(--uma-sp-3) var(--uma-sp-4);
 	border: 1px solid var(--uma-border);
-	border-radius: var(--uma-r-lg);
+	border-radius: var(--uma-r-tool);
 	background: var(--uma-surface);
 	margin-bottom: var(--uma-sp-2);
 }
@@ -144,7 +144,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	gap: var(--uma-sp-1-5);
 	padding: var(--uma-sp-2-5) var(--uma-sp-4);
 	border: 1px solid transparent;
-	border-radius: var(--uma-r-lg);
+	border-radius: var(--uma-r-tool);
 	background: transparent;
 	font-size: var(--uma-fs-sm);
 	line-height: var(--uma-lh-sm);
@@ -158,7 +158,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 
 .uma-btn:disabled,
 .uma-btn[disabled] {
-	opacity: .4;
+	opacity: 1; color: var(--uma-off); border-color: var(--uma-off); background: var(--uma-off-bg);   /* T212-F（違いの一覧 9・デ63）: 薄くせず、灰の線・灰の文字・灰の地で示す */
 	cursor: not-allowed;
 	box-shadow: none;
 	scale: 1;
@@ -235,7 +235,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	justify-content: center;
 	padding: var(--uma-sp-1-5);
 	border: none;
-	border-radius: var(--uma-r-md);
+	border-radius: var(--uma-r-tool);
 	background: transparent;
 	color: var(--uma-text-subtle);
 	cursor: pointer;
@@ -245,7 +245,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	background: var(--uma-surface-muted);
 	color: var(--uma-text-heading);
 }
-.uma-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+.uma-icon-btn:disabled { opacity: 1; color: var(--uma-off); cursor: not-allowed; }   /* T212-F: 薄くせず灰で示す */
 
 /* ============================================================
  * 補助説明を隠す「?」と、隠したものを開く文字ボタン（C-52）
@@ -266,7 +266,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 .uma-help-btn {
 	display: inline-flex; align-items: center; justify-content: center;
 	width: 22px; height: 22px; padding: 0;
-	border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-full);
+	border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-tool);
 	background: var(--uma-aux-bg); color: var(--uma-text-heading);
 	font: inherit; font-size: var(--uma-fs-sm); font-weight: 700; line-height: 1; cursor: pointer;
 }
@@ -276,7 +276,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 .uma-help-box {
 	margin: 0; padding: var(--uma-sp-2) var(--uma-sp-3);
-	border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm);
+	border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-tool);
 	background: var(--uma-surface-sunken);
 	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text);
 }
@@ -293,7 +293,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	--uma-disclose-color: var(--uma-danger-text);
 	font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
 	padding: 1px var(--uma-sp-2);
-	border: 1px solid var(--uma-disclose-color); border-radius: var(--uma-r-full);
+	border: 1px solid var(--uma-disclose-color); border-radius: var(--uma-r-tool);
 	background: transparent; color: var(--uma-disclose-color); cursor: pointer;
 }
 .uma-disclose[aria-expanded="true"] { background: var(--uma-disclose-color); color: var(--uma-text-inverse); }
@@ -456,7 +456,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 .uma-namelist > li {
-	padding: var(--uma-sp-1) var(--uma-sp-2); border-radius: var(--uma-r-sm);
+	padding: var(--uma-sp-1) var(--uma-sp-2); border-radius: var(--uma-r-tool);
 	background: var(--uma-surface-sunken);
 	font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text);
 }
@@ -469,7 +469,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	gap: var(--uma-sp-1);
 	padding: var(--uma-sp-1) var(--uma-sp-3);
 	border: 1px solid transparent;
-	border-radius: var(--uma-r-md);
+	border-radius: var(--uma-r-tool);
 	background: var(--uma-surface-muted);
 	font-size: var(--uma-fs-sm);
 	line-height: var(--uma-lh-sm);
@@ -528,7 +528,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	width: 100%;
 	padding: var(--uma-sp-2) var(--uma-sp-3);
 	border: 1px solid var(--uma-border);
-	border-radius: var(--uma-r-md);
+	border-radius: var(--uma-r-tool);
 	background: var(--uma-surface);
 	color: var(--uma-text);
 	font-size: var(--uma-fs-sm);
@@ -553,7 +553,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 
 /* textarea は面積が大きいぶん角を大きくする */
 textarea.uma-input {
-	border-radius: var(--uma-r-lg);
+	border-radius: var(--uma-r-tool);
 	padding: var(--uma-sp-3);
 	resize: vertical;
 }
@@ -566,7 +566,7 @@ textarea.uma-input {
 	align-items: center;
 	gap: var(--uma-sp-1);
 	padding: var(--uma-sp-1) var(--uma-sp-2-5);
-	border-radius: var(--uma-r-full);
+	border-radius: var(--uma-r-tool);
 	background: var(--uma-surface-muted);
 	color: var(--uma-text-muted);
 	font-size: var(--uma-fs-xs);
@@ -626,7 +626,7 @@ textarea.uma-input {
  * ============================================================ */
 .uma-theme-row { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0 0 var(--uma-sp-4); }
 .uma-theme-label { flex: none; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }
-.uma-theme-choices { display: inline-flex; flex: none; border: 1px solid var(--uma-control-border); border-radius: var(--uma-r-md); overflow: hidden; }
+.uma-theme-choices { display: inline-flex; flex: none; border: 1px solid var(--uma-control-border); border-radius: var(--uma-r-tool); overflow: hidden; }
 .uma-theme-choice {
 	display: inline-flex; align-items: center; gap: 2px; padding: var(--uma-sp-1) var(--uma-sp-2);
 	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; white-space: nowrap;

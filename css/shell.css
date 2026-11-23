@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-11-22d";
+	--uma-shell-css-version: "2026-11-23a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -96,7 +96,7 @@
 .step-tab-badge {
 	flex: none; margin-left: auto;
 	font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
-	padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-full);
+	padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-tool);
 	background: var(--uma-surface-muted); color: var(--uma-text-subtle);
 }
 /* 注意を引く件数（いまは①の「除外N種」だけ。C-63 の (2)）。
@@ -177,7 +177,7 @@
 .uma-subtab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .uma-subtab-count {
 	flex: none; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
-	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full);
+	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-tool);
 	background: var(--uma-surface-muted); color: var(--uma-text-subtle);
 }
 .uma-subtab:hover { color: var(--uma-text-heading); }
@@ -263,7 +263,7 @@
 	z-index: 70;
 	display: inline-flex; align-items: center; gap: var(--uma-sp-2);
 	padding: var(--uma-sp-2-5) var(--uma-sp-4);
-	border: 0; border-radius: var(--uma-r-full);
+	border: 0; border-radius: var(--uma-r-tool);   /* T212-F（違いの一覧 32・デ99）: 「元に戻す」は角 3px */
 	background: var(--uma-control); color: var(--uma-control-text);
 	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
 	box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim), var(--uma-shadow-3); cursor: pointer; white-space: nowrap;
@@ -273,7 +273,7 @@
 .uma-undo-fab[hidden] { display: none !important; }
 .uma-undo-fab-count {
 	font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
-	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full);
+	padding: 0 var(--uma-sp-1-5); border-radius: 2px;
 	background: color-mix(in srgb, var(--uma-control-text) 20%, transparent);  /* 黒い地の上の白の 20%（ダークでは明るい地の上の暗い色の 20%） */
 }
 @media (min-width: 768px) {
@@ -506,7 +506,7 @@
    exam の「結合画像の設定」は結合画像の琥珀を入れて、何の設定かを色でも示している。 */
 .uma-popover-title svg { color: var(--uma-popover-icon, currentColor); }
 .uma-popover-close {
-	flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: var(--uma-r-full);
+	flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: var(--uma-r-tool); box-shadow: inset 0 0 0 1px var(--uma-rule-strong);   /* T212-F（デ59）: ✕ は角の四角（細い線。大きさは今のまま） */
 	display: flex; align-items: center; justify-content: center;
 	background: transparent; color: var(--uma-text-subtle); cursor: pointer;
 	transition: background-color var(--uma-transition), color var(--uma-transition);
@@ -570,7 +570,7 @@
 .help-step-text[hidden] { display: none !important; }
 .help-tips {
 	margin-top: var(--uma-sp-5); padding: var(--uma-sp-3) var(--uma-sp-4);
-	border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-lg); background: var(--uma-warn-bg);
+	border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-tool); background: var(--uma-warn-bg);
 }
 .help-tips-title { margin: 0 0 var(--uma-sp-1-5); display: flex; align-items: center; gap: var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; color: var(--uma-warn-text); }
 .help-tips ul { margin: 0; padding-left: var(--uma-sp-4); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-warn-text); }
@@ -614,7 +614,7 @@
 /* 選んでいる状態の表示は操作の色（黒）で示す */
 .uma-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control-mark); }
 /* 結果の先頭に置く取り込み案内（未取り込みのとき。取り込み済みは各ページの緑のユーティリティ） */
-.deck-note { border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-lg); background: var(--uma-accent-soft); padding: var(--uma-sp-4); }
+.deck-note { border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-tool); background: var(--uma-accent-soft); padding: var(--uma-sp-4); }
 .deck-note-title { color: var(--uma-accent-soft-text); }
 .deck-note-text { color: var(--uma-accent-soft-text); }
 .ui-mode-badge:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }

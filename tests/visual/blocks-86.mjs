@@ -176,10 +176,12 @@ export async function register86(env) {
 		const sp = await openTool('special', 375);
 		const s = await sp.page.evaluate(MEASURE);
 		const sx = await sp.page.evaluate(() => ({ ocr: !!document.getElementById('process-btn'), empty: document.querySelector('#result-empty p.text-xs').textContent.trim(),
-			back: document.querySelector('#result-empty button').getAttribute('onclick') }));
+			back: document.querySelector('#result-empty button').getAttribute('onclick'),
+			// T212-F（違いの一覧 9）: 画像が無い間は押せないので、主なボタンの塗りではなく灰の地（--uma-off-bg）
+			offBtn: (() => { const b = document.getElementById('process-stitch-btn'); const off = (() => { const s = document.createElement('span'); s.style.background = 'var(--uma-off-bg)'; document.body.appendChild(s); const c = getComputedStyle(s).backgroundColor; s.remove(); return c; })(); return !!b && b.disabled && getComputedStyle(b).backgroundColor === off; })() }));
 		assert(!sx.ocr && s.lg.map((b) => b.id + ':' + b.text).join('|') === 'process-stitch-btn:OCR処理＋画像結合を開始する|stitch-btn:画像を結合する（OCRしない）',
 			'T56(3) UmaStar: ボタンは「OCR処理＋画像結合を開始する」→「画像を結合する（OCRしない）」の2つ（「OCR処理を開始する」なし）', { lg: s.lg.map((b) => b.id + ':' + b.text), ocr: sx.ocr });
-		assert(/uma-btn--primary/.test(s.lg[0].cls) && /uma-btn--lg/.test(s.lg[0].cls) && !/accent-outline/.test(s.lg[0].cls) && s.lg[0].bg === s.primary.bg && s.lg[0].fg === s.primary.fg,
+		assert(/uma-btn--primary/.test(s.lg[0].cls) && /uma-btn--lg/.test(s.lg[0].cls) && !/accent-outline/.test(s.lg[0].cls) && ((s.lg[0].bg === s.primary.bg && s.lg[0].fg === s.primary.fg) || sx.offBtn),
 			'T56(3) UmaStar: 一体のボタンは黒塗りの主なボタン（uma-btn--primary・大）', { btn: s.lg[0], primary: s.primary });
 		assert(sx.empty.includes('「OCR処理＋画像結合を開始する」') && !sx.empty.includes('「OCR処理を開始する」') && sx.back === "backToInput('process-stitch-btn')",
 			'T56(3) UmaStar: 照合結果が空のときの案内は今あるボタンの名前・「入力画面に戻る」はそのボタンへ', sx);

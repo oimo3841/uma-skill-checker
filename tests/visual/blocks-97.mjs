@@ -92,7 +92,7 @@ export async function register97(env) {
 	}, STYLE_KEYS);
 	const sameStyle = (a, b) => !!a && !!b && STYLE_KEYS.every((k) => a[k] === b[k]);
 	const sameRow = (a, b) => !!a && !!b && Math.abs((a[1] + a[3] / 2) - (b[1] + b[3] / 2)) <= 1;
-	const roundFrame = (r) => !!r.icon && !!r.iconStyle && r.icon[2] === 28 && r.icon[3] === 28 && r.iconStyle.bw === '1px' && r.iconStyle.bs === 'solid' && parseFloat(r.iconStyle.radius) >= 14
+	const roundFrame = (r) => !!r.icon && !!r.iconStyle && r.icon[2] === 28 && r.icon[3] === 28 && r.iconStyle.bw === '1px' && r.iconStyle.bs === 'solid' && r.iconStyle.radius === '3px'   /* T212-F（違いの一覧 22）: 丸い小さなボタンを角 3px の四角に */
 		&& !!r.iconSvg && r.iconSvg[2] === 20 && r.iconSvg[3] === 20 && r.iconHit && r.iconHit[0] === '44px' && r.iconHit[1] === '44px';
 
 	await block('T80除外中と説明とR(1) 除外中の行: 「除外中：X枚・Y種（距離）▾」はいつも短い形（375px・1280px）・「種類 ▾」と同じ部品（computed style が同じ）・アイコンは丸い枠（28px・線1px・絵20px・押せる範囲44）・縦の線と？なし・枚だけ／種だけ／除外なし／数の多い除外・すべて戻すは同じ行', async () => {
@@ -107,7 +107,7 @@ export async function register97(env) {
 			assert(!a.sep && !a.help, tag + 'アイコンと「除外中」の間の縦の線と、隣の？は無い', { sep: a.sep, help: a.help });
 			assert(/\busd-out-segbtn\b/.test(a.cls) && /\busd-out-optbtn\b/.test(a.cls) && sameStyle(a.tgStyle, a.tyStyle) && a.toggle && a.toggle[3] === 28,
 				tag + '「除外中」は「種類 ▾」のボタンと同じ部品（同じクラス・高さ 28px・枠の線・角・地・文字の computed style が同じ）', { cls: a.cls, tg: a.tgStyle, ty: a.tyStyle });
-			assert(roundFrame(a) && a.iconStyle.bc === a.tgStyle.borderTopColor && a.iconStyle.bg === a.tgStyle.backgroundColor, tag + 'アイコンは丸い枠（28 × 28・線 1px・角は半分以上・絵 20px・押せる範囲 44 × 44）。線と地の色はピルと同じ', { icon: a.icon, st: a.iconStyle, svg: a.iconSvg, hit: a.iconHit });
+			assert(roundFrame(a) && a.iconStyle.bc === a.tgStyle.borderTopColor && a.iconStyle.bg === a.tgStyle.backgroundColor, tag + 'アイコンは角 3px の枠（28 × 28・線 1px・絵 20px・押せる範囲 44 × 44）。線と地の色はピルと同じ', { icon: a.icon, st: a.iconStyle, svg: a.iconSvg, hit: a.iconHit });
 			assert(a.iconLabel === 'ピン止めするスキルを探す' && a.iconTitle === 'ピン止めするスキルを探す', tag + 'アイコンの読み上げ名・title は今のまま', { l: a.iconLabel, t: a.iconTitle });
 			assert(a.head && a.head[3] === 28 && sameRow(a.icon, a.toggle) && sameRow(a.toggle, a.restore) && a.restore[0] > a.toggle[0] + a.toggle[2], tag + '行の高さ 28px・アイコン → 除外中 → 右端の「すべて戻す」が同じ行', { head: a.head, icon: a.icon, tg: a.toggle, ra: a.restore });
 			assert(a.labelCut === false, tag + '文は「…」で切れていない', a.labelCut);
@@ -138,7 +138,7 @@ export async function register97(env) {
 			await openOut(spD.page);
 			const d = await readRow(spD.page);
 			assert(d.pinrow && !d.exclRow && !d.toggle && !d.restore && !d.sep && d.head && d.head[3] === 28 && roundFrame(d) && d.icon[0] === a.icon[0] && d.icon[1] === a.icon[1],
-				tag + '除外が無いときは同じ位置にアイコンだけの行（28px）。アイコンは同じ丸い枠', { head: d.head, icon: d.icon, st: d.iconStyle });
+				tag + '除外が無いときは同じ位置にアイコンだけの行（28px）。アイコンは同じ角 3px の枠', { head: d.head, icon: d.icon, st: d.iconStyle });
 			assert(!d.scrollX && jsErrors(spD.errors).length === 0, tag + '除外なしで横スクロールなし・コンソールのエラー0', jsErrors(spD.errors).slice(0, 3));
 			await spD.ctx.close();
 			// E: 数の多い除外（カード3枚・スキル12種・距離指定なし）。375px でも1行・「…」で切れない・すべて戻すは同じ行

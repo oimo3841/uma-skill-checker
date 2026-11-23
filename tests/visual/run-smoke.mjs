@@ -1066,9 +1066,10 @@ await block('special.html（UmaStar OCR）', async () => {
 			return { タブ: read(tabBadge), 入口: read(document.querySelector('[data-usd-el="entry-search-list"] [data-usd-el="passive-added"]')) };
 		});
 		await page.keyboard.press('Escape');
-		assert(JSON.stringify(badgeSame.タブ) === JSON.stringify(badgeSame.入口)
+		// T212-F（違いの一覧 33）: 条件で検索のタブの数の印は角 2px。入口の数の印は丸のまま（入口は変更禁止の基準の部品）。角のほかは同じ形
+		assert(JSON.stringify(Object.assign({}, badgeSame.タブ, { r: '' })) === JSON.stringify(Object.assign({}, badgeSame.入口, { r: '' })) && badgeSame.タブ.r === '2px' && badgeSame.入口.r === '999px'
 			&& badgeSame.入口.bg !== 'rgba(0, 0, 0, 0)',
-			'段9: 件数は「条件で検索」のタブに出るのと同じ数字バッジの形（地・文字色・角・高さ・字）', badgeSame);
+			'段9: 件数は「条件で検索」のタブに出るのと同じ数字バッジの形（地・文字色・高さ・字。角はタブ 2px・入口は丸）', badgeSame);
 
 		/* (10) **0種のときは出さない。**「リセット」でセットごと空にして見る。
 		   **`hidden` 属性で見る** ―― 中身が空文字かどうかではなく、実際に消えているか。 */
@@ -9297,7 +9298,7 @@ await noticeBlock('C-62 の (11・裏）: 初めて開く人には最新の1件�
 		&& btns.stitch.cls === 'uma-btn uma-btn--accent-outline uma-btn--lg w-full',
 		'段1: exam の2つのボタンが special と同じ共通部品になっている', { ocr: btns.ocr.cls, stitch: btns.stitch.cls });
 	// T76: ボタンは画面の下に固定した欄（#upload-bar の中の flex の並び）へ移った。flex の子は inline-flex が flex に変わる（前は inline-flex・2つ目に mt-2）
-	assert(btns.ocr.display === 'flex' && btns.ocr.weight === '700' && btns.ocr.radius === '12px',
+	assert(btns.ocr.display === 'flex' && btns.ocr.weight === '700' && btns.ocr.radius === '3px',   // T212-F（違いの一覧 5）: ボタンの角 3px
 		'段1: 共通部品の指定が実際に効いている（common.css を読めている）', btns.ocr);
 	assert(btns.css !== '', '段1: exam が common.css を読んでいる（版の印が取れる）', btns.css);
 	assert(btns.twReady === true,

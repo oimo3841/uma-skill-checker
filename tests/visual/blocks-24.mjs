@@ -81,8 +81,8 @@ export async function register24(env) {
 		});
 		assert(r.help === 0 && r.helpBtn && r.helpIsText, '進化段4A 帯に「?」のボタンは無く、合計の文字がボタン（同じ小窓を開く）', r);
 		assert(/^進化\s*3／4$/.test(r.text.replace(/\s/g, '')) && r.label.indexOf('3／4') !== -1, '進化段4A 進化ボタンは「進化」＋「N／最大」（オルフェーヴル 京都 芝2200m・追込: 衣装の2つ＋シナリオの1つ＝3／4）', { text: r.text, label: r.label });
-		assert(Math.abs(r.h - r.pickH) < 0.5 && Math.abs(r.h - r.sumH) < 0.5 && r.hitH >= 44 && r.borderW === 1 && r.radius >= 8,
-			'進化段4A 進化ボタンの見た目の高さは、育成ウマ娘の選択欄・合計の文字と同じ（段4の修正2）。押せる範囲は44px以上・枠1px（段G(6)で 2px から細くした。地色つきの設定済み）・角丸', { h: r.h, pick: r.pickH, sum: r.sumH, hit: r.hitH, borderW: r.borderW, radius: r.radius });
+		assert(Math.abs(r.h - r.pickH) < 0.5 && Math.abs(r.h - r.sumH) < 0.5 && r.hitH >= 44 && r.borderW === 1 && r.radius === 3,
+			'進化段4A 進化ボタンの見た目の高さは、育成ウマ娘の選択欄・合計の文字と同じ（段4の修正2）。押せる範囲は44px以上・枠1px（段G(6)で 2px から細くした。地色つきの設定済み）・角 3px（T212-F。道具の部品の角）', { h: r.h, pick: r.pickH, sum: r.sumH, hit: r.hitH, borderW: r.borderW, radius: r.radius });
 		assert(r.bName === '14px/700' && r.cnt === '12px/400', '進化段4A 「進化」は14px太字・「N／最大」は12px通常の太さ', { b: r.bName, n: r.cnt });
 		assert(!r.hscrollInBand && !r.bang, '進化段4A 帯に横スクロール・フェードの部品は無い／「！」は確認が必要なときだけ（ここでは出ない）', { hscroll: r.hscrollInBand, bang: r.bang });
 		// 合計の文字を押すと、これまでの「?」と同じ小窓（理論値など）が開く。覚醒Lv5の説明の1行は無い
