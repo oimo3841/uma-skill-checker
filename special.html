@@ -60,7 +60,7 @@
 	<!-- 結合画像の保存をスマホでは共有のシートにする（T122。exam.html / special.html で共有） -->
 	<script src="js/stitch-share.js?v=2026-11-09a"></script>
 	<!-- 本育成結果（T188・決定 775・783〜788）。③のタブ「本育成結果」の中身（スキル画面のスクショを1枚にまとめる・OCR なし） -->
-	<script src="js/skill-result.js?v=2026-11-23a"></script>
+	<script src="js/skill-result.js?v=2026-11-24a"></script>
 	<script src="js/deck-alpha-images.js?v=2026-11-08a"></script>
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-19b"></script>
@@ -590,6 +590,21 @@
 		#tool-dropdown-menu > button { border-radius: 0; }
 		#tool-dropdown-menu .w-7.h-7 { border-radius: var(--uma-r-tool); }
 		#tool-dropdown-menu span.rounded { border-radius: 0; }
+		/* T215（違いの一覧 40・41・43〜46）: 字を持たない箱の角。大きさ・場所・余白は変えない（枠は太さを残して色だけ透明にする）。
+		   40: 641px 以上のタイトルは、浮いたカード（角 16px・左右の余白）をやめて画面の横いっぱいの平らな帯。帯は border-image の外へのはみ出しで描く
+		   （箱の大きさ・場所は変わらず、横スクロールも出ない。上の余白 12px も帯の色）。動画を右に置いている間は、動画に重ならないよう右へは伸ばさない。
+		   41・43・45・46 は面・角 3px、44 は画像の角 3px。42（結合画像の設定の模式図の紙）は取り下げ（角 6px のまま） */
+		@media (min-width: 641px) {
+			body .site-header { border-radius: 0; border-color: transparent; box-shadow: none;
+				border-image: linear-gradient(to bottom, var(--star-head-m) calc(100% - 1px), var(--star-head-line) 0) fill 0 / 0 / 12px 100vmax 0; }
+			body.cap-side .site-header { border-image-outset: 12px 0 0 100vmax; }
+		}
+		:is(#stitch-result-content, .video-result) > div.bg-white\/70, body .stitch-show { border-color: transparent; border-radius: var(--uma-r-tool); }
+		:is(#stitch-result-content, .video-result) > div.bg-white\/70 img.w-full { border-radius: var(--uma-r-tool); }
+		body #result-drawer #stat-grid { border-color: transparent; border-radius: var(--uma-r-tool); background: var(--uma-sheet-sunk); }
+		.rc-tbl-wrap, body #result-drawer .rc-tbl-wrap { border-radius: var(--uma-r-tool); }
+		.person-image-list .group.rounded-lg, #skillset-guide-img { border-radius: var(--uma-r-tool); }
+		#ocr-dict-box, #dev-log, :is(#stitch-result-content, .video-result) .rounded-lg.bg-amber-50 { border-radius: var(--uma-r-tool); }
 		/* T212-G（デザインの見直し。違いの一覧 2・12）: UmaStar の緑は「パッシブ」と「用意ができている」だけ。見出しのアイコン・件数の札・右下の項目・
 		   ツール切り替えの今のツールの行は、操作色の淡い地・帯の色にする（Deck 行きの印は css/shell.css の緑 #1b7756）。大きさ・場所は変えない */
 		#tool-dropdown-menu > div.bg-green-50\/80 { background: var(--star-menu-cur); border-color: transparent; color: var(--uma-text-heading); }

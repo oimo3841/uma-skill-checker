@@ -23,7 +23,7 @@
  */
 (function () {
 	'use strict';
-	const SKILL_RESULT_JS_VERSION = '2026-11-23a';
+	const SKILL_RESULT_JS_VERSION = '2026-11-24a';
 
 	const SR_TEXTS = {
 		'sr.lead': '本育成のスキル画面のスクショを、上から順に選んでください。1枚の画像にまとめます（OCR はしません）。',
@@ -1098,18 +1098,18 @@
 	}
 	// 見た目（2つのページで同じ。ページの CSS の変数〔css/tokens.css〕を使う。ダークでも変数が切り替わる）
 	const SR_CSS = [
-		'.sr-panel{border:1px solid var(--uma-border);background:var(--uma-surface);border-radius:var(--uma-r-xl);padding:16px;display:flex;flex-direction:column;gap:10px}',
+		'.sr-panel{border:1px solid transparent;background:var(--uma-surface);border-radius:var(--uma-r-tool);padding:16px;display:flex;flex-direction:column;gap:10px}',
 		'.sr-lead{font-size:12px;line-height:1.6;color:var(--uma-text-muted);margin:0}',
 		'.sr-pick-row{display:flex;align-items:center;gap:12px}',
 		'.sr-pick{cursor:pointer}',
 		'.sr-clear{font-size:11px;color:var(--uma-text-subtle);text-decoration:underline;text-underline-offset:2px;background:none;border:0;cursor:pointer;padding:8px 4px}',
 		'.sr-thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}',
-		'.sr-thumb{position:relative;flex:0 0 auto;width:60px;height:104px;border:1px solid var(--uma-border);border-radius:8px;overflow:hidden;background:var(--uma-surface-muted)}',
+		'.sr-thumb{position:relative;flex:0 0 auto;width:60px;height:104px;border:1px solid var(--uma-border);border-radius:var(--uma-r-tool);overflow:hidden;background:var(--uma-surface-muted)}',
 		'.sr-thumb img{width:100%;height:100%;object-fit:cover;display:block}',
 		'.sr-thumb-no{position:absolute;left:3px;bottom:3px;min-width:18px;height:18px;border-radius:0;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}',
 		'.sr-thumb-x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:11px;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer}',
 		// 本育成結果用の「結合画像の設定」（804）。値は special.html・exam.html の .stitch-show・.stitch-cols・.stitch-show-item と同じ
-		'.sr-show{padding:var(--uma-sp-3);border:1px solid var(--uma-border);border-radius:var(--uma-r-xl);background:var(--uma-surface-muted);text-align:left}',
+		'.sr-show{padding:var(--uma-sp-3);border:1px solid transparent;border-radius:var(--uma-r-tool);background:var(--uma-surface-muted);text-align:left}',
 		'.sr-show-title{margin:0 0 var(--uma-sp-1-5);font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs);font-weight:700;color:var(--uma-text-heading);display:flex;align-items:center;gap:var(--uma-sp-1-5)}',
 		'.sr-show-title svg{width:14px;height:14px;color:var(--uma-stitch-accent)}',
 		'.sr-cols{display:grid;grid-template-columns:1fr 1fr;margin:0 0 var(--uma-sp-1-5);border:1px solid var(--uma-border-strong);border-radius:var(--uma-r-tool);overflow:hidden}',
@@ -1132,7 +1132,7 @@
 		'.sr-result-block{display:flex;flex-direction:column;gap:8px;margin-top:4px}',
 		'.sr-result-head{display:flex;align-items:center;justify-content:space-between;gap:8px}',
 		'.sr-result-title{margin:0;font-size:12px;font-weight:700;color:var(--uma-text-heading)}',
-		'.sr-img{width:100%;border:1px solid var(--uma-border);border-radius:8px;display:block}',
+		'.sr-img{width:100%;border:1px solid var(--uma-border);border-radius:var(--uma-r-tool);display:block}',
 		'.sr-warn{border:1px solid var(--uma-warn-border);background:var(--uma-warn-bg);color:var(--uma-warn-text);border-radius:var(--uma-r-tool);padding:10px 12px;font-size:11px;line-height:1.6}',
 		'.sr-warn p{margin:0}.sr-warn-head{font-weight:700;margin-bottom:2px!important}',
 		'.sr-fail{border:1px solid var(--uma-danger-border);background:var(--uma-danger-bg);color:var(--uma-danger-text);border-radius:var(--uma-r-tool);padding:10px 12px;font-size:12px}',
