@@ -6,6 +6,7 @@
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { loadSpec, align as specAlign, alignName, alignProblem } from './lib/design-spec.mjs';   // T216: ↺ の置き場所は決まりの一覧（デ60）から読む
 export async function register20b(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -413,7 +414,7 @@ export async function register20b(env) {
 				if (Math.abs(g.shoes[3].r - g.bar.r) > 1) bad.push('虹が右端にない');
 				if (g.reset.t < Math.max(...g.shoes.map((s) => s.b)) - 0.5) bad.push('リセットが蹄鉄の行の下にない');
 				// T214: T212-H6 で「↺」を右下 → 左下へ（違いの一覧 19・デ60）。左端がバーの左端 ±1.5・下端がパネルの内側（blocks-19 微調整1A1 と同じ形）
-				if (Math.abs(g.reset.l - g.bar.l) > 1.5 || g.reset.b > g.panel.b + 0.5) bad.push('リセットが左下にない');
+				{ const al = specAlign(loadSpec(), 'de60'); if (alignProblem(al, g.reset, g.bar, g.panel)) bad.push('リセットが' + alignName(al) + 'にない'); }
 				if (g.sw > g.vw) bad.push('横にはみ出す');
 				assert(bad.length === 0, '微調整2B5(' + w + 'px・' + label + '): 蹄鉄は1段・順番どおり・重ならない・バーの内側／虹は右端／リセットは行の下の左下／横にはみ出さない', bad);
 			}

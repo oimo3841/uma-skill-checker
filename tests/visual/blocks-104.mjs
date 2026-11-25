@@ -14,6 +14,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { scanTextContrastInPage } from './lib/contrast.mjs';
+import { loadSpec as __loadSpec, value as __specValue } from './lib/design-spec.mjs';
+const TOOL_R = __specValue(__loadSpec(), 'toolCorner');   // T216: 道具の部品の角は決まりの一覧から読む（3px）
 
 export async function register104(env) {
 	const { block, assert, browser, base, REPO_ROOT } = env;
@@ -148,8 +150,8 @@ export async function register104(env) {
 
 			// (6) 見出しのボタン（追加4）: 34×38px・角丸 12px・svg 16px。ライト／ダークのアイコンは選択を示し、押すと切り替わる
 			const hb = await ev(() => { const g = (id) => { const b = document.getElementById(id), r = b.getBoundingClientRect(), cs = getComputedStyle(b), svgs = [...b.querySelectorAll('svg')].filter((s) => getComputedStyle(s).display !== 'none'); return { w: Math.round(r.width), h: Math.round(r.height), radius: cs.borderTopLeftRadius, bw: cs.borderTopWidth, shown: svgs.length, svg: svgs[0] ? Math.round(svgs[0].getBoundingClientRect().width) : 0, state: b.getAttribute('data-theme-state') }; }; return { tool: g('toolBtn'), theme: g('themeBtn') }; });
-			assert(hb.tool.w === 34 && hb.tool.h === 38 && hb.tool.radius === '3px' && hb.tool.bw === '1px' && hb.tool.shown === 1 && hb.tool.svg === 16, tag + ' ツール切り替えのボタンは UmaStar と同じ 34×38px・角 3px（T212-D・デ57・デ62）・svg 16px（追加4）', hb.tool);
-			assert(hb.theme.w === 34 && hb.theme.h === 38 && hb.theme.radius === '3px' && hb.theme.shown === 1 && hb.theme.svg === 16 && hb.theme.state === theme, tag + ' ライト／ダークのボタンは同じ形で、今の選択のアイコンを1つだけ出す', hb.theme);
+			assert(hb.tool.w === 34 && hb.tool.h === 38 && hb.tool.radius === TOOL_R && hb.tool.bw === '1px' && hb.tool.shown === 1 && hb.tool.svg === 16, tag + ' ツール切り替えのボタンは UmaStar と同じ 34×38px・角 3px（T212-D・デ57・デ62）・svg 16px（追加4）', hb.tool);
+			assert(hb.theme.w === 34 && hb.theme.h === 38 && hb.theme.radius === TOOL_R && hb.theme.shown === 1 && hb.theme.svg === 16 && hb.theme.state === theme, tag + ' ライト／ダークのボタンは同じ形で、今の選択のアイコンを1つだけ出す', hb.theme);
 			await look('05-header', { clip: { x: 0, y: 0, width: sz.width, height: 56 } });
 			await page.click('#themeBtn'); await page.waitForTimeout(150);
 			const t1 = await ev(() => ({ attr: document.documentElement.getAttribute('data-theme'), state: document.getElementById('themeBtn').getAttribute('data-theme-state'), saved: localStorage.getItem('uma-tools-theme'), shown: [...document.querySelectorAll('#themeBtn svg')].filter((s) => getComputedStyle(s).display !== 'none').map((s) => s.dataset.themeIcon) }));

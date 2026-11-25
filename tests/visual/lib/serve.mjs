@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+// UMA_TEST_ROOT: 値を変えた製品の写しを配信して、検査が NG を出すか確かめるときだけ使う（T216。ふだんは未設定＝この作業フォルダ）
+export const REPO_ROOT = process.env.UMA_TEST_ROOT ? path.resolve(process.env.UMA_TEST_ROOT) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const TYPES = {
 	'.html': 'text/html; charset=utf-8',

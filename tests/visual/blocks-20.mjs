@@ -9,6 +9,7 @@
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { loadSpec, value as specValue } from './lib/design-spec.mjs';   // T216: PC の見出しの角・影は決まりの一覧（919）から読む
 export async function register20(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -78,10 +79,12 @@ export async function register20(env) {
 	});
 
 	await block('微調整2A2 広い画面（641px以上）は余白を変えていない（1280・768・700px）', async () => {
-		// C-235: タイトルは UmaStar と同じ値にした（上の余白 48／32 → 12px・角丸 24 → 16px）。ほかの余白は従来のまま
-		const want = { 1280: { wrapPadL: '24px', wrapPadT: '12px', cardPad: '24px', hdrRadius: '16px', boxPad: '16px' },
-			768: { wrapPadL: '24px', wrapPadT: '12px', cardPad: '24px', hdrRadius: '16px', boxPad: '16px' },
-			700: { wrapPadL: '16px', wrapPadT: '12px', cardPad: '20px', hdrRadius: '16px', boxPad: '16px' } };
+		// C-235: タイトルは UmaStar と同じ値にした（上の余白 48／32 → 12px）。ほかの余白は従来のまま。
+		// T216（T215-4）: 641px 以上の見出しの角・影は決まりの一覧 919（角なし・影なし・下のエリアと同じ幅。T215 で角 16px・影ありから変えた）から読む
+		const band = specValue(loadSpec(), 'd919');
+		const want = { 1280: { wrapPadL: '24px', wrapPadT: '12px', cardPad: '24px', hdrRadius: band.radius, boxPad: '16px' },
+			768: { wrapPadL: '24px', wrapPadT: '12px', cardPad: '24px', hdrRadius: band.radius, boxPad: '16px' },
+			700: { wrapPadL: '16px', wrapPadT: '12px', cardPad: '20px', hdrRadius: band.radius, boxPad: '16px' } };
 		for (const w of [1280, 768, 700]) {
 			const { ctx, page, errors } = await openExam({ w, eff: true });
 			const e = await page.evaluate(() => {
@@ -92,7 +95,7 @@ export async function register20(env) {
 					sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth };
 			});
 			const x = want[w];
-			assert(e.wrapPadL === x.wrapPadL && e.wrapPadT === x.wrapPadT && e.cardPad === x.cardPad && e.hdrRadius === x.hdrRadius && e.boxPad === x.boxPad && e.hdrShadow !== 'none' && e.cardMarginL === '0px' && e.sw <= e.vw,
+			assert(e.wrapPadL === x.wrapPadL && e.wrapPadT === x.wrapPadT && e.cardPad === x.cardPad && e.hdrRadius === x.hdrRadius && e.boxPad === x.boxPad && e.hdrShadow === band.shadow && w >= band.minWidthPx && e.cardMarginL === '0px' && e.sw <= e.vw,
 				'微調整2A2(' + w + 'px): 外枠・カード・ヘッダー（角丸・影）・箱の余白は従来のまま', { got: e, want: x });
 			assert(jsErrors(errors).length === 0, '微調整2A2(' + w + 'px): コンソールエラーなし', errors.slice(0, 3));
 			await ctx.close();

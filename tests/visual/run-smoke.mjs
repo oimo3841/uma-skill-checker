@@ -198,6 +198,7 @@ import { register183 } from './blocks-183.mjs';
 import { register184 } from './blocks-184.mjs';
 import { register186 } from './blocks-186.mjs';
 import { register187 } from './blocks-187.mjs';
+import { register188 } from './blocks-188.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -211,6 +212,8 @@ import { timeStamp, timesFilePath, readRecords, formatSummary } from './lib/bloc
 import { onlyMatches, loadWeights, buildPlan, listBlocks } from './lib/shard-plan.mjs';
 import { installReadyProbe, setReadyHook, reloadReady } from './lib/page-ready.mjs';
 import { NOTICE_ALLOW } from './lib/empty-allow.mjs';
+import { loadSpec as __loadSpec, value as __specValue } from './lib/design-spec.mjs';
+const TOOL_R = __specValue(__loadSpec(), 'toolCorner');   // T216: 道具の部品の角は決まりの一覧から読む（3px）
 
 let fails = 0;
 let okCount = 0;   // 計器: OK の件数（塊ごとの差分を記録する）
@@ -9286,7 +9289,7 @@ await noticeBlock('C-62 の (11・裏）: 初めて開く人には最新の1件�
 		&& btns.stitch.cls === 'uma-btn uma-btn--accent-outline uma-btn--lg w-full',
 		'段1: exam の2つのボタンが special と同じ共通部品になっている', { ocr: btns.ocr.cls, stitch: btns.stitch.cls });
 	// T76: ボタンは画面の下に固定した欄（#upload-bar の中の flex の並び）へ移った。flex の子は inline-flex が flex に変わる（前は inline-flex・2つ目に mt-2）
-	assert(btns.ocr.display === 'flex' && btns.ocr.weight === '700' && btns.ocr.radius === '3px',   // T212-F（違いの一覧 5）: ボタンの角 3px
+	assert(btns.ocr.display === 'flex' && btns.ocr.weight === '700' && btns.ocr.radius === TOOL_R,   // T212-F（違いの一覧 5）: ボタンの角 3px
 		'段1: 共通部品の指定が実際に効いている（common.css を読めている）', btns.ocr);
 	assert(btns.css !== '', '段1: exam が common.css を読んでいる（版の印が取れる）', btns.css);
 	assert(btns.twReady === true,
@@ -15731,6 +15734,8 @@ await register184({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register186({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T213（2026-11-23）: 静止画にも小窓の外の左右の暗い端を白で塗ってから行を検出する（UmaExam・UmaStar。見出しは「T213」）。tests/visual/blocks-187.mjs
 await register187({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T216（2026-11-25・決定 912・913）: 決まりの一覧（design-spec.json）の確かめ。角の方針（デ106）は「製品へは未適用」。ブラウザは開かない（製品の CSS の文字を読む）。
+await register188({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

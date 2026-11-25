@@ -10,6 +10,8 @@
 //  (5) 外したお知らせだけが使っていた CSS（.notice-catalog*・.notice-new*・.notice-deck-name・.notice-icon・.notice-title）が製品のファイルに残っていない。
 // 寸法はモック（lab/upload-mock.html?tool=special&scene=new&sn=c。名前「LoHトプロ」・3/10）を同じ測り方で測った値。帯の高さは変更前の製品（a4832be）の値。
 import { reloadReady } from './lib/page-ready.mjs';
+import { loadSpec as __loadSpec, value as __specValue } from './lib/design-spec.mjs';
+const TOOL_R = __specValue(__loadSpec(), 'toolCorner');   // T216: 道具の部品の角は決まりの一覧から読む（3px）
 
 export async function register87(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -164,7 +166,7 @@ export async function register87(env) {
 					snap: captureStitchSnapshot().setName, tok, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 			});
 			assert(m.nameText === 'LoHトプロ' && m.nameFs === '16px' && m.deco === 'none/none', `T57(4) ${w}px: 名前は 16px・下線なし`, m);
-			assert(m.pen && m.pen.w === 28 && m.pen.h === 28 && m.penRadius === '3px' && m.penLine === m.tok.line && m.penBg === m.tok.bg && m.penFg === m.tok.heading,
+			assert(m.pen && m.pen.w === 28 && m.pen.h === 28 && m.penRadius === TOOL_R && m.penLine === m.tok.line && m.penBg === m.tok.bg && m.penFg === m.tok.heading,
 				`T57(4) ${w}px: 名前の右に角 3px の 28×28（T212-F・線 --uma-border-strong・地 --uma-surface-muted・鉛筆は --uma-text-heading）`, m);
 			assert(m.svg && m.svg.w === 16 && m.svg.h === 16, `T57(4) ${w}px: 丸の中の鉛筆は 16×16`, m.svg);
 			assert(m.cntText === '3/10' && m.cntFs === '12px' && m.cntFg === m.tok.subtle, `T57(4) ${w}px: N/10 は「3/10」・12px・薄い字（--uma-text-subtle）`, m);

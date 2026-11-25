@@ -11,6 +11,8 @@
 // 「同じ部品」は、computed style（高さ・枠の線・角・地・文字）を「種類 ▾」のボタンと比べて確かめる。カード名・スキル名は検査の側に書かない（恒久ルール1。id だけ）。
 // 変更前の製品（2596f01）では、縦の線と？があり表記が「除外中 カード1枚・スキル2種（長距離） ▾」で、②の小窓に R が出るので、この塊は NG になる（T80 の報告に結果）。
 import { reloadReady } from './lib/page-ready.mjs';
+import { loadSpec as __loadSpec, value as __specValue } from './lib/design-spec.mjs';
+const TOOL_R = __specValue(__loadSpec(), 'toolCorner');   // T216: 道具の部品の角は決まりの一覧から読む（3px）
 
 export async function register97(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -92,7 +94,7 @@ export async function register97(env) {
 	}, STYLE_KEYS);
 	const sameStyle = (a, b) => !!a && !!b && STYLE_KEYS.every((k) => a[k] === b[k]);
 	const sameRow = (a, b) => !!a && !!b && Math.abs((a[1] + a[3] / 2) - (b[1] + b[3] / 2)) <= 1;
-	const roundFrame = (r) => !!r.icon && !!r.iconStyle && r.icon[2] === 28 && r.icon[3] === 28 && r.iconStyle.bw === '1px' && r.iconStyle.bs === 'solid' && r.iconStyle.radius === '3px'   /* T212-F（違いの一覧 22）: 丸い小さなボタンを角 3px の四角に */
+	const roundFrame = (r) => !!r.icon && !!r.iconStyle && r.icon[2] === 28 && r.icon[3] === 28 && r.iconStyle.bw === '1px' && r.iconStyle.bs === 'solid' && r.iconStyle.radius === TOOL_R   /* T212-F（違いの一覧 22）: 丸い小さなボタンを角 3px の四角に */
 		&& !!r.iconSvg && r.iconSvg[2] === 20 && r.iconSvg[3] === 20 && r.iconHit && r.iconHit[0] === '44px' && r.iconHit[1] === '44px';
 
 	await block('T80除外中と説明とR(1) 除外中の行: 「除外中：X枚・Y種（距離）▾」はいつも短い形（375px・1280px）・「種類 ▾」と同じ部品（computed style が同じ）・アイコンは丸い枠（28px・線1px・絵20px・押せる範囲44）・縦の線と？なし・枚だけ／種だけ／除外なし／数の多い除外・すべて戻すは同じ行', async () => {

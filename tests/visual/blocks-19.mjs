@@ -8,6 +8,7 @@
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { loadSpec, align as specAlign, alignProblem } from './lib/design-spec.mjs';   // T216: ↺ の置き場所は決まりの一覧（デ60）から読む
 export async function register19(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
@@ -39,7 +40,7 @@ export async function register19(env) {
 	/* ====================================================================
 	 * A: 効率を指定の画面とリスト
 	 * ==================================================================== */
-	await block('微調整1A1 初期値に戻すボタン: 44px以上・蹄鉄の行の下の余裕領域の右下（微調整2のBで移した）・押せない状態にしない／境目と蹄鉄を初期値へ・保存値を消す・小窓なし／すでに初期値なら知らせる', async () => {
+	await block('微調整1A1 初期値に戻すボタン: 44px以上・蹄鉄の行の下の余裕領域の左下（微調整2のBで移した）・押せない状態にしない／境目と蹄鉄を初期値へ・保存値を消す・小窓なし／すでに初期値なら知らせる', async () => {
 		for (const w of [1280, 375]) {
 			const { ctx, page, errors } = await openExam({ w, eff: true });
 			const geo = await page.evaluate(() => {
@@ -50,7 +51,7 @@ export async function register19(env) {
 					sw: document.documentElement.scrollWidth };
 			});
 			const overlap = (a, b) => a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
-			assert(geo.inPanel && geo.btn.w >= 44 && geo.btn.h >= 44 && geo.btn.r <= geo.panel.r + 0.5 && Math.abs(geo.btn.x - geo.bar.x) < 1.5 && geo.btn.y >= Math.max(...geo.shoes.map((t) => t.b)) - 0.5 && !geo.disabled && !!geo.label && geo.sw <= geo.vw,
+			assert(geo.inPanel && geo.btn.w >= 44 && geo.btn.h >= 44 && geo.btn.r <= geo.panel.r + 0.5 && alignProblem(specAlign(loadSpec(), 'de60'), { l: geo.btn.x, r: geo.btn.r, b: geo.btn.b }, { l: geo.bar.x, r: geo.bar.r }) === null && geo.btn.y >= Math.max(...geo.shoes.map((t) => t.b)) - 0.5 && !geo.disabled && !!geo.label && geo.sw <= geo.vw,
 				'微調整1A1(' + w + 'px): リセットボタンは効率を指定の枠の中・蹄鉄の行の下の左下（バーの左端にそろう。T212-H6）・44px以上で、押せない状態（disabled）ではない', geo);
 			assert(!overlap(geo.btn, geo.bar) && geo.thumbs.every((t) => !overlap(geo.btn, t)) && geo.shoes.every((t) => !overlap(geo.btn, t)),
 				'微調整1A1(' + w + 'px): ボタンはバー・境目の目印・蹄鉄に重ならない', geo);

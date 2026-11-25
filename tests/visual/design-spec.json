@@ -1,0 +1,70 @@
+{
+"about": "決まりの一覧（T216・決定 912・913）。おいもさんが決めた見た目・置き場所の値を、デ○○ の番号と答えの原文つきで1か所に書く。検査はここから期待値を読む（tests/visual/lib/design-spec.mjs）。値は製品から読まず、決めた値を書く。本文の正は Drive「デザイン検討」の DESIGN-RULES.md。製品の側の写しは docs/product-design-rules.md。",
+"updated": "2026-11-25",
+"items": {
+  "toolCorner": { "de": "デ57・デ62・デ99（T212-F・違いの一覧 5・22）", "topic": "道具の部品（ボタン・丸かったボタン・失敗でない小さな部品）の角", "answer": "角 3px の四角。製品に入っている（T212-F）。検査の「角 3px」の期待値はここから読む", "quote": "(ア) 3つのツールとも 3px", "kind": "corner", "value": "3px" },
+  "de52": { "de": "デ52", "topic": "メニューの「β版」を外す", "answer": "「チャンミ/LoH用OCR（β版）」の「β版」を外す（UmaStar・UmaExam の両方）", "quote": "これを機に外します。ほぼ機能は揃ったとみなします", "kind": "text" },
+  "de55": { "de": "デ55", "topic": "★の表の塗り方の型", "answer": "UmaStar＝琥珀・UmaExam＝青", "quote": "どちらも見本の既定でOKです。", "kind": "color", "value": { "star": "amber", "exam": "blue" } },
+  "de56": { "de": "デ56", "topic": "「Deck 行き」の色", "answer": "帯の緑 #1b7756", "quote": "(ア) 帯の緑 #1b7756", "kind": "color", "value": "#1b7756" },
+  "de57": { "de": "デ57", "topic": "帯のツール切り替え・ライト／ダークのボタンの形", "answer": "3つのツールとも角にそろえる（Deck α 側も）", "quote": "(イ) 3つのツールとも角にそろえる", "kind": "corner", "value": "3px", "shape": "square" },
+  "de59": { "de": "デ59", "topic": "小窓の「閉じる」の ✕ の形", "answer": "角の四角", "quote": "(ア) 角の四角でよい", "kind": "corner" },
+  "de60": { "de": "デ60", "topic": "効率を指定の ↺ の置き場所", "answer": "蹄鉄の行の下に置き、左下に寄せる（製品より高さを増やさない。右下にしないのは、金と虹の境目を動かす右端から離すため）", "quote": "(ア) 蹄鉄の行の下に置き、左下に寄せる", "kind": "position", "value": { "id": "eff-reset-btn", "place": "below-row", "align": "bottom-left" } },
+  "de62": { "de": "デ62", "topic": "帯のボタンの角", "answer": "3つのツールとも 3px", "quote": "(ア) 3つのツールとも 3px", "kind": "corner", "value": "3px" },
+  "de63": { "de": "デ63", "topic": "押せない部品の示し方", "answer": "薄くせず、灰の線・灰の文字・灰の地で示す", "quote": "(ア) 薄くせず、灰の線・灰の文字・灰の地で示す", "kind": "disabled", "value": { "opacityDim": false, "gray": ["line", "text", "ground"] } },
+  "de72": { "de": "デ72", "topic": "セットのタブの枚数", "answer": "出さない", "quote": "(ア) 出さない", "kind": "text" },
+  "de74": { "de": "デ74", "topic": "カードを選ぶ窓の出る場所", "answer": "製品と同じ上寄りの窓", "quote": "完全に下端から出るのはやや違和感を感じたため", "kind": "position" },
+  "de79": { "de": "デ79", "topic": "①②の表の列見出し", "answer": "枠つき。640px 以下で「スキル名」を出さない", "quote": "枠付きにします。また、スマホ版では\"スキル名\"をフルで表示するのが難しいため、\"スキル名\"を非表示にしてしまってください。", "kind": "text" },
+  "de83": { "de": "デ83", "topic": "ボタンと小窓の名前", "answer": "「結合画像の設定」で統一（ボタン・小窓の題・設定の見出し・右下の丸ボタンの項目。aria-label も）", "quote": "「結合画像の設定」で統一するのが良さそうです。", "kind": "text" },
+  "de86": { "de": "デ86", "topic": "「ウィンドウから取り込む」が狭い窓で2行にならない", "answer": "320〜430px で2行にしない（従来折り返していない所を折り返さない）", "quote": "(イ) デザインの反映と一緒に直す", "kind": "nowrap" },
+  "de99": { "de": "デ99", "topic": "UmaStar の左下の「元に戻す」の形", "answer": "角 3px の四角", "quote": "角 3px の四角", "kind": "corner", "value": "3px", "shape": "square" },
+  "de101": { "de": "デ101", "topic": "小窓の中の押して選ぶ一覧の行の高さ", "answer": "一覧の行は 24px が基準", "quote": "(イ)で", "kind": "size", "value": { "listRowPx": 24 } },
+  "de102": { "de": "デ102", "topic": "取り込みの失敗の箱（.cap-fail）", "answer": "注意のアイコンを付ける", "quote": "アイコンがあって良いものとします。", "kind": "icon", "value": { "failBoxIcon": true, "target": ".cap-fail" } },
+  "de103": { "de": "デ103", "topic": "結合画像の引き出しのセットの失敗の赤い箱（appendStitchErrorBlock）", "answer": "注意のアイコンを付ける", "quote": "(ア) アイコンを付ける", "kind": "icon", "value": { "failBoxIcon": true, "target": "appendStitchErrorBlock" } },
+  "de104": { "de": "デ104", "topic": "ダークの「選ぶボタン」（結合画像の設定の 3列｜2列・入れる人、②の 静止画｜動画）", "answer": "製品の形（選んでいる方＝明るい地に暗い字・選んでいない方＝暗い地）", "quote": "(イ) 製品の形にする", "kind": "color" },
+  "de105": { "de": "デ105", "topic": "結合画像の設定の模式図の紙（.stitch-wire-sheet）", "answer": "違いの一覧の 42 を外し、製品の角 6px のまま", "quote": "「推奨で」＝(ア) 42 は外し、見本の模式図の紙を製品の角 6px に戻す。44・45 の画像は入れる。", "kind": "corner", "value": "6px", "selector": ".stitch-wire-sheet" },
+  "de106": { "de": "デ106", "topic": "角の丸みの方針（下の corner を見る）", "answer": "3px に統一（見本も製品も）。デ105 の例外・円／錠剤形は対象外。製品への反映は今回は行わない", "quote": "角の丸みは 3px に統一したい（見本も製品も）。ただし、デ105 で決めた例外（.stitch-wire-sheet の 6px など）は除く。円・錠剤形（角が半円）の部品も 3px の対象から外す。製品への反映は今回は行わず、見本だけ 3px に直して、製品との違いは違いの一覧に足す（47 以降）。", "kind": "corner-policy" },
+  "d919": { "de": "919", "topic": "PC の見出し（UmaStar・UmaExam。641px 以上）", "answer": "角なし・影なし・下のエリアと同じ幅（3px の対象ではない）", "quote": "919：PC の見出しは角なし・下のエリアと同じ幅", "kind": "band", "value": { "minWidthPx": 641, "radius": "0px", "shadow": "none", "widthSameAsBody": true } },
+  "d920": { "de": "920", "topic": "★の表の枠（.rc-tbl-wrap）", "answer": "角 3px・外枠の線を残す（すでに製品に入っている）", "quote": "920「推奨」", "kind": "corner", "value": "3px", "selector": ".rc-tbl-wrap" }
+},
+"corner": {
+  "de": ["デ106", "デ105", "デ62", "デ57", "デ99", "920", "919"],
+  "status": "policy-unapplied",
+  "applied": false,
+  "appliedNote": "方針・製品へは未適用。製品に適用する日までは、検査が製品に 3px を要求しない。違いの一覧 47 以降を製品へ移す T が applied を true にする（true にすると tests/visual/blocks-188.mjs が、例外以外の角が 3px でない製品の宣言を NG にする）。",
+  "target": "3px",
+  "exceptions": {
+    "sheet": { "selectors": [".stitch-wire-sheet"], "value": "6px", "de": "デ105", "note": "結合画像の設定の模式図の紙。製品の角 6px のまま" },
+    "canvas": { "scope": "結合画像（canvas で描くもの）の中と、小窓の中の模式図（.stitch-wire-*）", "de": "準備の調べ 6. の 10", "note": "対象外。結合画像の写しなので変えない" },
+    "round": { "enabled": true, "de": "デ106", "note": "円・錠剤形（角が半円）。border-radius が 50%・999px 以上・var(--uma-r-full) の宣言。一覧は roundComponents（コードから洗い出した 37 件）。lib の scan が新しい円形の宣言を見つけたら、この一覧への追記を求めて NG にする" }
+  },
+  "alreadyDecided": [
+    { "selector": ".rc-tbl-wrap", "value": "3px", "de": "920", "note": "★の表の枠。外枠の線を残す" }
+  ],
+  "outOfScopeByOtherDecision": [
+    { "what": "PC の見出し（.site-header・.exam-header。641px 以上）", "value": "角なし・下のエリアと同じ幅", "de": "919" }
+  ],
+  "roundComponents": [
+    { "where": "css/shell.css", "selector": ".step-tab-num" },
+    { "where": "css/shell.css", "selector": "サブボタン（ピル型。.uma-fab-sub 系）" },
+    { "where": "css/shell.css", "selector": ".uma-fab-icon" },
+    { "where": "css/shell.css", "selector": "新着バッジ（ドット）" },
+    { "where": "css/shell.css", "selector": "メインボタン（右下の丸ボタン）" },
+    { "where": "css/shell.css", "selector": ".help-num" },
+    { "where": "css/common.css", "selector": "ラジオ（input[type=radio] とその ::before）" },
+    { "where": "css/deck-alpha.css", "selector": ".reg .card::before・.ph::before（番号の丸）" },
+    { "where": "special.html", "selector": ".cap-dot・.adv-opts-btn > span・.adv-opts-btn:focus-visible・.stitch-wire-head i・.w2-hero::before・.w2-face::before" },
+    { "where": "exam.html", "selector": ".stitch-wire-mark・.cap-dot・.adv-opts-btn > span・.adv-opts-btn:focus-visible" },
+    { "where": "card-event-input.html", "selector": ".cei-chip（錠剤形）" },
+    { "where": "uma-skill-deck.html", "selector": "旧 Deck の効果タイプのドット・候補名チップ・.deck-cand-x・.star-tile.is-edited::after・コントロールエリアの .uma-pill" },
+    { "where": "js/uma-skill-deck-core.js", "selector": "件数バッジ・.usd-tsearch-mark・.usd-opt input・.usd-evo-bang・.usd-gh-bang・.usd-roster-resdot・小窓の行の点・.usd-help-dot::after・.usd-palette-btn・.usd-icon" }
+  ],
+  "roundDeclCounts": { "css/shell.css": 6, "css/common.css": 2, "css/deck-alpha.css": 2, "special.html": 6, "exam.html": 4, "card-event-input.html": 1, "uma-skill-deck.html": 5, "js/uma-skill-deck-core.js": 11 },
+  "staticScanIgnore": [
+    { "file": "special.html", "selector": "#result-drawer .rc-tbl-wrap", "why": "同じファイルの「.rc-tbl-wrap, body #result-drawer .rc-tbl-wrap」（3px。920）があとから上書きする" },
+    { "file": "exam.html", "selector": "#result-drawer .rc-tbl-wrap", "why": "同じ。920" }
+  ],
+  "partialRadius": [
+    { "where": "exam.html", "selector": ".eff-seg--0", "value": "8px 0 0 8px", "note": "効率のバーの左端の区間（片側だけ丸い）。方針の扱いは未決（T216-2）" }
+  ]
+}
+}

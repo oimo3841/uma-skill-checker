@@ -13,6 +13,8 @@
 // スキル名は検査の側に書かない（恒久ルール1。id で書く）。
 
 import { reloadReady } from './lib/page-ready.mjs';
+import { loadSpec as __loadSpec, value as __specValue } from './lib/design-spec.mjs';
+const TOOL_R = __specValue(__loadSpec(), 'toolCorner');   // T216: 道具の部品の角は決まりの一覧から読む（3px）
 export async function register64(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
@@ -228,7 +230,7 @@ export async function register64(env) {
 			if (!auto || !fixed) { await sp.ctx.close(); continue; }
 			assert(/usd-roster-autotag--auto/.test(auto.cls) && auto.bg === tok.bg && auto.color === tok.color && auto.radius === tok.radius && auto.shadow === tok.shadow,
 				tag + '「自動」は --uma-warn-bg／--uma-warn-text／枠 --uma-warn-border／角 --uma-r-tool（T212-F で 3px）', { auto, tok });
-			assert(!/usd-roster-autotag--auto/.test(fixed.cls) && fixed.bg === FIXED[theme].bg && fixed.color === FIXED[theme].color && fixed.radius === '3px' && fixed.shadow === 'none',
+			assert(!/usd-roster-autotag--auto/.test(fixed.cls) && fixed.bg === FIXED[theme].bg && fixed.color === FIXED[theme].color && fixed.radius === TOOL_R && fixed.shadow === 'none',
 				tag + '「確定」は変更前のまま（' + FIXED[theme].bg + '・' + FIXED[theme].color + '・角 3px〔T212-F〕・枠なし）', fixed);
 			assert(auto.bg !== fixed.bg && auto.color !== fixed.color, tag + '「自動」と「確定」は塗り・文字色が違う（角は T212-F でどちらも 3px）', { auto, fixed });
 			assert(auto.w === 32 && auto.h === 14 && fixed.w === 32 && fixed.h === 14, tag + '大きさは 32×14 で同じ（今と同じ）', { auto: [auto.w, auto.h], fixed: [fixed.w, fixed.h] });
