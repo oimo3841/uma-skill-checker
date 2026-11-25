@@ -809,6 +809,25 @@ export function main() {
 		for (const s of sets.dataSensitive || []) for (const b of matchSet(idx.blocks, s)) addReason(b.no, '(4) データに敏感な塊: ' + (s.why || s.title));
 	}
 
+	// ---- (2-0) 部品の地図（T216・tests/measure/parts-map.json）: 変えた入れ物のクラスの中にある部品の id を語に足す
+	//   例: T212-H6 は入れ物 .eff-spare を変えたが、検査はその中のボタンを id eff-reset-btn で測っていたので、語で当たらなかった（T214 の取りこぼし）。
+	const partsMapRel = 'tests/measure/parts-map.json';
+	const partsExpanded = [];
+	const PARTS_MAX_INNER = 12;   // 入れ物の中の id がこれより多いクラスは足さない（T216。w-full は 130 個・.eff-spare は 1 個・.exam-header は 6 個）
+	if (fs.existsSync(path.join(REPO_ROOT, partsMapRel))) {
+		const pm = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, partsMapRel), 'utf8'));
+		const nameIdx = new Map(pm.names.map((n, i) => [n, i]));
+		for (const [tok, from] of [...tokens]) {
+			const ci = nameIdx.get('.' + tok);
+			if (ci === undefined || !pm.contains[ci]) continue;
+			if (Object.values(pm.jobs).filter((j) => j.p.includes(ci)).length > 0.4 * Object.keys(pm.jobs).length) continue;   // 多くの組に出る共通のクラス（bg-white など）は足さない
+			if (pm.contains[ci].length > PARTS_MAX_INNER) continue;   // 広い入れ物（w-full・bg-white のような共通のクラス）は足さない（多数の塊が当たってしまう）
+			for (const ii of pm.contains[ci]) {
+				const idName = pm.names[ii].slice(1);
+				if (!tokens.has(idName)) { addToken(idName, '部品の地図（' + tok + ' の中の部品。' + from + '）'); partsExpanded.push(tok + ' → ' + idName); }
+			}
+		}
+	}
 	// ---- (2) 語を塊の本文で探す
 	const blockText = idx.blocks.map((b) => idx.files[b.file].lines.slice(b.start - 1, b.end).join('\n'));
 	// 語の索引（語＝英数字・_・$・- の連なり。'.usd-gh-menu' の usd-gh-menu、'a.fooBar(' の fooBar が1語）
@@ -879,6 +898,7 @@ export function main() {
 		selected: nos.map((no) => ({ no, title: idx.blocks[no - 1].title, reasons: reasons.get(no) })),
 		selectedBeforeCore: [...selectedBeforeCore].sort((a, b) => a - b),
 		dimensionSensitive: dimAdded ? [...new Set(dimWhy)] : [],
+		partsExpanded,
 		broad, estimate: est, budget: BUDGET, dropped,
 		only: nos.join(','),
 		purpose,

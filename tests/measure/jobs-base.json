@@ -1,0 +1,10995 @@
+{
+ "about": "T216: UmaStar・UmaExam の測りの組（T212 の mk17.py・mk17p.py の P- の組。theme・outDir は mk-spec.mjs が足す）",
+ "count": 124,
+ "jobs": [
+  {
+   "name": "P-star-1",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-2-table",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-view\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-2-group",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-view\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"factor-view\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-2-circle",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-circle-mode\"]",
+     "wait": 400
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-video",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#media-mode-video, [data-media-mode=\"video\"], button:has-text(\"動画\")",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-adv",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#adv-opts-btn",
+     "wait": 400
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-none-2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-race-id=\"no-plan\"]",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-none-3",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-race-id=\"no-plan\"]",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-race",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-osusume",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"outside-open\"]",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-style",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"style-open\"]",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-find",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-reset",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-reset\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-menu",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#tool-dropdown-btn",
+     "wait": 400
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-setpop",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"set-list\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-fab",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-empty",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 400
+    },
+    {
+     "click": "#fab-item-result",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-emptystitch",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 400
+    },
+    {
+     "click": "#fab-item-stitch",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-setpanel",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 400
+    },
+    {
+     "click": "#fab-item-settings",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-pickuma",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"pick-uma\"]",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-umainfo",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"uma-info\"]",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-colmenu",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"col-menu\"] >> nth=1",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-sort",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"tone-sort-open\"] >> nth=0",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-result",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(() => { const mk = (offset) => matchAllSkillsWithStars(skillList.slice(0, 40).filter((n, i) => (i + offset) % 5 !== 0).map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {}); personResults[0] = mk(0); personResults[1] = mk(1); personResults[2] = mk(2); renderResults(); fabGoTo('result'); })()",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-1",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-1-eff",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#scope-mode-efficiency",
+     "force": true,
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-1-wide",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#scope-mode-expanded",
+     "force": true,
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-1-narrow",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#scope-mode-curated",
+     "force": true,
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-effhelp",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#scope-mode-efficiency",
+     "force": true,
+     "wait": 700
+    },
+    {
+     "click": "#eff-help-btn",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-1-copy",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "text": "スキル名のコピー（スプレッドシート管理用）",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-video",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "click": "button:has-text(\"動画\")",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-adv",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "click": "#adv-opts-btn",
+     "wait": 400
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-fab",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#fab-toggle",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-menu",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#tool-dropdown-btn",
+     "wait": 400
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-setpanel",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 400
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 400
+    },
+    {
+     "click": "#fab-item-settings",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-empty",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#fab-toggle",
+     "wait": 400
+    },
+    {
+     "click": "#fab-item-result",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-emptystitch",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#fab-toggle",
+     "wait": 400
+    },
+    {
+     "click": "#fab-item-stitch",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-result",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "eval": "(() => { const mk = (names, offset) => matchAllSkillsWithStars(names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {}); personResults = PERSON_LABELS.map(() => null); personResults[0] = mk(skillList, 0); personResults[1] = mk(skillList.slice(0, 30), 1); personResults[2] = mk(skillList.slice(0, 20), 2); renderResults(); fabGoTo('result'); })()",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-files",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-setB",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2, 3, 4, 5]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#personset-tabs .uma-subtab >> nth=1",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-stitch",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-stitch-2col",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": ".stitch-cols-btn:has-text(\"2列\") >> visible=true",
+     "wait": 400
+    },
+    {
+     "click": "#stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-stitch-set",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "click": ".stitch-set-btn >> nth=0",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-busy",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-busy-stitch",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#stitch-btn",
+     "wait": 250
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-warn",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(() => { const w = document.getElementById('quality-warn-wrap'); w.classList.remove('hidden'); document.getElementById('quality-warn-content').textContent = 'ゲーム画面が小さめに写っているため（2枚）、スキル名や★の数を取りこぼすことがあります。結果に抜けや★の数の誤りがないかご確認ください。\\n\\nパソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直すと精度が上がります。'; })()",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-err",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(() => { const w = document.getElementById('error-wrap'); w.classList.remove('hidden'); document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。'; })()",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-capture",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "(() => { renderCaptureBox(activePersonSet, new MediaStream()); const t = document.getElementById('cap-time'); if (t) { t.hidden = false; t.lastElementChild.textContent = '残り 2:48'; } })()",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-capture-fail",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "showCaptureFail(activePersonSet, 'small')",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-capture-prog",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "(() => { videoSetPanel(activePersonSet).classList.add('cap-on'); renderVideoProgress(activePersonSet, 2, 0.42, 3); })()",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-video-howto",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "click": "#personset-A-wrap [aria-label*=\"撮り方\"], .video-howto-btn >> visible=true",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-pick",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"pick-card\"] >> nth=0",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-pick2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-card-pick\"] >> nth=2",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-event",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-el=\"col-menu-btn\"] >> nth=1",
+     "wait": 600
+    },
+    {
+     "click": "[data-usd-el=\"colmenu-events\"]",
+     "wait": 1000
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-skillinfo",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": ".usd-roster-skillname >> nth=1",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-evo",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"evo-open\"]",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-announce",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "#tool-dropdown-btn",
+     "wait": 400
+    },
+    {
+     "click": "#announce-menu-btn",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-result-setB",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(() => { const mk = (offset) => matchAllSkillsWithStars(skillList.slice(0, 40).filter((n, i) => (i + offset) % 5 !== 0).map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {}); personResults[0] = mk(0); personResults[1] = mk(1); personResults[2] = mk(2); personResults[3] = mk(3); personResults[4] = mk(4); personResults[5] = mk(5); renderResults(); fabGoTo('result'); })()",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-tsearch",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-search\"] >> visible=true",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-green",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-passive\"] >> visible=true",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-shot",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-screenshot\"] >> visible=true",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-paste",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-text\"] >> visible=true",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-none-cond",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-race-id=\"no-plan\"]",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-el=\"noplan-filter\"]",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-none-tsearch",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-race-id=\"no-plan\"]",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-el=\"noplan-search\"]",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-pinsearch",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"outside-open\"]",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"outside-pinsearch\"]",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-1-list",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "text": "の一覧を確認する",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-factors",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#factor-list-btn",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-genes",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#gene-list-btn",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-files",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-busy",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#process-btn",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-warn",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(() => { const w = document.getElementById('quality-warn-wrap'); w.classList.remove('hidden'); document.getElementById('quality-warn-content').textContent = 'ゲーム画面が小さめに写っているため（2枚）、スキル名や★の数を取りこぼすことがあります。結果に抜けや★の数の誤りがないかご確認ください。\\n\\nパソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直すと精度が上がります。'; })()",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-err",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(() => { const w = document.getElementById('error-wrap'); w.classList.remove('hidden'); document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。'; })()",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-capture",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "(() => { renderCaptureBox(activePersonSet, new MediaStream()); const t = document.getElementById('cap-time'); if (t) { t.hidden = false; t.lastElementChild.textContent = '残り 2:48'; } })()",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-capture-fail",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "showCaptureFail(activePersonSet, 'small')",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-event-skills",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-el=\"col-menu-btn\"] >> nth=1",
+     "wait": 600
+    },
+    {
+     "click": "[data-usd-el=\"colmenu-events\"]",
+     "wait": 1000
+    },
+    {
+     "text": "スキル",
+     "exact": true,
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-2-capture-prog",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "(() => { videoSetPanel(activePersonSet).classList.add('cap-on'); renderVideoProgress(activePersonSet, 2, 0.42, 3); })()",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-result-setB",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "eval": "(() => { const mk = (names, offset) => matchAllSkillsWithStars(names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {}); personResults = PERSON_LABELS.map(() => null); personResults[0] = mk(skillList, 0); personResults[1] = mk(skillList.slice(0, 30), 1); personResults[2] = mk(skillList.slice(0, 20), 2); personResults[3] = mk(skillList.slice(0, 40), 3); personResults[4] = mk(skillList.slice(10, 30), 4); personResults[5] = mk(skillList.slice(5, 25), 5); renderResults(); fabGoTo('result'); })()",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-stitch",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "eval": "fabGoTo('stitch')",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-stitch-set",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "eval": "fabGoTo('stitch')",
+     "wait": 1500
+    },
+    {
+     "click": ".stitch-set-btn >> nth=0",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-脚質",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"脚質\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-バ場",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"バ場\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-効果タイプ",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"効果タイプ\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-フェーズ",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"フェーズ\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-コース位置",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"コース位置\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-距離の目安",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"距離の目安\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-cond-ax-その他",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "click": "[data-usd-act=\"filter-tab\"]:has-text(\"その他\")",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-ts-typed",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-search\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "type": "直線",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-ts-picked",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-search\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "type": "直線",
+     "wait": 900
+    },
+    {
+     "click": "[data-usd-act=\"search-pick\"] >> nth=0",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"search-pick\"] >> nth=1",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-paste-run",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-text\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "type": "直線一気\nスプリントギア\nあいうえお\n先行直線○",
+     "wait": 400
+    },
+    {
+     "click": "[data-usd-act=\"paste-run\"]",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-announce2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "#tool-dropdown-btn",
+     "wait": 400
+    },
+    {
+     "click": "#announce-menu-btn",
+     "wait": 700
+    },
+    {
+     "click": ".notice-pager-btn >> visible=true >> nth=-1",
+     "wait": 600
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-unread",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(() => { ['fab-unseen-dot','fab-dot-result','fab-dot-stitch'].forEach(i => { const e = document.getElementById(i); if (e) e.hidden = false; }); })()",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-unread-fab",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(() => { ['fab-unseen-dot','fab-dot-result','fab-dot-stitch'].forEach(i => { const e = document.getElementById(i); if (e) e.hidden = false; }); })()",
+     "wait": 300
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-pickuma2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"pick-uma\"]",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-skillres-files",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": ".skillres-tab",
+     "wait": 600
+    },
+    {
+     "files": "[data-sr-input]",
+     "paths": [
+      "test-images/2026-09-15_3/2026-09-15_3_01.png",
+      "test-images/2026-09-15_3/2026-09-15_3_02.png"
+     ],
+     "wait": 3000
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-skillres-done",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": ".skillres-tab",
+     "wait": 600
+    },
+    {
+     "files": "[data-sr-input]",
+     "paths": [
+      "test-images/2026-09-15_3/2026-09-15_3_01.png",
+      "test-images/2026-09-15_3/2026-09-15_3_02.png"
+     ],
+     "wait": 3000
+    },
+    {
+     "text": "1枚にまとめる",
+     "wait": 9000
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-stitch-setprod",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "click": ".stitch-set-btn >> nth=0",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-melop-result",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#opt-melop",
+     "force": true,
+     "wait": 600
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "eval": "fabGoTo('result')",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-melop-stitch",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#opt-melop",
+     "force": true,
+     "wait": 600
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "eval": "fabGoTo('stitch')",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-eff-stitch",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#scope-mode-efficiency",
+     "force": true,
+     "wait": 900
+    },
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "eval": "fabGoTo('stitch')",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-stitch-2col",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "click": "#step-tab-2",
+     "wait": 500
+    },
+    {
+     "eval": "(async () => { const dir = '2026-09-15_3', names = [\"2026-09-15_3_01.png\", \"2026-09-15_3_02.png\", \"2026-09-15_3_03.png\", \"2026-09-15_3_04.png\", \"2026-09-15_3_05.png\", \"2026-09-15_3_06.png\"]; let k = 0; for (const p of [0, 1, 2]) { const files = []; for (let i = 0; i < 2; i++) { const n = names[k++ % names.length]; files.push(new File([await (await fetch('/test-images/' + dir + '/' + n)).blob()], n, { type: 'image/png' })); } addPersonFiles(p, files); } })()",
+     "wait": 2500
+    },
+    {
+     "eval": "setStitchCols(2)",
+     "wait": 500
+    },
+    {
+     "click": "#process-stitch-btn",
+     "wait": 300
+    },
+    {
+     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitMs": 300000,
+     "wait": 1500
+    },
+    {
+     "eval": "fabGoTo('stitch')",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-exam-unread-fab",
+   "url": "/exam.html",
+   "w": 390,
+   "h": 844,
+   "ls": {},
+   "steps": [
+    {
+     "eval": "(() => { ['fab-unseen-dot','fab-dot-result','fab-dot-stitch'].forEach(i => { const e = document.getElementById(i); if (e) e.hidden = false; }); })()",
+     "wait": 300
+    },
+    {
+     "click": "#fab-toggle",
+     "wait": 500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-set-name",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"set-list\"]",
+     "wait": 600
+    },
+    {
+     "text": "名前を付けてセットを保存",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-set-saved",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"set-list\"]",
+     "wait": 600
+    },
+    {
+     "text": "名前を付けてセットを保存",
+     "wait": 700
+    },
+    {
+     "type": "京都2200 先行",
+     "wait": 300
+    },
+    {
+     "key": "Enter",
+     "wait": 900
+    },
+    {
+     "click": "[data-usd-act=\"set-list\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-evo-scn",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"evo-open\"]",
+     "wait": 2500
+    },
+    {
+     "click": ".usd-evo-tab >> nth=1",
+     "wait": 1200
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-evo2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"evo-open\"]",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-star-3-capture-limit",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "2",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "button.upload-mode-btn:has-text(\"動画\")",
+     "wait": 600
+    },
+    {
+     "eval": "(() => { videoSetPanel(activePersonSet).classList.add('cap-on'); captureStage(activePersonSet).innerHTML = '<p class=\"cap-note\" id=\"cap-note\">' + videoText('video.cap.limit') + '</p>'; })()",
+     "wait": 400
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-settotal",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"set-total-help\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-reset2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-reset\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-reset1",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"roster-reset\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-osuhelp",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"outside-open\"]",
+     "wait": 1500
+    },
+    {
+     "click": "[data-usd-act=\"outside-help\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-styhelp",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"style-open\"]",
+     "wait": 1500
+    },
+    {
+     "click": "[data-usd-act=\"style-help\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-overlap",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-overlap-info\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-empty1",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-empty2",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-undo",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"factor-reset\"]",
+     "wait": 700
+    },
+    {
+     "text": "すべて消す",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-pthelp",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"pt-help\"]",
+     "wait": 800
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-outtypes",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"outside-open\"]",
+     "wait": 1500
+    },
+    {
+     "click": "[data-usd-el=\"outside-types-btn\"]",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-confirm",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "0",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"set-list\"]",
+     "wait": 700
+    },
+    {
+     "click": ".usd-setlist-clear",
+     "wait": 700
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-tsnone",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"set-race\"]"
+    },
+    {
+     "click": "[data-usd-el=\"race-opt\"] >> nth=2",
+     "wait": 600
+    },
+    {
+     "key": "Escape",
+     "wait": 300
+    },
+    {
+     "click": "[data-usd-act=\"entry-search\"]",
+     "wait": 500
+    },
+    {
+     "click": "[data-usd-act=\"editor-pick-search\"] >> visible=true",
+     "wait": 1200
+    },
+    {
+     "type": "ぬぬぬ",
+     "wait": 900
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  },
+  {
+   "name": "P-s17-stynorace",
+   "url": "/special.html",
+   "w": 390,
+   "h": 844,
+   "ls": {
+    "umaSkillDeck:userData": {
+     "schemaVersion": 7,
+     "records": [],
+     "customSkills": [],
+     "templates": [],
+     "rosters": []
+    },
+    "umaSkillDeck:stepTab": "1",
+    "umaSkillDeck:draftRoster:special": {
+     "umaId": "uma-0001",
+     "cardIds": [
+      "card-0248",
+      "card-0249",
+      "card-0250",
+      "card-0251",
+      "card-0252",
+      "card-0253"
+     ],
+     "skillFilter": {
+      "style": "senko"
+     },
+     "outsideOptions": {
+      "cards": [
+       "card-0257",
+       "card-0402"
+      ]
+     }
+    },
+    "umaSkillDeck:draftScope:special": {
+     "skillIds": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+     ],
+     "name": "",
+     "updatedAt": "",
+     "skillIcons": {},
+     "parentHintLevel": 5
+    }
+   },
+   "steps": [
+    {
+     "click": "[data-usd-act=\"style-open\"]",
+     "wait": 1500
+    }
+   ],
+   "widths": [
+    320,
+    360,
+    390,
+    430,
+    1280
+   ],
+   "measureFile": "collect.js"
+  }
+ ]
+}
