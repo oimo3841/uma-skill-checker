@@ -16,6 +16,8 @@
 
 import { reloadReady } from './lib/page-ready.mjs';
 import { pickEntry, ENTRY_SEARCH_BTN, entryItem } from './lib/entry-search.mjs';
+import { loadSpec as __loadSpec, value as __specValue } from './lib/design-spec.mjs';
+const BAND_R = __specValue(__loadSpec(), 'd919').radius;   // T217: PC の見出しの角は決まりの一覧（919）から読む（0px）
 
 export async function register65(env) {
 	const { block, assert, browser, base, openPage } = env;
@@ -72,7 +74,7 @@ export async function register65(env) {
 			assert(m.race && !m.raceInBar && m.race.x >= m.h1box.r && m.race.r <= m.tool.x && m.tool.x - m.race.r <= 16,
 				'タイトルと帯(1) ' + tag + ': レース条件はタイトルの行の、タイトルとボタンの間・ボタン寄せ（帯には無い）', { race: m.race, h1: m.h1box, tool: m.tool });
 			if (w > 640) {
-				assert(m.header.h === 56 && m.header.y === 12 && m.radius === '0px' && m.h1fs === '26px' && m.bar.y - m.header.b === 9,   /* T215（違いの一覧 40）: PC の見出しは角の無い全幅の帯 */
+				assert(m.header.h === 56 && m.header.y === 12 && m.radius === BAND_R && m.h1fs === '26px' && m.bar.y - m.header.b === 9,   /* T215（違いの一覧 40）: PC の見出しは角の無い全幅の帯 */
 					'タイトルと帯(1) ' + tag + ': PC はタイトル 56px・上の余白 12px・角 0（T215 の帯）・文字 26px・カードとの間 8px（帯の上端 77px）', m);
 			} else {
 				assert(m.header.h === 47 && m.header.y === 0, 'タイトルと帯(1) ' + tag + ': スマホはタイトル 47px（上下の余白 4px）', m.header);
@@ -385,7 +387,7 @@ export async function register65(env) {
 		}
 	});
 
-	await block('タイトルと帯(9) UmaExam: ライト／ダーク 34×38・PC のタイトルは UmaStar と同じ値（56px・上 12・角丸 16・文字 26・カードの上端 76）・スマホ 47px・「2nd Edition」「技能試験用ツール」は残す・スクロールで残さない・効率を指定で「スキル名のコピー」の下端が画面に入る', async () => {
+	await block('タイトルと帯(9) UmaExam: ライト／ダーク 34×38・PC のタイトルは UmaStar と同じ値（56px・上 12・角なし・文字 26・カードの上端 76）・スマホ 47px・「2nd Edition」「技能試験用ツール」は残す・スクロールで残さない・効率を指定で「スキル名のコピー」の下端が画面に入る', async () => {
 		for (const [w, h] of [[1366, 768], [1920, 1080], [390, 844], [360, 780]]) for (const theme of ['light', 'dark']) {
 			const { ctx, page, errors } = await openPage(browser, base, 'exam.html', { width: w, height: h });
 			await page.emulateMedia({ colorScheme: theme });
@@ -405,7 +407,7 @@ export async function register65(env) {
 			// T212-B（デ92）: 「2nd Edition」のバッジは廃止した
 			assert(!m.pill && m.tag === '技能試験用ツール' && m.pos !== 'sticky' && m.pos !== 'fixed', 'タイトルと帯(9) ' + tg + ': 「2nd Edition」は無く（T212-B）「技能試験用ツール」は残り、タイトルは上に残さない', m);
 			if (w > 640) {
-				assert(m.header.h === 56 && m.header.y === 12 && m.radius === '0px' && m.fs === '26px' && m.card.y === 76, 'タイトルと帯(9) ' + tg + ': PC のタイトルは UmaStar と同じ値（56px・上 12・角 0〔T215 の帯〕・文字 26・カードとの間 8）', m);
+				assert(m.header.h === 56 && m.header.y === 12 && m.radius === BAND_R && m.fs === '26px' && m.card.y === 76,'タイトルと帯(9) ' + tg + ': PC のタイトルは UmaStar と同じ値（56px・上 12・角 0〔T215 の帯〕・文字 26・カードとの間 8）', m);
 				assert(m.open === 0 && m.copy !== null && m.copy <= m.vh, 'タイトルと帯(9) ' + tg + ': 効率を指定・パネルを開いていない開いた位置で「スキル名のコピー」の下端が画面に入る', { copy: m.copy, vh: m.vh, open: m.open });
 			} else {
 				assert(m.header.h === 47 && m.header.y === 0, 'タイトルと帯(9) ' + tg + ': スマホのタイトルは 47px（上下の余白 4px）', m.header);
