@@ -3493,7 +3493,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     }
@@ -3615,7 +3615,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     }
@@ -3733,7 +3733,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -6716,7 +6716,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -6754,7 +6754,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -8737,7 +8737,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -8780,7 +8780,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -8823,7 +8823,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -8866,7 +8866,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },
@@ -8908,7 +8908,7 @@
      "wait": 300
     },
     {
-     "waitFn": "() => { const f = document.getElementById('stitch-drawer-fab') || document.querySelector('.stitch-set-btn'); return typeof stitchInProgress !== 'undefined' && !stitchInProgress && (typeof busyBtnId === 'undefined' || !busyBtnId) && !!f && !f.hidden; }",
+     "waitFn": "() => { if (stitchInProgress || busyBtnId || (typeof combinedInProgress !== 'undefined' && combinedInProgress)) return false; const box = document.getElementById('stitch-result-content'); if (!box || !box.children.length) return false; const bad = box.querySelector('.stitch-err') || document.querySelector('#error-wrap:not(.hidden)'); if (bad) throw new Error('結合か OCR が失敗した画面: ' + bad.textContent.replace(/\\s+/g, ' ').trim().slice(0, 120)); const imgs = Array.from(box.querySelectorAll('img')); return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0); }",
      "waitMs": 300000,
      "wait": 1500
     },

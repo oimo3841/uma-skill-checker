@@ -8,6 +8,14 @@ const LOCK = path.join(os.tmpdir(), 'uma-test-visual.lock');
 function alive(pid) { if (!Number.isInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return !!e && e.code === 'EPERM'; } }
 function busy() { try { const h = JSON.parse(fs.readFileSync(LOCK, 'utf8')); return alive(h.pid) ? h : null; } catch (e) { return null; } }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// T219: 組の waitFn（文字列）を待つ。文字列が関数（() => {…}）なら呼び、式ならその値を見る。文字列をそのまま
+// page.waitForFunction に渡すと関数は呼ばれず、関数そのものが「真」になって、待たずに進む（T217 で見つけた）。
+// 上限（waitMs。無ければ 300秒）に達したとき・条件が例外を投げたとき（失敗した画面）は例外にして、その組を失敗にする。
+async function waitFor(page, s) {
+	const ms = s.waitMs || 300000;
+	try { await page.waitForFunction('(() => { const f = (' + s.waitFn + '\n); return typeof f === "function" ? f() : f; })()', null, { timeout: ms }); }
+	catch (e) { throw new Error((e.name === 'TimeoutError' ? '待ちの上限（' + Math.round(ms / 1000) + '秒）に達した: ' : '待ちの条件が例外: ') + e.message); }
+}
 // PV_ROOT: 別の版の木（git archive で取り出したもの）を測るとき。ふだんはこのリポジトリ
 const ROOT = process.env.PV_ROOT ? path.resolve(process.env.PV_ROOT) : path.resolve(__dirname, '../..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
@@ -52,8 +60,8 @@ function serve() {
 				else if (s.type) await page.keyboard.type(s.type);
 				else if (s.files) await page.setInputFiles(s.files, s.paths.map(x => path.isAbsolute(x) ? x : path.join(ROOT, x)));
 				else if (s.focus) await page.focus(s.focus);
-				else if (s.chooser) { const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), page.click(s.chooser)]); await fc.setFiles(s.paths.map(x => path.isAbsolute(x) ? x : path.join(ROOT, x))); if (s.waitSel) await page.waitForSelector(s.waitSel, { timeout: s.waitMs || 300000 }); if (s.waitFn) await page.waitForFunction(s.waitFn, null, { timeout: s.waitMs || 300000 }); }
-				else if (s.waitFn) { await page.waitForFunction(s.waitFn, null, { timeout: s.waitMs || 300000 }); }
+				else if (s.chooser) { const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), page.click(s.chooser)]); await fc.setFiles(s.paths.map(x => path.isAbsolute(x) ? x : path.join(ROOT, x))); if (s.waitSel) await page.waitForSelector(s.waitSel, { timeout: s.waitMs || 300000 }); if (s.waitFn) await waitFor(page, s); }
+				else if (s.waitFn) { await waitFor(page, s); }
 				else if (s.goto) { await page.goto(base + s.goto, { waitUntil: 'networkidle', timeout: 60000 }); }
 				else if (s.shot && spec.outDir) { await page.screenshot({ path: path.join(spec.outDir, j.name + '-' + s.shot + '.png'), fullPage: !!s.full, animations: 'disabled' }); }
 				else if (s.key) await page.keyboard.press(s.key);
@@ -87,7 +95,7 @@ function serve() {
 			}
 			if (errs.length) r.errs = errs.slice(0, 5);
 			results[j.name] = r;
-		} catch (e) { results[j.name] = { fail: String(e).slice(0, 400), errs: errs.slice(0, 5) }; try { if (spec.outDir) await page.screenshot({ path: path.join(spec.outDir, j.name + '-FAIL.png') }); } catch (e2) {} }
+		} catch (e) { results[j.name] = { fail: String(e).slice(0, 400), failWidths: j.widths || [j.w || 390], errs: errs.slice(0, 5) }; console.log('失敗 ' + j.name + '（幅 ' + results[j.name].failWidths.join(',') + '）: ' + String(e).split('\n')[0].slice(0, 300)); try { if (spec.outDir) await page.screenshot({ path: path.join(spec.outDir, j.name + '-FAIL.png') }); } catch (e2) {} }
 		await ctx.close();
 	}
 	await browser.close(); srv.close();
