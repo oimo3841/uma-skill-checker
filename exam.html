@@ -5613,7 +5613,8 @@
 						geometry[i].rows = detection.rows;
 						geometry[i].columnXs = detection.columnXs;
 					}
-					rowStars = listRange ? UmaFactorList.rowStars(base, detection, listRange) : computeRowStarCountsExam(base, detection);
+					if (listRange) rowStars = UmaFactorList.rowStars(base, detection, listRange);   // 因子一覧（1人分）の動画の画（T220）
+					else rowStars = computeRowStarCountsExam(base, detection);
 					const stacked = stackRowsWithMeta(base, detection.rows);
 					target = stacked.canvas;
 					placements = stacked.placements;
