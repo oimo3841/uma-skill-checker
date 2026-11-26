@@ -199,6 +199,7 @@ import { register184 } from './blocks-184.mjs';
 import { register186 } from './blocks-186.mjs';
 import { register187 } from './blocks-187.mjs';
 import { register188 } from './blocks-188.mjs';
+import { register189 } from './blocks-189.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15736,6 +15737,8 @@ await register186({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register187({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T216（2026-11-25・決定 912・913）: 決まりの一覧（design-spec.json）の確かめ。角の方針（デ106）は「製品へは未適用」。ブラウザは開かない（製品の CSS の文字を読む）。
 await register188({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T220（2026-11-26・決定 924〜934）: 因子一覧の取り込み 段1（見分け・1人分・スイッチ false は今のまま・読めない画像の結合の文。見出しは「T220」）。tests/visual/blocks-189.mjs
+await register189({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

@@ -1,0 +1,15 @@
+{
+	"note": "T220: 直す前の製品（b704c51）で、作り物の今の因子画面の動画（blocks-100 の stops）を取り込んだ結合画像（③／②の PNG）。tests/visual/blocks-189.mjs の (2) が比べる",
+	"special": {
+		"w": 2206,
+		"h": 1793,
+		"bytes": 1997684,
+		"sha": "b1ac18ead852f615e26a3437295694c174acddc544887cedd752aafcbd3a4023"
+	},
+	"exam": {
+		"w": 2176,
+		"h": 1687,
+		"bytes": 1909525,
+		"sha": "2991aa16987a8b1116547ae67253cc1271d7e9484d7bf8d7f151b575f88fd4e4"
+	}
+}

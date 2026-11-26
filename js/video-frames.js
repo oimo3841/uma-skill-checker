@@ -45,7 +45,7 @@
 (function (global) {
 	'use strict';
 
-	const VIDEO_FRAMES_JS_VERSION = '2026-11-19b';
+	const VIDEO_FRAMES_JS_VERSION = '2026-11-27a';
 	// 動画の読み込み（loadeddata まで）を待つ上限（T82。iPhone の実測は 0.17秒）
 	const LOAD_TIMEOUT_MS = 20000;
 
@@ -54,6 +54,10 @@
 		xs: 6,               // 調べる画の横の間引き（②）
 		target: 0.45,        // 次の1枚との重なりの目安（本文の帯の高さに対する割合）
 		topBand: 0.36,       // 「同じ画面か」を見る上の帯の高さ（H に対する割合）
+		// T220（因子一覧。js/factor-list.js が渡す）: 画面の寸法の引数3つ。渡さなければ今までと同じ
+		bandTop: 0.30,       // 本文の帯が入りうる範囲の上限（H に対する割合。これより上で本文が始まる画面は失敗）
+		topBandEnd: null,    // 「同じ画面か」を見る上の帯の下端（H に対する割合）。null は topBand の高さで決める
+		headerMinRun: 0,     // 本文の帯を決めるとき、高さがこれ（H に対する割合）に満たない差の区間を外す。0 は外さない
 		sameScreenMax: 12,   // 上の帯の平均の差がこれを超えたら別の画面
 		stillBad: 0.02,      // ずれ ±3px で不一致がこれ未満なら止まっている
 		seamYs: 2, seamXs: 2,
@@ -670,13 +674,13 @@
 		const W = source.width, H = source.height, D = source.duration;
 		if (!W || !H || !(D > 0)) throw framesError('no-video-track', '映像の大きさか長さが分からない');
 		const sw = Math.max(16, Math.round(W / opts.xs));
-		const bandY0 = Math.round(H * 0.30), bandY1 = Math.round(H * 0.92);
+		const bandY0 = Math.round(H * opts.bandTop), bandY1 = Math.round(H * 0.92);
 		const colX = Math.floor(sw * 0.3);
 
 		// 1. 取る
 		const sc = document.createElement('canvas'); sc.width = sw; sc.height = H;
 		const sctx = sc.getContext('2d', { willReadFrequently: true });
-		const topY = Math.round(H * 0.02), topH = Math.round(H * opts.topBand);
+		const topY = Math.round(H * 0.02), topH = opts.topBandEnd != null ? Math.max(1, Math.round(H * opts.topBandEnd) - topY) : Math.round(H * opts.topBand);
 		const step = 1 / opts.fps;
 		const times = [];
 		for (let t = 0; t < D - 0.05; t += step) times.push(+t.toFixed(3));
@@ -730,7 +734,8 @@
 		const runs = [];
 		for (let k = 0; k < probes.length - 1; k++) {
 			const r = longestDiffRun(stitchRowDiffSignal(probes[k], probes[k + 1]), 5, 100);
-			if (r) runs.push(r);
+			// T220: headerMinRun を渡されたら、短い差の区間は外す（一覧が止まっている時間が長い動画で、小さな差の区間が帯を決めないように）
+			if (r && (!opts.headerMinRun || r.end - r.start >= H * opts.headerMinRun)) runs.push(r);
 		}
 		if (runs.length) {
 			const sorted = runs.map((r) => r.start).sort((p, q) => p - q);

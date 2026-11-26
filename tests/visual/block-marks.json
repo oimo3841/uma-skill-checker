@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-25",
+"generated": "2026-11-26",
 "numbering": "runtime",
-"count": 1174,
+"count": 1181,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1179,6 +1179,13 @@
   {"file":"tests/visual/blocks-188.mjs","title":"T216(1) 決まりの一覧: すべての項目に デ○○ の番号・答え・原文があり、値のある項目は読める","ord":1,"marks":"VTC","asserts":8,"review":"名前で分けられない assert が 38%"},
   {"file":"tests/visual/blocks-188.mjs","title":"T216(2) 角の方針は「製品へは未適用」: 未適用の間は検査が製品に 3px を要求しない／円・錠剤形の宣言の数が一覧と同じ","ord":1,"marks":"VAC","asserts":6},
   {"file":"tests/visual/blocks-188.mjs","title":"T216(3) 例外の確かめ: 一覧の写しを崩すと NG が出る（模式図の紙の例外を外す・円の例外を外す・紙の値を変える）／適用に切り替えた写しでは 3px でない製品の値が NG","ord":1,"marks":"VAC","asserts":8},
-  {"file":"tests/visual/blocks-188.mjs","title":"T216(4) 置き場所の決まり（デ60）: 左下の部品は右下の決まりで NG・右下の部品は左下の決まりで NG","ord":1,"marks":"V","asserts":3,"review":"名前で分けられない assert が 67%"}
+  {"file":"tests/visual/blocks-188.mjs","title":"T216(4) 置き場所の決まり（デ60）: 左下の部品は右下の決まりで NG・右下の部品は左下の決まりで NG","ord":1,"marks":"V","asserts":3,"review":"名前で分けられない assert が 67%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(1) 因子一覧の見分け: 作り物の1人分・6人分（両タブ）・DMM版の横画面（左の1人分を先に）は当たり、今の因子画面・一覧の無い画は当たらない","ord":1,"marks":"VA","asserts":7},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(2) UmaStar スイッチ false: 因子一覧の動画は今の失敗の文・見分けを呼ばない・撮り方は今のまま・今の因子画面の結合画像は直す前と PNG のバイトが同じ","ord":1,"marks":"VATC","asserts":6,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(3) UmaStar スイッチ true: 1人分の因子一覧は親の欄だけに入る・文・札と★・3人の動画は見分けを呼ばない・6人分は取り込まない","ord":1,"marks":"VATC","asserts":13,"review":"名前で分けられない assert が 31%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(4) UmaStar 読めない画像で結合すると「画像を読み込めませんでした」の文（理由のある失敗の文は今のまま）","ord":1,"marks":"VT","asserts":2},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(2) UmaExam スイッチ false: 因子一覧の動画は今の失敗の文・見分けを呼ばない・撮り方は今のまま・今の因子画面の結合画像は直す前と PNG のバイトが同じ","ord":1,"marks":"VATC","asserts":6,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(3) UmaExam スイッチ true: 1人分の因子一覧は親の欄だけに入る・文・札と★・3人の動画は見分けを呼ばない・6人分は取り込まない","ord":1,"marks":"VATC","asserts":13,"review":"名前で分けられない assert が 31%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(4) UmaExam 読めない画像で結合すると「画像を読み込めませんでした」の文（理由のある失敗の文は今のまま）","ord":1,"marks":"VT","asserts":2}
 ]
 }

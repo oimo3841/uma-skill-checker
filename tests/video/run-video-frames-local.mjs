@@ -16,6 +16,9 @@
 //                                               録画（スマホの縦・DMM版の横）を渡し、結合画像（2列・数あり／2列・数なし／1列・数あり）の大きさ・スキルの数・両ページで同じ PNG を見る。
 //                                               DMM版の録画は「ウィンドウから取り込む」の画にも変えて（--capture と同じ作り）、取り込みの流れでも見る（runSkill）。
 //                                               録画は Git の管理外の test-images/skill-video/（無ければ飛ばす）
+//   npm run test:video-local -- --list       … 因子一覧の動画（T220・段1）: js/factor-list.js のスイッチ FACTOR_LIST_ENABLED を true に差し替えて、special.html ③・exam.html ②に渡す。
+//                                               1人分（スマホ・DMM版の横）は親の欄だけに入る・文・結合画像の高さ・組み立てた画の灰色の札の数と★、OCR の流れで因子一覧の行を使う。
+//                                               6人分（スマホ・DMM版の縦と横）は段1では取り込まない（見分けは list6）。スイッチを差し替えないと1人分も今の失敗の文のまま
 //
 // 期待値（T39 の実測）: 区画の頭の時刻・人ごとの高さ・選ぶ枚数。**時間は揺れるので期待値にしない**（表に出すだけ）。
 // iPhone の収録は HEVC なので、同梱の Chromium では復号できない。channel:'chrome' で回す（tests/skillset/extract-video-frames.mjs と同じ）。
@@ -88,15 +91,26 @@ const SKILL_VIDEOS = [
 const SKILL_COUNTS = { all: 69, unique: 1, evo: 1, gold: 7, white: 60 };
 const skillMode = process.argv.includes('--skill');
 
+// T220: 因子一覧の1人分（--list）。frames … 親の枚数・size … 結合画像（③／②。親だけ）の高さ（±2）・stars … 組み立てた画の灰色の札の★の並び（左上から右へ。
+// 札の数はこの長さ）。off … スイッチ false（製品のまま）のときの失敗の文の頭
+const LIST_ONE = [
+	{ key: 'スマホの1人分', name: 'factor-list-iphone-1.MP4', frames: 2, height: 2439, stars: '33231323222332323223323212133213222223', off: '動画の中に継承の画面（因子の一覧）が見つかりませんでした。' },
+	{ key: 'DMM版の横の1人分', name: 'factor-list-dmm-landscape-1.mp4', frames: 2, height: 2324, stars: '1222331212222223232133132222223221223', off: '動画を読み込めませんでした。' }
+];
+// 6人分は段1では取り込まない（見分けは list6。結合は T221）
+const LIST_SIX = ['factor-list-iphone-6.MP4', 'factor-list-dmm-portrait-6.mp4', 'factor-list-dmm-landscape-6.mp4'];
+const listMode = process.argv.includes('--list');
+
 let root = null;
 try { root = assetsRoot(); } catch (e) { if (!skillMode) { console.log('[飛ばした] 素材フォルダが設定されていない: ' + String(e.message).split('\n')[0]); process.exit(0); } }
-const targets = skillMode ? [] : VIDEOS.filter((v) => !only || String(v.no) === only).filter((v) => {
+const targets = (skillMode || listMode) ? [] : VIDEOS.filter((v) => !only || String(v.no) === only).filter((v) => {
 	if (fs.existsSync(path.join(root, v.name))) return true;
 	console.log('[飛ばした] 動画' + v.no + ' が素材フォルダに無い');
 	return false;
 });
 const skillTargets = skillMode ? SKILL_VIDEOS.filter((v) => { if (fs.existsSync(path.join(SKILL_DIR, v.name))) return true; console.log('[飛ばした] ' + v.key + ' が test-images/skill-video に無い'); return false; }) : [];
-if (!targets.length && !skillTargets.length) { console.log('回す動画がありません'); process.exit(0); }
+const listTargets = listMode ? LIST_ONE.map((v) => v.name).concat(LIST_SIX).filter((n) => { if (fs.existsSync(path.join(root, n))) return true; console.log('[飛ばした] ' + n + ' が素材フォルダに無い'); return false; }) : [];
+if (!targets.length && !skillTargets.length && !listTargets.length) { console.log('回す動画がありません'); process.exit(0); }
 
 const HOST = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>video-frames local</title>'
 	+ '<script>var devGeometry = [];</script><script src="/js/common.js"></script><script src="/js/stitch.js"></script>'
@@ -443,6 +457,94 @@ async function runSkill() {
 		await page.context().close();
 	}
 }
+/** --list（T220）: 因子一覧の動画を special ③・exam ②に渡す。on … スイッチ FACTOR_LIST_ENABLED を true に差し替える */
+async function openListPage(file, on) {
+	const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+	const page = await ctx.newPage();
+	page.setDefaultTimeout(600000);
+	const errs = [];
+	page.on('pageerror', (e) => errs.push(String(e)));
+	if (on) await page.route('**/js/factor-list.js*', (r) => r.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8',
+		body: fs.readFileSync(path.join(REPO_ROOT, 'js', 'factor-list.js'), 'utf8').replace('const FACTOR_LIST_ENABLED = false;', 'const FACTOR_LIST_ENABLED = true;') }));
+	await page.addInitScript((f) => localStorage.setItem(f === 'special' ? 'umaSkillDeck:stepTab' : 'uma-exam-last-step', '2'), file);
+	await page.goto(base + '/' + file + '.html');
+	await page.waitForTimeout(1500);
+	for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('#ui-notice-ok, [data-act="notice-ok"]').catch(() => {});
+	await page.evaluate(() => selectStepTab(2));
+	await page.evaluate(() => { window.__toasts = []; const o = window.showToast; window.showToast = function (m) { window.__toasts.push(String(m)); return o.apply(this, arguments); }; });
+	const cdp = await ctx.newCDPSession(page);
+	if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
+	return { ctx, page, errs };
+}
+async function listImport(page, name) {
+	const chooser = await pickVideo(page);
+	const t0 = Date.now();
+	await chooser.setFiles(path.join(root, name));
+	await page.waitForFunction(() => !videoBusy && !document.getElementById('video-progress') && !!document.querySelector('#personset-A-wrap .video-result, #video-error'), null, { timeout: 600000 });
+	const s = (Date.now() - t0) / 1000;
+	const r = await page.evaluate(async () => {
+		const im = document.querySelector('#personset-A-wrap .video-result img');
+		if (im) await im.decode().catch(() => {});
+		const t = (q) => { const e = document.querySelector(q); return e ? e.textContent.trim() : null; };
+		return { files: persons.map((p) => p.files.length), error: t('#video-error .video-error-text'), partial: !!document.querySelector('.video-partial'), toasts: window.__toasts,
+			img: im ? [im.naturalWidth, im.naturalHeight] : null, unc: persons[0].video ? persons[0].video.uncertain.filter(Boolean).length : null,
+			logs: devGeometry.filter((l) => /^\[因子一覧\]|取り込めませんでした|^\[時間\]/.test(l)) };
+	});
+	return Object.assign(r, { s });
+}
+async function runListOne(v, file) {
+	const NAME = file === 'special' ? 'UmaStar' : 'UmaExam';
+	console.log('\n=== 因子一覧: ' + v.key + '（' + NAME + '・CPU ' + cpu + '倍）===');
+	const off = await openListPage(file, false);
+	const o = await listImport(off.page, v.name);
+	check(o.files.every((n) => n === 0) && o.error && o.error.startsWith(v.off) && !o.logs.some((l) => /^\[因子一覧\]/.test(l)), NAME + ': スイッチ false は今の失敗の文のまま（見分けを呼ばない）', JSON.stringify(o));
+	await off.ctx.close();
+	const { ctx, page, errs } = await openListPage(file, true);
+	const r = await listImport(page, v.name);
+	const label = file === 'special' ? '親Aセット' : '親Aセット';
+	check(!r.error && r.files[0] >= 2 && r.files.slice(1).every((n) => n === 0) && r.logs.some((l) => /見分け: list1/.test(l)), NAME + ': 親の欄だけに入る', JSON.stringify(r));
+	check(r.toasts.includes(label + 'の親を取得しました') && !r.partial, NAME + ': 「' + label + 'の親を取得しました」・途中までの知らせは出ない', JSON.stringify(r.toasts));
+	if (v.frames != null) check(r.files[0] === v.frames, NAME + ': 親の枚数 ' + v.frames, r.files[0]);
+	// 組み立てた親の画を因子一覧の行の切り出しに通す（札の数と★）。OCR の流れの行の切り出しも
+	const rows = await page.evaluate(async () => {
+		const vd = persons[0].video;
+		const c = await UmaVideoFrames.composePerson(persons[0].files, vd.shifts, vd.uncertain, '親', { still: vd.still, anchorY: vd.anchorY });
+		const det = UmaFactorList.detectRows(c, [], { top: 0, bottom: 1 });
+		const stars = det ? UmaFactorList.rowStars(c, det, { top: 0, bottom: 1 }).map((x) => x.stars).join('') : '';
+		devGeometry = [];
+		const out = await processPersonImages({ recognize: async () => ({ data: { text: '', lines: [] } }) }, persons[0].files, '親', true, true, false, vd);
+		return { w: c.width, h: c.height, stars, geo: out.geometry.map((g) => (g && g.rows ? g.rows.length : 0)), png: c.toDataURL('image/png') };
+	});
+	if (save) fs.writeFileSync(path.join(outDir, 'list-' + v.name.replace(/\.\w+$/, '') + '-' + file + '-person.png'), Buffer.from(rows.png.split(',')[1], 'base64'));
+	if (save) console.log('  保存: 結合画像 ' + await saveImgs(page, '#personset-A-wrap .video-result img', 'list-' + v.name.replace(/\.\w+$/, '') + '-' + file + '-stitch') + '枚');
+	if (v.height != null) check(Math.abs(rows.h - v.height) <= 2, NAME + ': 組み立てた親の画の高さ ' + v.height + '（±2）', rows.h);
+	if (v.stars != null) check(rows.stars === v.stars, NAME + ': 灰色の札 ' + v.stars.length + '枚と★の並び', rows.stars.length + '枚 ' + rows.stars);
+	check(rows.geo.length === r.files[0] && rows.geo.every((n) => n > 0), NAME + ': OCR の流れは画ごとに因子一覧の行を切り出す', rows.geo.join('／'));
+	console.log('  親 ' + r.files[0] + '枚・' + rows.w + '×' + rows.h + '・結合画像 ' + (r.img || []).join('×') + '・灰色の札 ' + rows.stars.length + '枚 ★' + rows.stars + '・行 ' + rows.geo.join('／') + '・確かでない継ぎ目 ' + r.unc + '・取り込み ' + r.s.toFixed(1) + '秒');
+	console.log('  ' + r.logs.join('\n  '));
+	if (file === 'exam') {
+		await page.evaluate(() => { document.getElementById('process-stitch-btn').click(); });
+		await page.waitForFunction(() => !stitchInProgress && !busyBtnId && !!document.querySelector('#stitch-result-content img'), null, { timeout: 900000 });
+		const st = await page.evaluate(() => ({ detected: personResults[0] ? [...personResults[0].detectedSkills] : null, lines: devGeometry.filter((l) => /^\[因子一覧\]|【めろっぷ|\[印\]/.test(l)) }));
+		if (save) await saveImgs(page, '#stitch-result-content img', 'list-' + v.name.replace(/\.\w+$/, '') + '-exam-ocr');
+		check(st.detected && st.detected.length > 0, NAME + ': OCR で1つ以上のスキルを検出', JSON.stringify(st.detected));
+		console.log('  OCR の検出 ' + (st.detected ? st.detected.length : 0) + '件');
+	}
+	check(errs.length === 0, NAME + ': ページのエラー 0', errs.join(' / '));
+	await ctx.close();
+}
+async function runListSix(name, file) {
+	const NAME = file === 'special' ? 'UmaStar' : 'UmaExam';
+	console.log('\n=== 因子一覧の6人分: ' + name + '（' + NAME + '）===');
+	const { ctx, page, errs } = await openListPage(file, true);
+	const r = await listImport(page, name);
+	check(r.files.every((n) => n === 0) && !!r.error && !r.toasts.some((t) => t.includes('取得しました')), NAME + ': 6人分は段1では取り込まない（失敗の文）', JSON.stringify(r));
+	const d = await page.evaluate(async (url) => { const src = await UmaVideoFrames.openSource(await (await fetch(url)).blob()); try { const f = await UmaFactorList.detect(src); return f ? { type: f.type, tab: f.tab, rect: f.rect } : null; } finally { src.close(); } }, base + '/assets/' + encodeURIComponent(name));
+	check(d && d.type === 'list6' && d.tab === 1, NAME + ': 1枚目の画の見分けは list6（1人目のタブ）', JSON.stringify(d));
+	console.log('  失敗の文: ' + String(r.error).slice(0, 40) + '…・見分け ' + JSON.stringify(d));
+	check(errs.length === 0, NAME + ': ページのエラー 0', errs.join(' / '));
+	await ctx.close();
+}
 const exam = process.argv.includes('--exam');
 const capture = process.argv.includes('--capture');
 try {
@@ -450,6 +552,10 @@ try {
 	if (exam) for (const v of targets) await runExam(v);
 	if (capture) for (const v of targets.filter((x) => x.landscape)) await runCapture(v);
 	if (skillMode) await runSkill();
+	if (listMode) for (const file of ['special', 'exam']) {
+		for (const v of LIST_ONE.filter((x) => listTargets.includes(x.name))) await runListOne(v, file);
+		for (const n of LIST_SIX.filter((x) => listTargets.includes(x))) await runListSix(n, file);
+	}
 	for (const v of (special || exam || capture || skillMode) ? [] : targets) {
 		if (v.elementSkip) { console.log('\n[飛ばした] 動画' + v.no + '（横画面の速い録画。video 要素の出どころでは区切りが取れない。--special・--exam・--capture で見る）'); continue; }
 		console.log('\n=== 動画' + v.no + '（CPU ' + cpu + '倍）===');
@@ -533,5 +639,5 @@ try {
 	await browser.close();
 	await close();
 }
-console.log('\n' + (ng ? 'NG ' + ng + '件' : '全項目 OK') + '（動画 ' + (targets.length + skillTargets.length) + '本・CPU ' + cpu + '倍。時間は期待値にしない）');
+console.log('\n' + (ng ? 'NG ' + ng + '件' : '全項目 OK') + '（動画 ' + (targets.length + skillTargets.length + listTargets.length) + '本・CPU ' + cpu + '倍。時間は期待値にしない）');
 process.exit(ng ? 1 : 0);
