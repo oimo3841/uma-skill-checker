@@ -4327,8 +4327,9 @@
 		}
 		/* 6人分の因子一覧（T221・決定 926・927・933・936。special.html と同じ）: 取れたタブのセット（1人目→親Aセット・2人目→親Bセット）は3つの欄を空にしてから
 		 * 取れた人を入れ、それぞれを結合して出す。写っていないタブのセットは変えない。知らせは結合画像ができたセットだけを言う。
-		 * rect … 横画面の切り出し（窓が小さいときの知らせ）。smallWas … 取り込む前の videoSmallWindow。戻り値: 結合画像が全部できたか */
-		async function applyFactorList6(list, setIdx, capture, rect, smallWas, clock) {
+		 * rect … 横画面の切り出し（窓が小さいときの知らせ）。smallWas … 取り込む前の videoSmallWindow。
+		 * 戻り値 { stitched（結合画像が全部できたか）, doneText（知らせの文か null） }。取り込みの終わりの処理は呼び出し元の onVideoChosen */
+		async function applyFactorList6(list, rect, smallWas, clock) {
 			smallWas.forEach((v, i) => { videoSmallWindow[i] = v; });
 			list.sets.forEach(g => {
 				[0, 1, 2].forEach(r => {
@@ -4351,15 +4352,10 @@
 			clock.lap('画像の一覧に入れる');
 			const done = [];
 			for (const g of list.sets) if (await autoStitchVideoSet(g.set)) done.push(g.set);
-			clock.lap('組み立て（結合画像）');
-			lastVideoTimeLine = clock.line(capture ? '取り込み' : '動画');
-			devGeometry.push(lastVideoTimeLine);
-			if (window.UmaOcrPool) UmaOcrPool.prewarm(capture ? '取り込みの組み立てのあと' : '動画の組み立てのあと');
-			document.getElementById('video-progress').remove();
-			if (capture) clearCaptureStage(setIdx);
-			if (done.length === 2) showToast(videoText('video.list.done6both', { セット1: PERSON_SETS[done[0]].label, セット2: PERSON_SETS[done[1]].label }));
-			else if (done.length === 1) showToast(videoText('video.list.done6one', { セット: PERSON_SETS[done[0]].label }));
-			return done.length === list.sets.length;
+			let doneText = null;
+			if (done.length === 2) doneText = videoText('video.list.done6both', { セット1: PERSON_SETS[done[0]].label, セット2: PERSON_SETS[done[1]].label });
+			else if (done.length === 1) doneText = videoText('video.list.done6one', { セット: PERSON_SETS[done[0]].label });
+			return { stitched: done.length === list.sets.length, doneText: doneText };
 		}
 		function showVideoError(e) {
 			const el = document.createElement('div');
@@ -4793,42 +4789,45 @@
 					}
 					if (!list && kept.keep.length < 3) list = await factorListImport(src, selOpts, ctrl.signal);
 				}
+				// 6人分の因子一覧は applyFactorList6 が親Aセット・親Bセットに入れて結合する（T221）。それ以外は今のセットに入れて結合する
+				let stitched, doneText = null;
 				if (list && list.type === 'list6') {
 					const rect = capture ? lastCaptureArea : ((list.landscape && list.landscape.rect) || (src.landscape && src.landscape.rect));
-					const stitched = await applyFactorList6(list, setIdx, capture, rect, smallWas, clock);
-					return { ok: true, stitched };
+					({ stitched, doneText } = await applyFactorList6(list, rect, smallWas, clock));
+				} else {
+					if (list) {
+						sel = list.sel;
+						kept = { keep: sel.persons, dropped: false, partial: -1 };   // 因子一覧（1人分）は「一覧の最後まで写っていない」の知らせを出さない
+						clock.lap('因子一覧の見分けと選び', selectTimeDetail(sel, clock.sec));
+					}
+					if (kept.dropped) devGeometry.push('[動画] 最後の人は1枚だけ（次の人の頭）なので外しました（' + sel.persons.length + '人 → ' + kept.keep.length + '人）');
+					sel.persons = kept.keep;
+					if (pcVideo && window.UmaPcCapture) { await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal); clock.lap('カーソルを消す'); }
+					// 因子一覧（1人分）は今のセットの親の欄に入れ（決定 932）、祖1・祖2 の欄は空にする（決定 935。persons は1人なので下の「入らなかった枠」になる）
+					[0, 1, 2].forEach(r => {
+						const idx = setIdx * 3 + r;
+						const p = sel.persons[r];
+						// 入らなかった枠は空にする（前の画像を残さない）
+						if (!p) { persons[idx].files = []; persons[idx].video = null; return; }
+						const frames = p.files.slice();
+						persons[idx].files = frames;
+						persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), ages: p.ages ? p.ages.slice() : null, anchorY: p.anchorY, expanded: false };
+						if (list) persons[idx].video.list = { type: 'list1', range: list.range };   // OCR の行の切り出し（processPersonImages）
+					});
+					videoPartial[setIdx] = !list && kept.partial >= 0 ? PERSON_LABELS[setIdx * 3 + kept.partial] : null;
+					devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + (list ? ' の親（因子一覧）' : '') + ': ' + sel.persons.map(p => p.files.length).join('／') + '枚を入れました（置き換え・'
+						+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）'
+						+ (!list && videoPartial[setIdx] ? '・' + videoPartial[setIdx] + ' は途中まで（次の人の頭が写っていない）' : ''));
+					renderVideoProgress(setIdx, 1 + sel.persons.length, 1, sel.persons.length);
+					clearVideoResult(setIdx);
+					[0, 1, 2].forEach(r => renderPersonImageList(setIdx * 3 + r));
+					// 自動の結合が終わるまで進捗の箱は「完了 100%」のまま残す。結合は取り消せないので「取り消す」は押せなくする
+					const abortBtn = document.querySelector('#video-progress [data-video-act="abort"]');
+					if (abortBtn) abortBtn.disabled = true;
+					clock.lap('画像の一覧に入れる');
+					stitched = await autoStitchVideoSet(setIdx);
+					if (list && stitched) doneText = videoText('video.list.done1', { セット: PERSON_SETS[setIdx].label });
 				}
-				if (list) {
-					sel = list.sel;
-					kept = { keep: sel.persons, dropped: false, partial: -1 };   // 因子一覧（1人分）は「一覧の最後まで写っていない」の知らせを出さない
-					clock.lap('因子一覧の見分けと選び', selectTimeDetail(sel, clock.sec));
-				}
-				if (kept.dropped) devGeometry.push('[動画] 最後の人は1枚だけ（次の人の頭）なので外しました（' + sel.persons.length + '人 → ' + kept.keep.length + '人）');
-				sel.persons = kept.keep;
-				if (pcVideo && window.UmaPcCapture) { await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal); clock.lap('カーソルを消す'); }
-				// 因子一覧（1人分）は今のセットの親の欄に入れ（決定 932）、祖1・祖2 の欄は空にする（決定 935。persons は1人なので下の「入らなかった枠」になる）
-				[0, 1, 2].forEach(r => {
-					const idx = setIdx * 3 + r;
-					const p = sel.persons[r];
-					// 入らなかった枠は空にする（前の画像を残さない）
-					if (!p) { persons[idx].files = []; persons[idx].video = null; return; }
-					const frames = p.files.slice();
-					persons[idx].files = frames;
-					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), ages: p.ages ? p.ages.slice() : null, anchorY: p.anchorY, expanded: false };
-					if (list) persons[idx].video.list = { type: 'list1', range: list.range };   // OCR の行の切り出し（processPersonImages）
-				});
-				videoPartial[setIdx] = !list && kept.partial >= 0 ? PERSON_LABELS[setIdx * 3 + kept.partial] : null;
-				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + (list ? ' の親（因子一覧）' : '') + ': ' + sel.persons.map(p => p.files.length).join('／') + '枚を入れました（置き換え・'
-					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）'
-					+ (!list && videoPartial[setIdx] ? '・' + videoPartial[setIdx] + ' は途中まで（次の人の頭が写っていない）' : ''));
-				renderVideoProgress(setIdx, 1 + sel.persons.length, 1, sel.persons.length);
-				clearVideoResult(setIdx);
-				[0, 1, 2].forEach(r => renderPersonImageList(setIdx * 3 + r));
-				// 自動の結合が終わるまで進捗の箱は「完了 100%」のまま残す。結合は取り消せないので「取り消す」は押せなくする
-				const abortBtn = document.querySelector('#video-progress [data-video-act="abort"]');
-				if (abortBtn) abortBtn.disabled = true;
-				clock.lap('画像の一覧に入れる');
-				const stitched = await autoStitchVideoSet(setIdx);
 				clock.lap('組み立て（結合画像）');
 				lastVideoTimeLine = clock.line(capture ? '取り込み' : '動画');
 				devGeometry.push(lastVideoTimeLine);
@@ -4836,7 +4835,7 @@
 				if (window.UmaOcrPool) UmaOcrPool.prewarm(capture ? '取り込みの組み立てのあと' : '動画の組み立てのあと');
 				document.getElementById('video-progress').remove();
 				if (capture) clearCaptureStage(setIdx);
-				if (list && stitched) showToast(videoText('video.list.done1', { セット: PERSON_SETS[setIdx].label }));
+				if (doneText) showToast(doneText);
 				return { ok: true, stitched };
 			} catch (e) {
 				clock.lap('止まった段');
