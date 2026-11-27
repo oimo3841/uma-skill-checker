@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-26",
+"generated": "2026-11-27",
 "numbering": "runtime",
-"count": 1181,
+"count": 1197,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1182,10 +1182,26 @@
   {"file":"tests/visual/blocks-188.mjs","title":"T216(4) 置き場所の決まり（デ60）: 左下の部品は右下の決まりで NG・右下の部品は左下の決まりで NG","ord":1,"marks":"V","asserts":3,"review":"名前で分けられない assert が 67%"},
   {"file":"tests/visual/blocks-189.mjs","title":"T220(1) 因子一覧の見分け: 作り物の1人分・6人分（両タブ）・DMM版の横画面（左の1人分を先に）は当たり、今の因子画面・一覧の無い画は当たらない","ord":1,"marks":"VA","asserts":7},
   {"file":"tests/visual/blocks-189.mjs","title":"T220(2) UmaStar スイッチ false: 因子一覧の動画は今の失敗の文・見分けを呼ばない・撮り方は今のまま・今の因子画面の結合画像は直す前と PNG のバイトが同じ","ord":1,"marks":"VATC","asserts":6,"review":"名前で分けられない assert が 33%"},
-  {"file":"tests/visual/blocks-189.mjs","title":"T220(3) UmaStar スイッチ true: 1人分の因子一覧は親の欄だけに入る・文・札と★・3人の動画は見分けを呼ばない・6人分は取り込まない","ord":1,"marks":"VATC","asserts":13,"review":"名前で分けられない assert が 31%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(3) UmaStar スイッチ true: 1人分の因子一覧は親の欄に入り祖の欄は空・文・札と★・3人の動画は見分けを呼ばない","ord":1,"marks":"VATC","asserts":12,"review":"名前で分けられない assert が 33%"},
   {"file":"tests/visual/blocks-189.mjs","title":"T220(4) UmaStar 読めない画像で結合すると「画像を読み込めませんでした」の文（理由のある失敗の文は今のまま）","ord":1,"marks":"VT","asserts":2},
   {"file":"tests/visual/blocks-189.mjs","title":"T220(2) UmaExam スイッチ false: 因子一覧の動画は今の失敗の文・見分けを呼ばない・撮り方は今のまま・今の因子画面の結合画像は直す前と PNG のバイトが同じ","ord":1,"marks":"VATC","asserts":6,"review":"名前で分けられない assert が 33%"},
-  {"file":"tests/visual/blocks-189.mjs","title":"T220(3) UmaExam スイッチ true: 1人分の因子一覧は親の欄だけに入る・文・札と★・3人の動画は見分けを呼ばない・6人分は取り込まない","ord":1,"marks":"VATC","asserts":13,"review":"名前で分けられない assert が 31%"},
-  {"file":"tests/visual/blocks-189.mjs","title":"T220(4) UmaExam 読めない画像で結合すると「画像を読み込めませんでした」の文（理由のある失敗の文は今のまま）","ord":1,"marks":"VT","asserts":2}
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(3) UmaExam スイッチ true: 1人分の因子一覧は親の欄に入り祖の欄は空・文・札と★・3人の動画は見分けを呼ばない","ord":1,"marks":"VATC","asserts":12,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-189.mjs","title":"T220(4) UmaExam 読めない画像で結合すると「画像を読み込めませんでした」の文（理由のある失敗の文は今のまま）","ord":1,"marks":"VT","asserts":2},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(1) UmaStar 両方のタブの6人分: 札の並び・振り分け・顔の欄・エフェクトが残らない・欄の置き換え・知らせ・結合画像","ord":1,"marks":"VAC","asserts":9},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(2) UmaStar 片方のタブだけ: そのセットだけを取り込み、もう一方のセットは変わらない","ord":1,"marks":"AC","asserts":7},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(3) UmaStar タブを行き来する: タブごとにいちばん長い区間を使う","ord":1,"marks":"C","asserts":2},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(4) UmaStar 3人に満たないタブ・次の人の頭が見えただけ: 取れた人だけを入れ、満たない欄は空になる","ord":1,"marks":"VAC","asserts":5},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(5) UmaStar 速すぎて重なりが無いスクロール: 飛びの前の人に人の単位の警告","ord":1,"marks":"VA","asserts":7},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(6) UmaStar 今の判定が成功して3人に満たないとき・横画面の6人分・ウィンドウの取り込みの切り出し","ord":1,"marks":"AC","asserts":6},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(8) UmaStar 6人分の結合の途中で取り消す: どの欄も変わらない","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(7) UmaStar 1人分の因子一覧: 親の欄に入り、祖の欄は空になる（ほかのセットは変わらない）","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(1) UmaExam 両方のタブの6人分: 札の並び・振り分け・顔の欄・エフェクトが残らない・欄の置き換え・知らせ・結合画像","ord":1,"marks":"VAC","asserts":9},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(2) UmaExam 片方のタブだけ: そのセットだけを取り込み、もう一方のセットは変わらない","ord":1,"marks":"AC","asserts":7},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(3) UmaExam タブを行き来する: タブごとにいちばん長い区間を使う","ord":1,"marks":"C","asserts":2},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(4) UmaExam 3人に満たないタブ・次の人の頭が見えただけ: 取れた人だけを入れ、満たない欄は空になる","ord":1,"marks":"VAC","asserts":5},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(5) UmaExam 速すぎて重なりが無いスクロール: 飛びの前の人に人の単位の警告","ord":1,"marks":"VA","asserts":7},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(6) UmaExam 今の判定が成功して3人に満たないとき・横画面の6人分・ウィンドウの取り込みの切り出し","ord":1,"marks":"AC","asserts":6},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(8) UmaExam 6人分の結合の途中で取り消す: どの欄も変わらない","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(7) UmaExam 1人分の因子一覧: 親の欄に入り、祖の欄は空になる（ほかのセットは変わらない）","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"}
 ]
 }

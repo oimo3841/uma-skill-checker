@@ -6,9 +6,9 @@
 //  (2) スイッチ false（製品のまま）: 因子一覧の動画は今の失敗の文で枠は変わらず、見分けを呼ばない。撮り方に因子一覧の行は無い。
 //      今の因子画面の動画の結合画像（UmaStar ③・UmaExam ②）は、直す前の製品（b704c51）と PNG のバイトが同じ・js/factor-list.js を読まない形とも同じ。
 //      直す前の値は tests/visual/lib/t220-stitch-baseline.json（直す前の製品でこの塊の measureStitch を回して作った。output/scratch/t220/baseline.mjs）。
-//  (3) スイッチ true（js/factor-list.js を差し替え）: 1人分の因子一覧は今のセットの親の欄だけに入り（祖の欄は変わらない）、「親Aセットの親を取得しました」を出し、
+//  (3) スイッチ true（js/factor-list.js を差し替え）: 1人分の因子一覧は今のセットの親の欄に入り（祖の欄は空になる。T221・決定 935）、「親Aセットの親を取得しました」を出し、
 //      「一覧の最後まで写っていないようです」は出ない。結合画像と OCR の行の切り出しで札と★が作り物と合う。3人の因子画面の動画は見分けを呼ばない。
-//      1人の因子画面の動画は見分けを呼ぶが当たらず、今のまま。6人分は取り込まない。撮り方の1行と失敗の文が変わる。
+//      1人の因子画面の動画は見分けを呼ぶが当たらず、今のまま。撮り方の1行と失敗の文が変わる。6人分は blocks-190（T221）。
 //  (4) 読めない画像で結合したときの文（決定 934）: 「親Aセットの画像結合に失敗しました。画像を読み込めませんでした。」（スイッチによらない）。理由のある失敗の文は今のまま。
 import { SYNTH85 } from './blocks-100.mjs';
 import { reloadReady } from './lib/page-ready.mjs';
@@ -297,7 +297,7 @@ export async function register189(env) {
 			assert(off.errors.length === 0 && off.factorLogs === 0 && off.swapped && absent.swapped, `T220(2) ${NAME[file]} コンソールのエラー0・見分けを呼ばない`, off);
 		});
 
-		await block(`T220(3) ${NAME[file]} スイッチ true: 1人分の因子一覧は親の欄だけに入る・文・札と★・3人の動画は見分けを呼ばない・6人分は取り込まない`, async () => {
+		await block(`T220(3) ${NAME[file]} スイッチ true: 1人分の因子一覧は親の欄に入り祖の欄は空・文・札と★・3人の動画は見分けを呼ばない`, async () => {
 			const sp = await openVideoPage(env, base, file, 'on');
 			const page = sp.page;
 			assert(sp.swapped(), `T220(3) ${NAME[file]} 検査用にスイッチを true に差し替えた`, null);
@@ -309,10 +309,10 @@ export async function register189(env) {
 			assert(three.result.ok && three.files.slice(0, 3).every((n) => n > 0) && three.factorLogs.length === 0 && !three.toasts.some((t) => t.includes('取得しました')), `T220(3) ${NAME[file]} 成功する3人の動画は見分けを呼ばない`, three);
 			assert(three.png && three.png.sha === BASELINE[file].sha, `T220(3) ${NAME[file]} 3人の動画の結合画像はスイッチ true でもバイトまで同じ`, three.png);
 
-			// 1人分の因子一覧: 親の欄だけ。祖の欄は前のまま
+			// 1人分の因子一覧: 親の欄を置き換え、祖の欄は空にする（決定 935）
 			const one = await runImport(page, 'list1');
-			assert(one.result.ok && one.files[0] >= 2 && one.files[1] === three.files[1] && one.files[2] === three.files[2] && one.names[1] === three.names[1] && one.list[0] && one.list[0].type === 'list1' && !one.list[1] && !one.list[2] && one.files.slice(3).every((n) => n === 0),
-				`T220(3) ${NAME[file]} 1人分は親の欄だけに入り、祖の欄は変わらない`, { three: three.files, one: one.files, list: one.list, error: one.error, logs: one.factorLogs });
+			assert(one.result.ok && one.files[0] >= 2 && three.files[1] > 0 && one.files[1] === 0 && one.files[2] === 0 && one.list[0] && one.list[0].type === 'list1' && !one.list[1] && !one.list[2] && one.files.slice(3).every((n) => n === 0),
+				`T220(3) ${NAME[file]} 1人分は親の欄に入り、前に入っていた祖の欄は空になる`, { three: three.files, one: one.files, list: one.list, error: one.error, logs: one.factorLogs });
 			assert(one.toasts.includes('親Aセットの親を取得しました') && !one.partial && !one.error, `T220(3) ${NAME[file]} 「親Aセットの親を取得しました」を出し、途中までの知らせ・失敗の文は出ない`, { toasts: one.toasts, partial: one.partial, error: one.error });
 			assert(one.factorLogs.some((l) => /見分け: list1/.test(l)), `T220(3) ${NAME[file]} 見分けは list1`, one.factorLogs);
 
@@ -342,9 +342,6 @@ export async function register189(env) {
 			const solo = await runImport(page, 'inherit1');
 			assert(solo.result.ok && solo.files[0] > 0 && solo.files[1] === 0 && solo.factorLogs.length === 1 && /当てはまらない/.test(solo.factorLogs[0]) && !solo.list[0], `T220(3) ${NAME[file]} 1人の因子画面の動画は見分けが当たらず、今の流れの結果のまま`, solo);
 
-			// 6人分は段1では取り込まない（今の流れの失敗のまま）
-			const six = await runImport(page, 'list6');
-			assert(six.result.ok === false && !!six.error && JSON.stringify(six.files) === JSON.stringify(solo.files) && six.factorLogs.length === 1 && /見分け: list6/.test(six.factorLogs[0]) && !six.toasts.some((t) => t.includes('取得しました')), `T220(3) ${NAME[file]} 6人分は見分けるが取り込まず、枠はそのまま`, six);
 			assert(unexpected(sp.errors).length === 0, `T220(3) ${NAME[file]} 想定の外のコンソールのエラーなし`, unexpected(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		});

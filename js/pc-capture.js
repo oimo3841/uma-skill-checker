@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-19b';
+	const PC_CAPTURE_JS_VERSION = '2026-11-27a';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -81,7 +81,14 @@
 		// DMM版の横画面（T145）: 枠と黒い帯を除いた所が横長なら、その中の「ウマ娘詳細」のパネルを js/landscape-panel.js で見つけ、
 		// パネルを切り出す矩形（縦画面の DMM版の画と同じ形。outW・outH に拡大・縮小する）を返す。見つからなければ今までどおり 'aspect'
 		if (window.UmaLandscape && UmaLandscape.isLandscapeSize(w, H - bottom - top0)) {
-			const p = UmaLandscape.findPanel(img, { x: left, y: top0, w, h: H - bottom - top0 });
+			const region = { x: left, y: top0, w, h: H - bottom - top0 };
+			let p = UmaLandscape.findPanel(img, region);
+			// 因子一覧（6人分は右の一覧が画の下まで続き、パネルの形に切ると画からはみ出して見つからない。T221・決定 937）。
+			// 今の切り出しが見つけられないときだけ。js/factor-list.js のスイッチが false の間は見ない
+			if (!p.ok && window.UmaFactorList && UmaFactorList.ENABLED) {
+				const list = UmaFactorList.findListRect(img, region);
+				if (list) p = list.rect;
+			}
 			if (!p.ok) return { ok: false, reason: 'aspect', warns, landscape: p.reason };
 			return { ok: true, reason: '', x: p.x, y: p.y, w: p.w, h: p.h, outW: p.outW, outH: p.outH, aspect: +(p.h / p.w).toFixed(3), title: 0, how: 'landscape', warns };
 		}
@@ -1320,6 +1327,8 @@
 				try {
 					const t1 = performance.now(), st = await steadySource(src, signal);
 					devLog(tag + '切り出し ' + src.width + 'x' + src.height + '・動く帯 ' + (st.band ? st.band.top + '〜' + st.band.bottom : 'なし') + '（' + Math.round(performance.now() - t1) + 'ms）');
+					// 因子一覧（6人分）はタブの帯を読むので、塗り直す前の出どころも渡す（T221。閉じるのは st.src だけでよい）
+					if (st.src !== src && window.UmaFactorList && UmaFactorList.ENABLED) st.src.unsteadied = src;
 					return st.src;
 				} catch (e) { src.close(); throw e; }
 			},

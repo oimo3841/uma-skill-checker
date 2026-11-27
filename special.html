@@ -65,11 +65,11 @@
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（動画V1・T42。③の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-27a"></script>
 	<!-- PC のウィンドウの取り込み（T105。③の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
-	<script src="js/pc-capture.js?v=2026-11-19b"></script>
+	<script src="js/pc-capture.js?v=2026-11-27a"></script>
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。exam.html と共有。③の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
 	<script src="js/landscape-panel.js?v=2026-11-19a"></script>
-	<!-- 因子一覧の動画の見分けと1人分の取り込み・読み取り（T220。exam.html と共有。FACTOR_LIST_ENABLED が false の間は使わない。video-frames.js・landscape-panel.js の後に読む） -->
-	<script src="js/factor-list.js?v=2026-11-27a"></script>
+	<!-- 因子一覧の動画の見分け・取り込み・1人分の読み取り（T220・T221。exam.html と共有。FACTOR_LIST_ENABLED が false の間は使わない。video-frames.js・landscape-panel.js の後に読む） -->
+	<script src="js/factor-list.js?v=2026-11-27b"></script>
 	<!-- OCR のエンジンの池（T185。並べて読む・先に用意して使い回す。exam.html / special.html で共有。processImages が使う。スキルセットの OCR は使わない） -->
 	<script src="js/ocr-pool.js?v=2026-11-15a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -2048,6 +2048,9 @@
 			'video.err.noscreenList': '動画の中に因子の画面（継承・因子一覧）が見つかりませんでした。因子の画面を開いてから撮り直してください。',
 			'video.howto.list': '・「因子一覧」も使えます。6人分は1人目→2人目の順にスクロール。',
 			'video.list.done1': '{セット}の親を取得しました',
+			// T221（決定 927・928・933）: 6人分の知らせ。両方のタブが取れたとき・片方だけのとき
+			'video.list.done6both': '{セット1}と{セット2}を取得しました',
+			'video.list.done6one': '{セット}を取得しました',
 			// T188（決定 772）: 1〜3人を受け入れるので、この文は0人・4人以上のときだけ出る（文は案。おいもさんの確かめ待ち）
 			'video.err.split': '人ごとに分けられませんでした（見つかった人の区切りは {N}人分。取り込めるのは親から祖2 までの1〜3人分です）。',
 			// T188（決定 789）: 2枚以上あって途中までの人（文は案）
@@ -2341,13 +2344,50 @@
 			if (c === 'too-many' || c === 'track') return 'video.err.fast';
 			return 'video.err.unreadable';   // decode・load-timeout（読み込みの待ちの上限 20秒。T82）・no-video-track・no-duration・blank-grab・seek-timeout・encode ほか
 		}
-		/* 因子一覧の動画（T220・決定 925〜933。部品は js/factor-list.js。exam.html と同じ）。
+		/* 因子一覧の動画（T220・T221・決定 925〜937。部品は js/factor-list.js。exam.html と同じ）。
 		 * スイッチ（FACTOR_LIST_ENABLED）が false の間は、見分けも文も使わない（今の取り込みと同じ動き） */
 		function factorListOn() { return !!(window.UmaFactorList && UmaFactorList.ENABLED); }
-		// 今の因子画面の判定が当てはまらないとき・成功しても3人に満たないときに呼ぶ。1人分の因子一覧なら { sel, range }、それ以外は null（今の流れの結果のまま）
+		// 今の因子画面の判定が当てはまらないとき・成功しても3人に満たないとき・横画面の切り出しが失敗したときに呼ぶ。
+		// 因子一覧なら1人分 { type: 'list1', sel, range }／6人分 { type: 'list6', sets }、それ以外は null（今の流れの結果のまま）
 		async function factorListImport(src, selOpts, signal) {
 			if (!factorListOn()) return null;
 			return UmaFactorList.importOne(src, selOpts, { signal: signal, ratioFloor: videoBusy && videoBusy.ratio, log: (s) => devGeometry.push(s) });
+		}
+		/* 6人分の因子一覧（T221・決定 926・927・933・936）: 取れたタブのセット（1人目→親Aセット・2人目→親Bセット）は3つの欄を空にしてから取れた人を入れ、
+		 * それぞれを結合して出す。写っていないタブのセットは変えない。知らせは結合画像ができたセットだけを言う。
+		 * rect … 横画面の切り出し（窓が小さいときの知らせ）。smallWas … 取り込む前の videoSmallWindow。戻り値: 結合画像が全部できたか */
+		async function applyFactorList6(list, setIdx, capture, rect, smallWas, clock) {
+			smallWas.forEach((v, i) => { videoSmallWindow[i] = v; });
+			list.sets.forEach(g => {
+				[0, 1, 2].forEach(r => {
+					const idx = g.set * 3 + r, p = g.persons[r];
+					persons[idx].files = p ? p.files.slice() : [];
+					persons[idx].video = p ? { files: p.files.slice(), shifts: [], uncertain: p.uncertain ? [true] : [], still: [], ages: null, anchorY: 0, expanded: false, list: { type: 'list6' } } : null;
+				});
+				videoPartial[g.set] = null;
+				noteSmallWindow(g.set, rect);
+				devGeometry.push('[動画] ' + PERSON_SETS[g.set].label + '（因子一覧・6人分）: ' + g.persons.map(p => p.cards + '札').join('／') + 'を入れました（置き換え）');
+			});
+			const first = list.sets[0];
+			renderVideoProgress(first.set, 1 + first.persons.length, 1, first.persons.length);
+			list.sets.forEach(g => {
+				clearVideoResult(g.set);
+				[0, 1, 2].forEach(r => renderPersonImageList(g.set * 3 + r));
+			});
+			const abortBtn = document.querySelector('#video-progress [data-video-act="abort"]');
+			if (abortBtn) abortBtn.disabled = true;
+			clock.lap('画像の一覧に入れる');
+			const done = [];
+			for (const g of list.sets) if (await autoStitchVideoSet(g.set)) done.push(g.set);
+			clock.lap('組み立て（結合画像）');
+			lastVideoTimeLine = clock.line(capture ? '取り込み' : '動画');
+			devGeometry.push(lastVideoTimeLine);
+			if (window.UmaOcrPool) UmaOcrPool.prewarm(capture ? '取り込みの組み立てのあと' : '動画の組み立てのあと');
+			document.getElementById('video-progress').remove();
+			if (capture) clearCaptureStage(setIdx);
+			if (done.length === 2) showToast(videoText('video.list.done6both', { セット1: PERSON_SETS[done[0]].label, セット2: PERSON_SETS[done[1]].label }));
+			else if (done.length === 1) showToast(videoText('video.list.done6one', { セット: PERSON_SETS[done[0]].label }));
+			return done.length === list.sets.length;
 		}
 		function showVideoError(e) {
 			const el = document.createElement('div');
@@ -2634,31 +2674,48 @@
 				// 出どころは openSource（T90。MP4 を分解して WebCodecs で復号。使えなければ video 要素のシークに倒す）
 				src = capture ? await UmaVideoFrames.untilAbort(input.open(ctrl.signal), ctrl.signal)
 					: (input && typeof input.drawAt === 'function') ? input : await UmaVideoFrames.openSource(input, { signal: ctrl.signal });
-				// T145: DMM版の横画面の録画は、パネルを切り出した出どころにする（縦長の動画はそのまま。取り込みは pc-capture.js が切り出す）
-				if (!capture && src !== input && window.UmaLandscape) src = await UmaVideoFrames.untilAbort(UmaLandscape.wrapSource(src, { signal: ctrl.signal }), ctrl.signal);
-				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
-				clock.lap(capture ? '取り込みのあとの処理（圧縮の仕上げ・切り出し・動く帯）' : src.landscape ? '動画を開く（横画面の切り出しを含む）' : '動画を開く');
-				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
-				noteSmallWindow(setIdx, capture ? lastCaptureArea : (src.landscape && src.landscape.rect));
 				const selOpts = { labels: videoSetMembers(setIdx), signal: ctrl.signal, onProgress: onVideoProgress };
+				let list = null;   // 因子一覧（T220・T221）
+				// T145: DMM版の横画面の録画は、パネルを切り出した出どころにする（縦長の動画はそのまま。取り込みは pc-capture.js が切り出す）
+				if (!capture && src !== input && window.UmaLandscape) {
+					try { src = await UmaVideoFrames.untilAbort(UmaLandscape.wrapSource(src, { signal: ctrl.signal }), ctrl.signal); }
+					catch (e) {
+						// T221: 横画面の6人分は右の一覧がパネルの形からはみ出して切り出せない。そのときは切り出す前の画を因子一覧として見分ける（スイッチが false の間は何もしない）
+						if (UmaVideoFrames.isAbortError(e)) throw e;
+						list = await factorListImport(src, selOpts, ctrl.signal);
+						if (!list || list.type !== 'list6') throw e;
+					}
+				}
+				ctrl.signal.throwIfAborted && ctrl.signal.throwIfAborted();
+				clock.lap(list ? '動画を開く（因子一覧の見分けと結合を含む）' : capture ? '取り込みのあとの処理（圧縮の仕上げ・切り出し・動く帯）' : src.landscape ? '動画を開く（横画面の切り出しを含む）' : '動画を開く');
+				devGeometry.push('[動画] 出どころ: ' + (src.kind || '?') + (src.fallback ? '（倒した理由 ' + src.fallback + '）' : '') + (src.codec ? '・' + src.codec : ''));
+				const smallWas = videoSmallWindow.slice();
+				noteSmallWindow(setIdx, capture ? lastCaptureArea : (src.landscape && src.landscape.rect));
 				// タッチのエフェクトの置き換え（effectVote）は iPhone の動画のためのもの。カーソルが写った画の行を別の画へ写してしまうので、取り込みでは切る
 				// DMM版の横画面の録画（wrapSource が切り出した出どころ。PC で撮ったのでカーソルが写る）も取り込みと同じに扱う（T156・決定 637）
 				const debug = {}, pcVideo = capture || !!src.landscape;
 				if (pcVideo) { selOpts.debug = debug; selOpts.effectVote = false; }
 				// T188（決定 772・789）: 1〜3人を受け入れる。1枚しか写っていない最後の人（次の人の頭だけ）は外す。0人・4人以上は止める
-				// T220: 今の因子画面の判定が当てはまらないとき（失敗・人が3人に満たない）だけ、因子一覧（1人分）かを見分ける（factorListImport。スイッチが false の間は何もしない）
-				let kept = null, list = null;
-				try {
-					sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
-					clock.lap('選ぶ', selectTimeDetail(sel, clock.sec));
-					kept = videoPersonsToKeep(sel.persons);
-					if (kept.error) { const e = new Error('人が1〜3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = kept.found; throw e; }
-				} catch (e) {
-					if (UmaVideoFrames.isAbortError(e)) throw e;
-					list = await factorListImport(src, selOpts, ctrl.signal);
-					if (!list) throw e;
+				// T220・T221: 今の因子画面の判定が当てはまらないとき（失敗・人が3人に満たない）だけ、因子一覧かを見分ける（factorListImport。スイッチが false の間は何もしない）
+				let kept = null;
+				if (!list) {
+					try {
+						sel = await UmaVideoFrames.untilAbort(UmaVideoFrames.selectFrames(src, selOpts), ctrl.signal);
+						clock.lap('選ぶ', selectTimeDetail(sel, clock.sec));
+						kept = videoPersonsToKeep(sel.persons);
+						if (kept.error) { const e = new Error('人が1〜3人に分かれない: ' + sel.persons.length); e.code = 'persons'; e.found = kept.found; throw e; }
+					} catch (e) {
+						if (UmaVideoFrames.isAbortError(e)) throw e;
+						list = await factorListImport(src, selOpts, ctrl.signal);
+						if (!list) throw e;
+					}
+					if (!list && kept.keep.length < 3) list = await factorListImport(src, selOpts, ctrl.signal);
 				}
-				if (!list && kept.keep.length < 3) list = await factorListImport(src, selOpts, ctrl.signal);
+				if (list && list.type === 'list6') {
+					const rect = capture ? lastCaptureArea : ((list.landscape && list.landscape.rect) || (src.landscape && src.landscape.rect));
+					const stitched = await applyFactorList6(list, setIdx, capture, rect, smallWas, clock);
+					return { ok: true, stitched };
+				}
 				if (list) {
 					sel = list.sel;
 					kept = { keep: sel.persons, dropped: false, partial: -1 };   // 因子一覧（1人分）は「一覧の最後まで写っていない」の知らせを出さない
@@ -2667,8 +2724,8 @@
 				if (kept.dropped) devGeometry.push('[動画] 最後の人は1枚だけ（次の人の頭）なので外しました（' + sel.persons.length + '人 → ' + kept.keep.length + '人）');
 				sel.persons = kept.keep;
 				if (pcVideo && window.UmaPcCapture) { await UmaVideoFrames.untilAbort(UmaPcCapture.removePointer(src, sel, debug.track || [], ctrl.signal), ctrl.signal); clock.lap('カーソルを消す'); }
-				// 因子一覧（1人分）は今のセットの親の欄だけに入れる（決定 932）。祖の欄は変えない
-				(list ? [0] : [0, 1, 2]).forEach(r => {
+				// 因子一覧（1人分）は今のセットの親の欄に入れ（決定 932）、祖1・祖2 の欄は空にする（決定 935。persons は1人なので下の「入らなかった枠」になる）
+				[0, 1, 2].forEach(r => {
 					const idx = setIdx * 3 + r;
 					const p = sel.persons[r];
 					// 入らなかった枠は空にする（前の画像を残さない）
@@ -2678,8 +2735,7 @@
 					persons[idx].video = { files: frames, shifts: p.shifts.slice(), uncertain: p.uncertain.slice(), still: (p.still || []).slice(), ages: p.ages ? p.ages.slice() : null, anchorY: p.anchorY, expanded: false };
 					if (list) persons[idx].video.list = { type: 'list1', range: list.range };   // OCR の行の切り出し（processPersonImages）
 				});
-				if (!list) videoPartial[setIdx] = kept.partial >= 0 ? PERSON_LABELS[setIdx * 3 + kept.partial] : null;
-				else if (videoPartial[setIdx] === PERSON_LABELS[setIdx * 3]) videoPartial[setIdx] = null;
+				videoPartial[setIdx] = !list && kept.partial >= 0 ? PERSON_LABELS[setIdx * 3 + kept.partial] : null;
 				devGeometry.push('[動画] ' + PERSON_SETS[setIdx].label + (list ? ' の親（因子一覧）' : '') + ': ' + sel.persons.map(p => p.files.length).join('／') + '枚を入れました（置き換え・'
 					+ Math.round(performance.now() - t0) + 'ms・確かでない継ぎ目 ' + sel.persons.map(p => p.uncertain.filter(Boolean).length).join('／') + '）'
 					+ (!list && videoPartial[setIdx] ? '・' + videoPartial[setIdx] + ' は途中まで（次の人の頭が写っていない）' : ''));
@@ -3403,10 +3459,10 @@
 					if (vk >= 0) {
 						videoState.naturalH = img.naturalHeight;
 						cutTail = cutVideoTail(base, video, file, img.naturalHeight, diag);
-						if (video.list) {
+						if (video.list && video.list.type === 'list1') {
 							const bottom = cutTail ? Math.min(video.list.range.bottom, video.tailCut.y / img.naturalHeight) : video.list.range.bottom;
 							listRange = { top: video.list.range.top, bottom: bottom };
-						} else cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
+						} else if (!video.list) cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);   // 因子一覧（6人分）の読み取りは段3（T222）
 					}
 					if (listRange) detection = UmaFactorList.detectRows(base, diag, listRange);
 					else {
@@ -5826,12 +5882,14 @@
 				const v = persons[idx].video;
 				const files = persons[idx].files;
 				const fromVideo = !!(v && window.UmaVideoFrames && v.files.length === files.length && v.files.every((f, i) => f === files[i]));
-				const contentCanvas = fromVideo
+				// 因子一覧（6人分）の画は、札の境目で分けた画を縦に積む（T221。js/factor-list.js の composeList6）
+				const list6 = !!(window.UmaFactorList && UmaFactorList.isList6(files));
+				const contentCanvas = list6 ? await UmaFactorList.composeList6(files) : fromVideo
 					? await UmaVideoFrames.composePerson(files, v.shifts, v.uncertain, label, { still: v.still, anchorY: v.anchorY, ages: v.ages })
 					: await stitchOnePerson(files, label);
 				if (!contentCanvas) continue;
 				if (fromVideo) {
-					devGeometry.push('[動画] ' + label + ': 動画のずれで組み立て（composePerson・' + files.length + '枚・高さ ' + contentCanvas.height + 'px）');
+					devGeometry.push('[動画] ' + label + ': ' + (list6 ? '因子一覧の画を積んで組み立て（' : '動画のずれで組み立て（composePerson・') + files.length + '枚・高さ ' + contentCanvas.height + 'px）');
 					if (v.uncertain.some(Boolean)) videoWarnLabels.push(label);
 					noteVideoUnusedFiles(v, files, contentCanvas, label);
 				}
