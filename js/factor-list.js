@@ -1,5 +1,6 @@
 /**
- * ゲームの「因子一覧」の画面の動画の見分け・取り込み（1人分は T220・段1、6人分の結合は T221・段2。決定 924〜937）と、1人分の読み取り。
+ * ゲームの「因子一覧」の画面の動画の見分け・取り込み（1人分は T220・段1、6人分の結合は T221・段2。決定 924〜937）と、
+ * 読み取りの行の切り出し・★（1人分は T220、6人分は T222・段3。決定 938〜940）。
  * special.html（UmaStar）と exam.html（UmaExam）が読む。公開するグローバルは UmaFactorList の1つだけ。
  * js/common.js（凍結）の関数は呼ぶだけ。切り出しの矩形は js/landscape-panel.js の形（cropSource）にそろえる。
  *
@@ -10,14 +11,19 @@
  *    取れた人だけを入れる（決定 936）。写っていないタブのセットは変えない。人の画の結合は composeList6。
  * 当てはまらなければ今の流れの結果のまま。ウィンドウの取り込み（js/pc-capture.js）は findListRect で横画面の因子一覧を切り出す（決定 937）。
  *
- * **段1〜3（T220〜T222）がそろうまで、FACTOR_LIST_ENABLED は false。false の間、ページの動きは因子一覧が無いときと同じ。**
+ * **FACTOR_LIST_ENABLED は false（T223 でスイッチを true にする）。false の間、ページの動きは因子一覧が無いときと同じ。**
+ * ただし、URL に印（?factorlist=1）を付けて開いたページは、その読み込み中だけ true と同じに動く（隠しの入口。決定 939。保存はしない）。
  */
 (function (global) {
 	'use strict';
 
-	const FACTOR_LIST_JS_VERSION = '2026-11-27b';
-	// 因子一覧の取り込みのスイッチ（決定 925。true にするのは段3 の公開のとき＝T222）
+	const FACTOR_LIST_JS_VERSION = '2026-11-27c';
+	// 因子一覧の取り込みのスイッチ（決定 925。T223 でスイッチを true にする）
 	const FACTOR_LIST_ENABLED = false;
+	// 隠しの入口（決定 939。公開の前においもさんが自分の PC で試す）: URL の ?factorlist=1 は、読み込んだ時点の1回だけ見る
+	const FACTOR_LIST_TRIAL = (() => {
+		try { return new URLSearchParams(global.location.search).get('factorlist') === '1'; } catch (e) { return false; }
+	})();
 
 	/* 見分けと読み取りの寸法。位置は画の幅に対する比（高さの比は端末で変わる）。「画」は小窓（因子一覧の枠）が幅の約 97% を占める画で、
 	 * スマホの縦の録画と DMM版の縦の画はそのまま、DMM版の横画面はパネルを切り出した画（js/landscape-panel.js の切り出しと同じ余白）。
@@ -376,7 +382,9 @@
 		lookAhead: 0.5,          // 読み直すのは当たらないコマのこの秒あとまで（ウィンドウの取り込みの圧縮の粗いコマは 0.5秒ほど続くことがある）
 		confirmGap: 0.2,         // 飛びかを確かめる少し後のコマまでの秒（圧縮の粗いコマは短く続くので、離して見る）
 		peekLine: 0.85,          // 最後の人の青い札が、タイトルの帯の上端 + 幅 × この値より上に来たことが無ければ「次の人の頭が見えただけ」
-		endGrey: [0.045, 0.12],  // 札の下のこの範囲が一覧の地の灰色なら、一覧はそこで終わり
+		// 札の下のこの範囲が一覧の地の灰色なら、その人の一覧はそこで終わり。実測（素材3本の一覧の終わり）: 灰色は札の下端 + 幅 × 0.029〜0.033 から
+		// 0.099〜0.105 まで（その下は「閉じる」の白い欄）。T222 の前は [0.045, 0.12] で、本物の録画では終わりに当たらなかった
+		endGrey: [0.04, 0.09],
 		cropX: [0.025, 0.945],   // 人の画の左右（顔の欄と札）
 		sliceX: [0.2, 0.935],    // 札を写す左右
 		faceX: [0.025, 0.19], faceUp: 0.048, faceDown: 0.115,   // 青い札の左の顔（札の上端から）
@@ -628,7 +636,10 @@
 	}
 
 	/** 並びを青い札で人に分ける。peekY（縮めたコマの px）より下にしか青い札が来ず、一覧の終わりも写っていない最後の人は外す（飛びのある人は、
-	 * 見えただけではないので外さない。外すと「確かでない」の印ごと消えて、黙って欠ける）。戻り値 [{ rows, uncertain }] */
+	 * 見えただけではないので外さない。外すと「確かでない」の印ごと消えて、黙って欠ける）。戻り値 [{ rows, uncertain, partial }]
+	 * partial（決定 938）: 最後の人が一覧の最後まで写っていない見込み。今の因子画面（ページの videoPersonsToKeep）と同じ考え方で、次の人の頭が
+	 * 見えていれば（見えただけの人を外した・4人目があった）前の人は写り切っている。見えていなければ、札の下に一覧の地の灰色（一覧の終わり）が
+	 * 一度も写っていない最後の人。因子一覧は一覧の終わりが画で分かるので、3人目の人も見る */
 	function splitPersons(seq, peekY) {
 		const persons = [];
 		for (const row of seq.rows) {
@@ -644,14 +655,19 @@
 			const p = persons.find((q) => q.rows.indexOf(seq.rows[i - 1]) >= 0);
 			if (p) p.uncertain = true;
 		}
+		let nextSeen = false;   // 次の人の頭が見えた（決定 938）
 		while (persons.length > 1) {
 			const last = persons[persons.length - 1], head = last.rows[0], tail = last.rows[last.rows.length - 1];
 			if (last.uncertain || last.rows.some((r) => r.gapBefore)) break;
 			if (head.samples.some((s) => s.a < peekY) || tail.samples.some((s) => s.endGrey)) break;
 			persons.pop();
+			nextSeen = true;
 		}
-		if (persons.length > 3) { persons.length = 3; persons[2].uncertain = true; }
+		if (persons.length > 3) { persons.length = 3; persons[2].uncertain = true; nextSeen = true; }
 		if (seq.tailSkipped > 0) persons[persons.length - 1].uncertain = true;
+		persons.forEach((p) => { p.partial = false; });
+		const end = persons[persons.length - 1];
+		if (!nextSeen && !end.rows[end.rows.length - 1].samples.some((s) => s.endGrey)) end.partial = true;
 		return persons;
 	}
 
@@ -673,7 +689,7 @@
 
 	/**
 	 * 6人分の因子一覧を取り込む。source は sourceFor の戻り値（切り出し済み）、found は detect の戻り値（type 'list6'）。
-	 * 戻り値 { type: 'list6', sets: [{ set（0＝1人目のタブ→親Aセット／1＝2人目のタブ→親Bセット）, persons: [{ files, uncertain, cards（札の数） }], from, to }] }
+	 * 戻り値 { type: 'list6', sets: [{ set（0＝1人目のタブ→親Aセット／1＝2人目のタブ→親Bセット）, persons: [{ files, uncertain, partial（一覧の最後まで写っていない）, cards（札の数） }], from, to }] }
 	 * 写っていないタブのセットは sets に入らない。札が1枚も並ばなければ code 'too-few' の例外。
 	 * o: { signal, onProgress({ phase: 'read', ratio }), ratioFloor, log(文) }
 	 */
@@ -800,7 +816,7 @@
 					g.cards.forEach((c, i) => { const row = hit.chunk.rows[hit.m.j + i]; if (row) addSample(row, g, c); });
 				}
 				const persons = splitPersons(seq, found.titleTop * s + W * OPT6.peekLine);
-				log('[因子一覧] ' + tab + '人目のタブ ' + from.toFixed(2) + '〜' + to.toFixed(2) + '秒: 札 ' + persons.map((p) => p.rows.length).join('／')
+				log('[因子一覧] ' + tab + '人目のタブ ' + from.toFixed(2) + '〜' + to.toFixed(2) + '秒: 札 ' + persons.map((p) => p.rows.length + (p.partial ? '（途中まで）' : '')).join('／')
 					+ '（控えが1つの札 ' + seq.rows.filter((r) => r.samples.length === 1).length + '・使わなかったコマ ' + seq.skipped + '・重なりの無い飛び ' + seq.gaps + '）');
 				if (persons.length) sets.push({ set: tab - 1, persons, from, to, gaps: seq.gaps, skipped: seq.skipped });
 				progress(0.65 + 0.1 * tab / 2);
@@ -906,7 +922,7 @@
 						files.push(file);
 					}
 					p.canvas.width = p.canvas.height = 0;
-					group.persons[r] = { files, uncertain: p.uncertain, cards: p.rows.length };
+					group.persons[r] = { files, uncertain: p.uncertain, partial: p.partial, cards: p.rows.length };
 					done++;
 					progress(0.95 + 0.05 * done / total);
 				}
@@ -920,7 +936,48 @@
 	/** files がすべて6人分の因子一覧から作った画か（利用者が自分の画を足した人は false） */
 	function isList6(files) { return !!(files && files.length) && Array.prototype.every.call(files, (f) => !!(f && f.factorList6)); }
 
-	/** 6人分の人の画（import6 の files。並びの順）を縦に積み、結合に使う大きさに縮めた canvas（ページの結合の人の画。stitchOnePerson の戻り値の代わり） */
+	/* 結合の人の画の、札の外の白い所を塗り直す（boxes は札の [上端, 下端]。上から）。
+	 *  (a) 札と札の間: 上下の札の端から間の長さの gapPad ぶん内側（札の縁と影に掛けない）。左の端は顔の欄より右
+	 *  (b) 札の右の角の外: 角は丸いので、札の上下の端の近くの行は札の右に地の白が残り、そこに矢印の欠けらの先がかかる。
+	 *      その行だけ、札の中から右へ最初の地の白を見つけ、そこから右を白にする（札の中の字と★には掛けない） */
+	function whiteBetweenCards(ctx, w, h, boxes) {
+		const gx = Math.round(w * OPT6R.gapFrom);
+		ctx.fillStyle = '#fff';
+		for (let k = 0; k + 1 < boxes.length; k++) {
+			const gap = boxes[k + 1][0] - boxes[k][1], pad = Math.max(2, Math.round(gap * OPT6R.gapPad));
+			const a = boxes[k][1] + pad, b = boxes[k + 1][0] - pad;
+			if (b > a) ctx.fillRect(gx, a, w - gx, b - a);
+		}
+		const rights = boxes.map(([top, bottom]) => {
+			const d = ctx.getImageData(gx, Math.min(h - 1, (top + bottom) >> 1), w - gx, 1).data;
+			for (let i = w - gx - 1; i >= 0; i--) if (Math.min(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) < 244) return gx + i + 1;
+			return null;
+		}).filter((v) => v != null).sort((p, q) => p - q);
+		if (!rights.length) return;
+		const right = rights[rights.length >> 1];
+		boxes.forEach(([top, bottom]) => {
+			const r = Math.max(2, Math.round((bottom - top) * OPT6R.cornerRows)), x0 = Math.max(gx, right - r * 2);
+			[[top - r, top + r], [bottom - r, bottom + r]].forEach(([a, b]) => {
+				const y0 = Math.max(0, a), rows = Math.min(h, b) - y0;
+				if (rows < 1 || w - x0 < 1) return;
+				const img = ctx.getImageData(x0, y0, w - x0, rows), d = img.data, ww = w - x0;
+				for (let j = 0; j < rows; j++) {
+					let white = false;
+					for (let i = 0; i < ww; i++) {
+						const p = (j * ww + i) * 4;
+						if (!white && Math.min(d[p], d[p + 1], d[p + 2]) >= 250) white = true;
+						if (white) d[p] = d[p + 1] = d[p + 2] = 255;
+					}
+				}
+				ctx.putImageData(img, x0, y0);
+			});
+		});
+	}
+
+	/** 6人分の人の画（import6 の files。並びの順）を縦に積み、結合に使う大きさに縮めた canvas（ページの結合の人の画。stitchOnePerson の戻り値の代わり）。
+	 * 札と札の間の白い所は白で塗る（DMM版の横の録画で、画面の右の矢印の欠けらが札の間の右端に短い線で残る。結合画像の中だけ。読み取りの画は変えない）。
+	 * canvas._factorList6 の places は、読み取りの画の座標を結合の canvas の座標へ写す表（ページの印。_sourcePlacements と同じ形に倍率 k を足したもの。
+	 * _sourcePlacements にしないのは、2列の組み立てなどが静止画の結合の対応表として読むため） */
 	async function composeList6(files) {
 		const imgs = [];
 		for (const f of files) imgs.push(await loadImage(f));
@@ -929,7 +986,14 @@
 		const ax = all.getContext('2d');
 		ax.fillStyle = '#fff'; ax.fillRect(0, 0, w, h);
 		let y = 0;
-		for (const i of imgs) { ax.drawImage(i, 0, y); y += i.naturalHeight; }
+		const tops = [], boxes = [];
+		imgs.forEach((i, k) => {
+			ax.drawImage(i, 0, y);
+			tops.push(y);
+			files[k].factorList6.cards.forEach((c) => boxes.push([y + c.y, y + c.y + c.h]));
+			y += i.naturalHeight;
+		});
+		whiteBetweenCards(ax, w, h, boxes);
 		const scale = files[0].factorList6.scale;
 		let out = all;
 		if (scale < 1) {
@@ -942,8 +1006,115 @@
 		}
 		out._stitchWarnings = [];
 		out._profileHeader = { kept: false, ratio: 0, height: 0 };
-		out._factorList6 = { scale };
+		const k = scale < 1 ? scale : 1;
+		out._factorList6 = { scale, places: imgs.map((i, n) => ({ fileIndex: n, srcY0: 0, srcY1: i.naturalHeight, outY0: tops[n] * k, k })) };
 		return out;
+	}
+
+	/* ── 6人分の読み取り（T222・段3） ─────────────────────────────
+	 * 読む画は import6 が分けた画（file.factorList6 に札の上端・高さ・種類がある）。札の位置は画の印を使い、行は探し直さない。
+	 * 利用者が画を足し引きして動画の控え（persons[].video）が消えても、印は File に残るので画ごとに分かる。
+	 * 札は1列で、左から ●・名前・★3つ・ⓘ。下の寸法は、札の左右の端に対する比（実測: スマホ・DMM版の縦と横の3本）。 */
+	const OPT6R = Object.freeze({
+		edgeFrom: 0.19,          // 札の左右の端を探し始める列（画の幅の比。顔の欄より右）
+		textY: [0.16, 0.84],     // 名前の切り出し（札の高さに対する比）
+		rowX: [0.057, 0.71],     // 灰色の札の行の切り出し（● の右〜★の手前）
+		nameLeft: 0.078,         // 名前の左端
+		topX: [0.065, 0.715],    // 青・赤・固有の緑の白い字を切り出す範囲
+		starCx: [0.758, 0.818, 0.877], starHalf: 0.018,   // ★3つの中心と、見る幅の半分
+		starY: [0.25, 0.75],     // ★を見る縦の範囲（札の高さに対する比）
+		starFill: 0.15,          // 見る矩形の中で金色の画素がこの割合以上なら★
+		gapFrom: 0.19, gapPad: 0.1,  // 結合画像の札の間を白で塗る左の端（画の幅の比）と、札からあける長さ（間の長さの比）
+		cornerRows: 0.12             // 札の右の角の外を白にする行（札の上下の端から、札の高さに対する比）
+	});
+
+	/** 読み取りの画 base（toBaseCanvas の戻り値）の札 [{ a, h, kind, x0, x1 }]（base の px。x0・x1 は札の左右の端）。印が無い・測れなければ null */
+	function cards6(base, file, naturalH) {
+		const m = file && file.factorList6;
+		if (!m) return null;
+		const W = base.width, H = base.height, k = H / (naturalH || H), from = Math.round(W * OPT6R.edgeFrom);
+		const ctx = base.getContext('2d', { willReadFrequently: true });
+		const list = m.cards.map((c) => ({ a: Math.round(c.y * k), h: Math.round(c.h * k), kind: c.kind })).filter((c) => c.h > 4 && c.a >= 0 && c.a + c.h <= H + 1);
+		const lefts = [], rights = [];
+		list.forEach((c) => {
+			const d = ctx.getImageData(from, Math.min(H - 1, c.a + (c.h >> 1)), W - from, 1).data;
+			let l = -1, r = -1;
+			for (let i = 0; i < W - from; i++) if (Math.min(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) < 244) { if (l < 0) l = i; r = i; }
+			if (l >= 0) { lefts.push(from + l); rights.push(from + r + 1); }
+		});
+		if (!lefts.length) return null;
+		const mid = (a) => { const s = a.slice().sort((p, q) => p - q); return s[s.length >> 1]; };
+		const x0 = mid(lefts), x1 = mid(rights);
+		if (x1 - x0 < W * 0.5) return null;
+		return list.map((c) => Object.assign(c, { x0, x1 }));
+	}
+
+	// 札の★の数（左から、置き場所の金色を数える）
+	function cardStars(gold, W, H, c) {
+		const cw = c.x1 - c.x0;
+		const y0 = Math.max(0, Math.round(c.a + c.h * OPT6R.starY[0])), y1 = Math.min(H, Math.round(c.a + c.h * OPT6R.starY[1]));
+		let stars = 0;
+		for (let s = 0; s < 3; s++) {
+			const x0 = Math.max(0, Math.round(c.x0 + cw * (OPT6R.starCx[s] - OPT6R.starHalf)));
+			const x1 = Math.min(W, Math.round(c.x0 + cw * (OPT6R.starCx[s] + OPT6R.starHalf)));
+			let n = 0, tot = 0;
+			for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { tot++; if (gold[y * W + x]) n++; }
+			if (!tot || n < tot * OPT6R.starFill) break;
+			stars++;
+		}
+		return stars;
+	}
+
+	/** 6人分の画の灰色の札の行（detectRows と同じ形。columns は1・list6 の印つき）。青・赤・固有の緑の札は topCards6 で別に読む。札が無ければ null。
+	 * rows の y・h は名前の帯（中心が札の中心）で、card（{ a, h, x0, x1 }）は札そのもの（ページの枠と印の置き場所） */
+	function detectRows6(base, file, naturalH, diag) {
+		const cards = cards6(base, file, naturalH);
+		const grey = cards ? cards.filter((c) => c.kind === 'gray') : [];
+		if (!grey.length) { if (diag) diag.push('[因子一覧] 灰色の札が無い（6人分）'); return null; }
+		const rows = [], bands = [];
+		grey.forEach((c, i) => {
+			const cw = c.x1 - c.x0;
+			const x = c.x0 + Math.round(cw * OPT6R.rowX[0]), w = Math.round(cw * (OPT6R.rowX[1] - OPT6R.rowX[0]));
+			const y = c.a + Math.round(c.h * OPT6R.textY[0]), h = Math.round(c.h * (OPT6R.textY[1] - OPT6R.textY[0]));
+			bands.push({ a: y, b: y + h - 1 });
+			rows.push({ x, y, w, h, col: 0, band: i, card: { a: c.a, h: c.h, x0: c.x0, x1: c.x1 } });
+		});
+		const c0 = grey[0], columnXs = [c0.x0 + Math.round((c0.x1 - c0.x0) * OPT6R.nameLeft)];
+		if (diag) diag.push('[因子一覧] 灰色の札 ' + rows.length + '枚（6人分・札の左右 x=' + c0.x0 + '〜' + c0.x1 + '）');
+		return { rows, columns: 1, list6: true, listTop: rows[0].y, bands, columnXs };
+	}
+
+	/** detectRows6 の行の★の数（[{ stars, reliable }]。札は画に丸ごと入っているので、どれも当てにする） */
+	function rowStars6(base, detection) {
+		const gold = goldMaskOf(getPixels(base));
+		return detection.rows.map((r) => ({ stars: cardStars(gold, base.width, base.height, r.card), reliable: true }));
+	}
+
+	/* 色の札の★は、青みの少ない金色だけを数える（ページの melopStarMaskOf と同じ条件）。赤の札の空の★は淡い橙色で、
+	 * goldMaskOf（灰色の札の★）だと金色と数える（実測: 6人分の赤の札の ★2 が 3 になった） */
+	function topStarMask(img) {
+		const d = img.data, mask = new Uint8Array(img.width * img.height);
+		for (let i = 0, p = 0; i < mask.length; i++, p += 4) if (d[p] > 200 && d[p + 1] > 140 && d[p] - d[p + 2] > 60 && d[p + 2] < 140) mask[i] = 1;
+		return mask;
+	}
+
+	/**
+	 * 6人分の画のいちばん上の青・赤・固有の緑の札。戻り値 { blue, red, green }（その画に無い札は null）か、印が無ければ null。
+	 * 1つの札は { stars, layout }。layout は、ページの白い字の切り出し（melopTextCanvas は layout と layout.col・layout.top、
+	 * greenFactorTextCanvas・greenFactorGrayCanvas は layout）にそのまま渡せる形 { h, top, x0, x1, col: { x0, x1 } }
+	 */
+	function topCards6(base, file, naturalH) {
+		const cards = cards6(base, file, naturalH);
+		if (!cards) return null;
+		const gold = topStarMask(getPixels(base));
+		const of = (kind) => {
+			const c = cards.find((v) => v.kind === kind);
+			if (!c) return null;
+			const cw = c.x1 - c.x0, h = c.h, left = c.x0 + cw * OPT6R.topX[0] - h * 0.76, right = c.x0 + cw * OPT6R.topX[1];
+			const layout = { h, top: Math.round(c.a + h * (OPT6R.textY[0] - 0.08)), x0: Math.round(left), x1: Math.round(right + h * 0.15), col: { x0: Math.round(left), x1: Math.round(right) } };
+			return { stars: cardStars(gold, base.width, base.height, c), layout };
+		};
+		return { blue: of('blue'), red: of('pink'), green: of('green') };
 	}
 
 	/**
@@ -977,7 +1148,9 @@
 
 	global.UmaFactorList = Object.freeze({
 		VERSION: FACTOR_LIST_JS_VERSION,
-		ENABLED: FACTOR_LIST_ENABLED,
+		ENABLED: FACTOR_LIST_ENABLED || FACTOR_LIST_TRIAL,
+		TRIAL: FACTOR_LIST_TRIAL && !FACTOR_LIST_ENABLED,
+		OPT6R,
 		OPT: Object.freeze(Object.assign({}, OPT)),
 		OPT6,
 		classifyFrame,
@@ -995,6 +1168,10 @@
 		isList6,
 		composeList6,
 		detectRows,
-		rowStars
+		rowStars,
+		cards6,
+		detectRows6,
+		rowStars6,
+		topCards6
 	});
 })(typeof window !== 'undefined' ? window : globalThis);

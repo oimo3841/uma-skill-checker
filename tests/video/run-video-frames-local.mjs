@@ -100,10 +100,20 @@ const LIST_ONE = [
 ];
 // T221: 6人分（--list）。cards … 親A・祖A1・祖A2・親B・祖B1・祖B2 の札の数。DMM版の横と縦は同じ持ち主の同じ6人（別々に撮った動画）なので、
 // 6人の★の並びも一致する（same）。landscape … ウィンドウの取り込みの切り出し（pc-capture の detectOne）も確かめる
+// T222: top … 青・赤・固有の緑の [名前, ★]（画を見て確かめた値）。read … 本物の Tesseract で、564行の名前（data/melop-sheet-rows.json）のどれかに当たる灰色の札の数の下限
+// （2026-11-27 の実測から1引いた値。UmaStar は完全一致の照合だけ・UmaExam は製品の564行の照合なので値が違う。札の名前の正しさそのものは T222-check-1 の測り）
+const TOP = {
+	p1: [['パワー', 2], ['長距離', 2], ['海風にまったり身を任せ', 3]], p2: [['賢さ', 2], ['逃げ', 2], ['究竟の弓勢', 2]], p3: [['賢さ', 2], ['ダート', 3], ['勝利の鼓動', 2]], p5: [['パワー', 3], ['ダート', 1], ['我が覇道、阻むものなし', 2]],
+	d1: [['パワー', 3], ['長距離', 1], ['海風にまったり身を任せ', 3]], d4: [['根性', 2], ['ダート', 3], ['プランチャ☆ガナドール', 1]], d6: [['スタミナ', 2], ['ダート', 2], ['聖夜のミラクルラン！', 3]]
+};
+const DMM_TOP = ['d1', 'p2', 'p3', 'd4', 'd1', 'd6'].map((k) => TOP[k]);
 const LIST_SIX = [
-	{ name: 'factor-list-iphone-6.MP4', cards: [35, 37, 41, 37, 40, 41] },
-	{ name: 'factor-list-dmm-portrait-6.mp4', cards: [40, 37, 41, 37, 40, 37], same: 'dmm' },
-	{ name: 'factor-list-dmm-landscape-6.mp4', cards: [40, 37, 41, 37, 40, 37], same: 'dmm', landscape: true }
+	{ name: 'factor-list-iphone-6.MP4', cards: [35, 37, 41, 37, 40, 41], top: ['p1', 'p2', 'p3', 'p2', 'p5', 'p3'].map((k) => TOP[k]),
+		read: { special: [28, 31, 34, 31, 31, 36], exam: [28, 32, 37, 32, 31, 36] } },
+	{ name: 'factor-list-dmm-portrait-6.mp4', cards: [40, 37, 41, 37, 40, 37], same: 'dmm', top: DMM_TOP,
+		read: { special: [33, 32, 34, 31, 33, 31], exam: [35, 32, 37, 31, 35, 32] } },
+	{ name: 'factor-list-dmm-landscape-6.mp4', cards: [40, 37, 41, 37, 40, 37], same: 'dmm', landscape: true, top: DMM_TOP,
+		read: { special: [35, 32, 33, 31, 34, 31], exam: [35, 32, 35, 31, 35, 32] } }
 ];
 const sameStars = new Map();
 const listMode = process.argv.includes('--list') || process.argv.includes('--list-capture');
@@ -691,9 +701,102 @@ async function runListSix(v, file) {
 	}
 	console.log('  札 ' + r.cards.join('／') + '・結合画像 3列 ' + r.imgs.map((i) => (i || []).join('×')).join(' と ') + '・2列（親A） ' + two.join('×') + '・取り込み ' + sec.toFixed(1) + '秒');
 	console.log('  ' + r.logs.join('\n  '));
+	await runListSixOcr(page, v, file, r);
 	check(errs.length === 0, NAME + ': ページのエラー 0', errs.join(' / '));
 	await ctx.close();
 }
+/* T222: 6人分の読み取りと印（本物の Tesseract）。UmaStar は processPersonImages と結合を直に呼び、枠は読めた行の全部に描く（②のスキルセットを選ぶ代わり）。
+ * UmaExam は製品の一体のボタン（OCR と結合）で、照合は製品の564行の照合（personMelop）。印は結合の関数を包んで、描く前後の違いを札ごとに数える */
+async function runListSixOcr(page, v, file, imp) {
+	const NAME = file === 'special' ? 'UmaStar' : 'UmaExam';
+	const r = await page.evaluate(async (file) => {
+		setStitchCols(3);
+		// 札（結合の人の画の左の端の内側の列で、白でない続き）ごとの、描く前後の違い
+		const cardsOf = (x, W, H) => {
+			const col = Math.round(W * 0.215), d = x.getImageData(col, 0, 1, H).data, out = [];
+			let a = -1;
+			for (let y = 0; y <= H; y++) { const on = y < H && Math.min(d[y * 4], d[y * 4 + 1], d[y * 4 + 2]) < 244; if (on && a < 0) a = y; if (!on && a >= 0) { if (y - a > W * 0.05) out.push({ a, b: y - 1 }); a = -1; } }
+			out.forEach((c) => { const row = x.getImageData(0, (c.a + c.b) >> 1, W, 1).data; let L = -1, R = -1; for (let i = Math.round(W * 0.19); i < W; i++) if (Math.min(row[i * 4], row[i * 4 + 1], row[i * 4 + 2]) < 244) { if (L < 0) L = i; R = i; } c.L = L; c.R = R; });
+			return out;
+		};
+		const marks = [], name = file === 'special' ? 'drawFactorFramesOnPerson' : 'drawAttrIconsOnPerson', orig = window[name];
+		window[name] = function (c, idx) {
+			const x = c.getContext('2d'), W = c.width, H = c.height, cards = cardsOf(x, W, H), before = x.getImageData(0, 0, W, H).data;
+			const res = orig.apply(this, arguments);
+			const after = x.getImageData(0, 0, W, H).data, per = cards.map(() => 0);
+			let outside = 0;
+			for (let y = 0; y < H; y++) for (let i = 0; i < W; i++) {
+				const p = (y * W + i) * 4;
+				if (Math.abs(after[p] - before[p]) + Math.abs(after[p + 1] - before[p + 1]) + Math.abs(after[p + 2] - before[p + 2]) < 30) continue;
+				const j = cards.findIndex((q) => { const pad = Math.round((q.b - q.a) * 0.1); return y >= q.a - pad && y <= q.b + pad; });
+				const q = cards[j], pad = q ? Math.round((q.b - q.a) * 0.1) : 0;
+				if (!q || i > q.R + pad || (file === 'special' ? i < q.L - pad : i >= q.L - pad)) { outside++; continue; }
+				per[j]++;
+			}
+			marks[idx] = { cards: cards.length, marked: per.map((n, j) => (n > 20 ? j : -1)).filter((j) => j >= 0), outside };
+			return res;
+		};
+		const rows = [], top = [];
+		try {
+			if (file === 'exam') {
+				attrIconsEnabled = true;
+				document.getElementById('process-stitch-btn').click();
+				await new Promise((res) => { const id = setInterval(() => { if (!stitchInProgress && !busyBtnId && document.querySelector('#stitch-result-content img')) { clearInterval(id); res(); } }, 200); });
+			} else {
+				const json = await (await fetch('data/melop-sheet-rows.json')).json();
+				const names = [...new Set(json.rows.filter((q) => !q.slot).map((q) => q.name))], index = names.map((n) => ({ raw: n, norm: normalizeText(n) }));
+				const pool = await UmaOcrPool.open();
+				try { await UmaSkillDeckCore.loadTrainingSources(false); } catch (e) { /* 読めなければ緑は読めない */ }
+				for (let i = 0; i < 6; i++) {
+					const o = await processPersonImages(pool.worker(() => {}), persons[i].files, PERSON_LABELS[i], true, true, false, persons[i].video);
+					personLines[i] = o.lines; personGeometry[i] = o.geometry; personResults[i] = matchAllSkillsWithStars(o.lines, names, index, {});
+					const t = await readTopBlueRed(pool.worker(), persons[i].files), g = await readGreenFactor(pool.worker(), persons[i].files);
+					top.push([t && t.blue && [t.blue.name, t.blue.stars], t && t.red && [t.red.name, t.red.stars], g && [g.name, g.stars]]);
+				}
+				pool.close();
+				window.stitchSimpleKindByName = () => Object.fromEntries(names.map((n) => [n, 'simple']));
+				for (let si = 0; si < 2; si++) await buildStitchedSetImage(si, null, true, Object.assign(stitchPartsNow(), { cols: 3, marker: false, legacy: false }));
+			}
+		} finally { window[name] = orig; }
+		for (let i = 0; i < 6; i++) {
+			// 行の鍵 → 灰色の札の通し番号
+			const lines = personLines[i], offs = [], stars = [];
+			let n = 0;
+			for (let k = 0; k < persons[i].files.length; k++) {
+				offs.push(n);
+				const img = await loadImage(persons[i].files[k]), b = toBaseCanvas(img), det = UmaFactorList.detectRows6(b, persons[i].files[k], img.naturalHeight, []);
+				if (det) { UmaFactorList.rowStars6(b, det).forEach((s) => stars.push(s.stars)); n += det.rows.length; }
+			}
+			const res = file === 'exam' ? (personMelop[i] && personMelop[i].res) : personResults[i];
+			const byRow = new Map(), marked = new Set();
+			const walk = (result, set) => result && result.detectedSkills.forEach((s) => (result.skillSources[s] || []).forEach((li) => {
+				const k = lines[li] && lines[li].rowKey;
+				if (!k) return;
+				const [f, q] = k.split(':').map(Number);
+				set(offs[f] + q, s);
+			}));
+			walk(res, (row, s) => byRow.set(row, res.skillStars[s]));
+			// 印を描く行: UmaStar は読めた行の全部・UmaExam は対象の範囲で検出して区分のある行
+			walk(personResults[i], (row, s) => { if (file === 'special' || stitchMarkKind(s, lastOcrRun)) marked.add(3 + row); });
+			if (file === 'exam') {
+				const t = personMelop[i] && personMelop[i].top, g = personGreen[i];
+				top.push([t && t.blue && [t.blue.name, t.blue.stars], t && t.red && [t.red.name, t.red.stars], g ? [g.name, g.stars] : (t ? [null, t.uniqueStars] : null)]);
+			}
+			rows.push({ n, read: byRow.size, starBad: Array.from(byRow).filter(([row, s]) => s !== stars[row]).length, marks: marks[i] || null, want: Array.from(marked).sort((a, b) => a - b) });
+		}
+		return { rows, top };
+	}, file);
+	check(r.rows.every((q, i) => q.n === imp.cards[i] - 3), NAME + ': OCR の行は灰色の札の全部（札の数 − 3）', r.rows.map((q) => q.n).join('／'));
+	check(r.rows.every((q) => q.starBad === 0), NAME + ': 読めた札の★は画の★と同じ', r.rows.map((q) => q.starBad).join('／'));
+	if (v.read) check(r.rows.every((q, i) => q.read >= v.read[file][i]), NAME + ': 564行の名前に当たる札の数（下限 ' + v.read[file].join('／') + '）', r.rows.map((q) => q.read).join('／'));
+	// 青・赤は名前と★。固有の緑は★と、名前の読める環境（緑の名前の一覧がある）なら名前
+	const topOk = r.top.every((t, i) => t && same2(t[0], v.top[i][0]) && same2(t[1], v.top[i][1]) && t[2] && t[2][1] === v.top[i][2][1] && (t[2][0] == null ? file === 'exam' : t[2][0] === v.top[i][2][0]));
+	check(topOk, NAME + ': 青・赤・固有の緑（名前と★）が6人とも合う', JSON.stringify(r.top));
+	check(r.rows.every((q) => q.marks && q.marks.outside === 0 && JSON.stringify(q.marks.marked) === JSON.stringify(q.want) && q.want.length > 0), NAME + ': ' + (file === 'special' ? '枠は読めた札に乗り、札の外に描かない' : '印は検出した札の左の余白にだけ'), JSON.stringify(r.rows.map((q) => ({ marks: q.marks, want: q.want }))));
+	if (save) await saveImgs(page, '#stitch-result-content img', 'list6-' + v.name.replace(/\.\w+$/, '') + '-' + file + '-ocr');
+	console.log('  読み取り: 札 ' + r.rows.map((q) => q.n).join('／') + '・564行の名前に当たる札 ' + r.rows.map((q) => q.read).join('／') + '・印 ' + r.rows.map((q) => (q.marks ? q.marks.marked.length : -1)).join('／'));
+}
+const same2 = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const exam = process.argv.includes('--exam');
 const capture = process.argv.includes('--capture');
 try {

@@ -69,7 +69,7 @@
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。exam.html と共有。③の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
 	<script src="js/landscape-panel.js?v=2026-11-19a"></script>
 	<!-- 因子一覧の動画の見分け・取り込み・1人分の読み取り（T220・T221。exam.html と共有。FACTOR_LIST_ENABLED が false の間は使わない。video-frames.js・landscape-panel.js の後に読む） -->
-	<script src="js/factor-list.js?v=2026-11-27b"></script>
+	<script src="js/factor-list.js?v=2026-11-27c"></script>
 	<!-- OCR のエンジンの池（T185。並べて読む・先に用意して使い回す。exam.html / special.html で共有。processImages が使う。スキルセットの OCR は使わない） -->
 	<script src="js/ocr-pool.js?v=2026-11-15a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -2048,6 +2048,8 @@
 			'video.err.noscreenList': '動画の中に因子の画面（継承・因子一覧）が見つかりませんでした。因子の画面を開いてから撮り直してください。',
 			'video.howto.list': '・「因子一覧」も使えます。6人分は1人目→2人目の順にスクロール。',
 			'video.list.done1': '{セット}の親を取得しました',
+			// T222（決定 939）: 隠しの入口（URL の ?factorlist=1）で開いている間だけ出す印
+			'video.list.trial': '因子一覧テスト中',
 			// T221（決定 927・928・933）: 6人分の知らせ。両方のタブが取れたとき・片方だけのとき
 			'video.list.done6both': '{セット1}と{セット2}を取得しました',
 			'video.list.done6one': '{セット}を取得しました',
@@ -2114,6 +2116,18 @@
 			updateVideoRefreshUi();
 		}
 		document.addEventListener('DOMContentLoaded', initVideoEntry);
+		/* T222（決定 939）: 隠しの入口（URL の ?factorlist=1。js/factor-list.js）で開いている間だけ、上の帯の題の下に小さな文を1行出す
+		 * （帯はその行の分だけ高くなる。ボタンには重ねない。帯の下に残る部品の位置は syncStickyTop が帯の高さから決め直す）。印の無いページには要素も作らない（exam.html と同じ） */
+		function showFactorListTrialMark() {
+			const row = document.querySelector('.site-header .hdr-row');
+			if (!(window.UmaFactorList && UmaFactorList.TRIAL) || !row || document.getElementById('factorlist-trial-mark')) return;
+			const mark = document.createElement('p');
+			mark.id = 'factorlist-trial-mark';
+			mark.style.cssText = 'width:max-content;margin:1px 0 0;padding:0 6px;font-size:10px;line-height:14px;font-weight:700;white-space:nowrap;color:var(--uma-text);background:var(--uma-surface);border:1px solid var(--uma-border-strong);border-radius:3px';
+			mark.textContent = videoText('video.list.trial');
+			row.parentElement.appendChild(mark);
+		}
+		document.addEventListener('DOMContentLoaded', showFactorListTrialMark);
 
 		// 「動画を選ぶ」: すぐファイルの選択を開く（小窓は T106 で無くした）。ファイルの選択は、押した操作の中で開く（iPhone の Safari は操作の外からは開かない）。
 		// 画像が入っているセットでは確かめずに置き換える（決定 272）。置き換えるのは取り込みが成功したときだけ
@@ -2365,9 +2379,11 @@
 					persons[idx].files = p ? p.files.slice() : [];
 					persons[idx].video = p ? { files: p.files.slice(), shifts: [], uncertain: p.uncertain ? [true] : [], still: [], ages: null, anchorY: 0, expanded: false, list: { type: 'list6' } } : null;
 				});
-				videoPartial[g.set] = null;
+				// 一覧の最後まで写っていない人（セットごとに最後の1人まで。決定 938）は、今の知らせ（video.warn.partial）を結合画像の上に出す
+				const partial = g.persons.findIndex(p => p.partial);
+				videoPartial[g.set] = partial >= 0 ? PERSON_LABELS[g.set * 3 + partial] : null;
 				noteSmallWindow(g.set, rect);
-				devGeometry.push('[動画] ' + PERSON_SETS[g.set].label + '（因子一覧・6人分）: ' + g.persons.map(p => p.cards + '札').join('／') + 'を入れました（置き換え）');
+				devGeometry.push('[動画] ' + PERSON_SETS[g.set].label + '（因子一覧・6人分）: ' + g.persons.map(p => p.cards + '札').join('／') + 'を入れました（置き換え）' + (videoPartial[g.set] ? '・' + videoPartial[g.set] + ' は途中まで（一覧の終わりが写っていない）' : ''));
 			});
 			const first = list.sets[0];
 			renderVideoProgress(first.set, 1 + first.persons.length, 1, first.persons.length);
@@ -3405,6 +3421,8 @@
 				const diag = [];
 				let base = null, detection = null, img = null, cutNext = false, cutTail = false;
 				let listRange = null;   // T220: 因子一覧（1人分）の動画の画の本文の帯（行の切り出しと★の数は js/factor-list.js）
+				// T222: 因子一覧（6人分）の分けた画は、画に付いた印（札の位置。import6）で読む。画を足し引きして video が消えても印は残る
+				const six = (window.UmaFactorList && file.factorList6) || null;
 				try {
 					img = await loadImage(file);
 					base = toBaseCanvas(img);
@@ -3461,9 +3479,10 @@
 						if (video.list && video.list.type === 'list1') {
 							const bottom = cutTail ? Math.min(video.list.range.bottom, video.tailCut.y / img.naturalHeight) : video.list.range.bottom;
 							listRange = { top: video.list.range.top, bottom: bottom };
-						} else if (!video.list) cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);   // 因子一覧（6人分）の読み取りは段3（T222）
+						} else if (!video.list) cutNext = cutNextPersonInVideoFrame(base, video, vk, videoState, diag);
 					}
-					if (listRange) detection = UmaFactorList.detectRows(base, diag, listRange);
+					if (six) detection = UmaFactorList.detectRows6(base, file, img.naturalHeight, diag);
+					else if (listRange) detection = UmaFactorList.detectRows(base, diag, listRange);
 					else {
 						const thumbSaved = maskScrollbarThumb(base, diag);
 						detection = detectSkillRows(base, diag);
@@ -3482,13 +3501,20 @@
 					if (geometry[i]) {
 						geometry[i].rows = detection.rows;
 						geometry[i].columnXs = detection.columnXs;
+						if (detection.list6) geometry[i].list6 = true;   // 札が1列（枠の置き場所は札そのもの。drawFactorFramesOnPerson）
 					}
-					if (listRange) rowStars = UmaFactorList.rowStars(base, detection, listRange);   // 因子一覧（1人分）の動画の画（T220）
+					if (detection.list6) rowStars = UmaFactorList.rowStars6(base, detection);   // 因子一覧（6人分）の画（T222）
+					else if (listRange) rowStars = UmaFactorList.rowStars(base, detection, listRange);   // 因子一覧（1人分）の動画の画（T220）
 					else rowStars = computeRowStarCountsSpecial(base, detection);
 					const stacked = stackRowsWithMeta(base, detection.rows);
 					target = stacked.canvas;
 					placements = stacked.placements;
 					diag.push('→ ' + detection.rows.length + '行を切り出し、★を判定してOCRへ');
+				} else if (six) {
+					// 灰色の札の無い6人分の画（青・赤・固有の緑だけ）。画像全体を読むと固有スキルの名前などが混ざるので読まない（T222）
+					diag.push('→ 灰色の札が無いため、この画は OCR しない（因子一覧）');
+					devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+					continue;
 				} else if (cutNext) {
 					// 次の人の帯から上に自分の行がほとんど無い画（次の人の1枚目など）。画像全体を読むと次の人のスキルが混ざるので読まない（T93）
 					diag.push('→ 次の人の帯から上で行が取れないため、この画は OCR しない（動画の画）');
@@ -4288,6 +4314,8 @@
 		const FACTOR_FRAME_LINE_OVER_STEP = 0.05;
 		const FACTOR_FRAME_STAR_FROM_OVER_PITCH = 0.20;
 		const FACTOR_FRAME_STAR_TO_OVER_PITCH = 0.50;
+		// 因子一覧（6人分。1列の札。T222）の枠の太さは札の高さに対する比（札の間隔は札の高さの約1.25倍なので、2列の「行の間隔の 0.05」と同じ太さ）
+		const FACTOR_FRAME_LINE_OVER_CARD = 0.0625;
 		// 塗りの条件（白・灰色の地だけ）。彩度と、いちばん暗い成分のしきい値
 		const FACTOR_TINT_SAT_FULL = 14;
 		const FACTOR_TINT_SAT_NONE = 34;
@@ -4447,6 +4475,13 @@
 		// parts … 結合画像の設定（stitchPartsNow の値。省略なら今の設定）。T96・C-284:
 		//   新UI で分類マーカーが OFF（シンプル）なら、②で選んだスキルを全部同じ緑（STITCH_SIMPLE_COLOR）で囲む。ON なら今までどおり種類の色。
 		//   旧UI は今までどおり（「種類の枠」が OFF なら1つも描かない）
+		/* 因子一覧（6人分）の札の枠（T222・決定 940）: 札の矩形そのものを囲む。★は札の中（右）にあるので、下の辺は切らない。
+		 * card … detectRows6 の行の card（読み取りの画の px）。toX・toY … 読み取りの画の座標を結合の canvas の座標へ写す。k … 縦の倍率 */
+		function factorFrameCardBox(card, toX, toY, k) {
+			const left = toX(card.x0), right = toX(card.x1), top = toY(card.a), bottom = toY(card.a + card.h);
+			return { left: left, right: right, top: top, bottom: bottom, starFrom: right, starTo: right,
+				line: Math.max(2, Math.round((bottom - top) * FACTOR_FRAME_LINE_OVER_CARD)), colX: left, cy: (top + bottom) / 2 };
+		}
 		function drawFactorFramesOnPerson(canvas, personIdx, parts) {
 			const opt = parts || stitchPartsNow();
 			if (opt.legacy && !opt.marker) return 0;
@@ -4455,8 +4490,8 @@
 			const res = personResults[personIdx];
 			if (!geo || !lines || !res) return 0;
 			// 行は取れているのに列がちょうど2本でない画像が混ざっていたら、この人には枠を付けない
-			// （列の間隔が測れないと、右端と★の範囲が決まらない。C-30 と同じ）
-			if (geo.some(g => g && g.rows && !(g.columnXs && g.columnXs.length === 2 && g.columnXs[1] > g.columnXs[0]))) {
+			// （列の間隔が測れないと、右端と★の範囲が決まらない。C-30 と同じ）。因子一覧（6人分。1列）の画は札の矩形で囲むので別
+			if (geo.some(g => g && g.rows && !g.list6 && !(g.columnXs && g.columnXs.length === 2 && g.columnXs[1] > g.columnXs[0]))) {
 				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] +
 					': 列がちょうど2本にならない画像があり、置き場所を決められないため枠を描きませんでした');
 				return 0;
@@ -4475,19 +4510,25 @@
 			});
 			const want = Object.keys(kindByRowKey).length;
 			if (want === 0) return 0;
-			// 行の間隔は画像ごとに測る。測れない画像（行が1つしかない等）は、同じ人のほかの画像の中央値で代える
-			const steps = geo.map(g => factorFrameStepOf(g));
+			// 行の間隔は画像ごとに測る。測れない画像（行が1つしかない等）は、同じ人のほかの画像の中央値で代える（因子一覧の6人分の画は使わない）
+			const steps = geo.map(g => (g && g.list6) ? null : factorFrameStepOf(g));
 			const known = steps.filter(s => s > 0).sort((a, b) => a - b);
-			if (known.length === 0) {
+			if (known.length === 0 && geo.some(g => g && g.rows && !g.list6)) {
 				devGeometry.push('[種類の枠] ' + PERSON_LABELS[personIdx] + ': 行の間隔を測れなかったため枠を描きませんでした');
 				return 0;
 			}
-			const fallbackStep = known[known.length >> 1];
+			const fallbackStep = known.length ? known[known.length >> 1] : 0;
 
-			// 結合を経ていないCanvasに備えて、恒等の対応表へ倒す（C-30 と同じ）
-			const placements = (canvas._sourcePlacements && canvas._sourcePlacements.length)
-				? canvas._sourcePlacements
-				: [{ fileIndex: 0, srcY0: 0, srcY1: canvas.height, outY0: 0 }];
+			// 結合を経ていないCanvasに備えて、恒等の対応表へ倒す（C-30 と同じ）。因子一覧（6人分）の結合は composeList6 の対応表（倍率 k つき）
+			const placements = (canvas._factorList6 && canvas._factorList6.places) ? canvas._factorList6.places
+				: (canvas._sourcePlacements && canvas._sourcePlacements.length)
+					? canvas._sourcePlacements
+					: [{ fileIndex: 0, srcY0: 0, srcY1: canvas.height, outY0: 0 }];
+			// 因子一覧（6人分）の画の行の枠（対応表 p の画の、行の番号 rowIndex）
+			const cardBoxAt = (p, g, rowIndex) => {
+				const k = p.k || 1, row = g.rows[rowIndex];
+				return factorFrameCardBox(row.card, x => x * g.scale * k, y => p.outY0 + (y * g.scale - p.srcY0) * k, k);
+			};
 			const boxes = [];
 			// 2周する理由は C-30 と同じ。同じ段でも、写っている画像によって行として検出できたり
 			// できなかったりする（段がリスト表示枠の上端・下端で切れていると落ちる）ので、
@@ -4497,13 +4538,19 @@
 					const g = geo[p.fileIndex];
 					if (!g || !g.rows || !g.columnXs) return;
 					const step = steps[p.fileIndex] || fallbackStep;
-					const pitch = (g.columnXs[1] - g.columnXs[0]) * g.scale;
+					const pitch = g.list6 ? 0 : (g.columnXs[1] - g.columnXs[0]) * g.scale;
 					g.rows.forEach((row, rowIndex) => {
 						const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
 						if (!kind) return;
 						const cySrc = (row.y + row.h / 2) * g.scale;
 						const inRange = (cySrc >= p.srcY0 && cySrc < p.srcY1);
 						if (inRangeOnly !== inRange) return;
+						if (g.list6) {
+							const b = cardBoxAt(p, g, rowIndex);
+							if (b.cy < 0 || b.cy >= canvas.height || boxes.some(q => Math.abs(q.colX - b.colX) < (b.bottom - b.top) / 2 && Math.abs(q.cy - b.cy) < (b.bottom - b.top) / 2)) return;
+							boxes.push(Object.assign(b, { kind: kind }));
+							return;
+						}
 						const colX = g.columnXs[row.col] * g.scale;
 						const cy = p.outY0 + (cySrc - p.srcY0);
 						if (cy < 0 || cy >= canvas.height) return;
@@ -4532,6 +4579,7 @@
 				const [fi, ri] = key.split(':').map(Number);
 				const g = geo[fi], p = placements.find(q => q.fileIndex === fi), row = g && g.rows && g.rows[ri];
 				if (!row || !g.columnXs || !p) { wantOther++; return; }
+				if (g.list6) { wantOther++; return; }   // 因子一覧（6人分）の札は画に1回ずつ（重なりは無い）
 				const step = steps[fi] || fallbackStep;
 				const colX = g.columnXs[row.col] * g.scale, cy = p.outY0 + ((row.y + row.h / 2) * g.scale - p.srcY0);
 				if (!wantAt.some(q => Math.abs(q.colX - colX) < step / 2 && Math.abs(q.cy - cy) < step / 2)) wantAt.push({ colX: colX, cy: cy });
@@ -8573,12 +8621,14 @@
 		async function readGreenFactor(worker, files) {
 			const names = greenUniqueNames();
 			for (let i = 0; i < files.length; i++) {
-				let base;
-				try { base = toBaseCanvas(await loadImage(files[i])); } catch (e) { continue; }
+				let base, img;
+				try { img = await loadImage(files[i]); base = toBaseCanvas(img); } catch (e) { continue; }
 				if (!assessImageQuality(base).ok) continue;
-				const L = findGreenFactorLayout(base);
+				// T222: 因子一覧（6人分）の画は、固有の緑の札を印の位置から読む（緑の札の無い画は次の画へ）
+				const six = (window.UmaFactorList && files[i].factorList6) ? UmaFactorList.topCards6(base, files[i], img.naturalHeight) : undefined;
+				const L = six !== undefined ? (six && six.green ? six.green.layout : null) : findGreenFactorLayout(base);
 				if (!L) continue;
-				const out = { name: null, stars: greenFactorStars(L), cands: null, texts: [] };
+				const out = { name: null, stars: six ? six.green.stars : greenFactorStars(L), cands: null, texts: [] };
 				// 境の2段 → 緑の値の濃淡（T107）の順に試し、名前が決まった段で止まる
 				const tries = GREEN_TEXT_LEVELS.map(level => () => greenFactorTextCanvas(base, L, level))
 					.concat(GREEN_GRAY_HEIGHTS.map(height => () => greenFactorGrayCanvas(base, L, height)));
@@ -8745,9 +8795,20 @@
 		    戻り値 { blue: { name, text, stars }, red: 同じ形か null }（赤のチップが見つからなければ red は null） */
 		async function readTopBlueRed(worker, files) {
 			for (let i = 0; i < files.length; i++) {
-				let base;
-				try { base = toBaseCanvas(await loadImage(files[i])); } catch (e) { continue; }
+				let base, img;
+				try { img = await loadImage(files[i]); base = toBaseCanvas(img); } catch (e) { continue; }
 				if (!assessImageQuality(base).ok) continue;
+				// T222: 因子一覧（6人分）の画は、青・赤の札を印の位置から読む（青の札の無い画は次の画へ。戻り値の形は同じ）
+				if (window.UmaFactorList && files[i].factorList6) {
+					const six = UmaFactorList.topCards6(base, files[i], img.naturalHeight);
+					if (!six || !six.blue) continue;
+					const read = async (c, keys) => {
+						const hit = await melopRecognizeName(worker, melopTextCanvas(base, c.layout, c.layout.col, c.layout.top, true), Object.keys(keys));
+						return { name: hit.name, text: hit.text, stars: c.stars };
+					};
+					const blue = await read(six.blue, DECK_ALPHA_BLUE_KEY);
+					return { blue: blue, red: six.red ? await read(six.red, DECK_ALPHA_RED_KEY) : null };
+				}
 				const L = findMelopTopLayout(base);
 				if (!L) continue;
 				const stars = melopStarMaskOf(L.imageData);

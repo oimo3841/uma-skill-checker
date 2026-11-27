@@ -3,7 +3,7 @@
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
 "generated": "2026-11-27",
 "numbering": "runtime",
-"count": 1197,
+"count": 1207,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1202,6 +1202,16 @@
   {"file":"tests/visual/blocks-190.mjs","title":"T221(5) UmaExam 速すぎて重なりが無いスクロール: 飛びの前の人に人の単位の警告","ord":1,"marks":"VA","asserts":7},
   {"file":"tests/visual/blocks-190.mjs","title":"T221(6) UmaExam 今の判定が成功して3人に満たないとき・横画面の6人分・ウィンドウの取り込みの切り出し","ord":1,"marks":"AC","asserts":6},
   {"file":"tests/visual/blocks-190.mjs","title":"T221(8) UmaExam 6人分の結合の途中で取り消す: どの欄も変わらない","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"},
-  {"file":"tests/visual/blocks-190.mjs","title":"T221(7) UmaExam 1人分の因子一覧: 親の欄に入り、祖の欄は空になる（ほかのセットは変わらない）","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"}
+  {"file":"tests/visual/blocks-190.mjs","title":"T221(7) UmaExam 1人分の因子一覧: 親の欄に入り、祖の欄は空になる（ほかのセットは変わらない）","ord":1,"marks":"A","asserts":3,"review":"名前で分けられない assert が 33%"},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(1) UmaStar 分けた画の読み取り: 灰色の札の行と★0〜3・青赤固有の緑の札の★と白い字の切り出し","ord":1,"marks":"VTC","asserts":8},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(2) UmaStar 6人分の取り込み → 読み取り → 照合・画を足し引きしても読める","ord":1,"marks":"VATC","asserts":7},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(3) UmaStar 印が1列の札に乗る（3列・2列）・札の間の白塗り","ord":1,"marks":"VAC","asserts":8},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(4) UmaStar 一覧の最後まで写っていない人にだけ、今の知らせを出す（決定 938）","ord":1,"marks":"VA","asserts":5,"review":"名前で分けられない assert が 40%"},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(5) UmaStar 隠しの入口: 印の無い URL は今のまま（結合画像がバイトまで同じ）・?factorlist=1 だけ因子一覧が働き、保存しない","ord":1,"marks":"VATSC","asserts":9},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(1) UmaExam 分けた画の読み取り: 灰色の札の行と★0〜3・青赤固有の緑の札の★と白い字の切り出し","ord":1,"marks":"VTC","asserts":8},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(2) UmaExam 6人分の取り込み → 読み取り → 照合・画を足し引きしても読める","ord":1,"marks":"VATC","asserts":7},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(3) UmaExam 印が1列の札に乗る（3列・2列）・札の間の白塗り","ord":1,"marks":"VAC","asserts":8},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(4) UmaExam 一覧の最後まで写っていない人にだけ、今の知らせを出す（決定 938）","ord":1,"marks":"VA","asserts":5,"review":"名前で分けられない assert が 40%"},
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(5) UmaExam 隠しの入口: 印の無い URL は今のまま（結合画像がバイトまで同じ）・?factorlist=1 だけ因子一覧が働き、保存しない","ord":1,"marks":"VATSC","asserts":9}
 ]
 }

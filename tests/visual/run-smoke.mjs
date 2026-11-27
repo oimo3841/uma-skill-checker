@@ -201,6 +201,7 @@ import { register187 } from './blocks-187.mjs';
 import { register188 } from './blocks-188.mjs';
 import { register189 } from './blocks-189.mjs';
 import { register190 } from './blocks-190.mjs';
+import { register191 } from './blocks-191.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15742,6 +15743,8 @@ await register188({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register189({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T221（2026-11-27・決定 925〜937）: 因子一覧の取り込み 段2（6人分の結合・振り分け・欄の空け直し・ウィンドウの取り込みの切り出し。見出しは「T221」）。tests/visual/blocks-190.mjs
 await register190({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T222（2026-11-27・決定 938〜940）: 因子一覧の取り込み 段3（6人分の読み取りと印・一覧の終わりの知らせ・隠しの入口 ?factorlist=1。見出しは「T222」）。tests/visual/blocks-191.mjs
+await register191({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
