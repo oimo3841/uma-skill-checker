@@ -202,6 +202,7 @@ import { register188 } from './blocks-188.mjs';
 import { register189 } from './blocks-189.mjs';
 import { register190 } from './blocks-190.mjs';
 import { register191 } from './blocks-191.mjs';
+import { register192 } from './blocks-192.mjs';
 import { setBandStep } from './lib/band-step.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
@@ -15745,6 +15746,8 @@ await register189({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register190({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 // T222（2026-11-27・決定 938〜940）: 因子一覧の取り込み 段3（6人分の読み取りと印・一覧の終わりの知らせ・隠しの入口 ?factorlist=1。見出しは「T222」）。tests/visual/blocks-191.mjs
 await register191({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+// T223（2026-11-28・決定 941〜944）: 因子一覧の取り込み PC の確認で出た問題（親Bセットの未読の丸・診断用の画の保存・結合画像の顔の大きさ。見出しは「T223」）。tests/visual/blocks-192.mjs
+await register192({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

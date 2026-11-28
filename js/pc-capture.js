@@ -4,7 +4,7 @@
  * 依存: js/video-frames.js（UmaVideoFrames）・js/stitch.js（stitchRowDiffSignal）の後に読む。試しのページ lab/pc-capture-diag.html もこの部品を使う。 */
 (function () {
 	'use strict';
-	const PC_CAPTURE_JS_VERSION = '2026-11-27a';
+	const PC_CAPTURE_JS_VERSION = '2026-11-28a';
 
 	// 取り込みの入口を出すか（決定 252・325。lab/pc-capture-mock.html は同じ文）
 	// 取り込みに要る機能があり、スマホでないときに出す。タッチパネルの有無では決めない（Surface はマウスをつないでも「タッチだけ」と判定された）
@@ -1245,6 +1245,12 @@
 	async function begin(hooks) {
 		const stream = await navigator.mediaDevices.getDisplayMedia(DISPLAY_OPTIONS);
 		const track = stream.getVideoTracks()[0];
+		// 診断用の控え（T223。映像の設定と、届いた・圧縮したフレームの数と間隔。取り込みの動きは変えない）
+		const SETTING_KEYS = ['width', 'height', 'frameRate', 'aspectRatio', 'displaySurface', 'resizeMode', 'logicalSurface', 'cursor', 'screenPixelRatio'];   // deviceId などは控えない
+		const settingsNow = () => { try { const s = track.getSettings ? track.getSettings() : {}; const o = {}; SETTING_KEYS.forEach((k) => { if (s[k] !== undefined) o[k] = s[k]; }); return o; } catch (e) { return {}; } };
+		const settingsAtStart = settingsNow();
+		let settingsAtStop = null;
+		const count = { received: 0, encoded: 0, dropped: 0, gapSumUs: 0, gapMaxUs: 0, gaps: 0 };
 		const sink = encodeSink({});
 		const tap = track.clone();
 		const reader = new MediaStreamTrackProcessor({ track: tap }).readable.getReader();
@@ -1256,6 +1262,7 @@
 			if (!running) return;
 			running = false; reason = why || 'stop';
 			clearInterval(tick);
+			settingsAtStop = settingsNow();
 			stopped = (async () => {
 				try { await reader.cancel(); } catch (e) { /* 読み終わっていても */ }
 				await loop;
@@ -1285,7 +1292,9 @@
 					const wall = performance.now(), w = f.displayWidth, h = f.displayHeight;
 					if (!c.started) c.started = wall;
 					if (baseUs == null) baseUs = f.timestamp;
-					const us = Math.max(c.lastUs + 1, f.timestamp - baseUs); c.lastUs = us;
+					const us = Math.max(c.lastUs + 1, f.timestamp - baseUs);
+					if (count.received++ > 0) { const gap = us - c.lastUs; count.gapSumUs += gap; count.gaps++; if (gap > count.gapMaxUs) count.gapMaxUs = gap; }
+					c.lastUs = us;
 					if (c.w !== w || c.h !== h) {
 						// 共有を始めた直後は大きさが落ち着かないことがある。そのあとで変わったら、そこまでの映像では結合できない
 						if (c.w && wall - c.started >= 2000) { devLog('[横画面] 取り込みの途中で大きさが変わった: ' + c.w + 'x' + c.h + ' → ' + w + 'x' + h); stop('resize'); break; }
@@ -1294,7 +1303,7 @@
 						await sink.begin(w, h); c.begun = true; c.us0 = us;
 					}
 					if (wall - lastDetect >= config.detectMs) { lastDetect = wall; detectFrom(f, w, h, us); }
-					sink.frame(f, us);
+					if (sink.frame(f, us)) count.encoded++; else count.dropped++;
 				} finally { f.close(); }
 			}
 		})().catch((e) => { console.warn('取り込みの読み取りの失敗', e); stop('error'); });
@@ -1305,8 +1314,12 @@
 			if (rest <= 0) stop('limit');
 		}, 500);
 		track.addEventListener('ended', () => stop('ended'));
+		// 映像の大きさと設定・フレームの数（診断の文と診断用の保存。T223）
+		const info = () => ({ width: c.w, height: c.h, settings: settingsAtStart, settingsAtStop,
+			frames: { received: count.received, encoded: count.encoded, dropped: count.dropped,
+				meanIntervalMs: count.gaps ? Math.round(count.gapSumUs / count.gaps / 100) / 10 : null, maxIntervalMs: Math.round(count.gapMaxUs / 100) / 10 } });
 		return {
-			stream, stop,
+			stream, stop, info,
 			async open(signal) {
 				await UmaVideoFrames.untilAbort(stopped, signal);
 				if (reason === 'resize') throw capFail('unstable');
@@ -1329,6 +1342,9 @@
 					devLog(tag + '切り出し ' + src.width + 'x' + src.height + '・動く帯 ' + (st.band ? st.band.top + '〜' + st.band.bottom : 'なし') + '（' + Math.round(performance.now() - t1) + 'ms）');
 					// 因子一覧（6人分）はタブの帯を読むので、塗り直す前の出どころも渡す（T221。閉じるのは st.src だけでよい）
 					if (st.src !== src && window.UmaFactorList && UmaFactorList.ENABLED) st.src.unsteadied = src;
+					// 診断用の保存（T223・隠しの入口だけ）: 圧縮した映像と、その中の切り出しの矩形・使い始めの時刻
+					if (window.UmaFactorList && UmaFactorList.TRIAL) st.src.captureDiag = { blob: sink.blob(), offset: cut ? span.t0 : 0, rect: { x: a.x, y: a.y, w: a.w, h: a.h },
+						info: Object.assign(info(), { how: a.how, outW: a.outW || null, outH: a.outH || null, durationSec: base.duration, codec: sink.info() }) };
 					return st.src;
 				} catch (e) { src.close(); throw e; }
 			},

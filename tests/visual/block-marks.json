@@ -1,9 +1,9 @@
 {
 "about": "塊の印の一覧（T127・決定 477）。scripts/mark-blocks.mjs が自動で作る。人の手直しは overrides に書く（作り直しても残る）。鍵はファイル＋見出し（実行時）＋同じ見出しの中の順番。一覧に無い塊・印が * の塊は「すべてに当たる」。test:select --purpose が使う。",
 "legend": {"V":"見た目","A":"動き","T":"文章","S":"保存データ","C":"計算・データ","*":"すべてに当たる"},
-"generated": "2026-11-27",
+"generated": "2026-11-28",
 "numbering": "runtime",
-"count": 1207,
+"count": 1213,
 "overrides": [],
 "blocks": [
   {"file":"tests/visual/run-smoke.mjs","title":"special.html（UmaStar OCR）","ord":1,"marks":"VATSC","asserts":100},
@@ -1212,6 +1212,12 @@
   {"file":"tests/visual/blocks-191.mjs","title":"T222(2) UmaExam 6人分の取り込み → 読み取り → 照合・画を足し引きしても読める","ord":1,"marks":"VATC","asserts":7},
   {"file":"tests/visual/blocks-191.mjs","title":"T222(3) UmaExam 印が1列の札に乗る（3列・2列）・札の間の白塗り","ord":1,"marks":"VAC","asserts":8},
   {"file":"tests/visual/blocks-191.mjs","title":"T222(4) UmaExam 一覧の最後まで写っていない人にだけ、今の知らせを出す（決定 938）","ord":1,"marks":"VA","asserts":5,"review":"名前で分けられない assert が 40%"},
-  {"file":"tests/visual/blocks-191.mjs","title":"T222(5) UmaExam 隠しの入口: 印の無い URL は今のまま（結合画像がバイトまで同じ）・?factorlist=1 だけ因子一覧が働き、保存しない","ord":1,"marks":"VATSC","asserts":9}
+  {"file":"tests/visual/blocks-191.mjs","title":"T222(5) UmaExam 隠しの入口: 印の無い URL は今のまま（結合画像がバイトまで同じ）・?factorlist=1 だけ因子一覧が働き、保存しない","ord":1,"marks":"VATSC","asserts":9},
+  {"file":"tests/visual/blocks-192.mjs","title":"T223(1) UmaStar 親Bセットの未読の丸: 6人分で付き、開くと消える・ほかの取り込みでは付かない・印の無い URL は無い","ord":1,"marks":"VAT","asserts":19},
+  {"file":"tests/visual/blocks-192.mjs","title":"T223(2) UmaStar 診断用の画の保存: ウィンドウの取り込みで中身がそろう・分け方・診断の文の映像の大きさ","ord":1,"marks":"VASC","asserts":15},
+  {"file":"tests/visual/blocks-192.mjs","title":"T223(3) UmaStar 結合画像の顔は今の因子画面の顔と同じ大きさ（3列・2列・縮める組）","ord":1,"marks":"VTC","asserts":8},
+  {"file":"tests/visual/blocks-192.mjs","title":"T223(1) UmaExam 親Bセットの未読の丸: 6人分で付き、開くと消える・ほかの取り込みでは付かない・印の無い URL は無い","ord":1,"marks":"VAT","asserts":19},
+  {"file":"tests/visual/blocks-192.mjs","title":"T223(2) UmaExam 診断用の画の保存: ウィンドウの取り込みで中身がそろう・分け方・診断の文の映像の大きさ","ord":1,"marks":"VASC","asserts":15},
+  {"file":"tests/visual/blocks-192.mjs","title":"T223(3) UmaExam 結合画像の顔は今の因子画面の顔と同じ大きさ（3列・2列・縮める組）","ord":1,"marks":"VTC","asserts":8}
 ]
 }

@@ -45,11 +45,11 @@
 	<!-- 画面収録（動画）から結合の素材のフレームを選ぶ部品（T139。special.html と共有。②の動画の入口が使う。common.js・stitch.js の後に読む） -->
 	<script src="js/video-frames.js?v=2026-11-27a"></script>
 	<!-- PC のウィンドウの取り込み（T139。special.html と共有。②の動画モードの取り込みのボタン〔VIDEO_TEXTS の video.btn.capture〕が使う。video-frames.js・stitch.js の後に読む） -->
-	<script src="js/pc-capture.js?v=2026-11-27a"></script>
+	<script src="js/pc-capture.js?v=2026-11-28a"></script>
 	<!-- DMM版の横画面の画からパネルを切り出す部品（T145。special.html と共有。②の画像・動画・取り込みが使う。video-frames.js の後に読む） -->
 	<script src="js/landscape-panel.js?v=2026-11-19a"></script>
 	<!-- 因子一覧の動画の見分け・取り込み・1人分の読み取り（T220・T221。special.html と共有。FACTOR_LIST_ENABLED が false の間は使わない。video-frames.js・landscape-panel.js の後に読む） -->
-	<script src="js/factor-list.js?v=2026-11-27c"></script>
+	<script src="js/factor-list.js?v=2026-11-28a"></script>
 	<!-- OCR のエンジンの池（T185。並べて読む・先に用意して使い回す。exam.html / special.html で共有。processImages が使う。スキルセットの OCR は使わない） -->
 	<script src="js/ocr-pool.js?v=2026-11-15a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -4025,6 +4025,11 @@
 			'video.list.done1': '{セット}の親を取得しました',
 			// T222（決定 939。special.html と同じ）: 隠しの入口（URL の ?factorlist=1）で開いている間だけ出す印
 			'video.list.trial': '因子一覧テスト中',
+			// T223（決定 944。special.html と同じ）: 隠しの入口だけ。6人分の取り込みのあとの、診断用の画の保存（{N}・{MB} はファイルの番号と大きさ）
+			'video.list.diag.btn': '診断用の画を保存',
+			'video.list.diag.busy': '準備中… {N}%',
+			'video.list.diag.file': 'ファイル{N}を保存（{MB}MB）',
+			'video.list.diag.fail': '診断用の画を作れませんでした。',
 			// T221（決定 927・928・933。special.html と同じ）: 6人分の知らせ。両方のタブが取れたとき・片方だけのとき
 			'video.list.done6both': '{セット1}と{セット2}を取得しました',
 			'video.list.done6one': '{セット}を取得しました',
@@ -4239,6 +4244,66 @@
 		// 前の取り込みの箱（進捗・失敗）を消す
 		function clearVideoBoxes() {
 			['video-progress', 'video-error'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+			clearFactorListDiag();
+		}
+		/* T223（決定 944。special.html と同じ）: 隠しの入口（?factorlist=1）だけ。6人分の因子一覧の取り込みのあと、診断用の画（人の画・使った元の倍率のコマ・値の JSON）を
+		 * 保存するボタンを、タブの行のすぐ下に出す。作るのは js/factor-list.js の diagZips（どこにも送らない）。ファイルが1つなら作った所で保存し、
+		 * 分かれたときは1つずつ押して保存する。次の取り込みを始めたら消す。印の無いページには要素も作らない */
+		var factorListDiagCtrl = null;
+		var factorListCaptureInfo = null;   // 直前のウィンドウの取り込みの映像の大きさと設定（診断の文の「■ 実行環境」に1行。隠しの入口だけ）
+		function clearFactorListDiag() {
+			if (factorListDiagCtrl) { factorListDiagCtrl.abort(); factorListDiagCtrl = null; }
+			const el = document.getElementById('factorlist-diag');
+			if (!el) return;
+			el.querySelectorAll('a[href]').forEach(a => URL.revokeObjectURL(a.href));
+			el.remove();
+		}
+		function showFactorListDiag(record) {
+			clearFactorListDiag();
+			const el = document.createElement('div');
+			el.id = 'factorlist-diag';
+			el.className = 'mb-3 flex flex-wrap items-center gap-2';
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'uma-btn uma-btn--secondary factorlist-diag-btn';
+			btn.style.minHeight = '44px';
+			btn.textContent = videoText('video.list.diag.btn');
+			el.appendChild(btn);
+			btn.addEventListener('click', async () => {
+				if (videoBusy || btn.disabled) return;
+				btn.disabled = true;
+				el.querySelectorAll('a[href]').forEach(a => URL.revokeObjectURL(a.href));
+				el.querySelectorAll('.factorlist-diag-file, .factorlist-diag-fail').forEach(x => x.remove());
+				const ctrl = factorListDiagCtrl = new AbortController();
+				try {
+					const zips = await UmaFactorList.diagZips(record, { signal: ctrl.signal, onProgress: (r) => { btn.textContent = videoText('video.list.diag.busy', { N: Math.round(r * 100) }); } });
+					if (ctrl.signal.aborted) return;
+					zips.forEach((z, i) => {
+						const a = document.createElement('a');
+						a.className = 'uma-btn uma-btn--primary factorlist-diag-file';
+						a.style.minHeight = '44px';
+						a.href = URL.createObjectURL(z.blob);
+						a.download = z.name;
+						a.textContent = videoText('video.list.diag.file', { N: i + 1, MB: Math.max(1, Math.round(z.blob.size / 1048576)) });
+						el.appendChild(a);
+					});
+					devGeometry.push('[因子一覧] 診断用の画: ' + zips.map(z => z.name + ' ' + (z.blob.size / 1048576).toFixed(1) + 'MB').join('・'));
+					if (zips.length === 1) el.querySelector('.factorlist-diag-file').click();
+				} catch (e) {
+					if (ctrl.signal.aborted) return;
+					console.error(e);
+					devGeometry.push('[因子一覧] 診断用の画を作れませんでした: ' + (e && e.message));
+					const p = document.createElement('p');
+					p.className = 'factorlist-diag-fail text-xs text-red-700';
+					p.setAttribute('role', 'alert');
+					p.textContent = videoText('video.list.diag.fail');
+					el.appendChild(p);
+				} finally {
+					btn.disabled = false;
+					btn.textContent = videoText('video.list.diag.btn');
+				}
+			});
+			insertVideoBox(el);
 		}
 		// タブの行のすぐ下に箱を入れる（新しいものが上）
 		function insertVideoBox(el) {
@@ -4371,6 +4436,11 @@
 			let doneText = null;
 			if (done.length === 2) doneText = videoText('video.list.done6both', { セット1: PERSON_SETS[done[0]].label, セット2: PERSON_SETS[done[1]].label });
 			else if (done.length === 1) doneText = videoText('video.list.done6one', { セット: PERSON_SETS[done[0]].label });
+			// T223（決定 943。special.html と同じ）: 親Bセットに入ったら（親Bセットだけでも）、タブに未読の丸。親Bセットを見ているときは付けない
+			if (list.sets.some(g => g.set === 1)) {
+				factorListSetBDot = !(activePersonSet === 1 && !skillResultTab);
+				renderPersonSetTabs();
+			}
 			return { stitched: done.length === list.sets.length, doneText: doneText };
 		}
 		function showVideoError(e) {
@@ -4763,6 +4833,8 @@
 			renderVideoProgress(setIdx, 0, 0);
 			const t0 = performance.now();
 			const clock = makeStageClock();
+			const logFrom = devGeometry.length;
+			factorListCaptureInfo = null;
 			let sel = null;
 			let src = null;
 			try {
@@ -4847,6 +4919,8 @@
 				clock.lap('組み立て（結合画像）');
 				lastVideoTimeLine = clock.line(capture ? '取り込み' : '動画');
 				devGeometry.push(lastVideoTimeLine);
+				// T223（決定 944）: 隠しの入口だけ、6人分の取り込みの診断用の画の保存のボタンを出す
+				if (list && list.type === 'list6' && UmaFactorList.TRIAL) showFactorListDiag(UmaFactorList.diagRecord(list, { capture, input, src, labels: PERSON_LABELS, log: devGeometry.slice(logFrom) }));
 				// T185（決定 765）: 動画・取り込みは組み立て（結合画像）が終わってから OCR のエンジンを先に用意する（取り込みの最中には持たない）
 				if (window.UmaOcrPool) UmaOcrPool.prewarm(capture ? '取り込みの組み立てのあと' : '動画の組み立てのあと');
 				document.getElementById('video-progress').remove();
@@ -4871,6 +4945,7 @@
 				return { ok: false, error: capKind || (e && e.code) || 'error' };
 			} finally {
 				if (src && src !== input && typeof src.close === 'function') { try { src.close(); } catch (e) { /* 閉じられなくてもよい */ } }
+				if (capture && window.UmaFactorList && UmaFactorList.TRIAL && input.info) factorListCaptureInfo = input.info();   // T223: 診断の文
 				if (capture) input.dispose();
 				videoBusy = null;
 				setVideoBusyUi(false);
@@ -5051,6 +5126,11 @@
 					+ '<span class="uma-subtab-label">本育成結果</span></button>';
 			}
 			slot.innerHTML = '<div class="uma-subtabs" role="tablist" aria-label="因子元のセット">' + items + skillTab + '</div>';
+			if (factorListSetBDot) {
+				// 6人分の因子一覧で親Bセットに入ったことの未読の丸（T223・決定 943。special.html と同じ）。引き出しのタブの未読の丸（.drawer-tab .uma-fab-dot）と同じ見た目で、名前の右に置く
+				const tab = slot.querySelector('.uma-subtab[data-tab-id="1"]');
+				if (tab) tab.insertAdjacentHTML('beforeend', '<span class="uma-fab-dot factorlist-setb-dot" aria-hidden="true" style="position:static;flex:none"></span>');
+			}
 			PERSON_SETS.forEach((set, i) => {
 				const wrap = document.getElementById('personset-' + set.id + '-wrap');
 				if (!wrap) return;
@@ -5063,6 +5143,8 @@
 		/* 本育成結果のタブ（T188。special.html と同じ）。選んでいる間は、OCR のボタンの欄・「結合画像の設定」・「静止画｜動画」など、親A・親B のための部品を隠す。
 		 * activePersonSet は最後に見ていたセットのまま持つ */
 		var skillResultTab = false;   // var: 読み込みの途中で renderPersonSetTabs・syncUploadBar が先に呼ばれても困らないように
+		// 親Bセットのタブの未読の丸（T223・決定 943）。付けるのは applyFactorList6、消すのは親Bセットを開いたとき。保存しない（var: 読み込みの途中で renderPersonSetTabs が先に呼ばれても困らないように）
+		var factorListSetBDot = false;
 		function applySkillResultTab() {
 			const wrap = document.getElementById('skillres-wrap');
 			if (wrap) wrap.hidden = !skillResultTab;
@@ -5072,6 +5154,7 @@
 		function selectPersonSet(idx) {
 			skillResultTab = idx === 'skill';
 			if (!skillResultTab) activePersonSet = Number(idx) || 0;
+			if (!skillResultTab && activePersonSet === 1) factorListSetBDot = false;   // T223（決定 943）: 親Bセットを開いたら丸を消す
 			renderPersonSetTabs();
 		}
 		document.addEventListener('DOMContentLoaded', () => {
@@ -6656,7 +6739,8 @@
 			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
 			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
 				'\n  緑59種カウントモード: ' + (countMode === 'equivalence' ? '実質' + effectiveGreen59EquivalenceMax() + '種（既定）' : '59種個別') +
-				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px未満は対象外 / ' + RECOMMENDED_BASE_WIDTH_PX + 'px未満は警告 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
+				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px未満は対象外 / ' + RECOMMENDED_BASE_WIDTH_PX + 'px未満は警告 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上'
+				+ (factorListCaptureInfo ? '\n  ' + UmaFactorList.captureLine(factorListCaptureInfo) : ''));   // T223: 隠しの入口のウィンドウの取り込みだけ
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
 			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・

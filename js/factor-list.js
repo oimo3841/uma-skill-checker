@@ -10,15 +10,16 @@
  *  - 6人分（list6）: import6 がタブごとに札をつなぐ。1人目のタブは親Aセット、2人目のタブは親Bセット。取り込むセットは3つの欄を空にしてから、
  *    取れた人だけを入れる（決定 936）。写っていないタブのセットは変えない。人の画の結合は composeList6。
  * 当てはまらなければ今の流れの結果のまま。ウィンドウの取り込み（js/pc-capture.js）は findListRect で横画面の因子一覧を切り出す（決定 937）。
+ * 隠しの入口で開いたページは、6人分の取り込みのあとに診断用の画の保存（diagRecord・diagZips。T223・決定 944）を出せる。
  *
- * **FACTOR_LIST_ENABLED は false（T223 でスイッチを true にする）。false の間、ページの動きは因子一覧が無いときと同じ。**
+ * **FACTOR_LIST_ENABLED は false（T224 でスイッチを true にする）。false の間、ページの動きは因子一覧が無いときと同じ。**
  * ただし、URL に印（?factorlist=1）を付けて開いたページは、その読み込み中だけ true と同じに動く（隠しの入口。決定 939。保存はしない）。
  */
 (function (global) {
 	'use strict';
 
-	const FACTOR_LIST_JS_VERSION = '2026-11-27c';
-	// 因子一覧の取り込みのスイッチ（決定 925。T223 でスイッチを true にする）
+	const FACTOR_LIST_JS_VERSION = '2026-11-28a';
+	// 因子一覧の取り込みのスイッチ（決定 925。T224 でスイッチを true にする）
 	const FACTOR_LIST_ENABLED = false;
 	// 隠しの入口（決定 939。公開の前においもさんが自分の PC で試す）: URL の ?factorlist=1 は、読み込んだ時点の1回だけ見る
 	const FACTOR_LIST_TRIAL = (() => {
@@ -818,7 +819,7 @@
 				const persons = splitPersons(seq, found.titleTop * s + W * OPT6.peekLine);
 				log('[因子一覧] ' + tab + '人目のタブ ' + from.toFixed(2) + '〜' + to.toFixed(2) + '秒: 札 ' + persons.map((p) => p.rows.length + (p.partial ? '（途中まで）' : '')).join('／')
 					+ '（控えが1つの札 ' + seq.rows.filter((r) => r.samples.length === 1).length + '・使わなかったコマ ' + seq.skipped + '・重なりの無い飛び ' + seq.gaps + '）');
-				if (persons.length) sets.push({ set: tab - 1, persons, from, to, gaps: seq.gaps, skipped: seq.skipped });
+				if (persons.length) sets.push({ set: tab - 1, persons, from, to, gaps: seq.gaps, skipped: seq.skipped, jumped: seq.jumped, tailSkipped: seq.tailSkipped });
 				progress(0.65 + 0.1 * tab / 2);
 			}
 			if (!sets.length) throw listError('too-few', '因子一覧（6人分）のタブの区間が無い');
@@ -845,18 +846,23 @@
 					p.canvas.width = cw; p.canvas.height = heightOf(p.rows.length);
 					const c = p.canvas.getContext('2d');
 					c.fillStyle = '#fff'; c.fillRect(0, 0, cw, p.canvas.height);
+					// 診断用の控え（T223。使った時刻と「確かでない」の判断の値。画の作り方は変えない）
+					p.diag = { headBlue: p.rows[0].kind === 'blue', rows: [], faceAt: null };
 					p.rows.forEach((row, i) => {
 						// 余白まで一覧の中に写っている控えがあれば、その中から選ぶ
 						const inner = row.samples.filter((q) => q.a / s - margin >= fTop && q.a / s + fullH + margin <= fBottom);
 						const m = medoid(inner.length ? inner : row.samples, (a, b) => lookDiff(a.look, b.look));
 						const pick = m.near.find((q) => tasks.has(q.f.t)) || m.best;
 						task(pick.f.t, { p, i, sig: pick.sig, a: pick.a });
+						p.diag.rows.push({ kind: row.kind, at: pick.f.t, samples: row.samples.length, inner: inner.length, near: m.near.length,
+							gapBefore: !!row.gapBefore, sampleTimes: row.samples.map((q) => q.f.t) });
 					});
 					const faces = p.rows[0].kind === 'blue' ? p.rows[0].samples.filter((q) => q.face) : [];
 					if (faces.length) {
 						const m = medoid(faces.map((q) => ({ sig: q.face, q })), (a, b) => thumbDiff(a.sig, b.sig, 32));
 						const pick = (m.near.find((q) => tasks.has(q.q.f.t)) || m.best).q;
 						task(pick.f.t, { p, face: true, sig: pick.sig, a: pick.a });
+						p.diag.faceAt = pick.f.t;
 					}
 				});
 				const rights = [], heights = [];   // 等倍のコマで見た札の右端と高さ
@@ -918,18 +924,19 @@
 						piece.width = piece.height = 0;
 						if (!blob) throw listError('encode', '静止画にできない');
 						const file = new File([blob], 'factor-list-' + (group.set ? 'B' : 'A') + '-' + (r + 1) + '-' + (k + 1) + '.jpg', { type: 'image/jpeg' });
-						file.factorList6 = Object.freeze({ part: k, parts: cut.length, scale, cards: cut[k].cards, face: k === 0 ? (p.face || null) : null });
+						file.factorList6 = Object.freeze({ part: k, parts: cut.length, scale, cards: cut[k].cards, face: k === 0 ? (p.face || null) : null, screenW: FW });
 						files.push(file);
 					}
 					p.canvas.width = p.canvas.height = 0;
-					group.persons[r] = { files, uncertain: p.uncertain, partial: p.partial, cards: p.rows.length };
+					group.persons[r] = { files, uncertain: p.uncertain, partial: p.partial, cards: p.rows.length, diag: p.diag };
 					done++;
 					progress(0.95 + 0.05 * done / total);
 				}
 			}
 			log('[因子一覧] 6人分: ' + sets.map((g) => (g.set ? '親B' : '親A') + ' ' + g.persons.map((p) => p.cards + '枚' + (p.uncertain ? '（確かでない）' : '')).join('／')).join('・')
 				+ '（コマ ' + reads + '回・' + ((performance.now() - t0) / 1000).toFixed(1) + '秒）');
-			return { type: 'list6', sets, landscape: source.landscape || null };
+			return { type: 'list6', sets, landscape: source.landscape || null,
+				geometry: { w: FW, h: FH, cardH: fullH, pitch: fullPitch, listTop: fTop, listBottom: fBottom, duration: source.duration, reads } };
 		} finally { small.width = small.height = 0; full.width = full.height = 0; work.canvas.width = work.canvas.height = 0; cache.clear(); }
 	}
 
@@ -974,8 +981,48 @@
 		});
 	}
 
+	// 顔の輪の幅（ImageData の形の顔の矩形の、下の部分の地でない画素の左右の端。右上のランクの札は輪より右に出ることがあるので上は見ない）。測れなければ null
+	function faceRingWidth(img) {
+		const d = img.data, w = img.width, h = img.height;
+		let l = w, r = -1;
+		for (let y = Math.round(h * OPT6R.faceRingFrom); y < h; y++) for (let x = 0; x < w; x++) {
+			const p = (y * w + x) * 4, max = Math.max(d[p], d[p + 1], d[p + 2]);
+			if (max - Math.min(d[p], d[p + 1], d[p + 2]) > 45 || max < 150) { if (x < l) l = x; if (x > r) r = x; }
+		}
+		return r - l + 1 > w * 0.5 ? r - l + 1 : null;
+	}
+	// 札の左端（札 box [上端, 下端] の中ほどの行で、顔の欄の右から最初の地の白でない列）。無ければ null
+	function cardLeftOf(ctx, w, h, box) {
+		const gx = Math.round(w * OPT6R.edgeFrom);
+		const d = ctx.getImageData(gx, Math.min(h - 1, (box[0] + box[1]) >> 1), w - gx, 1).data;
+		for (let i = 0; i < w - gx; i++) if (Math.min(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) < 244) return gx + i;
+		return null;
+	}
+	/* 結合の人の画の顔を、今の因子画面（継承）の結合画像の顔と同じ大きさにする（T223）。縮める前の積んだ画 all の顔 face を、縮めたあとの out の
+	 * 同じ所へ、輪の幅が「画面の幅 × OPT6R.faceRing」になる大きさで描き直す（縮める前の画素から描くので拡大にならない）。左の札（左端 cardLeft。out の px）の
+	 * 手前に入らなければ入る大きさにする。戻り値は置いた顔 { x, y, w, h, ring }（out の px）。輪が測れなければ描き直さず null */
+	function placeFace(all, out, face, screenW, k, cardLeft) {
+		const copy = document.createElement('canvas'); copy.width = face.w; copy.height = face.h;
+		const cx = copy.getContext('2d', { willReadFrequently: true });
+		cx.drawImage(all, face.x, face.y, face.w, face.h, 0, 0, face.w, face.h);
+		const ring = faceRingWidth(cx.getImageData(0, 0, face.w, face.h));
+		if (!ring) { copy.width = copy.height = 0; return null; }
+		const limit = Math.max(1, Math.floor(cardLeft) - OPT6R.faceGap);
+		const m = Math.min(screenW * OPT6R.faceRing / ring, limit / face.w);
+		const w = Math.round(face.w * m), h = Math.round(face.h * m);
+		const x = Math.max(0, Math.min(Math.round((face.x + face.w / 2) * k - w / 2), limit - w)), y = Math.round(face.y * k);
+		const ox = out.getContext('2d');
+		ox.fillStyle = '#fff';
+		ox.fillRect(Math.floor(face.x * k) - 1, Math.floor(face.y * k) - 1, Math.ceil(face.w * k) + 2, Math.ceil(face.h * k) + 2);
+		ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = 'high';
+		ox.drawImage(copy, x, y, w, h);
+		copy.width = copy.height = 0;
+		return { x, y, w, h, ring: Math.round(ring * m) };
+	}
+
 	/** 6人分の人の画（import6 の files。並びの順）を縦に積み、結合に使う大きさに縮めた canvas（ページの結合の人の画。stitchOnePerson の戻り値の代わり）。
 	 * 札と札の間の白い所は白で塗る（DMM版の横の録画で、画面の右の矢印の欠けらが札の間の右端に短い線で残る。結合画像の中だけ。読み取りの画は変えない）。
+	 * 左上の顔は、今の因子画面の顔と同じ大きさに描き直し、置いた所を canvas._factorList6.face に持つ（T223。ページの見出しの顔の切り出し）。
 	 * canvas._factorList6 の places は、読み取りの画の座標を結合の canvas の座標へ写す表（ページの印。_sourcePlacements と同じ形に倍率 k を足したもの。
 	 * _sourcePlacements にしないのは、2列の組み立てなどが静止画の結合の対応表として読むため） */
 	async function composeList6(files) {
@@ -994,7 +1041,8 @@
 			y += i.naturalHeight;
 		});
 		whiteBetweenCards(ax, w, h, boxes);
-		const scale = files[0].factorList6.scale;
+		const m0 = files[0].factorList6, scale = m0.scale, k = scale < 1 ? scale : 1;
+		const left = m0.face && boxes.length ? cardLeftOf(ax, w, h, boxes[0]) : null;
 		let out = all;
 		if (scale < 1) {
 			out = document.createElement('canvas');
@@ -1002,12 +1050,12 @@
 			const ox = out.getContext('2d');
 			ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = 'high';
 			ox.drawImage(all, 0, 0, out.width, out.height);
-			all.width = all.height = 0;
 		}
+		const face = left != null && m0.screenW ? placeFace(all, out, m0.face, m0.screenW, k, left * k) : null;
+		if (out !== all) all.width = all.height = 0;
 		out._stitchWarnings = [];
 		out._profileHeader = { kept: false, ratio: 0, height: 0 };
-		const k = scale < 1 ? scale : 1;
-		out._factorList6 = { scale, places: imgs.map((i, n) => ({ fileIndex: n, srcY0: 0, srcY1: i.naturalHeight, outY0: tops[n] * k, k })) };
+		out._factorList6 = { scale, face, places: imgs.map((i, n) => ({ fileIndex: n, srcY0: 0, srcY1: i.naturalHeight, outY0: tops[n] * k, k })) };
 		return out;
 	}
 
@@ -1025,7 +1073,10 @@
 		starY: [0.25, 0.75],     // ★を見る縦の範囲（札の高さに対する比）
 		starFill: 0.15,          // 見る矩形の中で金色の画素がこの割合以上なら★
 		gapFrom: 0.19, gapPad: 0.1,  // 結合画像の札の間を白で塗る左の端（画の幅の比）と、札からあける長さ（間の長さの比）
-		cornerRows: 0.12             // 札の右の角の外を白にする行（札の上下の端から、札の高さに対する比）
+		cornerRows: 0.12,            // 札の右の角の外を白にする行（札の上下の端から、札の高さに対する比）
+		// 結合画像の顔（T223）: 輪の幅は画面の幅のこの割合にする（今の因子画面の実測: DMM版の横の切り出し 145/1170・iPhone 151/1180）
+		faceRing: 0.126, faceRingFrom: 0.55,   // 輪の幅は、顔の矩形のこの高さから下で測る
+		faceGap: 4                   // 顔と左の札の間にあける長さ（px）
 	});
 
 	/** 読み取りの画 base（toBaseCanvas の戻り値）の札 [{ a, h, kind, x0, x1 }]（base の px。x0・x1 は札の左右の端）。印が無い・測れなければ null */
@@ -1146,6 +1197,182 @@
 		return found.find((r) => r.type === 'list1') || found[0] || null;
 	}
 
+	/* ── 診断用の画の保存（T223・決定 944。隠しの入口 ?factorlist=1 で開いたページだけが使う） ─────────────────
+	 * 取り込みの終わりに diagRecord で控え（元の動画かウィンドウの取り込みの圧縮した映像・切り出しの矩形・人の画・使った時刻）を作り、
+	 * ボタンを押したときに diagZips で、①人の画（OCR に渡す画）②使った元の倍率のコマ（切り出しの矩形・拡大する前。PNG）③diag.json を
+	 * 無圧縮の zip にする。大きいときは親Aセット用・親Bセット用に分ける（1つの上限 DIAG.zipMax）。どこにも送らない（画はこの端末の中だけ）。
+	 * 画質の判定は変えない（js/common.js の assessImageQuality を呼んで値を控えるだけ） */
+	const DIAG = Object.freeze({ zipMax: 90 * 1024 * 1024 });
+
+	/** 6人分の取り込みの控え。o: { capture（ウィンドウの取り込みか）, input（onVideoChosen の入力）, src（読んだ出どころ）, labels（人の名前6つ）, log（開発ログの行） }。
+	 * 画像の中身は持たず、元の映像と File を指すだけ */
+	function diagRecord(list, o) {
+		const cap = (o.capture && o.src && o.src.captureDiag) || null;
+		const blob = cap ? cap.blob : (typeof Blob !== 'undefined' && o.input instanceof Blob ? o.input : null);
+		const rect = cap ? cap.rect : ((list.landscape && list.landscape.rect) || (o.src && o.src.landscape && o.src.landscape.rect) || null);
+		return {
+			flow: o.capture ? 'window' : 'video', blob, offset: cap ? cap.offset : 0,
+			rect: rect ? { x: rect.x, y: rect.y, w: rect.w, h: rect.h } : null,
+			capture: cap ? cap.info : null, geometry: list.geometry || null, labels: o.labels.slice(), log: (o.log || []).slice(),
+			sets: list.sets.map((g) => ({ set: g.set, from: g.from, to: g.to, gaps: g.gaps, jumped: g.jumped, skipped: g.skipped, tailSkipped: g.tailSkipped,
+				persons: g.persons.map((p) => ({ files: p.files.slice(), cards: p.cards, uncertain: p.uncertain, partial: p.partial, diag: p.diag || null })) }))
+		};
+	}
+
+	/** 診断の文（開発ログの「■ 実行環境」）に足す1行。info は UmaPcCapture の取り込みの info()。画面の大きさと並べる（共有の解像度が画面より小さいかを見る） */
+	function captureLine(info) {
+		const s = (info && info.settings) || {}, dpr = global.devicePixelRatio || 1, sc = global.screen || {};
+		return '取り込んだ映像: ' + info.width + '×' + info.height + '（共有の設定 ' + (s.width || '?') + '×' + (s.height || '?') + '・' + (s.frameRate ? Math.round(s.frameRate) + 'fps' : 'fps 不明')
+			+ (s.displaySurface ? '・' + s.displaySurface : '') + (s.resizeMode ? '・resizeMode ' + s.resizeMode : '') + '・受けたフレーム ' + info.frames.received + '）／画面: 約 '
+			+ Math.round((sc.width || 0) * dpr) + '×' + Math.round((sc.height || 0) * dpr) + '（' + sc.width + '×' + sc.height + '・devicePixelRatio ' + Math.round(dpr * 100) / 100 + '）';
+	}
+
+	const round2 = (v) => (v == null ? v : Math.round(v * 100) / 100);
+	const toPng = (canvas) => new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('PNG にできない'))), 'image/png'));
+	// 画（canvas）の鮮明度（今の画質の判定と同じ計算）
+	function sharpnessOf(canvas) { return sharpnessScore(toGray(getPixels(canvas)), canvas.width, canvas.height); }
+
+	// 人の画1枚の画質の判定の値（OCR の前の判定と同じ手順: toBaseCanvas → assessImageQuality）。札ごとの鮮明度も添える
+	async function diagPersonImage(file) {
+		const img = await loadImage(file), base = toBaseCanvas(img), q = assessImageQuality(base);
+		const k = base.height / img.naturalHeight, gray = toGray(getPixels(base)), W = base.width;
+		const cards = ((file.factorList6 && file.factorList6.cards) || []).map((c) => {
+			const a = Math.max(0, Math.round(c.y * k)), h = Math.min(base.height - a, Math.round(c.h * k));
+			return { kind: c.kind, y: a, h, sharpness: h > 2 ? round2(sharpnessScore(gray.subarray(a * W, (a + h) * W), W, h)) : null };
+		});
+		const out = { width: img.naturalWidth, height: img.naturalHeight, baseWidth: base.width, baseHeight: base.height, sharpness: round2(q.sharpness),
+			ok: q.ok, rejectKinds: q.rejectKinds, warnKinds: q.warnKinds, reasons: q.reasons, warnings: q.warnings, personScale: file.factorList6 ? file.factorList6.scale : null, cards };
+		base.width = base.height = 0;
+		return out;
+	}
+
+	/** diagRecord の控えから zip を作る。戻り値 [{ name, blob }]。o: { signal, onProgress(0〜1) } */
+	async function diagZips(rec, o) {
+		const signal = (o && o.signal) || null, progress = (r) => { if (o && o.onProgress) o.onProgress(r); };
+		const json = {
+			about: '因子一覧の取り込みの診断用の控え（T223）', factorList: FACTOR_LIST_JS_VERSION,
+			commonJs: typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : null,
+			thresholds: { minWidth: MIN_BASE_WIDTH_PX, warnWidth: RECOMMENDED_BASE_WIDTH_PX, minSharpness: MIN_SHARPNESS_SCORE },
+			flow: rec.flow, capture: rec.capture, cropRect: rec.rect, offsetSec: rec.offset, importFrame: rec.geometry,
+			upscale: rec.rect && rec.geometry ? round2(rec.geometry.w / rec.rect.w) : 1,
+			screen: { width: global.screen && global.screen.width, height: global.screen && global.screen.height, devicePixelRatio: global.devicePixelRatio },
+			sets: [], frames: [], log: rec.log
+		};
+		const entries = [];   // { set, name, blob }
+		const wanted = [];   // 元の倍率のコマ { set, t, persons: [名前] }
+		let done = 0;
+		const total = rec.sets.reduce((s, g) => s + g.persons.reduce((a, p) => a + p.files.length, 0), 0);
+		for (const g of rec.sets) {
+			const letter = g.set ? 'B' : 'A';
+			const set = { set: letter, from: g.from, to: g.to, gaps: g.gaps, jumped: g.jumped, skipped: g.skipped, tailSkipped: g.tailSkipped, persons: [] };
+			const times = new Map();
+			for (let r = 0; r < g.persons.length; r++) {
+				const p = g.persons[r], label = rec.labels[g.set * 3 + r];
+				const person = { label, cards: p.cards, uncertain: p.uncertain, partial: p.partial, headBlue: p.diag ? p.diag.headBlue : null, images: [], rows: p.diag ? p.diag.rows : null, faceAt: p.diag ? p.diag.faceAt : null };
+				for (const file of p.files) {
+					abortCheck(signal);
+					const name = 'persons/' + file.name;
+					person.images.push(Object.assign({ file: name }, await diagPersonImage(file)));
+					entries.push({ set: g.set, name, blob: file });
+					progress(0.2 * ++done / Math.max(1, total));
+				}
+				const used = p.diag ? p.diag.rows.map((row) => row.at).concat(p.diag.faceAt == null ? [] : [p.diag.faceAt]) : [];
+				used.forEach((t) => { if (!times.has(t)) times.set(t, new Set()); times.get(t).add(label); });
+				set.persons.push(person);
+			}
+			json.sets.push(set);
+			Array.from(times.keys()).sort((a, b) => a - b).forEach((t) => wanted.push({ set: g.set, t, persons: Array.from(times.get(t)) }));
+		}
+		if (rec.blob && wanted.length) {
+			const source = await V().openSource(rec.blob, { signal });
+			const full = document.createElement('canvas'), crop = document.createElement('canvas');
+			try {
+				full.width = source.width; full.height = source.height;
+				const fx = full.getContext('2d', { willReadFrequently: true }), cx = crop.getContext('2d', { willReadFrequently: true });
+				const R = rec.rect || { x: 0, y: 0, w: source.width, h: source.height };
+				json.source = { width: source.width, height: source.height, duration: source.duration, kind: source.kind };
+				for (let i = 0; i < wanted.length; i++) {
+					abortCheck(signal);
+					const w = wanted[i], at = +Math.max(0, Math.min(source.duration - 0.001, rec.offset + w.t)).toFixed(3);
+					await V().untilAbort(source.drawAt(at, fx, source.width, source.height, signal), signal);
+					crop.width = Math.max(1, Math.min(R.w, source.width - R.x)); crop.height = Math.max(1, Math.min(R.h, source.height - R.y));
+					cx.drawImage(full, R.x, R.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+					const letter = w.set ? 'B' : 'A';
+					const name = 'frames/' + letter + '/t' + String(Math.round(w.t * 1000)).padStart(7, '0') + '.png';
+					json.frames.push({ file: name, set: letter, t: w.t, sourceTime: at, persons: w.persons, width: crop.width, height: crop.height, sharpness: round2(sharpnessOf(crop)) });
+					entries.push({ set: w.set, name, blob: await toPng(crop) });
+					progress(0.2 + 0.75 * (i + 1) / wanted.length);
+				}
+			} finally { full.width = full.height = 0; crop.width = crop.height = 0; source.close(); }
+		}
+		const head = { name: 'diag.json', blob: new Blob([JSON.stringify(json, null, 1)], { type: 'application/json' }) };
+		const d = new Date(), two = (n) => String(n).padStart(2, '0');
+		const stamp = d.getFullYear() + two(d.getMonth() + 1) + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes()) + two(d.getSeconds());
+		const groups = diagGroups(entries, head.blob.size, (o && o.zipMax) || DIAG.zipMax);
+		const zips = [];
+		for (const grp of groups) {
+			abortCheck(signal);
+			zips.push({ name: 'factorlist-diag-' + stamp + grp.suffix + '.zip', blob: await zipStore([head].concat(grp.entries), d) });
+		}
+		progress(1);
+		return zips;
+	}
+	// zip の分け方: 全部で上限以下なら1つ。超えるときはセットごと、1つのセットが超えるときはさらに順に分ける
+	function diagGroups(entries, headSize, max) {
+		const size = (list) => list.reduce((s, e) => s + e.blob.size + 200, headSize);
+		if (size(entries) <= max) return [{ suffix: '', entries }];
+		const out = [];
+		[0, 1].forEach((set) => {
+			const own = entries.filter((e) => e.set === set);
+			if (!own.length) return;
+			const parts = [[]];
+			let used = headSize;
+			own.forEach((e) => {
+				if (used + e.blob.size + 200 > max && parts[parts.length - 1].length) { parts.push([]); used = headSize; }
+				parts[parts.length - 1].push(e); used += e.blob.size + 200;
+			});
+			parts.forEach((list, i) => out.push({ suffix: (set ? '-B' : '-A') + (parts.length > 1 ? '-' + (i + 1) : ''), entries: list }));
+		});
+		return out;
+	}
+
+	/* 無圧縮（store）の zip。entries: [{ name（ASCII）, blob }]。4GB・65,535 件は超えない前提 */
+	let crcTable = null;
+	function crc32(bytes) {
+		if (!crcTable) {
+			crcTable = new Uint32Array(256);
+			for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcTable[n] = c >>> 0; }
+		}
+		let c = 0xFFFFFFFF;
+		for (let i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+		return (c ^ 0xFFFFFFFF) >>> 0;
+	}
+	async function zipStore(entries, date) {
+		const d = date || new Date();
+		const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+		const day = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+		const record = (len, fields, name) => {
+			const out = new Uint8Array(len + name.length), v = new DataView(out.buffer);
+			let o = 0;
+			fields.forEach(([bytes, value]) => { if (bytes === 4) v.setUint32(o, value, true); else v.setUint16(o, value, true); o += bytes; });
+			out.set(name, len);
+			return out;
+		};
+		const parts = [], central = [];
+		let offset = 0;
+		for (const e of entries) {
+			const name = new TextEncoder().encode(e.name);
+			const crc = crc32(new Uint8Array(await e.blob.arrayBuffer())), n = e.blob.size;
+			const local = record(30, [[4, 0x04034b50], [2, 20], [2, 0x0800], [2, 0], [2, time], [2, day], [4, crc], [4, n], [4, n], [2, name.length], [2, 0]], name);
+			parts.push(local, e.blob);
+			central.push(record(46, [[4, 0x02014b50], [2, 20], [2, 20], [2, 0x0800], [2, 0], [2, time], [2, day], [4, crc], [4, n], [4, n], [2, name.length], [2, 0], [2, 0], [2, 0], [2, 0], [4, 0], [4, offset]], name));
+			offset += local.length + n;
+		}
+		const size = central.reduce((s, c) => s + c.length, 0);
+		const end = record(22, [[4, 0x06054b50], [2, 0], [2, 0], [2, entries.length], [2, entries.length], [4, size], [4, offset], [2, 0]], new Uint8Array(0));
+		return new Blob(parts.concat(central, [end]), { type: 'application/zip' });
+	}
+
 	global.UmaFactorList = Object.freeze({
 		VERSION: FACTOR_LIST_JS_VERSION,
 		ENABLED: FACTOR_LIST_ENABLED || FACTOR_LIST_TRIAL,
@@ -1172,6 +1399,11 @@
 		cards6,
 		detectRows6,
 		rowStars6,
-		topCards6
+		topCards6,
+		DIAG,
+		captureLine,
+		diagRecord,
+		diagZips,
+		zipStore
 	});
 })(typeof window !== 'undefined' ? window : globalThis);
